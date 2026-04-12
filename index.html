@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Триада Менделеева</title>
 <style>
-
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   --bg:#0a0a0e;
@@ -290,17 +289,54 @@ ol.inst b{color:var(--text);}
 .shot-promakh{height:26px;padding:0 7px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--bg3);font-size:10px;font-weight:600;color:var(--text2);cursor:pointer;}
 .shot-promakh:hover{border-color:var(--border3);background:var(--bg4);}
 .shot-promakh.shot-sel{background:#0d2a15;border-color:var(--green3);color:var(--green3);}
+
+/* ── AUTH MODAL ─────────────────────────────── */
+.auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;display:flex;align-items:center;justify-content:center;}
+.auth-overlay.hidden{display:none;}
+.auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.75rem;width:100%;max-width:320px;}
+.auth-box h3{color:var(--red2);margin-bottom:1.25rem;font-size:18px;text-align:center;}
+.auth-field{margin-bottom:.75rem;}
+.auth-field label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600;}
+.auth-field input{width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text);font-size:14px;box-sizing:border-box;}
+.auth-field input:focus{outline:none;border-color:var(--red2);}
+.auth-submit{width:100%;padding:10px;background:var(--red2);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:.5rem;}
+.auth-submit:hover{opacity:.9;}
+.auth-cancel{width:100%;padding:8px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:6px;font-size:13px;cursor:pointer;margin-top:.5rem;}
+.auth-cancel:hover{border-color:var(--border3);}
+.auth-err{color:var(--red3);font-size:12px;margin-top:.5rem;min-height:16px;text-align:center;}
+/* Admin badge */
+.admin-badge{font-size:10px;padding:2px 8px;border-radius:4px;background:#2a0808;color:var(--red3);font-weight:700;border:1px solid var(--red2);}
+
 </style>
 </head>
 <body>
 <div class="layout">
 
 <!-- HEADER -->
+<!-- AUTH MODAL -->
+<div class="auth-overlay hidden" id="auth-overlay">
+  <div class="auth-box">
+    <h3>Вход для администратора</h3>
+    <div class="auth-field">
+      <label>Логин</label>
+      <input type="text" id="auth-login-inp" placeholder="логин" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <label>Пароль</label>
+      <input type="password" id="auth-pass-inp" placeholder="пароль" autocomplete="current-password">
+    </div>
+    <button class="auth-submit" onclick="doLogin()">Войти</button>
+    <button class="auth-cancel" onclick="closeAuthModal()">Отмена</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
+
 <div class="header-bar">
   <img id="logo-img" class="logo" alt="logo">
   <h1>Триада Менделеева</h1>
   <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
     <div class="conn-badge" id="conn-badge">Не подключено</div>
+      <div id="auth-btn-wrap" style="margin-left:8px;"></div>
   </div>
 </div>
 
@@ -419,6 +455,17 @@ ol.inst b{color:var(--text);}
 <!-- SETTINGS -->
 <div class="screen" id="tab-settings">
   <h2>Настройки</h2>
+  <div class="card">
+    <h3>Авторизация администратора</h3>
+    <div class="hint" style="margin-bottom:.5rem;">URL PHP скрипта авторизации на Beget</div>
+    <div class="mt1">
+      <label>URL auth.php</label>
+      <input type="text" id="auth-url-inp" placeholder="https://triada-mendeleeva.ru/auth.php">
+    </div>
+    <div class="row mt1" style="gap:7px;">
+      <button class="btn btn-out btn-sm" id="btn-save-auth-url">Сохранить</button>
+    </div>
+  </div>
   <div class="card">
     <h3>Подключение к Google Sheets</h3>
     <div class="mt1">
@@ -600,6 +647,11 @@ g('tmstop').addEventListener('click',function(){stopTm();});
 
 // ── NAV ───────────────────────────────────────────────────────
 function showTab(name){
+  // Гости не могут попасть на создание нового дня
+  if(name === 'new' && !S_admin.loggedIn){
+    openAuthModal();
+    return;
+  }
   ['days','new','rating','settings'].forEach(function(t){
     var e=g('tab-'+t);if(e)e.className='screen'+(t===name?' active':'');
     var b=g('nav-'+t);if(b)b.className='nav-btn'+(t===name?' active':'');
@@ -636,6 +688,19 @@ function updateConn(ok){
   e.className='conn-badge'+(ok?' on':'');
   var bs=g('btn-savesheet');if(bs)bs.disabled=!ok;
 }
+// Сохраняем auth URL
+document.addEventListener('DOMContentLoaded', function(){
+  var authInp = g('auth-url-inp');
+  if(authInp) authInp.value = localStorage.getItem('maf_auth_url') || '';
+});
+g('btn-save-auth-url').addEventListener('click',function(){
+  var v = (g('auth-url-inp').value || '').trim();
+  localStorage.setItem('maf_auth_url', v);
+  var btn = g('btn-save-auth-url');
+  btn.textContent = 'Сохранено!';
+  setTimeout(function(){ btn.textContent = 'Сохранить'; }, 1500);
+});
+
 g('btn-saveurl').addEventListener('click',function(){
   var url=g('script-url').value.trim();if(!url)return;
   S.scriptUrl=url;save();setMsg('conn-msg','Сохранено','ok');updateConn(true);
@@ -2368,6 +2433,144 @@ if(S.scriptUrl){g('script-url').value=S.scriptUrl;updateConn(true);}
 renderDays();
 renderPlayers();
 if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
+
+
+// ── AUTH ─────────────────────────────────────────────────────
+var AUTH_URL = ''; // Заполнится из настроек
+var S_admin = { loggedIn: false, token: '', username: '' };
+
+function initAuth(){
+  var saved = localStorage.getItem('maf_admin_token');
+  var savedName = localStorage.getItem('maf_admin_name');
+  if(saved){
+    S_admin.token = saved;
+    S_admin.username = savedName || 'Админ';
+    S_admin.loggedIn = true;
+    // Проверяем токен на сервере
+    verifyToken(saved, function(ok){
+      if(ok){ applyAdminMode(); }
+      else { clearAdmin(); }
+    });
+  } else {
+    applyGuestMode();
+  }
+}
+
+function verifyToken(token, cb){
+  var url = getAuthUrl();
+  if(!url){ cb(false); return; }
+  fetch(url + '?action=me', {headers:{'X-Token': token}})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ cb(d.status === 'ok' && d.role === 'admin'); })
+    .catch(function(){ cb(false); });
+}
+
+function getAuthUrl(){
+  return localStorage.getItem('maf_auth_url') || '';
+}
+
+function openAuthModal(){
+  var el = g('auth-overlay');
+  if(el){ el.classList.remove('hidden'); }
+  setTimeout(function(){ var i=g('auth-login-inp');if(i)i.focus(); }, 100);
+}
+function closeAuthModal(){
+  var el = g('auth-overlay');
+  if(el){ el.classList.add('hidden'); }
+  var err = g('auth-err'); if(err) err.textContent = '';
+}
+
+function doLogin(){
+  var login = (g('auth-login-inp').value || '').trim();
+  var pass  = g('auth-pass-inp').value || '';
+  var err   = g('auth-err');
+  if(!login || !pass){ err.textContent = 'Заполните все поля'; return; }
+  var url = getAuthUrl();
+  if(!url){ err.textContent = 'URL авторизации не задан в настройках'; return; }
+  err.textContent = 'Вхожу…';
+  fetch(url + '?action=login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: login, password: pass})
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.status === 'ok' && d.role === 'admin'){
+        S_admin.loggedIn = true;
+        S_admin.token = d.token;
+        S_admin.username = d.nickname || d.username;
+        localStorage.setItem('maf_admin_token', d.token);
+        localStorage.setItem('maf_admin_name', S_admin.username);
+        closeAuthModal();
+        applyAdminMode();
+        g('auth-pass-inp').value = '';
+      } else if(d.status === 'ok') {
+        err.textContent = 'Нет прав администратора';
+      } else {
+        err.textContent = d.message || 'Ошибка входа';
+      }
+    }).catch(function(){ err.textContent = 'Ошибка соединения с сервером'; });
+}
+
+// Enter в полях входа
+document.addEventListener('DOMContentLoaded', function(){
+  ['auth-login-inp','auth-pass-inp'].forEach(function(id){
+    var el = g(id); if(!el) return;
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter') doLogin(); });
+  });
+});
+
+function doLogout(){
+  var url = getAuthUrl();
+  if(url && S_admin.token){
+    fetch(url + '?action=logout', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({token: S_admin.token})
+    }).catch(function(){});
+  }
+  clearAdmin();
+}
+
+function clearAdmin(){
+  S_admin = { loggedIn: false, token: '', username: '' };
+  localStorage.removeItem('maf_admin_token');
+  localStorage.removeItem('maf_admin_name');
+  applyGuestMode();
+}
+
+function applyAdminMode(){
+  // Показываем "+ Новый день"
+  var navNew = g('nav-new'); if(navNew) navNew.style.display = '';
+  // Кнопка в header
+  renderAuthBtn();
+}
+
+function applyGuestMode(){
+  // Скрываем "+ Новый день"
+  var navNew = g('nav-new'); if(navNew) navNew.style.display = 'none';
+  // Если были на вкладке "новый день" — переходим на дни
+  showTab('days');
+  renderAuthBtn();
+}
+
+function renderAuthBtn(){
+  var wrap = g('auth-btn-wrap'); if(!wrap) return;
+  if(S_admin.loggedIn){
+    wrap.innerHTML = '<div style="display:flex;align-items:center;gap:6px;">' +
+      '<span class="admin-badge">' + esc(S_admin.username) + '</span>' +
+      '<button class="btn-ghost btn-sm" style="font-size:11px;" onclick="doLogout()">Выйти</button>' +
+      '</div>';
+  } else {
+    wrap.innerHTML = '<button class="btn btn-out btn-sm" style="font-size:11px;" onclick="openAuthModal()">Вход для админа</button>';
+  }
+}
+
+// Перехватываем showTab — гости не могут попасть на "new"
+var _origShowTab = null;
+// Патчим после инициализации
+
+// ── AUTH INIT
+initAuth();
 
 // ── LOAD SHEETS LIST ──────────────────────────────────────────
 function loadOneSheet(name,chip){
