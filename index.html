@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Триада Менделеева</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0a0e;
+  --bg2:#111118;
+  --bg3:#1a1a24;
+  --bg4:#22223a;
+  --bg5:#2a2a42;
+  --red:#c0392b;
+  --red2:#e74c3c;
+  --red3:#ff6b6b;
+  --gold:#d4a017;
+  --gold2:#f1c40f;
+  --border:#2a2a3e;
+  --border2:#3a3a56;
+  --border3:#c0392b44;
+  --text:#f0f0f8;
+  --text2:#8888aa;
+  --text3:#555577;
+  --green:#1e8449;
+  --green2:#27ae60;
+  --green3:#2ecc71;
+  --blue:#1a5276;
+  --blue2:#2980b9;
+  --r:10px;--rs:6px;--rm:8px;
+}
+html,body{height:100%;background:var(--bg);}
+body{font-family:'Segoe UI',sans-serif;color:var(--text);font-size:15px;display:flex;flex-direction:column;}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+.header-bar{flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border3);padding:.5rem 1.25rem;display:flex;align-items:center;gap:12px;}
+.logo{width:36px;height:36px;border-radius:8px;object-fit:contain;background:#000;flex-shrink:0;}
+.header-bar h1{font-size:17px;font-weight:700;letter-spacing:.5px;background:linear-gradient(135deg,#e74c3c,#d4a017);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.conn-badge{font-size:11px;padding:3px 9px;border-radius:100px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.conn-badge.on{background:#0d2a15;color:var(--green3);border-color:#27ae6044;}
+
+/* TIMER BAR — всегда поверх */
+.timer-bar{flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:.5rem 1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.tm-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;}
+.tm-display-wrap{margin-left:auto;display:flex;align-items:center;gap:0;background:var(--bg3);border:1px solid var(--border3);border-radius:var(--r);padding:.3rem 1.2rem;box-shadow:0 0 24px #c0392b22;}
+.tm-display{font-size:52px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text);letter-spacing:2px;transition:color .3s;line-height:1;}
+.tm-display.urgent{color:var(--red2);animation:pulse .5s infinite alternate;text-shadow:0 0 20px #e74c3c88;}
+@keyframes pulse{from{opacity:1;}to{opacity:.25;}}
+.tmbtn{font-family:inherit;font-size:17px;font-weight:700;padding:8px 18px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--bg4);color:var(--text);cursor:pointer;transition:background .12s;min-width:54px;}
+.tmbtn:hover{background:var(--bg5);}
+.tmbtn-stop{background:#2a0808;border-color:var(--red2);color:var(--red2);}
+.tmbtn-stop:hover{background:#3a1010;}
+.tm-sep{width:1px;height:28px;background:var(--border);margin:0 3px;}
+
+/* NAV */
+.nav-bar{flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;gap:0;overflow-x:auto;}
+.nav-btn{font-family:inherit;font-size:13px;font-weight:500;padding:10px 18px;border:none;background:transparent;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;}
+.nav-btn:hover{color:var(--text);background:var(--bg3);}
+.nav-btn.active{color:var(--red3);border-bottom:2px solid var(--red2);}
+
+/* MAIN CONTENT */
+.main-content{flex:1;overflow-y:auto;padding:1rem 1.25rem;}
+
+/* SCREENS */
+.screen{display:none;}.screen.active{display:block;}
+
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.875rem 1rem;margin-bottom:.75rem;}
+.card-red{border-color:var(--border3);background:linear-gradient(180deg,#1a0808,var(--bg2));}
+h2{font-size:17px;font-weight:700;margin-bottom:.875rem;color:var(--text);}
+h3{font-size:14px;font-weight:600;margin-bottom:.4rem;color:var(--text);}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+input,select{width:100%;font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--bg3);color:var(--text);}
+input:focus,select:focus{outline:none;border-color:var(--red);}
+select option{background:var(--bg3);}
+
+/* BUTTONS */
+button{font-family:inherit;cursor:pointer;font-size:14px;}
+.btn{border-radius:var(--rs);padding:8px 18px;font-weight:600;border:none;transition:all .15s;letter-spacing:.3px;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:var(--red2);}
+.btn-out{background:transparent;border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:var(--rs);}
+.btn-out:hover{background:var(--bg3);border-color:var(--border3);}
+.btn-green{background:#0d2a15;color:var(--green3);border:1px solid #27ae6044;padding:8px 18px;border-radius:var(--rs);font-weight:600;}
+.btn-green:hover{background:#142e1a;}
+.btn-green:disabled,.btn-red:disabled{opacity:.35;cursor:default;}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.btn-ghost{background:transparent;border:none;color:var(--text2);padding:4px 8px;border-radius:var(--rs);font-size:13px;}
+.btn-ghost:hover{color:var(--text);background:var(--bg3);}
+.btn-del{background:transparent;border:1px solid #c0392b55;color:#e74c3c;padding:5px 10px;border-radius:var(--rs);font-size:12px;}
+.btn-del:hover{background:#2a0808;}
+
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.row-end{justify-content:flex-end;}
+.row-between{justify-content:space-between;}
+.mt1{margin-top:.5rem;}.mt2{margin-top:.875rem;}.mt3{margin-top:1.25rem;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* STEPS */
+.step-dots{margin-bottom:.875rem;display:flex;gap:6px;align-items:center;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bg5);border:1px solid var(--border2);}
+.dot.active{background:var(--red);border-color:var(--red2);}
+.dot.done{background:var(--green2);border-color:var(--green3);}
+
+.empty{text-align:center;padding:2.5rem;color:var(--text3);font-size:14px;}
+
+/* WINNER BUTTONS */
+.w-btn{border:1px solid var(--border2);border-radius:var(--rs);padding:8px 18px;font-size:14px;font-weight:600;background:var(--bg3);color:var(--text);transition:all .15s;}
+.w-btn:hover{border-color:var(--border3);}
+.w-btn.red{border:2px solid var(--red2);background:#2a0808;color:var(--red2);}
+.w-btn.black{border:2px solid #777;background:#161616;color:#ccc;}
+.w-btn.draw{border:2px solid var(--blue2);background:#0a1622;color:var(--blue2);}
+
+/* PU BUTTONS */
+.pu-btn{width:34px;height:34px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg3);font-size:13px;font-weight:600;color:var(--text);transition:all .15s;}
+.pu-btn:hover{border-color:var(--border2);background:var(--bg4);}
+.pu-btn.sel{background:var(--red);border-color:var(--red2);color:#fff;box-shadow:0 0 8px #e74c3c44;}
+.pu-btn:disabled{opacity:.25;cursor:default;}
+.pu-wide{height:34px;width:auto;padding:0 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg3);font-size:13px;font-weight:600;color:var(--text);}
+.pu-wide:hover{border-color:var(--border2);}
+.pu-wide.sel{background:var(--red);border-color:var(--red2);color:#fff;}
+
+/* LH BUTTONS — чёрные подсвечены */
+.lh-btn{width:34px;height:34px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg3);font-size:13px;font-weight:600;color:var(--text);transition:all .15s;}
+.lh-btn:hover{border-color:var(--border2);}
+.lh-btn.lh-sel{background:var(--gold);border-color:var(--gold2);color:#000;box-shadow:0 0 8px #d4a01744;}
+.lh-btn.lh-maf{background:#2a0808;border-color:var(--red2);color:var(--red3);}
+.lh-btn.lh-sel.lh-maf{background:var(--red);border-color:var(--red2);color:#fff;box-shadow:0 0 8px #e74c3c66;}
+.lh-btn:disabled{opacity:.25;cursor:default;}
+/* LH RIGHT PANEL */
+.lh-wrap{display:flex;align-items:flex-start;gap:10px;margin-top:6px;}
+.lh-btns-col{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+.lh-right{min-width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:7px 10px;}
+.lh-right-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;font-weight:600;}
+.lh-order-line{font-size:13px;color:var(--gold);font-weight:700;line-height:1.8;}
+.lh-order-empty{font-size:12px;color:var(--text3);font-style:italic;}
+
+/* PLAYER ROW */
+.pr-row{display:grid;grid-template-columns:22px minmax(90px,160px) 90px 72px 56px 110px 110px 56px 56px;gap:0;border-bottom:1px solid var(--border2);font-size:12px;}
+.pr-row:last-child{border-bottom:none;}
+.pr-cell{border-right:1px solid var(--border2);padding:4px 3px;display:flex;align-items:center;justify-content:center;}
+.pr-cell:last-child{border-right:none;}
+.pr-cell.left{justify-content:flex-start;padding-left:5px;}
+.pr-hdr{font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:var(--bg4);border-bottom:2px solid var(--border3)!important;}
+.pr-row>*{padding:0 5px;border-right:1px solid var(--border2);display:flex;align-items:center;}
+.pr-row>*:last-child{border-right:none;}
+/* Усиленные разделители между группами: после Роли(2), Тех.(4) */
+.pr-row>*:nth-child(3){border-right:2px solid var(--border3);}
+.pr-row>*:nth-child(5){border-right:2px solid var(--border3);}
+.pr-row>*:nth-child(7){border-right:2px solid var(--border3);}
+.pr-row>*{min-height:32px;}
+/* FOUL COUNTER */
+.foul-ctr{display:flex;align-items:center;justify-content:center;gap:4px;}
+.foul-ctr-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;}
+.foul-ctr-btn:hover{background:var(--bg5);}
+.foul-ctr-val{min-width:22px;text-align:center;font-size:14px;font-weight:700;color:var(--text);}
+.foul-ctr-val.has-val{color:var(--red3);}
+.techf-ctr-val.has-val{color:var(--gold);}
+.foul-ctr-val.foul-max{color:#fff;text-shadow:0 0 8px var(--red2);animation:foulpulse 1s infinite alternate;}
+@keyframes foulpulse{from{text-shadow:0 0 6px #e74c3c;}to{text-shadow:0 0 18px #e74c3c,0 0 30px #e74c3c;}}
+.foul-sep{width:1px;height:28px;background:var(--border2);margin:0 2px;}
+
+/* NOM ROUND */
+.nom-section{margin-top:.75rem;}
+.nom-rounds-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;}
+.nom-round[data-hidden]{display:none!important;}
+.nom-round{display:flex;flex-direction:column;gap:3px;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);transition:max-height .25s,opacity .2s;overflow:hidden;}
+.nom-round.nom-revote{border-color:var(--gold);background:#1a1400;}
+.nom-label{font-size:11px;color:var(--text2);font-weight:700;margin-bottom:2px;text-align:center;}
+.nom-seats{display:flex;flex-direction:column;gap:2px;}
+.nom-seats-row{display:flex;gap:2px;justify-content:center;}
+.nom-right{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
+.nom-order-disp{font-size:10px;color:var(--gold);font-weight:600;text-align:center;}
+.nom-seat{width:26px;height:26px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg3);font-size:11px;font-weight:600;color:var(--text);cursor:pointer;transition:all .12s;}
+.nom-seat:hover{border-color:var(--border2);}
+.nom-seat.nom-sel{background:var(--gold);border-color:var(--gold2);color:#000;}
+.nom-seat.nom-voted{background:var(--bg4);border-color:var(--border);color:var(--text3);text-decoration:line-through;cursor:default;}
+
+.nom-order-disp{font-size:12px;color:var(--gold);font-weight:600;line-height:1.5;}
+.nom-vote-row{display:flex;gap:4px;align-items:center;}
+.nom-vote-btn{width:26px;height:26px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg3);font-size:11px;color:var(--text2);cursor:pointer;}
+.nom-vote-btn:hover{border-color:var(--border2);}
+.nom-vote-btn.voted-out{background:#2a0808;border-color:var(--red2);color:var(--red2);}
+.nom-vote-label{font-size:11px;color:var(--text3);}
+
+/* DAY CARD */
+.day-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:.6rem;overflow:hidden;transition:border-color .15s;}
+.day-card:hover{border-color:var(--border3);}
+.day-hdr{padding:.65rem 1rem;background:var(--bg3);display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.day-hdr:hover{background:var(--bg4);}
+
+/* INNER GAME */
+.ig-card{margin-bottom:.5rem;border:1px solid var(--border);border-radius:var(--rm);overflow:hidden;}
+.ig-hdr{padding:7px 11px;background:var(--bg3);display:flex;justify-content:space-between;align-items:center;}
+.ig-body{padding:8px 11px;}
+
+/* PLAYER TABLE */
+.ptable{width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;}
+.ptable th{text-align:left;padding:3px 5px;font-weight:600;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
+.ptable td{padding:4px 5px;border-top:1px solid var(--border);}
+.score-plus{color:var(--green3);font-weight:700;}
+.score-minus{color:var(--red3);font-weight:700;}
+.row-winner{background:rgba(255,255,255,0.03);}
+
+/* TAGS */
+.tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:100px;font-weight:600;}
+.tw-red{background:#2a0808;color:var(--red3);}
+.tw-blk{background:#111;color:#bbb;}
+.tw-drw{background:#0a1622;color:var(--blue2);}
+.tr-mir{background:#0a1622;color:var(--blue2);}
+.tr-maf{background:#2a0808;color:var(--red3);}
+.tr-sher{background:#0d2014;color:var(--green3);}
+.tr-don{background:#1e1600;color:var(--gold2);}
+
+/* BADGE */
+.badge{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:700;letter-spacing:.2px;}
+.bg-sheet{background:#0d2a15;color:var(--green3);border:1px solid #27ae6033;}
+.bg-red{background:var(--red2);color:#fff;}
+.bg-blk{background:#333;color:#eee;}
+.bg-drw{background:#1a3a5c;color:#7ec8f0;}
+
+/* MSG */
+.msg{font-size:12px;}
+.msg.ok{color:var(--green3);}.msg.err{color:var(--red3);}.msg.loading{color:var(--text2);}
+.sync-box{display:inline-flex;font-size:12px;padding:4px 10px;border-radius:var(--rs);}
+.sync-box.ok{background:#0d2a15;color:var(--green3);}
+.sync-box.err{background:#2a0808;color:var(--red3);}
+.sync-box.loading{background:var(--bg3);color:var(--text2);}
+
+.hint{font-size:12px;color:var(--text3);margin-top:4px;line-height:1.5;}
+ol.inst{font-size:13px;line-height:2.2;padding-left:1.1rem;color:var(--text2);}
+ol.inst b{color:var(--text);}
+
+/* GAME STRIP */
+.game-strip{display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem;padding-bottom:.65rem;border-bottom:1px solid var(--border3);}
+.game-num{font-size:16px;font-weight:700;color:var(--red3);}
+/* ПРОТОКОЛ / МНЕНИЕ — встроены в строку */
+.players-with-proto{display:block;}
+.proto-tags{display:flex;flex-wrap:wrap;gap:2px;}
+.proto-tag{font-size:10px;padding:1px 5px;border-radius:100px;font-weight:700;cursor:pointer;line-height:1.3;}
+.proto-tag-red{background:#2a0808;color:var(--red3);border:1px solid #c0392b44;}
+.proto-tag-blk{background:#0e0e0e;color:#bbb;border:1px solid #33333366;}
+.inline-proto{display:flex;flex-direction:column;gap:2px;}
+.inline-proto-add{display:flex;gap:2px;align-items:center;margin-top:2px;}
+.inline-proto-add input{font-size:10px;padding:1px 3px;width:22px;text-align:center;background:var(--bg4);border:1px solid var(--border);border-radius:3px;color:var(--text);}
+.inline-proto-add button{font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid var(--border2);background:var(--bg4);cursor:pointer;font-weight:700;}
+.inline-proto-add button.red-btn{border-color:#c0392b55;color:var(--red3);}
+.inline-proto-add button.blk-btn{border-color:#44444466;color:#aaa;}
+/* Очки — встроены */
+.score-sel-plus{font-size:12px;font-weight:700;background:var(--bg4);color:var(--green3);border:1px solid #27ae6044;border-radius:var(--rs);padding:2px 3px;width:100%;}
+.score-sel-minus{font-size:12px;font-weight:700;background:var(--bg4);color:var(--red3);border:1px solid #c0392b44;border-radius:var(--rs);padding:2px 3px;width:100%;}
+/* Autocomplete player input */
+.player-inp{width:100%;font-family:inherit;font-size:13px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--bg3);color:var(--text);}
+.player-inp:focus{outline:none;border-color:var(--red);background:var(--bg4);}
+
+/* PLAYER POOL */
+.pool-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:.5rem;}
+.pool-chip{font-size:13px;padding:5px 12px;border-radius:100px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;user-select:none;}
+.pool-chip:hover{border-color:var(--border2);}
+.pool-chip.in-day{background:#2a0a0a;border-color:var(--red);color:var(--red3);}
+
+/* RATING TABLE — full width */
+#tab-rating .main-inner{max-width:none;}
+.rtable-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;}
+.rtable{border-collapse:collapse;white-space:nowrap;font-size:13px;width:100%;}
+.rtable th{padding:7px 10px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);text-align:center;background:var(--bg2);position:sticky;top:0;font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
+.rtable th:nth-child(2){text-align:left;}
+.rtable th:first-child,.rtable td:first-child{position:sticky;left:0;background:var(--bg2);z-index:1;text-align:center;}
+.rtable td{padding:5px 10px;border-bottom:1px solid var(--border);text-align:center;}
+.rtable .col-name{text-align:left;}
+.rtable tbody tr:hover td{background:var(--bg3);}
+.rtable .col-name{font-weight:600;min-width:110px;}
+
+/* DIVIDER */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border3),transparent);margin:1rem 0;}
+
+/* NOM DISPLAY */
+.nom-disp{font-size:12px;color:var(--text2);margin-top:5px;line-height:1.8;}
+.nom-disp b{color:var(--gold);}
+/* Отстрел */
+.shot-block{background:#130606;border:1px solid #c0392b55;border-radius:var(--rs);padding:6px 10px;font-size:11px;grid-column:1/-1;margin-top:2px;}
+.shot-label{color:var(--red3);font-weight:700;margin-bottom:4px;}
+.shot-seats{display:flex;gap:3px;flex-wrap:wrap;align-items:center;}
+.shot-btn{width:26px;height:26px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg3);font-size:11px;font-weight:600;color:var(--text);cursor:pointer;}
+.shot-btn:hover{border-color:var(--red2);background:var(--bg4);}
+.shot-btn.shot-sel{background:#2a0808;border:2px solid var(--red2);color:var(--red3);text-decoration:line-through;}
+.shot-promakh{height:26px;padding:0 7px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--bg3);font-size:10px;font-weight:600;color:var(--text2);cursor:pointer;}
+.shot-promakh:hover{border-color:var(--border3);background:var(--bg4);}
+.shot-promakh.shot-sel{background:#0d2a15;border-color:var(--green3);color:var(--green3);}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- HEADER -->
+<div class="header-bar">
+  <img id="logo-img" class="logo" alt="logo">
+  <h1>Триада Менделеева</h1>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <div class="conn-badge" id="conn-badge">Не подключено</div>
+  </div>
+</div>
+
+<!-- TIMER BAR — всегда виден -->
+<div class="timer-bar">
+  <div class="tm-left">
+    <button class="tmbtn" id="tm15">15</button>
+    <button class="tmbtn" id="tm20">20</button>
+    <button class="tmbtn" id="tm30">30</button>
+    <button class="tmbtn" id="tm45">45</button>
+    <button class="tmbtn" id="tm60">60</button>
+    <div class="tm-sep"></div>
+    <button class="tmbtn" id="tmplus">+30</button>
+    <button class="tmbtn" id="tmlh">ЛХ</button>
+    <button class="tmbtn" id="tmprot" style="border-color:#c0392b55;color:var(--red3);">Протокол</button>
+    <div class="tm-sep"></div>
+    <button class="tmbtn tmbtn-stop" id="tmstop">Стоп</button>
+  </div>
+  <div class="tm-display-wrap">
+    <div class="tm-display" id="tmdisp">–:––</div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav-bar">
+  <button class="nav-btn active" id="nav-days">Дни</button>
+  <button class="nav-btn" id="nav-new">+ Новый день</button>
+  <button class="nav-btn" id="nav-rating">Рейтинг</button>
+  <button class="nav-btn" id="nav-settings">Настройки</button>
+</div>
+
+<!-- CONTENT -->
+<div class="main-content">
+<datalist id="players-datalist"></datalist>
+
+<!-- DAYS -->
+<div class="screen active" id="tab-days">
+  <div id="days-list"></div>
+</div>
+
+<!-- NEW DAY -->
+<div class="screen" id="tab-new">
+  <h2 id="new-heading">Новый день</h2>
+  <div class="step-dots">
+    <div class="dot active" id="dot0"></div>
+    <div class="dot" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+  </div>
+
+  <!-- Step 0 -->
+  <div class="screen active" id="step0">
+    <div class="card">
+      <label>Дата игрового дня</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="tab-date" style="flex:1;">
+        <input type="text" id="tab-name" placeholder="28 марта" style="flex:1;" oninput="tabNameManual=true">
+      </div>
+      <div class="hint">Выбери дату — название заполнится автоматически. Можно отредактировать вручную.</div>
+    </div>
+    <div class="card">
+      <h3>Игроки на этот день</h3>
+      <div class="hint" style="margin-bottom:.5rem;">Нажми на игрока чтобы добавить/убрать его из игрового дня</div>
+      <div class="pool-grid" id="pool-grid"></div>
+      <div class="mt2">
+        <div class="row" style="gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-out" id="btn-pool-all">Выбрать всех</button>
+          <button class="btn btn-sm btn-out" id="btn-pool-none">Снять всех</button>
+          <div style="display:flex;gap:5px;flex:1;min-width:160px;">
+            <input type="text" id="pool-new-nick" placeholder="Новый игрок…" style="flex:1;font-size:13px;padding:5px 8px;">
+            <button class="btn btn-sm btn-red" id="btn-pool-add-nick">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row row-end">
+      <button class="btn btn-red" id="btn-s0next">Далее →</button>
+    </div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="screen" id="step1">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text2);">Быстро добавить игрока:</span>
+      <input type="text" id="quick-add-nick" placeholder="Ник…" style="flex:1;min-width:100px;font-size:12px;padding:4px 8px;">
+      <button class="btn btn-sm btn-out" id="btn-quick-add">+ Добавить</button>
+    </div>
+    <div id="games-editor"></div>
+    <div class="row row-between mt2">
+      <button class="btn btn-out" id="btn-addgame">+ Добавить игру</button>
+      <div class="row" style="gap:8px;margin-top:.75rem;">
+        <button class="btn btn-out" id="btn-s1back">← Назад</button>
+        <button class="btn btn-out" id="btn-savelocal">💾 Сохранить локально</button>
+        <button class="btn btn-green" id="btn-savesheet" disabled>↑ В таблицу</button>
+      </div>
+      <div id="send-status" style="margin-top:.5rem;min-height:20px;font-size:12px;"></div>
+    </div>
+  </div>
+
+  <!-- Step 2 removed -->
+</div>
+
+<!-- RATING -->
+<div class="screen" id="tab-rating">
+  <div class="row row-between" style="margin-bottom:.875rem;">
+    <h2 style="margin:0;">Рейтинг</h2>
+    <div class="row" style="gap:8px;">
+      <button class="btn btn-red btn-sm" id="btn-loadrating">Обновить</button>
+      <span class="msg" id="rating-msg"></span>
+    </div>
+  </div>
+  <div class="rtable-wrap">
+    <div id="rating-body"><div class="empty">Нажми «Обновить» для загрузки данных из таблицы</div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="tab-settings">
+  <h2>Настройки</h2>
+  <div class="card">
+    <h3>Подключение к Google Sheets</h3>
+    <div class="mt1">
+      <label>URL Apps Script</label>
+      <input type="text" id="script-url" placeholder="https://script.google.com/macros/s/.../exec">
+      <div class="hint">После развёртывания скрипта вставь URL и нажми «Сохранить».</div>
+    </div>
+    <div class="row mt1" style="gap:7px;">
+      <button class="btn btn-out btn-sm" id="btn-saveurl">Сохранить URL</button>
+      <button class="btn btn-out btn-sm" id="btn-testconn">Проверить</button>
+      <span class="msg" id="conn-msg"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>База игроков</h3>
+    <div class="hint" style="margin-bottom:.5rem;">Все доступные игроки — загружаются из таблицы или добавляются вручную</div>
+    <div class="row" style="gap:7px;margin-bottom:.75rem;">
+      <button class="btn btn-red btn-sm" id="btn-loadplayers">Загрузить из таблицы</button>
+      <span class="msg" id="players-msg"></span>
+    </div>
+    <div id="players-display"></div>
+    <div class="divider"></div>
+    <label>Добавить вручную</label>
+    <div class="row mt1">
+      <input type="text" id="manual-nick" placeholder="Ник" style="flex:1;">
+      <button class="btn btn-out btn-sm" id="btn-addplayer">+</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Инструкция: Apps Script</h3>
+    <ol class="inst" style="margin-top:.5rem;">
+      <li>Таблица → <b>Расширения → Apps Script</b></li>
+      <li>Вставь код из <b>mafia_apps_script.js</b> → Сохрани (Ctrl+S)</li>
+      <li><b>Развернуть → Новое развёртывание → Веб-приложение</b></li>
+      <li>Выполнять как: <b>Я</b> | Доступ: <b>Все (анонимные)</b></li>
+      <li>Скопируй URL → вставь выше → Сохранить</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Загрузить листы из таблицы</h3>
+    <div class="hint" style="margin-bottom:.5rem;">Нажми — получишь список всех игровых дней. Сортировка задаётся в Apps Script (EXCLUDED_SHEETS). Список <b>не обновляется автоматически</b> — нажми кнопку заново чтобы обновить.</div>
+    <div class="row" style="gap:7px;margin-bottom:.5rem;flex-wrap:wrap;">
+      <button class="btn btn-red btn-sm" id="btn-loadsheets">🔄 Получить список листов</button>
+      <button class="btn btn-out btn-sm" id="btn-importall" style="display:none;">↓ Импортировать все</button>
+      <span class="msg" id="sheets-msg"></span>
+    </div>
+    <div id="sheets-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.5rem;"></div>
+  </div>
+  <div class="card">
+    <h3>Загрузить игровой день из таблицы</h3>
+    <div class="hint" style="margin-bottom:.5rem;">Укажи название листа и загрузи данные для редактирования</div>
+    <div class="row mt1" style="gap:7px;">
+      <input type="text" id="load-sheet-name" placeholder="Название листа (напр. 5 апреля)" style="flex:1;font-size:13px;">
+      <button class="btn btn-red btn-sm" id="btn-loadday">Загрузить</button>
+    </div>
+    <span class="msg" id="loadday-msg" style="margin-top:5px;display:block;"></span>
+  </div>
+  <div class="card">
+    <button class="btn-del" id="btn-resetall">Удалить все сохранённые дни</button>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+</div><!-- /layout -->
+
+<script>
+(function(){
+'use strict';
+
+// ── LOGO ──────────────────────────────────────────────────────
+var LOGO_SRC = 'data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAQABAADASIAAhEBAxEB/8QAHQABAAICAwEBAAAAAAAAAAAAAAgJBgcBBAUDAv/EAGIQAQABAwMBBQMFCQsGCQgJBQABAgMEBQYRBwgSITFRE0FhCRQiMnEVQlJicoGRobEWIzQ3Q2NzgpKztCR1dqLBwhczOFODk6OywxgnKDZllNHSJSZERVRVhKTwNVZkZnT/xAAcAQEAAgMBAQEAAAAAAAAAAAAABAUCAwYHAQj/xAA6EQEAAQMCAgYIAwcFAQAAAAAAAQIDBAURIZEHEjFRcaEGMkFCYYHB0RMzsRVSgpLS4fAXJENTwvH/2gAMAwEAAhEDEQA/AIZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLdm9NN/wC8Ipr21tDWNSs1zxF+3jVRZ/6yriiP0tj4HZQ61ZNuK7ugYGHM8fRv6nZ5/wBWqoGixvTO7J/WnHiZs6BgZnEfyGp2fH+1VS1zvTpl1A2ZFVe5to6vptmmeJyLmPNVnn+kp5on9IMRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABn3Qnplq/VXf2NtzTpqsYtP79qGZ3eacaxE+NXxqnypj3zMe6JmA/PRvpRu/qpr06btrDpjHs8Tl59/mnHxony71URPNU+6mOZn04iZidXR3sxdOth2rOZqOHRufWqeJnL1C1E2qKv5uz400+sTV3qo9W09gbQ0DY21sTbe28GjDwMWniIjxquVffV11ffVz5zM/s4h74PzRRRRRTRRTFNNMcRERxER8IfoAH5rooromiumKqao4mJjmJh+gGouo3Zy6U72m7fydu0aRn3OZ+eaVMY9fPvmaYj2dU/GaZlGvqH2MN4aZ7TJ2XruDr1iOZpxsmPmuRx7oiZmaKp+MzT9ieICo7enT7e2zL0290bX1XSoiruxdv48+yqn8W5HNFX5pljC5W7at3bdVu5RTXRVHFVNUcxMekw1nvPoF0k3XVcu6lsvT7GRXz+/4ETiV8+s+zmIqn7YkFWwnFuvsSbeyKqq9sbz1LT584tZ+NRk08+neomiYj80tU7m7HXVbTZqq0q9oWt2/vYsZc2rkx8Yu00xH9qQRzGydc6D9YdGqqjM6fa3X3fOcWzGTH6bU1MO1Ha+5tNuTb1Hbur4dcedN/CuW5j800g8cfarEyqZ4nHvRPxokjGyZniMe7M/kSD4j1cDbe4dQqinA0HVMuqfKLGJcrn9UMr0Xor1Z1eqIwunu4uJ8qr+FXYp/Tc7sA1+N8aB2TOsup1RGVpOm6PTP32dqFv8AZa78/qbE212IdZu92rce+sDF4+tbwMOu/wA/ZVXNHH6JBEMWHbU7H3SjSZouatOs69cj61OVl+ytzPwptRTP6apbR0Ho/wBLtDs029O2Dtyju+Vy5gUXbn9uuKqp/SCqAW93dnbTu2vY3NsaLXb447lWn2pj9HdYjuboL0h3DbqpzthaNaqq/lMK1OJXz682pp/WCrITX6k9ivAvWrmX0/3Lexr3nGFq307dXwi7RHep/PTV9qJ/UTYO7en+tzpG7NFyNOvzzNquqO9avUx99brj6NcfZPh7+AYwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHj5LOeyd0wtdNOlmJZyseKNd1SmnM1SuY+lTXMfQs8+lFM8cfhTXPvQf7JWyqd8dctDwsizF3A0+udSzaao5pm3ZmJimY98VVzRTMelUrP48gAAAAAAAAAAAAOIccR8f0uQH5mmJ845O5T6R+h+gHHdj4/pOIcgAAAAAADxN67U2/vLb9/Qty6Vj6lp9+PpWrtPlPuqpnzpqj3VRMTD2wFZ3aZ6E6x0l1r57iTd1DauZdmnDzZj6VqqeZ9jd48q4jniryqiOY4nmI0wuB3jt3Sd27Y1DbmuYtOTp+oWKrN63PnxPlVE+6qJ4mJ90xEqrOsOxdR6cdRNV2lqMzcnEu82L/d4i/Zq8bdyPtpmOY90xMe4GIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAm18m5tj2Wh7o3hetx3snIt6dj1THjFNun2lzj4TNdv+yl81f2VdtTtXoJtXTrtHcyL+H89v8AMcT378zd4n4xFVMfmbQAAAAAAAAAAAAAAAAAAAAAAAAAAARX+UN2Fb1XYmn79w7MfPNFuxj5dUR41Y12riJmfOe7cmniP5ypKhi/Vrb9O6emW5NvVURXVn6Zfs2+Y8rk0TNE/mqimfzAqPHM+bgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkPTXbtzdvUHQNs2oqn7pahZxq5p86aKq4iur81PM/mY8kT8n/tj7tdcJ1u5RM2NCwLuRFXHh7W5HsqIn81dc/1QWGWLVuzZos2qKaLdFMU000xxERHhER+Z+wAAAAAAAAAAAAAAAAAAAAAAAAAAAcVRzHDlxP1ZgFRXU3S6dD6j7l0ainu0YOrZWPTHpFF2qmP1Qx1tXtcabGldoveOPFPEXMynJj/AKW1Rcn9dUtVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJ8fJ17Y+5vSzVtzXbfdvazqPct1cfWs2I7sTH9eu7+hAiImZ4jzWzdFdr07M6Uba21Num3dwtPt05ER5Teqjv3Z/PXVUDMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAV19v/AE75l1/uZXHH3Q0rGyOfXjvWv/DR7S0+Um032W89paxx/CdPvY3P9Fdir/xUSwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZ/2dtsRvDrZtTQq7cXLFzUKL2RTMcxNm1zduRP200TH51rEeSCnycW2fnu/dw7qu2+bemYNGLamY/lL1XMzHxim1VH9ZOwAAHDkAcOZAHDkAAAAAAAAAcOQAJABw5AAAAAcDkAABEr5SbTJu7M2lrHH8G1G9jc/0tuKv/BQcWKdv7TJz+gF3LiOfudqmNkz8InvWv/EhXWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADs6Vg5Op6ni6dh25u5OVeosWaI86q66oppj9MwCxPsH7X/c/0Fw9Qu0d3I1zLu59XMcTFHPs7cfZ3bfej8pvx5W0NFx9ubV0rQMT+D6bh2sS34edNuiKYn9T1QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAar7WmnfdTs7byx+OZt4MZMf8ARXKLn+4q8nzW59U9N+7HTTc+k93vTmaRl2Ij41Waoj9cqiwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG5exjtb90/aA0L2lr2mNpPf1O/wDD2Ufvc/8AW1W2mk2Pk3Nr029E3RvG9biar9+3p2PVMeMU0U+0ucfCZrt/2QTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+LtFNy3VRXETTVExMfCfBTvr2DXpmt5+m3PCvFybliqPjRVNM/sXFT5Kou0Fp06V1w3rhTT3Yp1vKuUxx5U13Jrp/VVAMFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHMRMzERHMz5Q2fsDoF1W3r7O7pm1MvEw6+J+eaj/ktriffHf4qqj8mJBq8TO2N2JKOLd7e28qpn7/F0mzx/wBrcj/cbx2Z2c+j+1+5Xj7PxNQyKY8b2p1TlVTPr3a+aIn7KYBWnoG39d3BlfNdC0XUdVv/APN4eNXeq/RTEtp7X7MXWbXfZ1/uV+5div8AldRybdnj7aOZr/1VlWDh4mDjUYuFi2MWxRHFNqzbiiimPhEeDscfCAQf2z2ItwX6aa9x740zBn328HEryP8AWrm3+yWytvdjPplgxRXquqbh1W5H1qasiizbn81FHej+0ksA1Vt/s79GtEmKsbYmm5FcedWbVcyufzXaqo/U2NoejaRoWBTp+iaXg6Zh01TVTj4ePTZtxM+c92mIjmXfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcT5K0u23p84HaQ3HXFHdoy6MbIp+PNiiJn+1TUsuQB+UW06cbrHpOoU08UZmiW4mfWqi7dif1TSCMoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Db2i6vuHV7GkaHpuVqWfkVd21j41qa66p+yPdHvnyhL3op2N6Yizq3VLN5nmKo0bBu+H2Xb0frpt/wBsETtm7R3NvHVqdK2vomdq2XPHNGNamqKInw5qq8qI+NUxCTvTHsXavmRZzOoW4LemWp4mrA03i7e49KrtX0KZ+yK4+KZW19uaDtfSbek7e0jC0vCtR9Gzi2Yop59Z4859ZnmZeqDX3Tjoz042BRbr27tjDt5lHH+XZEe3yZn19pXzNP2U8R8GwOByAAAAAAAHvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGje1H0GudYY0rNwdwW9Jz9LtXrdFN7Hm5bvxXNM8TMTE08TT5xE+fk3kArG6gdm7q5s72t6/tqvV8K3/8AatJq+c08evciPaRHxmmIaju27lq7Vau0VW66Z4qpqjiYn0mFyssQ370y2Hvu1VRura2m6jcmO7GRVa7l+mPhdp4rj9IKlhNjqT2KtPvxdy9gbmu4dzxmnC1WPaW5n0i7RHepj7aavtRj6kdIOovT2uurc+2cyxiUzxGbZj22NV6fvlHMRz6VcT8AYGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2T0H6O7n6t7hqwtIpjD0zGmPn+p3qJm1jxPuiPv6591ET9sxHi+PQHpbq3VjflnQMKqrGwLMRe1LN7vMY9nnjw9a6p8KY98+PlEzFnOxdqaFsrbGHtzbmDbw9PxKO7RRT51T766p86qpnxmZ8wY/0d6T7O6W6LGBtvT4jKuUxGVqF/irJyZ/Gq90elMcUx6c8yzwACABw5AAAAAAAGBbh3X9xesGg6LmZM28HV9Pu27UTPFPzim5TNH55jmmPjVDPYaA7ZGDkUaVtzcGNXVbrw8u5Z79E8VU1VxFdMxPu4m1LMehHU7F3zodOFnXrdvcGJbiMm15e2pjw9rRHviffEeU/CYQLeVEZNVivxjk6zN0Kq5otjVMeN4jemvb2TFU7T4TG0T3cO9s4BPcmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPzct0XbdVu5TTVRVExVTMcxMekx736AaP6p9mDpjvaL2Viad+5rVK+ZjK0umKLdVX49n6k+PjPEUzPqiR1Z7MHUrYsXc3Cw43NpFHM/OtNomq5RT63LP1o9ZmnvRHqsnOAU0TExMxMTEx5w4Wf9Y+z9096lxezM/TfuXrVcTxqmBEW7tVXrcp47tz3fWjnjymEJetPZy6gdNYv6hOLGu6Db5n7o4NEz7OmPfdt/Wt+HnPjTH4QNNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAzPoboljcXWLaWjZVFNzGydWx6b9FXlXbiuKqqfz0xMAsJ7J3Ti1056Q6djZGPFvWdTppztTqqj6cXK45ptz+RTxTx5c96fe244p8nIAAAAOHLj3uQAAAAAAYb1n21Vuvpxq+k2aO9ley9tixEeM3bc96mI+3iaf6yDukajn6PqdjUtMyruJmY9cV2rtueKqKo/8A54x7/esUnxhDvtL7AubV3fc1vBszGj6tcquUTTH0bN6fGu3Ppz41R8JmPvVBrWNVMRfo9nb9HrXRjrNqmu5pd/sr4079kzttVHzj9Jbi6O9bdI3VRY0jcNdnTNbmIppqqnu2MqfxZn6tU/gz+bnyjcPPKuJtPpt1w3ZtOLWFnV/dvS6OIizk3J9pbj8S54zH2Vcx6cNeFrW0RRf5/dM9JejOaqpyNKn+Cf8AzP0nn7EyxgWwOrOzd5Rbs4OoxiZ9Xh8yy+Ld2Z9KfHiv+rM/YzzmHQW7tFynrUTvDyPMwsjCuzayKJoqj2TGzkBmigAAAAAAAAAAAAAAAAAAAAAAAAADENzbrjB6gbZ2pi10TkalXevZMT4zRYt2a5j7JqriOJ9Kanc6h7w0nZO272tatd4pp+hZs0z9O/cnyop+P7I5loHs/apqu++u2obs1We9XYwrldMR9SzFUxRRbp9Iimavt4mZ8ZlCycqKLlFqn1pmOXtdPouhV5GHkaheja1bpq2+NcxtTEeEzEz8o9qUICa5gAAAAcVUxVTMTETE+cOQEduuvZV2fveMjV9qex2xr1UTVxao4w8ir8e3H1Jn8Kj4zNNUoMdSdg7r6ebgr0Xdek3sHI8ZtXOO9ayKY+/t1x4VR9njHlMRPgtweDvvZ+3N8bevaDujSrGpYF3x7lyPpW6uJiK6Ko8aKo5niqJifEFQo3z2kOzfuHpjXe13RZva1tTvc/OYp5vYfM+EXqY93u9pHh6xTMxE6GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbH7MeRaxu0Bsm7eriimdWtUcz61TNMR+eZiGuHd0LUsrRtbwdXwq+5lYOTbybFX4NdFUVUz+mIBcVT5Q5eLsfcWDuzaOlbl02rnE1LFt5NuOeZpiqOZpn4xPMT8Yl7IORwA5HADkcAOQAAAAAHj7x27pm6tu5eh6ta9pi5NHdmY+tRV5010z7qonxh7A+VUxVG09jZau12a4uW52qid4mPZMIEdStk6vsXcdzSdUo71ueasXJpp4oyLfPhVHpPrHun80zjCwLem1tF3fol3SNcw6cjHr8aavKu1V7q6KvOmqPX808xMwiV1U6Nbl2Xdu5mLbr1bRYmZjKs0c12o/naI8afyo5p+Mc8OTz9KrsTNduN6f0foL0S9PMfVKKcfMmKL3Z3RV4d0/Dl3RrJnuzer2/NrxRZxdYqzcSjyxc6PbUcekTP0qY+EVQwIVdu9Xaneidpdzm6fi59v8ADybcV0/GN/8A4lFtTtKaJkxRZ3LouVp9zwib2LVF619sxPFUfZHebU211B2XuPuxpG49Pv3KvKzVc9ndn+pXxV+pAkWtnW79HCuIq8v85OB1Hov0vI3qxqqrU/zRynj5rHeYnxcoCbd33vHb/djSNyaljW6fq2vbTXbj+pVzT+psPQu0ZvfC7lGp42marbj61VdqbVyfz0T3f9VZWtcsVevEx5uKzui3VbO849dNyPHqzynh5pcDQei9pnQL0RTrG3dRw6p86se5Rfpj9PclnGjdaem+pzTTRuS1i3J+9y7Vdnj7aqo7v60+3nY9z1a4/T9XJ5foprOH+bjVfKOtHOneGxB5ek7g0PVqe9pes6dnRPvx8mi5+yXp8/b+hKiYnjCirt1256tcbT8XIcuH1g5AAAAAAAAAAAABxzHunkHI8DcW8drbeir7tbg07CriOfZ3L9Pfn7KI+lP5oav3Z2j9q4EV2tAwMzWb0eVdUfN7P6aomqf7KPeyrNn16ohb6foGpajMRi2aqo79to5ztHm3fMtZdTus+1dn2buNjZFvWNWiJinExrkTTRV/OVx4U/Z41fD3o37+6v713f38e/qH3OwKuY+aYMzbpqj0qq571X2TPHwa+UuVrnu2Y+c/Z6foXRbtMXdTr/gp+tX25sg33vHXt66zOp67mTerjmLNqj6NqzTP3tFPuj4+c++ZST7I226tL2Jk67ft929q+RzbmfObNvmmn9NU1z+hHPpls7P3xu3F0XDiqi1M9/KvxHMWLUT9Kqfj7oj3zMJ26VgYul6Zjabg2os4uLaps2bceVNFMcRH6IY6PYru3ZyK/wDJbekjU8fCwrej4sRG+0zEdkUx2R854/L4u0A6R4oAAAAAAAA+eTYs5OPcx8i1bvWbtE0XLddMVU10zHExMT4TEx7kF+1t2ap2xRlb66fYddeiR3ruo6bR4zgx5zdtx5zZ9afOjz+r9Wdj810010zTXTFVMxxMTHmCmkSP7ZvQz9wGt1bz2zjf/VjU78xds26fDT79Xj3OI8rdXj3fdE/R8Po8xwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMj5P7qxRbqu9LNbye7FdVeTotdc++fpXbEfb410/1/hCZ6nHS8/M0vUsbUtPybmNmYt2m9YvW54qt10zE01RPumJiJWSdlrrhgdV9t/MtRrtY269PtROdjx4Rfp8vb24/BmeO9H3sz6TEyG6xwAOXDkHAAOQAAAAcA5AAcTETHEjkGsOoHRLZm6puZVnGnRtQq5n5xhUxTTVPrXb+rP2xxPxaD3t0J3zt6a72Fi0a5h0+MXMLmbkR8bU/S5/J7yZbjhX5OmY9/jMbT3w7DRvTnVtKiKKa+vRHu1ceU9sc9vgrlv2bti9XZv2q7V2ieKqK6Zpqpn0mJ8n4WA7n2jtrc1r2eu6JhZ/EcU13bcd+mPhXH0o/NLU26uzZtzMmu9t/V8zSq58YtXo9vaj4RzMVR+eZUt7RL1HG3PW8pem6Z0o6bkbU5dE2p7/Wp8uPkiuNp7l6C9QtImqvGwcfV7Mcz38K9E1cfkVd2rn4Ry1zq2karpF/2Gq6bmYF38DJsVW5/wBaIVV3Hu2vXpmHeYOs4GoRvjXqa/CY35drpANKyImYmJieJjymHs6buvdGmxEafuPV8SmPKmzmXKY/RE8PGGVNdVPZOzVdsWr0bXKYqj4xuz/TusvUvBiKbe6ci7THuyLVu7z+eqmZ/WyLA7RfUDHpim/a0bL+N3Fqpn/UqiGnhIpzsijsrnmpr/ovo1/18aj5UxH6bN/4Pac1miI+e7WwL0+/2OTXb/bFT2sPtO6dV/DNpZdr19lmU1/tppRmEinVsun3vKFVd6PtAuf8G3hVV90r7HaW2XXx7bR9etT8LVqqP7x6FntEdPK/r1ata/Lw+f2VSiANsa1kx3ckCvoy0Srs68fxfeJTKp6/dNZjx1XLp+3Bu/7IfSOvXTKZ/wD65fj/APQXv/lQxGX7cyO6PP7o89Fmj/v3OdP9KaEdeOmEz/6wXY+3Av8A/wAjivrx0xpjw169V8IwL/8AtoQwH39u5HdHn93z/SvR/wDsuc6f6UxsjtA9N7f/ABefn3vyMKuP+9w83J7SWxrczFrT9evfGLFuI/XcRLGE63kz2bcm630YaLT2zXPjVH0iEnc7tOaRRz8x2rn3vT22TRb/AGRU8DUe03rVfP3P2vp+P6e3yK7v7IpaBGqrVsur3vKFjZ6PtAtcfwN/Gqqfrs2rq3X/AKj5vMWM7B0+J92Nh0z+uvvMN1rfm89Y70ajujVr9FXnb+dVU0T/AFaZiP1McEWvLv3PWrmfmvcXQNLxONnHopnv6sb8+0meZ5nzB9sHEys7Kt4mFjXsnIuzxbtWaJrrqn0iI8ZaIiZWtVVNEbzO0Q+LIdhbN17e2t06XoeL7SqOJvXq/C1Ypn76ur3fZ5z7ols3px2etwavdtZu7Lk6Ngz9KbFMxVk3I9OPGKPtnmfgkztTbmi7X0i3peh4FrDxbfj3aPOufwqpnxqqn1lcYWkXLs9a7wp85eb+k3SLiYFE2cCYuXO/3afn7Z+EcO+fY8bpZsLSdg7ejTdPj22RdmK8vLrp4rv18fqpj3U+74zMzOYOHLqaKKbdMU0xtEPBsrKvZd6q/fq61VU7zMgDNHAAAcA5HDkAAAAHkbx29pe69r6jtzWseMjT9QsVWL9E+fEx5x6VRPExPumIlVD1M2jqOw9+avtLVPHI07Im17TjiLtHnRciPSqmaavzrdEIPlINsWcXcu2N32Lfdrzse7g5NURxE1Wpiq3M+szTcqjn0pj0BEcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB6u09w6ztTcOHuDb+fewNSw7kXLF+1PjE++JjymmY5iYnwmJmJ8HlALKezb2hNv9U8K3pWozj6Ruu3R++YU18UZXEczXYmfOPOZo8aqfjHi3eptw8nIw8q1l4l+7j5FmuK7V21XNNdFUTzFVMx4xMT74TN7O/a3s3qMXbXVOuLN2Ii3Z12in6Nfuj5xTHlP85T4eXMR41AmKPhp+ZiahhWc3BybOVjX6IrtXrNcV0XKZ8qqao8JifWH3BwDkAAAAAAAAAAAAAAB8czFxsvHqx8qxav2ao4qt3aIqpmPjE+D7A+xMxO8ME13pF071iaqsna+FZrn7/E5x5+36ExH6YYLrXZp2xf71Wla5qmDVPlTdii/RH5uKZ/W3qItzCx7nrUQvcP0o1fD4WciqI7pneOU7wirrHZp3RYmqdK13Ss2iPL20V2Kp/NxVH62Jan0Q6l4MVVRt/51RT99jZNuvn7I70T+pNdx4ShV6LjVdm8fP7ulxuk3W7PCvq1+NP9MwgBqOzN36d3vn219Zx4p86q8K53f08cPDu27lqru3bdVur0qjif1rG+HxyMXGyaJoyLFq9TPuroiqP1o1Wg0+7X5Lyx0tXo/NxonwqmP1iVdAn7mbH2bm8zlbV0O9M+c1YFvn9PDxMzpB03ypmbm08Gjn/mprt/92qGirQbvu1QtrXSxgz+ZYqjwmJ+yDomfkdBumd36mi37E+tvOu/7apeZe7OnT+5M925rNr8nLif20y0zoeTHtjn/ZPt9KOjVdtNcfKPpVKIYlfd7NWy6vqavr9H/S2p/wDDfGvsz7Tmfoa9rkfbNmf9xh+xsrujmkx0laFPvVfyyisJUf8Akz7V/wDz/W/+x/8AlfS32adnR9fWteq/6SzH/hkaNld0cyekrQo9+r+WUUxLix2cNhUT9PM127+Vk0R+yiHq4fQXppY/4zRsjJn1u513x/s1Qzp0TJntmOf9ke50oaNR6tNc+FMfWqEMimJqmKaY5mfKI8059O6UdOsD/ido6ZXx779E3v8AvzLJtM0TRtLp403ScDCj0x8ei3+yIb6NBrn1q4/zkqsjpZxafyceqfGYj9Osgrouxd5az3Z0zbGrZFFX1bkYtVNE/wBaqIp/Wz3b3Z435qHdr1GdO0i3P1ovX/aXIj4U2+Y/TMJe8OUy3odin1pmfJzmZ0papdjaxbpo5zPnw8mj9rdm/amDNN3XdRztXuR526f3i1P5qeav9aG19tbX29tvH9hoej4Wn0zHFU2bURVX+VV51fnmXsiys4tmz+XTEOJ1HXtS1Of91eqqju34co2jyAEhUAAAAAAAAAAAAAACLHykHc/4LNu88d/7uRxPv49hc5/2JToP/KQ7ns5W5dsbSx7nNWDjXc7JiJ5jvXZimiJ+MRbqn7KoBEcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGzei/W7fPSzLpo0XP+d6TVX3r2lZczXj1+PjNMedur8anj3cxPknT0U7RGwepduxhW8unRNfriIq0zNuRFVdX81X4U3I+EcVfiwrJcxMxMTE8TALlonlyrf6O9qLqFsSLOn6pfjdGjUTEfN8+5Pt7dPpbveNUfZV3oj3RCYnSTtDdN+ovssTC1X7k6vX4fc7Upi1cqn0oq57lz7Inn4QDbg4ieYcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADhyAAAAAAAAAAADobg1nS9v6Ll61rWdZwdPxLc3b+Req4popj1/ZEecz4QDo793TpGytn6lujXL02sDT7E3bnd471c+VNFMT51VVTFMR6zCqbqVu7Ut9761bdmrT/lWo5E3e5E8xao8qLcfCmmKaY+xtDtVdd8vqvrdGl6P7fE2pgXJqxrNfhXlXPL21yPd4eFNPuiZnzmeNGgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA270r7RPU/p/FvFxNanV9Lo4iMDVO9ft0x6UVcxXR8Ipq4+EpUdMe2BsHcU2MLdGHm7az65invTTOTjVVT4REV0R345+NPEeqB+0NA1DdO6dM25pVFNedqWVbxrEVTxTFVdURzVPuiPOZ9IlZH0N7PuxumONYy7WHRrG4aaY9rqmXRFVVNXv8AZUTzFqPPy+lx51SDaWk6vpmrWqrmm52PlU0eFfsrkVTRPpVHnTPwnh3nkaxtvRdVyKcrLwKPndEcUZVmqbWRR+TdomK4/S8+rS91adPOk6/a1CzHHGNq1nmrj0i9b4qj7aqa5Bk4xiNz5uFVFOvbc1LDjmYnIxKfntj9NuPaRHxqtxD2dK1fTNVt13NNz8bLpoq7tz2NyKpoq/BqiPGmfhPEg7wRx6gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxrfu/Nn7E02dQ3ZuDB0q1xM0U3a+btz4UW45rrn8mJRG6z9sjUc+i9pXTPT6tNsTzTOq5tFNV+Y9bdrxpo+2rvT8IkEoesPVvZnS3R/nu5dR/yq5TM4un4/FeTkfk0c+FP41XFMevPEK+evnXPdvVrUu5nXJ03QbNfexdKsXJm3TPuruT4e0r+MxER48RHM8621rVdT1vU7+qaxqGVqGdkVd69kZN2q5crn1mqfGXTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABtvseW6LnaS2dTcjmIyL1UfbGPdmP1xCz2PKFYnY3jntK7P/psj/DXVnceQDG+oW+tqbB0OrWN161jabjRz7OLlXNy9VH3tuiPpVz8Ij7WSIE/KPXJnq7oFvvTxToNExHxnIvf/D9QPj1w7W+590Tf0jYNF/bWk1c0VZczHz6/Hr3o8LMfkzNX43uRz03W9Z03VJ1XTtWz8PPmqa5yrGRXRdmqZ5me/E88zPxeeA3dsrtS9YNt9y3e12zruNR4ex1WxF2Z/wCkp7tz9NUt3bN7bej3vZ2t3bMzcSryrv6bkU3qZn17lfdmI/rShGAtD2j2iOj25u5Tib1wcK9V52dRirEqifTm5EUzP2TLZuBm4efjUZWDlWMqxXHNN2zciumqPhMcwpveloWv67oGT850PWtR0u//AM5h5Vdmr9NMwC4bmJ94rM2t2nOsug9yj91U6pYo/ktSx6L/AD9tfEV/6zae2O27r9iKaNybJ03O903MDKrx5+3u1xXE/pgE4BGzbvbK6XZ/co1XA3BpFyfrVXMai9bp/PRVNU/2W2dp9XOn26dP+6Oi7gpvYcVdyq/cxb1m3TV6TVXREc/nBnQ8/Ttc0bUZ40/VsDM/oMmiv9kvQ5ACJAAAAAAAAAAAAAAAAAAAAAAAAAA5fPIv2cezVev3aLVuiOaq66oppiPjMg+gx6d5aBciqMDLuarVT4cabYryo59JqtxNMfnmCdW3DleGn7aqsUzHhc1LLosx+am37Sr8090GQuvqGdhafh3M3Py7GJjWqe9cvX7kUUUR6zVMxENQdo/Wd97Q6J7g3Vhbos4WpYdNiLNODg0RRT379uirmbvfmqeKp4mO79iurde8N1bryPb7l3Fqur1xMzT88yq7sUc/gxM8Ux8IiAWF9Q+1N0m2nFyziavc3Hm0+EWdJo9pRz8bs8W+PyZqn4I1dTO2B1C3FF3E2tjYu1cKuJp79r9/ypj+kqju0/1aYmPVG0B29X1PUtY1C7qOrahlahm3p713Iyb1Vy5XPrNVUzMuoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANu9jf/AJSuz+f+eyP8NdWdR5QrH7GlPe7S2z454/fcif0Yt5ZxHlH2A5QF+Ucn/wA8miRHu29a/wARfT6QB+Uaq560aNT6bes/4i+CMoAAAAPb2XtLcm89bt6LtfR8vVc65/J2KOYpjy71VU+FFP41UxAPEZt0s6V746l6h822pot3Is0VRTfzbv73jWPyrk+HPv7sc1ekJV9Eux3penew1fqbl0anlRxXGk4lcxj0T6XLkcVXJ+FPEeHnVCVmk6bp+kadZ03S8HGwcKxT3bOPj2qbdu3T6U00xERAI9dF+yXsradNnUt4zRurWKeKvZ3aOMK1PpFuf+M9/jX4T4fRhIzHsWcaxbx8e1RZs26Ypot26YppppjyiIjwiH0Aedn6HouoVzXnaTgZVU/fXsaiuf0zDpRtHQrdffxce/hT/wD4mXdsR+iiqI/U9HXNW0zQ9LyNV1jPxsDBxqe/eyMi7Fu3RHrNU+EIj9cO2LYs+30bpbixfueNNWtZlr6EfGzaq8avyq+I8Pqz5g3/ANRdx7Z6b6ROq7j6gajpNmvn2Nm7ct5Fy9Me6iiq3VXX7vLy98wjDrXbT3Fj67Xb0DbuBl6PRPFFep0zRlXfxqvZVdyjx90RP2ov7n3Bre59ZvaxuHVcvVNQvzzcv5Nya6p9IjnyiPdEcRHueWCZOl9uK9Hdp1Pp3bq/Cqx9VmP1VW5/ayzSe2tsC/FP3S2xuPDqnz9lFm9TH5+/TP6kCgFkGmdrToxl8e31nUsDn/8AEabdnj+xFTI9P7RfRbO49jv7TqOf+ft3bP8A36IVeALZtO6q9M9QiJw9/wC2Lsz5RGp2on9E1cvdxdybeyoicbXdLv8APl7PMt1c/olT4AuUt37NyObd2iuPWmqJfvmPj+hThj5uZj/8Rl37Xjz9C5NP7HoYu6tz4tUVY24tXsTHlNvNuU8foqBb/wA/b+g5VJWupHUO1HFrfm6KI9KdWvx/vO5Y6udU7H/F9Rt1x9urXp/bUC2HmPWDmPWFVmP1x6vWJmaOom4p5/DzKq/28u3T2gOstMcR1B1jj41UT/ugtI5j1g5j1hV1PaF6zzHH/CBqv6Lf/wAriz2hOs9q5NdPUDVZmfPvxbqj9E08AtG5j1g5jnzVfV9ovrTVHE7+1CPss2Y/3H2232jOrOlbgsapmbsz9Xs0Txdwsy9V7G7T744ommaZ9KomJjw+wFnnJz9rRfRTrX016nWbGBGfm6Pr9ccVaXnane5rq/mq5qim7Hw8KvDxpbdnbujV8zcw4u8+ftLldfP6ZkHqXLlFuOa66aY9Znh0r2t6NZni7quDbn0qyKI/2vxZ0DQ7VuKLej4FNMe6Mej/AODu4+Ji48TGPj2bXPn3KIp5/QDDd4dW+nG0blFvcW7tOwbldHtKLdVVVdddPMxzFNMTMxzEx4Nfaz2tOjGBHONrOpapPpiabcj9dyKIZZ2kumWm9TemmoabdxLdWsYlmvI0nIiI79q/TTzFPP4NfEU1R5eMT5xExVrPhIJz65229pWZmNF2XrWb4+E5V+1jxP8AZ77AtxdtneeT3qdB2loenUz5TlXLuTVEfmmiOfzIqANx7j7TXWjWu/RVvC5p9mv+TwMa1Y7v2VxT3/8AWa03Duncu4rsXNf3Dq2rVxPMTm5ly9x/amXjgLV+zhPPQfZH+Y8X/uQ2C1/2cv4h9j/5jxf7uGwAaZ7a8zHZo3Xx6Ykf/u7Ks1Zj22f+TRuv/wDSf4uyrOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABuHsYf8pfaH9Jk/wCFvLNo8oVk9jD/AJS+0fy8r/C3lm8eQCv75Reeetukx6bes/399YCr9+UW/ju0v/R+x/f3wRpAAABu7sq9C7vVzWcrO1TMu4O29Mrppyrlnj2uRcmOYtUTPhT4eM1TzxzHhPPhYTsTZe19jaJTo+1dFxNLw48aqbNP0rk/hV1zzVXV8apmWhfk5aIjovrNcfWq3Be5n7Mewk2ADBOrXVrY/THTfnO6NXot5NdPesYFji5lX/yaOfCPD61XFPxBnXLRXXPtNbI6d+30rS66Nybho5pnExbsexsVfzt2OYiY8fo081eHE93zRY649qDe/UD2+laJcr2zt+vmn5vjXJ+cX6f527HE8T+DTxHjxPe82hAZz1a6r726n6p883Tq1VzHoqmrHwLHNvGx/wAmjnz/ABquaviwYAAAAAAAAAAAAAAAAAAAfqiuqiumuiqaaqZ5iYniYn1b/wCkXas6hbMos6fr1dO69Jo4pijNuTTk26fSm94zP9eKvhwj8Ata6KdVts9WNu3tX27TmWpxblNrKx8q13a7NcxzxzEzFUce+J/Qz5Er5Nif/qbu2Of/ALxsf3Upag4q+rKm3LjjJuxH4dX7VyU+Uqbsz+F3vy6v2yD4gAAAta7O0cdCdj8f/kWJ/dwz5gnZ6/iL2N/mDD/uaWdg0t22547NG6fjOH/i7KtBZd23Z47NG6PjVh/4u0rRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABuLsX/8AKX2j+Xlf4W8s2jyVk9i7/lL7R/Lyv8LeWbR5AK+vlE55646bHpt+x/f31gqvn5RGf/Pnp8emgY/99fBG0AAAE/8A5Ob+JTV/9IL39xYSZRl+Tl8eiur/AA3Be/w9hJoHyy6ppxrtUTxMUVTE/mU76xqWoavqd/UtVzcnOzciua72RkXZuXLlXrNU+Mrhs/8AgV/+jq/ZKm8HAAAAAAAAAAAAAAAAAAAAAAAAJx/Jsf8Aqbu3/ONj+6lLVEv5Nj/1L3ZP/tKz/dSloDifKVN2b/DL39JV+2VyM+Sm7N/hl7+kq/bIPiAAAC17s/Rx0M2N7v8A6Awv7mlnTCOgX8R+x+P/AO38L+5pZuDSnbfn/wBGnc/5eH/irStJZZ24J47NO5v6TD/xVpWmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOaaaqqoppiZqmeIiI8ZS67PfZHvari424+qE5GFjXIi5Z0W1VNF6umfGJv1+dvmPvI+l4+M0zHANT9iymqrtLbTmmmZimrKmriPKPmt7zWaR5PH2ltbbu09Ko0vbWi4Ok4dP8li2YoiqfWqY8ap+MzMy9kBXv8ofPPXXB+GgY/wDe31hDAOrvSDY3VDB9nubSaZzqLfs8fUcefZ5ViOZmIiv3xEzM92qJp8Z8AVTDbXaC6E7p6SahF/J/+k9vX7ncxdUs0cU8+cUXaf5Ovj3eMT7pniYjUoAAJ/8Aycs/+ZXV/wDSC9/cWEmUZfk5f4ldY/0gvf4ewk0D4ah/Ab/9HV+yVNy5HUP4Df8A6Or9kqbp8wAAAAAAAAAAAAAAAAAAAAAAB+rVFd25Tbt0VV11zFNNNMczMz5REJR9DOyJrm5MWxrfULLyNv6fciK7en2qY+e3KfWvvRMWvsmJq9YpBsH5NqJ/cNuuf/adr+6SyYd0r6a7Q6Z6Pf0vaOn3MSzk3Iu5FVzIru1Xa4p7vemapnjw90cR8GYg4nylTbmeOXe/Lq/auSmOYV89c+yju3Z9vI1zaN65ufR6O9cu2qLXdzMen1miPC5EetHj+LERyCNwSAAAti6Cxx0S2PH/APr+D/cUM2Yb0Nju9F9kRHu2/g/3FDMgaS7cM/8Ao1bl8f5XD/xVpWosn7c0zHZu3BHPnfw4n/3m2rYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB6G3NKydd3Dp2iYUROVqGVaxbMT5d+5XFNP65gEsuwf0Xxs+mjqlubEpu27V2adDx7tPNM10zxVkzE+fdq5po9JiqrzimU1ePB5m09Ewdt7Z03QNNtxbw9OxbeLZp4+9opimOfjPHM/GXqADFuqG/Nu9ONoZO5ty5U2cS1MUW7dEd67kXZ57tu3T76p4n4RETMzERMoYbt7aG/8AN1CuduaHomk4MTPcov268m9MfjVd6mn9FMfnBPgQp6Sds3U51mxp/UjScL7n3q4onUdOt1UV4/M/WrtzNUV0x7+7xMRzxFXkmhg5WPm4dnMw79vIx79um5au26oqouUVRzFVMx4TExMTEg6W6dB0nc+383QddwbWdpubam1kWLkeFdM/riYniYmPGJiJjxhV72g+mmb0r6k5u3Ls3L2n1/5RpuTX53seqZ7vPH31MxNNXl40zPlMLVUc+31su1uDo5+6S1ZpnP29kU34rinmqbFyYt3Kfs5miv8AqSCvMAE/fk5P4ltZ/wBIb3+HsJNoyfJyfxL6z/pBd/w9hJsHX1D+A3/6Or9kqcJ81yGf/Ar/APR1fslTdIAAAAAAAAAAAAAAAAAAAAANndmDYdrqH1m0bRMyzN3TLFU5uoU8eE2LXjNM/CqruUf1gSg7FXQbE0LRcPqLu3Bova3m0Re0zHvU8/MrU+NNyYn+Vqjxj8GnjymZ4lU4piIiIiIiI90OQBi/Ujf+0unmifdfdus2NOx6pmm1TMTVdvVfg0UU81VT9keHv4hpH/y0Ol3z2LP3I3V7Hvd2b/zSz3ePwuPa88fm5BJY84Yz0537tPqFof3Y2jrNnUsWmruXIpiaLlqr8GuiqIqpn7Y8fOOYZMCIvbR7PuJm6dndStlYVGPnY9NV7WMCzRxTkUR41ZFER5VxHM1R99ETP1onvQhXLXKaa6KqK6YqpqjiYmOYlVz2otgWunPWXVtEwrU29LyO7nafT7qbNzme7HwpqiuiPyQavABbR0R/iZ2T/o/g/wCHoZgxDonTNPRvZVM+7b+DH/7ehl4NE9uyf/Ry1mPXKw4/7elW6sf7eE/+jtqseubiR/2sK4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGyey/i2cvtA7KtXo5pp1W3cj8qjmun9dMNbMr6Pa5b231V2rrt+57OxhatjXb9XPHFuLkd/8A1eQW2U/Vjn0cvzTMTT4fpfoEEPlHtc1C91I2/t2uuqNPxdK+d26OfCq7du101VT+a1TEfn9UVk8O310q1TdGi6dvvb+HczMvR7VdjPsWqO9cqxpnvU1xEeM9yqauYjnwr58qZQPAWOdgzX8zW+gOLj5ldVydJz7+BaqqnmZtxFNymJ+z2vdj4RCu/RtM1DWdVxtK0rDvZudlXItWLFmiaq7lU+URELQ+zX09vdM+kml7bzaqKtSmasrPmiYmmL9yeZpiff3Yimnn393n3g2SwvrriW83otvXGu0xVTVoObMc+sWapif0xDNGt+07rNGh9At55tdcU9/S7mLTM/hXuLMfrrBVeACfvycn8S+s/wCkF3/D2Em0ZPk5P4l9Z/0gu/4ewk2D4ah/Ab/9HV+yVN8+a5DO8cO9/R1fslTcAAAAAAAAAAAAAAAAAAAAAlx8mvpVF3dG8Nbmn6eLhY+LTPHuu3Kq5/uYRHTF+TTzbVOZvfTqqoi7ct4V+iPWmmb1NU/pqp/SCabiZ4hy4nxgFVnaH6gZ/Ubqnq2t5OTVcwbV+vG021z9G1jUVTFHEe6avrT6zVLXbLusW0s7Y3UzXdtZ1iq1OLmV+wmY4i5ZqmardcfCaZif1e5iIM+6B9Q9T6a9S9M1/DyblGHVeos6lYiZ7t/GqqiK6Zj3zEfSifdMQtZieY5VG9LtrZ+9eoOibX063VXez8yi3VMR/wAXb55rrn4U0RVVPwhblT4QDlCX5SvTbNvXdl6vTTxeyMbLxq6vWm3Xbqpj9N2pNpCf5SzUrNzWNlaRTX+/WMfLya6fSmuq3TTP6bdX6AQ/ABbd0fpijpLs+iI4inQsGI/93oZUxfpJ4dKto/DQ8L+4oZQDQvby/wCTvqX/AP3Yn97CuFY528547POoR65+JH/aK4wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWedk/qNjdROkOmX7mTFesaXbowNTomrmv2lFPFNyfWK6Yirny570e6W3FVPQXqprXSfe9vXdOicnBvRFrUcGauKcm1zzx8K6fOmr3TzHlMxNmfTve23N/bYx9xbY1G3m4V6OJiJ4rs1++3cp86a49J+2OYmJBkbV+8ez/0i3ZqlzVNX2Zh/PLszNy7iXbmL7SZ86qotVUxMz6zHMtoAMK6d9Ken3T+uq7tLa2Dp2RXE01ZP0rt+Ynzp9pcmqvj4RPDNQAQ0+UR6j2arWmdNNNye9diunP1WKKvqxxPsbVXHrzNcxPpRPvbs7SPXHQuk23q7Vuuzn7nyrc/MNO73Pd58Pa3ePGm3Hp4TVMcR75itXcOsaluDXc3W9Yy7mZqGdeqv5F6ufGuuqeZn4R6RHhEeEA6AAJ+/JyfxL6z/AKQXv8PYSbRk+Tk/iX1j/SC7/h7CTYPhnfwO9/R1fslTfK5DO/gd7+jq/ZKm+fMHAAAAAAAAAAAAAAAAAAAADcXY933a2J1u0u/m3qbWm6rTOmZldU8U0U3JjuVz7oiLlNHM+6OWnQFy8TzDlGzsb9ecbe+h42yd0ZsUbpwLXcsXb1fjqNmmPCqJnzu0xH0o85iO9HP0uJJg1r1u6LbM6s4FunXse5janj0TTi6li8U37cefdnmOK6OfHu1eXM8TEzMo65HYdzIy6YsdRrE401fSqr0mqK4j4RF3iZ/PCagDV/Q3ofsvpNjXLmi2bubq1+juZGp5fE3qqfCe5TERxRRzHPEeM8RzM8Q2gAOJniFYna63vZ311x1jOwb9N/TtOinTcO5TPMV0Wue9VE++JuTcmJ9JhK/tm9b8bYu17+ztu5sTunVLXcuVWq/pYFiqPGuZ91yqPCmPOOZq8OI5r0ABzALcOk3j0t2n/mTD/uKGTsd6Z0Rb6c7aojyp0jEj9FmhkQI+9vyeOz9kR66nix+upXSsV7fv8QF3/OuL+2tXUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAyvpp1D3d061z7r7S1i9g3quIvWvCuzfpj725RPhVHn8Y58JiWKAJx9Oe2noGXj2sbfm3crTcriIry9N/frFU++ZoqmK6I+ETW25pfaO6Laja9pZ35gWuPOnJs3rEx+auiOfzKwHPM+oLLtx9qHoxo9iqujdVWp3qY8LOBh3blVX2VTTTR+mpobqp2z9Z1GxdwOnuhxo9urmmNQ1Du3ciI9aLcfQon7Zr+xEkB3Na1TUta1TI1TV87Jz87Jrm5fyMi5Ndy5V6zM+MumAAAJ+/JyfxL6z/AKQXf8PYSbRk+Tk/iX1n/SC7/h7CTYPjm/wS7H4lX7JU3T5rkc3+CXfyKv2SpunzkHAAAAAAAAAAAAAAAAAAAAAAPthZWThZlnMw8i7j5Ni5Tcs3rVc01266Z5iqmY8YmJjmJhLroX2wr+FYx9D6o4t3Lt0RFFGs4tHN2I8ub1v7741U+Ph9WZ8UPwFt+yuomx96Y9N7a+6NL1PmO9Nq1fiLtMfjW6uK6fzxDKOYU0xMxMTEzEx74erG5tx040YtOv6rFiI4i3GZc7sR6cc8Ati3hvbaOz8Scnc+49L0mjiZpjJyaaK6/wAmnnvVT8IiUWOt3bGx4x7+j9LcSuu7VE0zrOZa4po+NqzV4zPpVXxx+DKGN25cu3JuXK6q66p5mqqeZn878A7OqZ+bqmo5Go6ll38zMybk3L9+/XNddyuZ5mqqqfGZdYAHMOHMAt56eRxsLb8eml439zS954ewPDYugx/7Nxv7ql7gI9dv+eOgNyPXVsX/AH1dixL5QGf/ADBVeP8A97Yv7K1doAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJ+/JyfxMaz/AKQXf8PYSbRk+Tj/AIl9Z/0gu/4ewk2D5Zn8Fu/kVfsU21fWn7VyWZFU4t2KImqruVcRHvnhTtqmBnaZqN/T9SxL+HmY9c0XrF+3NFy3VHnFVM+MT9oOqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5hw5gFvuxY42XokemnY/91S9p4+yomNn6NT5cYFj+7pewCOvyg9Xd6CUR+HrONH+rdn/YrxWF/KFfxD4/+fMb+7uq9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAT9+Tk4/wCBfWYifH90N3n/AN3sJNq2Oyf1ynpJr2Xgaxj38vbWqVU1ZNNnxuY12PCL1FM+FXh4VU+EzERMT9HibCNjby2xvfRaNY2trWJqmHV4TXZr+lbn8GumfpUVfCqIkHvtf9Xej+xuqGDNrcuk0/PaKO7Y1HG4t5Vn04r4+lH4tUTT8GwAFb3W7sxb76fTe1PSbVW5tAo5qnJw7U+2sU/ztqOZiPP6VPep8OZ7vk0QuYnxaO629mfYfUX2+pYVmNua/XzV89wrUezvVT77trwir3/Sju1esz5ArYGxusHRffvS/Lq/dDpVV3TZr7trU8Tm5jXPTmrjmiZ/BriJ9OWuQAAAAAAAAAAAAAAAdvR9M1HWNSsaZpODk5+bkVdyzj49qbly5PpFMeMg6jJ+newt29Qda+5O0tFyNSyIiJu1U8U2rNP4VyueKaI+2fH3cpJ9Eux3n5/zfWOpuZVgY08VxpGLXE36o9LtyPCj7KeZ8fOmUyNp7b0HamiWdF25pWJpmn2Y4osY9uKaeffM++qqffM8zPvkFeW9+yp1a2xo1Wq0YOn65at0d+9a0rIqu3rcRHj9Cqmmav6nelouqmqmqaaommqJ4mJjxiVy8+Kvz5QHY2nbZ6nYG5NLtUWLe4rFy7k2aKeI+cW5piuuIjy70VUTPrV3p94I1AAAAAAOYcOYBcDs6ONp6THpg2I/7Ol6zzNqRxtnTI9MOz/d0vTBHL5QuY/4CMb465jf3d5XosJ+UO/iJxP8+4/91eV7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPd2Tu/cuytat6ztbWsvSs2j+UsV8RXH4NdM/Rrp/FqiYeEAnP0S7YWjat7DSOpeLb0fNnimnVMamZxbk/zlHjVbn4xzT+TCVOm52FqWDZztPy7GZiX6Irs37FyK7dymfKaao8Jj4wpvbC6RdY999MMyKtt6tVVgVV9+9puVzcxbvrPc5+jM+H0qZifDzBasNE9E+05sTqDNjTNTu07a16vimMTMux7G9V/NXvCJmfwau7V48REt7R4g+Obi42biXcTMx7WRj3qJou2rtEV0V0z4TFUT4TE+kowdbuyFt3cE5Gr9PMi3t/Uaua50+7zOFdn0p45qtTPw5p90RCUoCorf+x91bD1urR92aLlaZlRzNHtKebd2mPvrdcfRrp+MTLHFwG79rbe3fot3Rty6RiapgXfrWci33oifwqZ86avSqJiY9UOutvY7z8Kb+r9MMyrPx/GudIy7kReoj0tXZ4iuPhVxPh51SCIg7er6bqGj6lf03VcHJwM3Hq7l7HyLU27lur0qpnxh1AAAAAAAAABsfo90W351Ryonb+l+x02mru3dTy+beNR6xFXHNdX4tETPlzx5pxdEuzVsPpzFjUsuxG4twW+Kvn2bbjuWavWza8Yo+FU96r4x5Aij0O7L+99/zY1TW6a9s6BXxVF/KtT84v0/zVqeJ4n8KriPHmO95Jw9Jekmx+mGnfN9r6RRRlV0d2/qF/i5lX/yq+PCPxaYin4M88gAGD9V+quyemWlfPd06vbs3q6Zqx8GzxXlZH5Fvz458O9PFMe+YBnEq7+3j1A0zePVPF0fRci3lYe38erGuX7dUVU15FdXeuRTMecU8UU/bFTpddO09vXqDN/StEruba29XzTOPj3f8oyKf527HE8T+BTxHjxPe82hAAAAAAAAe5snaW49569a0Ta+kZWqZ93xi1Zp8KY5+tVVPhRT+NVMR8QW27etzZ0LAtT50Y1qmfzURDvvhg0VW8Kzbrjiqm3TTVHPviIfcEbvlEf4isL/AD9j/wB1fV8LBPlFKuOhmnRz9bcFiP8Asb6vsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG7uxb0/wBI3/1kos69YoytO0nDr1G5i3Ke9RkVU10UUUVR76e9XFUx5T3eJ8JkGuNF6eb91vTI1TR9l7i1DAmmaoycbTbty3VEefFUU8T+ZjuTj38XIrx8mzcs3rc92u3cpmmqmfSYnxhchZt0WrVFq1RTRRREU000xxFMR5REe6GF9UelWxupOBOPurQ7GTeinu2s23Hs8mz+Tcjx49/dnmn1iQVPCTXWHshbx237fUtj5E7n0yjmr5tMRRm249O79W74e+niZ91KNediZWDmXcPNxr2Lk2apou2b1E0V0VR5xVTPjE/CQfEAAAAABvTol2md99PZx9M1G9O49Ao4p+aZlyfa2af5q74zT8Kau9T6RDRYC1TpD1l2H1QxInbmrU06hTR3r2m5URbyrfr9Dn6cR+FRMw2Ipu0/My9PzbObgZV/EyrFcV2r1m5NFduqPKaao8Yn4wlL0R7YGu6NNjR+pGNXreBHFEanYpiMu1HrXT4U3Y8vH6NXnMzVIJ2DH9i7z2vvjRKNZ2rrWLqmHV4VVWavpW5/Broniqir4VREsgBg/VbpVsnqZpnzPdOj2716miabGba4oybH5FyI549/dnmmffCEPW7ssb32N7fVduRXujQqOaprx7f+VWKf5y1HPMR+FRz5TMxSsWJ4kFNExMebhZl1t7OewupfttQ+bfcLX6+Z+6WFbiPaVet634U3Pt8KvxkGusvQ/fvS7Jrua1ps5ekd/u2tVw4mvHq5nw73vt1fCqI8fKZ8wayAAH3wcTKz8y1hYONeysm9XFFqzZomuu5VPlFNMeMz8ISn6H9kDW9Zqsax1KyK9FwJ4rp0yxVE5d2PS5V402on08avOPoyCOGxtm7o3vrVGj7V0XL1XMq8aqLNP0bcfhV1TxTRT8apiEzeh/ZA0PRZsax1IyLWuZ9PFdOm2JmMS1Pn9OfCq7Pw8KfOJiqEj9lbQ21svRLei7X0bE0rBo/k7FHE1z5d6uqfpV1fjVTMvdB8MLExcLEtYmHjWcbHs0RRatWqIooopjwiKaY8Ij4Q+44n4g5efuDWtI2/pF/Vtb1LF07Ax6e9dyMm7FFFEfGZ9/pHnLRvXTtSbM2F7fSdu1Wtz7go5pm3Yuf5Lj1fzl2POY/Ao5nwmJmlBzqp1P3r1L1aM/dmsXcmiiqZx8S39DGx/wAi3HhE+7vTzVPvmQSY66dsOZ9vovSux4eNFWtZdr9dm1V/3q49fo+9ELXdX1TXdVv6rrOoZWoZ+RV3r2Rk3ZuXK5+NU+LogAAAAAAD9Wrdy7dotWqKrlyuqKaaaY5mqZ8oiPfLZXRnojvvqll0VaJp04mkxVxe1XLiaMejx8Ypnjm5V+LTz7uePNO7oh2fdi9L7dnNxsX7r6/FP09VzKImumff7KjytR5+XNXE8TVIIvdC+yVujdU2NY35Xkba0eriqMXu/wCXX4/JnwtR8aomr8X3pubA2PtbYeh0aPtXRsXTcWOJr9nTzXeqj765XP0q6vjMyyMABg/VfqrsnplpfzzdOr27N6umarGFZ4uZOR+Rb58vd3p4pj3yDTvyjF63T0W0izNUd+5uCzMRz48RYv8AP7Y/SgC2v2j+tOr9YNyWMi7jTp2iYEVU4GD3+9Mc/WuXJ8prq4jy8IiIiPfM6oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASD7A25MPQuu1OFm3otU6zp13BszVPETe71FyiPtn2dVMfGYj3o+Ppi37+Lk2snGvXLN+zXFy3ct1TTVRVE8xVEx4xMT48guUEIOiHbDz9Pt4+jdTsS5qFiniijV8SiPb0x5c3bfhFf5VPE+HlVMpibM3btveWjUaxtjWcPVcKv+Ux7nPdnz7tUedFX4tURPwB7bAOq/R/YPUzFmnc2i26s2Ke7a1HG4tZVv04riPpRH4NUVR8GfgK9+sXZJ3xtT22pbQrndelU81eztUdzMtU+k2/5T3eNHMz+DCOd+zdx79di/artXbdU010V0zTVTMecTE+UrlPBrjq50V6f9TceqrcOj02tR7vFvU8Pi1lUenNXHFcfCuKo+wFVwkB1k7K2/8AZM3tQ0C3O6tGo5q9ph2pjJtU/j2fGZ+2iavLmeGgblFVuuqiumaaqZ4qiY4mJ9AfkAAAAAHubK3buTZet29a2vrOXpWdR4e0sV8RXHn3a6Z+jXT+LVEx8Eyeh3bB0nVfYaN1Mx7ek5k8UU6rj0zONcn1uUeM258vGOafOfowg0AuQ03OwtSwbOfp+XYzMS/RFdm/YuRXbuUz5TTVHhMfGHYVUdIusO+umGdFzberVTg1V969puTzcxbvrM0c/Rny+lTMT4eacPRDtN7G6hew0zU7tO29fr4pjEy7kexv1fzV3wiZnw+jV3avHiOfMG9nzybFnJx7mPkWqL1m7TNFy3XTFVNdMxxMTE+ExMe6X75cgi/1t7Im2Nx/ONX2Bftbc1SrmucKuJnBuz8Ijmqz/V5p90Ux5tEbE7JvVDXN039M17Es7d07FuRTfz71dN2m5H8zTTP75PHj4zTEeUzE+Cxc4Brno90X2J0vxKf3PaXF3UqqO7e1PK4uZNz1+lxxRTP4NERHrz5tjAAPM3Nr+i7Z0a/rOv6ni6bp9iObmRkXIooj4ePnM+6I8Z9yHXXTthZeXORonS2xViWPGirWcq3++1/Gzbnwpj8avmfH6tM+IJM9Xur2x+l+m/ONzarTGZXT3sfTsfi5lX/yaOfCPP6VUxT8efBBfrp2lN7dSJv6XgXKtu7drmafmWLcn2l+n+euxxNXv+jHFPrE8ctL6pqGdquoX9R1PNyM3MyK5rvZGRdm5cuVT5zVVPMzP2usAAAAAAAP3Zt3L12i1aoquXK6oppppjmapnyiI98pM9DOyTubdHsNY39cv7b0iriqnDimPn1+n4xPhZj8qJq/F94I/bM2puPeWuWtF2vo+Xqufc8YtWKOe7H4VVXlRT+NVMR8U0OhfZC0XRPYa11Ku2da1COK6NMs1T80tT5/vk+E3Z8vDwp84+lCRWwNj7V2HolOj7U0XF0zFjia/Z0813avwrlc/Srq+NUyyMHxw8bGwsW1iYli1j49miKLVq1RFFFFMeERER4REekPsOJnjzkHLobg1rSdv6Rf1fXNSxdOwMenvXcjJuxbopj4zPv+HnLRvXLtSbL2HN/SdvTb3Pr9HNM28e7HzXHq/nLsc8zH4NHM+ExM0oOdVOqG9Oper/P916xcyKKKpnHw7f0MbH591FuPCJ93enmqffMgkl1z7Yd27N/Rellj2dvxoq1rLtfSn42bVXl+VXHP4seaI2tarqWt6pf1TWM/J1DOyKu/eyMm7Ny5cn1mqfGXSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHvbJ3hufZWs0axtbW8zSsynjmuxXxFcfg10z9Gun4VRMPBATY6N9srCyYsaX1N035nd8KfutgW5qtVfG5a8aqfjNHe/JhK/buu6PuLSrOraFqmHqWBejm3kYt6m5RV8OY9/wAPOFPDJ+nm/wDd+wNXjU9p65labemY9pRRVzavRHuuW55prj7Y8PdwC3ERU6OdsTb2sex0zqLhRoWbPFMahjU1V4lc+tVPjXb/ANaPWYSg0nUtP1fTrOo6XnY2dh36e9ZyMe7Tct3I9aaqeYkHbar6w9BenvU2m5k6rpnzDWKo+jqmBxbvzP4/h3bn9aJn0mG1AFbXWTsxdQtge21DAx/3TaJR4zl4Fufa26fW5Z8aqff4096IjzmGjFy88T5tO9Zezp096ke2zruD9xNbucz90tPoiiqur1u0fVuePnM8VfjArKG4esvZ26hdNvbZ17C+7Wh2+Z+6WBTNVNFPrdo+tb+MzzT+NLTwAAAAAAN7dEe05vvp7NjTNUvVbl0Cjin5rmXZ9tZp9LV3xmPd9GrvU+HERHmnB0j6ybD6n4kVba1emM+mjvXtNyYi3lWvX6HP0o/GomqPHzVUuxp2bmadnWc7T8u/iZViuK7N+xcmi5bqjymmqPGJ+MAuQEFOifbB1vRqbWk9ScW7rmDTEU0aljU0xl0enfpmYpuR8fo1e+ZqlvfWu1b0awtCr1DE3BlajkdzmjBsYF6m9VV+DzXTTRT9s1fpBvOZiImZnhHnrn2qdm7Hm/pG1/Y7o12nmmYs3f8AJMer8e5H15j8Gj0mJmmUW+t/aT331Kov6ZYu/ue2/c5pnT8O5PfvU+l674TX+THdp9YnzaSBmHVDqVvLqTrM6nuzWL2X3ZmbGNT9DHx4n3W7ceEenPjM8eMyw8AAAAAAZH0/2Nuvfut06PtPRcrU8rwmv2dPFuzTP31yufo0R8ZmAY42t0T6C776pXreTp2H9zND73FzVcymabUxz4xbjzu1ef1fDnwmYSj6Gdkfbe2Zx9Z6gXbG49Vp4rpwqaZ+ZWZ+MT43p/KiKfxZ80nLNq3ZtUWrNFNu3RTFNFFMcRTEeUREeUA1V0V6B7C6YW7WXp+F909cin6eq5tMVXYn3+zp8rUef1fHieJmW2I+AADy90bh0Pa+i39Z3DqmJpmn2I5uX8i5FFMekR6zPuiOZn3Qhz107YWZmxf0XpdYrwrHjTXrOVbj2tcfzVueYoj8armfHypnxBJrq91g2N0v06b25NWpnNqo71jTcbi5lXvTijn6Mef0qpinw8+fBBbrj2ld9dR/b6Zh3Z27t65zT8xxLk+0vU+l674TX7/oxxT6xPm01qmoZ+qahf1DU83IzczIrmu9fyLs3LlyqffVVPjM/a6oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADM+l/VDe/TfUozNqa5fxLdVXevYlc9/Gv/l258Jnjw5jiqPdMMMAT+6N9rzaO5ZsaZvjHp2zqdXFPznvTXhXavXvfWtf1uYj8JJTDysbMxbWViX7WRYu0xXbu2q4qorpnymJjwmPjCm1sLpN1k390yyaZ21rNfzGa+9d07KibuLc9foTP0Zn8KiaZ+ILVhHjo32r9ibx9jpu5pjausV8U/5Tc5xLtX4t7w7v2VxHpEykLauUXLdNyiumqmqO9TVE8xMesA5mImOJjlorrL2YOn2/YvZ+mY9O2Nbq5q+dYNqPY3avW5Z8KZ+2nuzPvmW9gFWvV/oZ1C6ZXLl/W9JnL0mKuKNUwebuPPp3p45tz8K4j4ctYrlb1u3etV2rtFNduumaaqao5iqJ84mPfCO/WXsnbG3h7fUtqTTtTWK+au7j2+cO7V+Na+8+2jiI8+7IK8hn/Vjo/v3plmTb3NotynCmru2tRxubuLd9OK4j6Mz+DVFNXwYAAAAAAAAAAAAAA++DiZWfmWcLBxr2VlX64otWbNE113Kp8qaaY8ZmfSG3Oh/Z3331PqtZ9Fj7h7fqmJnU823PFyP5mjwm5Px8KfCfpc+CdnRjorsbpZhx9wdP+capXR3b+qZfFeRc9YieOKKfxaYj3c8z4gjB0M7IGsax7DWepl65o+BPFdGl2Ko+dXY8+LlXjFqPhHNXjMfRlM3Zm1NubN0O1om2NHxNLwLfjFqxRx3p/CqmfGuqePGqqZmfV7YADXPWHrPsTpdh1TuHVIu6lVR3rOmYvFzJu+n0eeKKfxq5iPPjnyBsWZimmapniI8fFHXrj2rNn7K+caRtOLe59do5omq1X/kePV+Pcj68x+DR8YmqJRb65do3fPUyb2nW706Dt6vw+52Hcnm7T/PXPCbn2eFPw97SwMt6mdRt49RtZnVN2azfza6Zn2NiPoWMeJ91u3HhT7vHznjxmZYkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADaHSHrv1D6Z3LVjR9WqzdJpn6Wl50zdx+PxI55tz+TMfGJavAWRdG+0/0+37NjT9Sv/uZ1u5xTGLnXI9jdq9Ld7wpn4RV3Zn3RLesTE+UqaG3ujnaH6i9NpsYeNqP3Y0S3xH3M1Cqa6KafS3X9a34c8RE93x8aZBZ0NL9G+0l086izZwKsydA1y5xT8w1CuKYuVelq79Wvx8o8Kp/BboieQfDOxMXOw72Hm41nJxr1E0XbN6iK6LlM+cVUz4THwlGfrN2Qdq7j9vqewsinbWpVc1fNK+a8K7V8I8arX9XmmPdSk+AqW6l9Nd69OtS+Zbt0LJwYqqmmzkxHfx7/wCRcj6M+HjxzzHviGILjNZ0vTdZ029purYGLn4V+nu3sfJtU3LdyPSqmqJiUWOsnY40XU4van021CNHy55qnTcyuqvGqn0or8a7f2T3o+yAQaGR7+2Nu3YerTpe7NCzNKyJ59nN2jm3diPOaK45prj40zLHAAAAAB2dMwM7VNQs6fpuHkZuZfriizYsW5uXLlU+UU0x4zP2JYdDOx7qGoxY1rqhkXNOxp4ro0fFrj29cfztyOYoj8Wnmrx86ZBHDpr083f1E1uNJ2no1/Pu08e2u/Vs2KZ++uXJ8KY8/jPHhEym70M7J+09nzY1jedVnc2t0cVU2qqP8isVfi0T43Jj1r8PxYnxb82rtzQtq6LY0XbulYmmafYj97sY9uKaeffM++ap98zzM++Xqg4pppppimmIiIjiIjyiHI/N25Rat1XLldNFFMTVVVVPEREeczPoD9PH3fufb+0dDva3uXVsXS9Ps/WvZFfdiZ91NMedVU+6mImZ90NA9cu1ptTacX9I2NTY3NrNPNM5EVT8xsVfGuPG7Pwonj8b3ISdRd/bt6g63Or7t1rI1G/HMWqKp7tqzTP3tuiPo0R9kePv5kEjOunbA1XVZv6L0xs3NKwZ5or1bIoj5zcjy5tUTzFuPPxnmrx5+jKKefmZeoZt7Nz8q/l5V+ua7169cmuu5VPnVVVPjMz6y+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3Z0d7S3UXp97DBv5v7otEt8U/MdQrmqqin0t3fGqjw8Iie9TH4LSYCzro52h+nfUmmzh4+oRo+t1xETpmoVRRXVV6W6/q3PhET3vWmG3lNETMTzE8S3p0c7T/UPYU2MDUsj90+iW+Kfmufcmb1un0t3vGqPhFXeiPdEAsjGrej/Xnp51MotY+k6rGDq9UfS0vP4tX+fxPHu3I/JmZ484htKAeZubb+ibm0i7pG4NKw9TwL317GTai5RM+6eJ8pj3THjHuRL6y9ja1cm9qnTDUosz41TpGoXJmmfhavT4x6RFfPxqTHAU/7v2vuLaGs3NH3No+ZpWdb87WTbmmao5471M+VVPpVEzE+rx1vW99nbY3ro9Wkbp0TD1XDq54ov0czRM/fUVR9Kir40zEoi9WOxjqFrLnN6bazayMauvx0/U7ncuWomfvbsRxVEelURPEedUgh+3X0O7OG+upVVjUr9mdv7er4q+6GZbnvXqf5m34TX+VPFPx9yUfQrsq7P2VTY1fdsWNz69ERV3btvnDx6vxLc/XmJ++r9ImKaZSJiIiOIjwBr7o/0e2P0u0/2W3NMirOro7uRqWTxcyr321cfRp/FpiI8PKZ8WwgAPJ4O+N47Z2RodzWt06zi6Xg0eEV3qvGurz7tFMfSrq/FpiZQr66drvcGv1X9G6c272g6ZPNFWo3Ij55ej393zizH2c1eU80+QJQ9aeumxOluPXZ1fP+e6zNHNrSsOYrvzz5TX7rdPjHjV5x5RKCvW7tA776oXLuFl5UaRoM1c0aXh1zFFUe72tfndny8+KeY5imGpsm/fysi5k5N65ev3apruXLlU1VV1TPMzMz4zMz73zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABzETM8RHMyDgfquiqiru10zTPpMcS/IAAAAAAP1brrt1010VTTVTPNMxPExPrCQPRztV7+2VFnTtxVTuvR6OKYpy7sxlWqfxb3jNX2VxV6RMI+ALUekfWzp/1NsU0bf1im1qXd71emZcRayafXinniuI9aJqj14bHU141+9jZFvIxr1yzetVRXbuW6ppqoqjxiYmPGJ+KRvRrtbb12pNjTN401bp0mnin2t2vu5tqn4XPK59lfjP4UAsHGDdK+rGxupeB842trdq/kU083sG9+95Nn8q3Pjx+NHNPxZzAANU9bevWxellivG1HMnUtc7vNvSsOqKrvwm5Plap8vrePHlEg2lk37ONj3MjJvW7Nm1RNdy5cqimmimI5mZmfCIj1lF/rn2utu7dm/o3Ty1Y3DqlPNFWfXM/MrM/i8eN6fsmKfKe9PkjB1s68b76p3q8bU8yNO0Tv8AetaVhzNNr4TcnzuVeXjV4c+MRDVQMg35vTdG+tcr1rdes5WqZlXMU1Xavo26fwaKI+jRT8KYiGPgAAAAAAABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAnx2HOjOBt/Z1jf8AuLS6Lmv6p++YMZNqJqwsbypqpiY+jXX41d7z7s0xHHM8wp6abXyt67/0TauHM03dSzKLE1x/J0TPNdf9WmKqvzLcsW1TYxrdiiappt0RRTNVUzPERxHMz5yDzNwbX23uGz7HXtA0rVbfHHdzMS3eiP7US1Vu3st9HNfiuq1t69ot+v8AldMyqrXH2UVd6iP7LdgCFu9OxHk0xcvbN3rbufgY2q480/pu2+f+40Zvns+dW9oTcuZ+0MzNxaOf8q03jKtzHrxRzVTH5VMLRXHAKarlFdq5VbuUVUV0zxVTVHExPpMPytm390t6f77oqjdO1dNz71UcfOfZ+zyI+y7RxX+tG7qT2KsO97TK6f7mrxq/GYwtWjv0fZF2iOYj7aavtBCoZv1J6Ub/AOnl+qndO28vFx4q4pzbdPtcav04u0808z6TMT8GEAAAAA7GnZuZpudZztPy7+Hl2K4rs37FyaLluqPKaao8Yn4wkZ0y7YW/tt4kYO6cHG3Zj0Rxbu3bnzfJj4TcppmKvz08+so1gJF9Ve1z1A3bhXNN27j2dpYVyOK68W9N3Kqj09tMR3Y+NNNM/FHe/du371d+/cru3blU1V111TNVVU+MzMz5y/AAAAAAOzpen5+qZ9nA0zCyc3MvVd21Yx7VVy5cn0pppiZmfsSI6b9j/qJuGmzl7nycLa2HX41W7s+3yu74Tz7Oie7H2VVxMe+ARue/tHZe7d3ZHsNsbc1TV64niqcTGqrpo/KqiO7T+eYWEdPOy30n2lXRkZOk3dxZlPExd1auLtET7+LURFHH5UVT8W6sLExcLFt4uHjWcfHt092i1aoiiimPSKY8IgFfmyux51Q1nuXddv6TtyxP1qb9/wBveiPhRb5p/TXDc+0OxbsXAmi5uTcOs61cp86LMUYtqr7YjvV/oqhKMBrfbHQnpFt2mI0/YWjXKo/lMyz87r+3m9NUx+Zlmr7Q2vquhZGhZ+gabe03Itzbu4041EUTTxx4cR4T6THEx4TD3AFVfaJ6c3Ol3VPUds0V3LunzFOVp1659a5j1893n1mmYqomffNMzxHLXaenyhmw/uz0+0/fGFYmrL0K97HKqj34t2eOZ9e7c7vHwrqlAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEofk7No06r1L1bduRb71rQ8OLdiZjyv3+aYmPst03I/rQnuj52B9tfcToPY1S5Txe1zOvZkzMeMUUz7KiPs/e6qv6yQYAAAAAAPlk49jKx7mPk2bd6zcpmmu3cpiqmuJ84mJ8JhHjq92Sth7s9tqG1Kp2pqlXNXdsUd/DuT8bXP0PT6ExEfgykYAqj6tdJd8dMNR+bbo0mqjFrqmmxn2ObmLf/ACa+PCfxaoir4MDXG6xpmn6xpt/TNVwcbOwsiiaL2PkWouW7lPpVTPhKG/aF7I1dj2+4elVNVy1ETXe0O7cmao9ZsV1fW/Iqnnz4mfCkEOh9Mqxfxcm7jZNm5Yv2q5ouW7lM01UVRPExMT4xMT7pfMAAAAAGadJOmW7ep+4Y0fa+BNymjicrMu804+LTP31yvjw9/ERzM8TxE8Aw6xZu5F+ixYtV3btyqKaKKKZqqqqmeIiIjzlJbon2SN1bpixqu+713bGlVcVRi9yJzr1P5M+Fr7auZ/FSf6C9n/ZvSzFt5lu1Tq+4pp/fdUybcd6iZjiYs0+MW6fPy5qnnxnjwjcHkDDumvTLZPTrTow9qaDi4NU0927kzHfyL35d2r6U+PjxzxHuiGYgAAAAAADxd9aDY3TszWduZPEWtTwb2JVVMc93v0TTFX2xMxP5lRGoYmRgZ+Rg5dubWRj3arV2irzprpmYqifsmJXIyrB7Xu242z2gtz49q3NGPm36dQs+H1ov0xXVMfDvzXH5galAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB7ew9K+7u+NB0XjmNQ1LHxZj8u5TT/tBan0i0Sdt9LtsaFVR3LmFpONZuxx9/FuO/P9qZZU4pjinj3Q5AAAAAAAAAABoftP9nzR+p+m3db0S3Y07d1mjm3kRHdozYiPC3e49/uivzjwieY8q7Nd0nUtC1nL0fV8O9hZ+Hdqs5Fi7TxVbrieJif/AOeK4qfLmVdXbJ+aa/2oc3TMa1Ra9hYxcbJuW6Yiq5VFqK6qpn31RTVFPM/gxHuY11RRTNU9kN1ixXkXabVuN6qpiI8Z4Qj6Nu420dv2Yj/IIuT63LlVX+3h240DRI8tKw/+qhTVa7ZjspnyelWuirU6o3ru0Rzn6Q0uNz17f0SuOKtKw/zWoj9jH94bV0qzouTm4ONNi/Zp78RTXM0zHMc8xPPu58mdnWrNyuKNpjdG1Hoz1LDx678XKKopiZmI332jjw4fV3ezn0Y1rq7ueqxZrqwNCwqqZ1HUJp57kT5W7ceVVyr9ER4z7omyXYW0NvbG21j7e2zp1rAwLHjFNPjVcq99ddXnVXPHjVP7GmewDqOLmdAbWJYt2qLuBqeTYvzTTxNdVU03Iqq9Z7tcRz6UxHuSFXDzgAAABw5ABw5AAAEFvlI9FnH33tfcERxTm6bcxZ+2zc737L0foTpRV+Ui02i70321q00814ur1WIn0pu2aqp/XagEEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGxezPg/dDr9snHmOYp1eze/6ufaf7rXTbnY6pirtJ7OiZ44v35/Rj3QWd0+UOXFP1YcgAAAAAAAAAA4q8lYW5s37vdovd2q8zVR9082uiZnn6MXJop/Vws8r8KZn08VUvT67Vlbs1bMrqmqu5FdUzPvmq5Eyh6hV1caufg6T0Qsxe1zGpn96J5cfoz4Bwz9TjrapZ+cablWOOfaWa6f00y7IypnqzEw13rcXbdVFXZMbc22/k1NUqr0vemjVVx3bN/EyqKfjXTcoqn/UpTDQV+Tiv1Wupe6sKKvo3NLprmnnzmi/TET/rT+lOp6FD8czG07AD6+AAAAAAAACPPygOLGR0BquzHPzbVsa79nPfo/30hmie3bET2c9Y545jLxOP+upBW6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2p2ScmnF7RmzLtU8RVm1W/z12q6I/wC81WzboNm/c7rXsrLmru00a7hxVPpTN6mmf1TILYafGmPscuI8nIAAAAAAAAAAPzXHNMwqj6c01WNy6nj1T9KmiqJ/NXELXZVd52JVo3XjdulVxNPc1HNtUxMccxF6Zj9UcoWoxvjV+DpvQ25+HrmNVP723PgycBw79ShM8eMjrare+b6ZlX/+bs11R+amWVMdaYiGu9ci1bquVdkRM8mwvk4rU3eoG7syKYmKdOt0zVx5d69zx/q/qTlQ9+TV0yaNJ3prNVPhev4uLRVx+BTcrqjn+vSmE9Dfjmqd53AB8AAAAAAAAEf+3zkU2ez5l25nxv6li24+2Kpq/wB2UgEYflG82m10f0XBirivI12ivj1posXef11QCAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADtaRm3NO1XE1CzPF3Fv0XqJ+NNUVR+x1QFyODkWsvDs5VmqKrd63Tcon1iqImP2vu192cNcjcXQrZ2qd/v1zpVqxcq9812Y9lXP9qiWwQAAAAAAAAAfHMycbDxLuXl5FrHx7NE3Lt27XFFFFMRzNVUz4RER75B9Z8lZXaO1nRsXtN7l1jQ8i1n4XzuJrqs1fRm5Nmmm7EVeU8V97x9Yba7UnalnVbWVs3pjl128GumbWdrVHNNd6PKaLHvpp901+c/e8R41RDY10RXTNNXZLdjZFzGvU3rU7VUzEx4xO8NoYu/NFuREXqMqxPv5oiqI/PE/7Hb/djt3/APHzH/Q1/wDwakFTVomNM8N4+f8AZ39rpQ1qiNqooq8aZ+kw2zXvTbtMeGZcq+yzV/th4O6d6YWdpd/AwbGRzejuzcucUxEc+PEePLBBstaRj2qoqjeZhG1DpF1jNsVWKurTFUTE7Rx2nhPbMrC/k+KdKt9C7sYWZavZtzVb93OtRP0rFcxTTREx6TRRTVE/GfSUjVSvSjqJubppuq1uHbOZ7K7H0Mixc5qs5Nvnxt3KffHx84nxiYlYz0F627T6s6RE6ddjA1uzb72ZpV6uJu2/dNVE+HtLfP30eXMcxEytHBtogAAAAAAAAAIWfKVaxTVm7M0Giv6Vu3lZd2n4VTboon/VrTTVydvXXPut2gszCpq71GkYGPhxx5czTN6f13ePzA0EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACf3yd25vup0j1Hbt293r2i6lV3KPwLN6O/T/rxeSaV4dgPd06B1pnQb1zuYu4MSvG4meI9tbibluft4iumPy1h4AAAAAAAwDqh1i6edObNcbl3Dj282mnmnT8efbZVfhzH73T408+tXdj4ogdYO19vHckXtO2PjfuX02qJpnJmqLmbcj173HdteH4PMx7qgSy6z9bti9LcOunWtRjK1aaebOlYkxXkV8+U1R5W6fxquPfxEz4IG9duve9Oq9+rEzbsaVoFNXetaVi1z7OeJ5iq7V53ao8PPiI48KYaqy8nIzMq7lZd+7kZF6ua7t27XNVddUzzMzM+MzPrL5AAAAAAAO5o2qajouqY+qaTnZGDnY1cXLGRj3JouW6o98THjDpgJq9Bu2BYvxj6F1UtxYvcRRRrePb+hX/AE1un6s/jURx4/ViOZS40jUtO1fTrGpaVnY2fhZFPfs5GPdpuW7lPrTVTMxMfYpyZt0s6qb46a6h862prd7Hs1Vd69hXf3zGv/lW58Ofd3o4q9JgFsQjH0g7X+z9w02dO3xjTtnUauKZyaebmFcn1731rf8AWiYj8JJLStRwNVwLOoaZm42bh3qe9av492m5brj1iqmZiYB2gAAAAAfmuqmmmaqpiIiOZmfdCpDqvuCN1dTNy7joqmq1qGp379nnzi3Nc9yPzU92FlHaa3bGy+h+5tYoudzKrxJxMTirir21797pmPjT3pq/qyqwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB6W2NZzdu7j07XtOr7mZp+VbyrM/j0VRVHPw8Ftuydxadu3aWl7k0m77TC1LGoyLU8+MRVHM0z6TE8xMe6YlUAk52Qe0Rg9PMG5szetd+Nv13ar2FmW6Krk4ddXjXRVTHjNuqfpfRjmKpnwnveAT8EddwdsTpLp9NUadGu6xXEfRnGwot0zPxm7VTMfoaz3R23tQrort7Z2LjY9X3t7Uc2q7z9tFFNP/AHgTWnh4e7N37X2niRk7l3DpmkWpiZpnMyabU1/kxM81T8IiVcW9u0l1g3TNy3d3Xe0nGr/+z6TRGLFP9en98n89UtUahm5moZdeXn5d/LyLk813b9ya66p+NUzzIJ99Q+2L070S3csbVxM7c+XHhTVTRONjfnrrjvT+ajx9UbupXak6q7wpuYuHqdrbWBVzHsdKibdyqPxr0zNfP5M0x8GjQH7v3bt+9Xev3K7t25VNVdddUzVVM+czM+cvwAAAAAAAAAAAAADKNg9Qt6bDzfnW0tx5+lVTVFVdu1c5tXJ/Ht1c0VfniWLgJh9Nu2rmWYt4nUHbNOTTEcVZ2kzFFf2zZrnuzPxiqn7Ei9gddelm9ot29H3bg2suviIw82r5tf5/BimviKp/JmVWIC5aKqZjmJiYnyn1fpU3sjqt1F2X3Kdtbw1XBsUfVxvbe0sf9VXzR+puraHbP6g6d3LW49E0bXbVP1q6KasW9V+enmj/AFAT6EZNq9s/p1qFNujXtG1zRb0/Xqpt0ZNmn+tTMVT/AGGQbr7WXSHTNvX87SNZyNcz4ombGDZw71qq5X7oqruURTTHPnPjPHlE+QNR/KNb5oyNQ0Pp9h3oqjGidSz6YnniuqJos0z6TFPfq49K6ZQ+e3vzc+qbz3jqm6dZuRXnalkVX7nHPdo5+rRTz97TTEUxHpEPEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//2Q==';
+(function(){ var img=document.getElementById('logo-img'); if(img) img.src=LOGO_SRC; })();
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+var ROLES=['Мирный','Мафия','Шериф','Дон'];
+var MAF=['Мафия','Дон'];
+var CIV=['Мирный','Шериф'];
+var SP=['-','0','0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1','1.2','1.5'];
+var SM=['-','0','0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1','1.2','1.5'];
+var WINS=['Красные','Чёрные','Ничья'];
+
+// ── STATE ─────────────────────────────────────────────────────
+var S={
+  players:[],    // all players base
+  dayPlayers:[], // selected for current day
+  days:[],
+  scriptUrl:'',
+  gamesState:[],
+  editingIdx:-1,
+  ratingData:[]
+};
+var gameCount=0;
+var tmInterval=null, tmSec=0;
+
+function loadState(){
+  try{S.days=JSON.parse(localStorage.getItem('maf_days')||'[]');}catch(e){S.days=[];}
+  try{S.players=JSON.parse(localStorage.getItem('maf_players')||'[]');}catch(e){S.players=[];}
+  try{S.ratingData=JSON.parse(localStorage.getItem('maf_rating')||'[]');}catch(e){S.ratingData=[];}
+  S.scriptUrl=localStorage.getItem('maf_script_url')||'';
+}
+function save(){
+  try{
+    localStorage.setItem('maf_days',JSON.stringify(S.days));
+    localStorage.setItem('maf_players',JSON.stringify(S.players));
+    localStorage.setItem('maf_script_url',S.scriptUrl);
+    localStorage.setItem('maf_rating',JSON.stringify(S.ratingData||[]));
+  }catch(e){}
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function g(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function opt(v,l){var o=document.createElement('option');o.value=v;o.textContent=l;return o;}
+function setMsg(id,t,tp){var e=g(id);if(!e)return;e.textContent=t;e.className='msg '+tp;}
+function setSync(t,tp){var e=g('send-status');if(e)e.innerHTML='<span class="sync-box '+tp+'">'+esc(t)+'</span>';}
+function buildUrl(action){
+  var base=S.scriptUrl.trim();
+  if(!base)return '';
+  // strip trailing slash or /dev
+  base=base.replace(/\/+$/,'');
+  var idx=base.indexOf('/dev');
+  if(idx>0)base=base.substring(0,idx)+'/exec';
+  if(!action)return base;
+  return base+(base.indexOf('?')>=0?'&':'?')+'action='+encodeURIComponent(action);
+}
+function roleClass(r){
+  if(r==='Мафия')return'tr-maf';
+  if(r==='Шериф')return'tr-sher';
+  if(r==='Дон')return'tr-don';
+  return'tr-mir';
+}
+function winTagClass(w){
+  if(w==='Красные')return'tw-red';
+  if(w==='Чёрные')return'tw-blk';
+  return'tw-drw';
+}
+function winBadgeClass(w){
+  if(w==='Красные')return'badge bg-red';
+  if(w==='Чёрные')return'badge bg-blk';
+  return'badge bg-drw';
+}
+function isWinner(win,role){
+  if(win==='Красные')return MAF.indexOf(role)>=0;
+  if(win==='Чёрные')return CIV.indexOf(role)>=0;
+  return false;
+}
+function isMafRole(role){return MAF.indexOf(role)>=0;}
+
+// ── TIMER ─────────────────────────────────────────────────────
+function startTm(sec){
+  if(tmInterval){clearInterval(tmInterval);tmInterval=null;}
+  tmSec=sec; updateTm();
+  tmInterval=setInterval(function(){
+    if(tmSec<=0){stopTm();return;}
+    tmSec--; updateTm();
+  },1000);
+}
+function stopTm(){
+  if(tmInterval){clearInterval(tmInterval);tmInterval=null;}
+  tmSec=0;
+  var d=g('tmdisp');
+  if(d){d.textContent='–:––';d.className='tm-display';}
+}
+function updateTm(){
+  var d=g('tmdisp');if(!d)return;
+  var m=Math.floor(tmSec/60),s=tmSec%60;
+  d.textContent=m+':'+(s<10?'0':'')+s;
+  d.className='tm-display'+(tmSec<=10&&tmSec>0?' urgent':'');
+}
+g('tm15').addEventListener('click',function(){startTm(15);});
+g('tm20').addEventListener('click',function(){startTm(20);});
+g('tm30').addEventListener('click',function(){startTm(30);});
+g('tm45').addEventListener('click',function(){startTm(45);});
+g('tm60').addEventListener('click',function(){startTm(60);});
+g('tmplus').addEventListener('click',function(){tmSec+=30;updateTm();});
+g('tmlh').addEventListener('click',function(){startTm(20);});
+g('tmprot').addEventListener('click',function(){startTm(20);});
+g('tmstop').addEventListener('click',function(){stopTm();});
+
+// ── NAV ───────────────────────────────────────────────────────
+function showTab(name){
+  ['days','new','rating','settings'].forEach(function(t){
+    var e=g('tab-'+t);if(e)e.className='screen'+(t===name?' active':'');
+    var b=g('nav-'+t);if(b)b.className='nav-btn'+(t===name?' active':'');
+  });
+  if(name==='days')renderDays();
+  if(name==='rating')renderRating();
+  if(name==='settings')renderPlayers();
+  if(name==='new')initNewDay();
+}
+var tabNameManual=false;
+var RU_MONTHS=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function syncTabName(){
+  var d=g('tab-date');if(!d||!d.value)return;
+  var parts=d.value.split('-');
+  if(parts.length<3)return;
+  var day=parseInt(parts[2]);
+  var mon=parseInt(parts[1])-1;
+  var label=day+' '+RU_MONTHS[mon];
+  var tn=g('tab-name');if(tn){tn.value=label;tabNameManual=false;}
+}
+// Вешаем listener на date input после загрузки DOM
+document.addEventListener('DOMContentLoaded',function(){
+  var di=g('tab-date');if(di)di.addEventListener('change',syncTabName);
+});
+g('nav-days').addEventListener('click',function(){showTab('days');});
+g('nav-new').addEventListener('click',function(){showTab('new');});
+g('nav-rating').addEventListener('click',function(){showTab('rating');});
+g('nav-settings').addEventListener('click',function(){showTab('settings');});
+
+// ── CONN ──────────────────────────────────────────────────────
+function updateConn(ok){
+  var e=g('conn-badge');
+  e.textContent=ok?'Подключено':'Не подключено';
+  e.className='conn-badge'+(ok?' on':'');
+  var bs=g('btn-savesheet');if(bs)bs.disabled=!ok;
+}
+g('btn-saveurl').addEventListener('click',function(){
+  var url=g('script-url').value.trim();if(!url)return;
+  S.scriptUrl=url;save();setMsg('conn-msg','Сохранено','ok');updateConn(true);
+});
+g('btn-testconn').addEventListener('click',function(){
+  var url=g('script-url').value.trim();
+  if(!url){setMsg('conn-msg','Введите URL','err');return;}
+  setMsg('conn-msg','Проверяю…','loading');
+  fetch(url+'?action=ping')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status==='ok'){setMsg('conn-msg','OK!','ok');S.scriptUrl=url;save();updateConn(true);}
+      else throw new Error(d.message);
+    }).catch(function(e){setMsg('conn-msg','Ошибка: '+e.message,'err');});
+});
+
+// ── PLAYERS ───────────────────────────────────────────────────
+g('btn-loadplayers').addEventListener('click',function(){
+  var url=buildUrl('getPlayers');
+  if(!url){setMsg('players-msg','URL не задан','err');return;}
+  setMsg('players-msg','Загружаю…','loading');
+  fetch(url).then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status==='ok'&&d.players&&d.players.length){
+        S.players=d.players;save();renderPlayers();
+        setMsg('players-msg',d.players.length+' игроков','ok');
+      }else throw new Error('Не найдено');
+    }).catch(function(e){setMsg('players-msg','Ошибка: '+e.message,'err');});
+});
+g('btn-addplayer').addEventListener('click',function(){
+  var inp=g('manual-nick'),v=inp.value.trim();if(!v)return;
+  if(S.players.indexOf(v)<0){S.players.push(v);save();}
+  inp.value='';renderPlayers();
+});
+g('btn-resetall').addEventListener('click',function(){
+  if(!confirm('Удалить все сохранённые дни?'))return;
+  S.days=[];save();renderDays();
+});
+
+// Быстрое добавление игрока в шаге 1
+g('btn-quick-add').addEventListener('click',function(){
+  var inp=g('quick-add-nick');
+  var v=(inp.value||'').trim();if(!v)return;
+  if(S.players.indexOf(v)<0){S.players.push(v);save();}
+  if(S.dayPlayers.indexOf(v)<0){S.dayPlayers.push(v);}
+  inp.value='';
+  // Обновляем все существующие селекты с игроками
+  document.querySelectorAll('[id^="ps-"]').forEach(function(sel){
+    var hasOpt=false;
+    for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===v){hasOpt=true;break;}}
+    if(!hasOpt){var o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);}
+  });
+  // Update judge datalists
+  document.querySelectorAll('[id^="judge-dl-"]').forEach(function(dl){
+    var hasOpt=false;
+    dl.querySelectorAll('option').forEach(function(o){if(o.value===v)hasOpt=true;});
+    if(!hasOpt){var o=document.createElement('option');o.value=v;dl.appendChild(o);}
+  });
+  renderPool();renderPlayers();
+});
+
+// Загрузка игрового дня из таблицы
+g('btn-loadday').addEventListener('click',function(){
+  var sheetName=(g('load-sheet-name').value||'').trim();
+  if(!sheetName){setMsg('loadday-msg','Введите название листа','err');return;}
+  if(!S.scriptUrl){setMsg('loadday-msg','URL не задан — проверьте настройки','err');return;}
+  setMsg('loadday-msg','Загружаю…','loading');
+  var url=buildUrl('getDay')+'&sheet='+encodeURIComponent(sheetName);
+  fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status==='ok'&&d.day){
+        // Проверяем, есть ли уже такой день
+        var existIdx=-1;
+        for(var di=0;di<S.days.length;di++){if(S.days[di].tabName===d.day.tabName){existIdx=di;break;}}
+        if(existIdx>=0){
+          if(!confirm('День «'+d.day.tabName+'» уже есть локально. Заменить?'))return;
+          S.days[existIdx]=d.day;
+        }else{
+          S.days.push(d.day);
+        }
+        save();renderDays();
+        setMsg('loadday-msg','Загружено: «'+d.day.tabName+'»','ok');
+        g('load-sheet-name').value='';
+      }else throw new Error(d.message||'Нет данных');
+    }).catch(function(e){setMsg('loadday-msg','Ошибка: '+e.message+' (обновите Apps Script — нужна функция getDay)','err');});
+});
+
+function renderPlayers(){
+  var d=g('players-display');
+  if(!S.players.length){d.innerHTML='<div class="hint">Нет игроков. Загрузите из таблицы или добавьте вручную.</div>';return;}
+  d.innerHTML='';
+  var wrap=document.createElement('div');wrap.className='pool-grid';
+  S.players.slice().sort(function(a,b){return a.localeCompare(b,'ru');}).forEach(function(p,i){
+    var origIdx=S.players.indexOf(p);i=origIdx;
+    var chip=document.createElement('span');chip.className='pool-chip';chip.textContent=p;
+    var x=document.createElement('span');x.textContent=' ×';x.style.cssText='cursor:pointer;color:var(--text3);';
+    x.addEventListener('click',function(e){e.stopPropagation();S.players.splice(i,1);save();renderPlayers();});
+    chip.appendChild(x);wrap.appendChild(chip);
+  });
+  d.appendChild(wrap);
+}
+
+// ── PLAYER POOL (day selection) ───────────────────────────────
+function renderPool(){
+  var grid=g('pool-grid');grid.innerHTML='';
+  var sorted=S.players.slice().sort(function(a,b){return a.localeCompare(b,'ru');});
+  sorted.forEach(function(p){
+    var chip=document.createElement('div');
+    chip.className='pool-chip'+(S.dayPlayers.indexOf(p)>=0?' in-day':'');
+    chip.textContent=p;
+    chip.addEventListener('click',function(){
+      var idx=S.dayPlayers.indexOf(p);
+      if(idx>=0)S.dayPlayers.splice(idx,1);
+      else S.dayPlayers.push(p);
+      chip.className='pool-chip'+(S.dayPlayers.indexOf(p)>=0?' in-day':'');
+    });
+    grid.appendChild(chip);
+  });
+  updatePlayerDatalist();
+}
+g('btn-pool-all').addEventListener('click',function(){
+  S.dayPlayers=S.players.slice();renderPool();
+});
+function updatePlayerDatalist(){
+  var dl=g('players-datalist');if(!dl)return;
+  dl.innerHTML='';
+  // Объединяем dayPlayers и все S.players, дедупликация
+  var all=[];
+  S.players.forEach(function(p){if(all.indexOf(p)<0)all.push(p);});
+  S.dayPlayers.forEach(function(p){if(all.indexOf(p)<0)all.push(p);});
+  all.sort(function(a,b){return a.localeCompare(b,'ru');});
+  all.forEach(function(p){
+    var o=document.createElement('option');o.value=p;dl.appendChild(o);
+  });
+}
+
+g('btn-pool-none').addEventListener('click',function(){
+  S.dayPlayers=[];renderPool();
+});
+g('btn-pool-add-nick').addEventListener('click',function(){
+  var inp=g('pool-new-nick');
+  var v=(inp.value||'').trim();if(!v)return;
+  // Добавляем в общий список если нет
+  if(S.players.indexOf(v)<0){S.players.push(v);save();}
+  // Добавляем в день
+  if(S.dayPlayers.indexOf(v)<0)S.dayPlayers.push(v);
+  inp.value='';renderPool();renderPlayers();
+});
+
+// ── NEW DAY ───────────────────────────────────────────────────
+function initNewDay(){
+  g('tab-name').value='';
+  S.gamesState=[];S.editingIdx=-1;gameCount=0;
+  g('send-status').innerHTML='';
+  g('btn-savesheet').disabled=!S.scriptUrl;
+  g('new-heading').textContent='Новый день';
+  g('games-editor').innerHTML='';
+  S.dayPlayers=S.players.slice(); // по умолчанию все
+  // dayPlayers — база для datalist
+  updatePlayerDatalist();
+  tabNameManual=false;
+  // Ставим сегодняшнюю дату по умолчанию
+  var td=g('tab-date');
+  if(td){
+    var now=new Date();
+    var y=now.getFullYear();
+    var m=String(now.getMonth()+1).padStart(2,'0');
+    var day=String(now.getDate()).padStart(2,'0');
+    td.value=y+'-'+m+'-'+day;
+    syncTabName();
+  }
+  renderPool();
+  goStep(0);
+}
+
+function goStep(n){
+  [0,1,2].forEach(function(i){
+    var s=g('step'+i);if(s)s.className='screen'+(i===n?' active':'');
+    var d=g('dot'+i);if(d)d.className='dot'+(i<n?' done':i===n?' active':'');
+  });
+  if(n===1&&gameCount===0)addGame();
+  if(n===2)buildSummary();
+}
+
+g('btn-s0next').addEventListener('click',function(){goStep(1);});
+g('btn-s1back').addEventListener('click',function(){goStep(0);});
+// btn-s1next removed
+// btn-s2back removed
+g('btn-addgame').addEventListener('click',function(){addGame();});
+
+g('btn-savelocal').addEventListener('click',function(){
+  var day=collectDay();
+  if(S.editingIdx>=0){day.sentToSheet=false;S.days[S.editingIdx]=day;}
+  else {
+    var existIdx3=-1;
+    for(var _di3=0;_di3<S.days.length;_di3++){if(S.days[_di3].tabName===day.tabName){existIdx3=_di3;break;}}
+    if(existIdx3>=0)S.days[existIdx3]=day;else S.days.push(day);
+  }
+  save();S.gamesState=[];S.editingIdx=-1;showTab('days');
+});
+
+g('btn-savesheet').addEventListener('click',function(){
+  var day=collectDay();var dayIdx;
+  if(S.editingIdx>=0){day.sentToSheet=false;S.days[S.editingIdx]=day;dayIdx=S.editingIdx;}
+  var existIdx2=-1;
+  for(var _di2=0;_di2<S.days.length;_di2++){if(S.days[_di2].tabName===day.tabName){existIdx2=_di2;break;}}
+  if(existIdx2>=0){dayIdx=existIdx2;S.days[existIdx2]=day;}
+  else{S.days.push(day);dayIdx=S.days.length-1;}
+  save();setSync('Отправляю...','loading');
+  var payload=JSON.stringify(day);
+  var url=buildUrl('');
+  fetch(url,{method:'POST',body:payload,headers:{'Content-Type':'text/plain;charset=utf-8'},mode:'no-cors'})
+    .then(function(){onOK();})
+    .catch(function(e){setSync('Ошибка: '+e.message,'err');});
+  function onOK(){
+    S.days[dayIdx].sentToSheet=true;save();
+    setSync('Записано в таблицу!','ok');
+    setTimeout(function(){S.gamesState=[];S.editingIdx=-1;showTab('days');},1400);
+  }
+});
+
+// ── GAME FORM ─────────────────────────────────────────────────
+function addGame(){
+  var gi=gameCount++;
+  while(S.gamesState.length<=gi)S.gamesState.push({winner:'',pu:null,lh:[],votedOut:[]});
+  g('games-editor').appendChild(buildGameForm(gi));
+}
+
+function buildGameForm(gi){
+  var wrap=document.createElement('div');wrap.className='card card-red';wrap.id='gform-'+gi;
+
+  // strip
+  var strip=document.createElement('div');strip.className='game-strip';
+  var num=document.createElement('span');num.className='game-num';num.textContent='Игра '+(gi+1);
+  strip.appendChild(num);
+  var stripBtns=document.createElement('div');stripBtns.style.cssText='display:flex;gap:6px;align-items:center;';
+  var del=document.createElement('button');del.className='btn-del';del.textContent='Удалить';
+  del.addEventListener('click',function(){var f=g('gform-'+gi);if(f)f.parentNode.removeChild(f);});
+  stripBtns.appendChild(del);
+  strip.appendChild(stripBtns);
+  wrap.appendChild(strip);
+
+  // судья
+  var jDiv=document.createElement('div');jDiv.style.marginBottom='.65rem';
+  var jL=document.createElement('label');jL.textContent='Судья';
+  var jDlId='judge-dl-'+gi;
+  var jDl=document.createElement('datalist');jDl.id=jDlId;
+  S.dayPlayers.forEach(function(p){var o=document.createElement('option');o.value=p;jDl.appendChild(o);});
+  var jInp=document.createElement('input');jInp.type='text';jInp.id='judge-'+gi;
+  jInp.setAttribute('list',jDlId);jInp.placeholder='-- выбрать или ввести --';
+  jDiv.appendChild(jL);jDiv.appendChild(jInp);jDiv.appendChild(jDl);wrap.appendChild(jDiv);
+
+  // ┌─── Верхний ряд: таблица слева + ПУ/ЛХ/Победитель справа ───┐
+  var topRow=document.createElement('div');
+  topRow.style.cssText='display:flex;gap:10px;align-items:flex-start;';
+
+  // Левая — таблица игроков
+  var leftCol=document.createElement('div');leftCol.style.cssText='flex:1;min-width:0;';
+  var hr=document.createElement('div');hr.className='pr-row pr-hdr';
+  ['#','Игрок','Роль','Фолы','Тех.','Мнение','Протокол','−','+'].forEach(function(t,hi){
+    var d=document.createElement('div');
+    d.style.cssText='font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.3px;';
+    if(hi===5)d.style.color='#8888aa';
+    if(hi===6)d.style.color='#e74c3c';
+    if(hi===7)d.style.color='var(--red3)';
+    if(hi===8)d.style.color='var(--green3)';
+    d.textContent=t;hr.appendChild(d);
+  });
+  leftCol.appendChild(hr);
+  for(var i=0;i<10;i++)leftCol.appendChild(buildPlayerRow(gi,i));
+  topRow.appendChild(leftCol);
+
+  // Правая — ПУ / ЛХ / Победитель / Комментарий
+  var rightCol=document.createElement('div');
+  rightCol.style.cssText='width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:.5rem;';
+
+  // ПУ
+  rightCol.appendChild(buildPUSec(gi));
+
+  // ЛХ
+  rightCol.appendChild(buildLHSec(gi));
+
+  // Победитель
+  var wSec=document.createElement('div');
+  var wH=document.createElement('h3');wH.textContent='Победитель';wH.style.marginBottom='5px';wSec.appendChild(wH);
+  var wRow=document.createElement('div');wRow.id='win-'+gi;
+  wRow.style.cssText='display:flex;gap:5px;flex-wrap:wrap;';
+  WINS.forEach(function(w){
+    var btn=document.createElement('button');btn.className='w-btn';btn.textContent=w;
+    btn.addEventListener('click',function(){selectWinner(gi,w);});
+    wRow.appendChild(btn);
+  });
+  wSec.appendChild(wRow);rightCol.appendChild(wSec);
+
+  // Комментарий
+  var cSec=document.createElement('div');
+  var cL=document.createElement('label');cL.textContent='Комментарий';
+  var cI=document.createElement('input');cI.type='text';cI.id='comment-'+gi;cI.placeholder='необязательно';
+  cSec.appendChild(cL);cSec.appendChild(cI);rightCol.appendChild(cSec);
+
+  topRow.appendChild(rightCol);
+  wrap.appendChild(topRow);
+
+  // ┌─── Нижний блок: голосование по кругам (5 в ряд) ───┐
+  wrap.appendChild(buildNomSec(gi));
+
+  // Кнопка валидации и отправки — в самом конце
+  var valBtnRow=document.createElement('div');valBtnRow.style.cssText='display:flex;gap:8px;margin-top:.75rem;';
+  var valBtn=document.createElement('button');
+  valBtn.className='btn btn-out';valBtn.style.cssText='flex:1;border-color:var(--gold);color:var(--gold);font-weight:700;font-size:14px;';
+  valBtn.textContent='✓ Проверить игру';
+  valBtn.addEventListener('click',function(){validateGame(gi);});
+  valBtnRow.appendChild(valBtn);
+  // Кнопка «В таблицу» сразу в игре (если подключено)
+  var inlineSheetBtn=document.createElement('button');
+  inlineSheetBtn.className='btn btn-green';inlineSheetBtn.id='inline-sheet-'+gi;
+  inlineSheetBtn.style.cssText='flex:1;font-weight:700;font-size:13px;display:none;';
+  inlineSheetBtn.textContent='↑ В таблицу';
+  inlineSheetBtn.addEventListener('click',function(){
+    inlineSheetBtn.textContent='Отправка…';inlineSheetBtn.disabled=true;
+    var day=collectDay();
+    var dayIdx;
+    if(S.editingIdx>=0){day.sentToSheet=false;S.days[S.editingIdx]=day;dayIdx=S.editingIdx;}
+    else{
+      var existIdx4=-1;
+      for(var _di4=0;_di4<S.days.length;_di4++){if(S.days[_di4].tabName===day.tabName){existIdx4=_di4;break;}}
+      if(existIdx4>=0){S.days[existIdx4]=day;dayIdx=existIdx4;}
+      else{S.days.push(day);dayIdx=S.days.length-1;}
+    }
+    save();
+    var url=buildUrl('');
+    fetch(url,{method:'POST',body:JSON.stringify(day),headers:{'Content-Type':'text/plain;charset=utf-8'},mode:'no-cors'})
+      .then(function(){
+        if(true){
+          var now2=new Date();
+          var ts2=now2.getDate()+'.'+(now2.getMonth()+1)+' '+String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0');
+          S.days[dayIdx].sentToSheet=true;S.days[dayIdx].lastSent=ts2;save();renderDays();
+          inlineSheetBtn.textContent='✓ Записано ('+ts2+')';inlineSheetBtn.style.background='#0d2a15';
+        }
+      })
+      .catch(function(e){inlineSheetBtn.textContent='Ошибка: '+(e.message||'сеть');inlineSheetBtn.disabled=false;});
+  });
+  valBtnRow.appendChild(inlineSheetBtn);
+  wrap.appendChild(valBtnRow);
+
+  // Сообщения валидации
+  var valMsg=document.createElement('div');valMsg.id='val-msg-'+gi;valMsg.style.cssText='margin-top:.4rem;font-size:12px;line-height:1.7;display:none;';
+  wrap.appendChild(valMsg);
+
+  return wrap;
+}
+
+function addProtoTag(gi,playerIdx,num,color,container){
+  var colorMap={red:'proto-tag-red',blk:'proto-tag-blk',w:'',g:'',y:''};
+  var bgMap={red:'#2a0808',blk:'#111',w:'#1a1a2a',g:'#0d2014',y:'#1e1600'};
+  var fgMap={red:'var(--red3)',blk:'#ccc',w:'#aac',g:'var(--green3)',y:'var(--gold2)'};
+  var tag=document.createElement('span');
+  tag.className='proto-tag';
+  tag.textContent=num;
+  tag.style.background=bgMap[color]||bgMap.blk;
+  tag.style.color=fgMap[color]||fgMap.blk;
+  tag.style.border='1px solid '+(fgMap[color]||'#555');
+  tag.title='Нажми чтобы удалить';
+  tag.addEventListener('click',function(){container.removeChild(tag);});
+  container.appendChild(tag);
+}
+
+function buildFoulCtr(idBase,max,colorClass){
+  // hidden inputs для совместимости со сбором данных
+  var wrap=document.createElement('div');wrap.className='foul-ctr';
+  var dec=document.createElement('button');dec.className='foul-ctr-btn';dec.textContent='−';dec.type='button';
+  var val=document.createElement('span');val.className='foul-ctr-val';val.id=idBase+'-val';val.textContent='0';
+  var inc=document.createElement('button');inc.className='foul-ctr-btn';inc.textContent='+';inc.type='button';
+  // hidden storage
+  var hid=document.createElement('input');hid.type='hidden';hid.id=idBase+'-count';hid.value='0';
+  wrap.appendChild(dec);wrap.appendChild(val);wrap.appendChild(inc);wrap.appendChild(hid);
+  function updateFoulDisplay(){
+    var cur=parseInt(hid.value||'0');
+    val.textContent=cur;
+    var atMax=(cur>=max);
+    val.className='foul-ctr-val'+(cur>0?' '+colorClass:'')+(atMax?' foul-max':'');
+    wrap.style.boxShadow=atMax?'0 0 12px #e74c3caa':'';
+    wrap.style.borderRadius=atMax?'6px':'';
+    dec.style.opacity=cur<=0?'0.3':'1';
+    inc.style.opacity=cur>=max?'0.3':'1';
+  }
+  inc.addEventListener('click',function(){
+    var cur=parseInt(hid.value||'0');
+    if(cur>=max)return;
+    cur++;hid.value=cur;updateFoulDisplay();
+  });
+  dec.addEventListener('click',function(){
+    var cur=parseInt(hid.value||'0');
+    if(cur<=0)return;
+    cur--;hid.value=cur;updateFoulDisplay();
+  });
+  return wrap;
+}
+
+function makeInlineProto(gi,i,kind){
+  var wrap=document.createElement('div');wrap.className='inline-proto';
+  var tagsDiv=document.createElement('div');tagsDiv.className='proto-tags';tagsDiv.id=kind+'-tags-'+gi+'-'+i;
+  wrap.appendChild(tagsDiv);
+  var addRow=document.createElement('div');addRow.className='inline-proto-add';
+  // Поле номера
+  var numInp=document.createElement('input');numInp.type='text';numInp.placeholder='№';numInp.maxLength=2;
+  // К и Ч — для обоих
+  var rBtn=document.createElement('button');rBtn.className='red-btn';rBtn.textContent='К';rBtn.title='Красный';
+  var bBtn=document.createElement('button');bBtn.className='blk-btn';bBtn.textContent='Ч';bBtn.title='Чёрный';
+  rBtn.addEventListener('click',function(){
+    var n=numInp.value.trim();if(!n)return;
+    addProtoTag(gi,i,n,'red',tagsDiv);numInp.value='';
+  });
+  bBtn.addEventListener('click',function(){
+    var n=numInp.value.trim();if(!n)return;
+    addProtoTag(gi,i,n,'blk',tagsDiv);numInp.value='';
+  });
+  addRow.appendChild(numInp);addRow.appendChild(rBtn);addRow.appendChild(bBtn);
+  if(kind==='mnenie'){
+    // Мнение: К, Ч + свободное поле для заметки (без тэга — просто текст)
+    var freeInp=document.createElement('input');
+    freeInp.type='text';freeInp.id='mnenie-free-'+gi+'-'+i;
+    freeInp.placeholder='заметка…';
+    freeInp.style.cssText='font-size:11px;padding:2px 5px;width:100%;background:var(--bg4);border:1px solid var(--border2);border-radius:3px;color:var(--text);margin-top:2px;display:block;';
+    addRow.appendChild(freeInp);
+  }
+  // Протокол: только К и Ч, никаких доп. полей
+  wrap.appendChild(addRow);
+  return wrap;
+}
+
+function buildPlayerRow(gi,i){
+  var row=document.createElement('div');row.className='pr-row';
+  // 1. #
+  var num=document.createElement('div');
+  num.style.cssText='text-align:center;color:var(--text3);font-size:13px;font-weight:700;';
+  num.textContent=i+1;row.appendChild(num);
+  // 2. Игрок — input с autocomplete + автодобавление в базу
+  var pS=document.createElement('input');pS.type='text';pS.id='ps-'+gi+'-'+i;
+  pS.className='player-inp';pS.placeholder='Игрок…';
+  pS.setAttribute('list','players-datalist');
+  pS.value='';
+  pS.addEventListener('input',function(){updateLHBtns(gi);});
+  pS.addEventListener('blur',function(){
+    var v=pS.value.trim();
+    if(!v)return;
+    // Добавляем в базу и dayPlayers если нет
+    if(S.players.indexOf(v)<0){S.players.push(v);save();}
+    if(S.dayPlayers.indexOf(v)<0){S.dayPlayers.push(v);}
+    updatePlayerDatalist();
+  });
+  row.appendChild(pS);
+  // 3. Роль
+  var rS=document.createElement('select');rS.id='role-'+gi+'-'+i;rS.style.fontSize='11px';
+  ROLES.forEach(function(r){rS.appendChild(opt(r,r));});
+  rS.addEventListener('change',function(){updateLHBtns(gi);});
+  row.appendChild(rS);
+  // 4. Фолы 0..4
+  row.appendChild(buildFoulCtr('f-'+gi+'-'+i,4,'has-val'));
+  // 5. Тех.фолы 0..2
+  var tc=buildFoulCtr('tf-'+gi+'-'+i,2,'techf-ctr-val has-val');
+  var tcVal=tc.querySelector('.foul-ctr-val');
+  if(tcVal)tcVal.style.color='var(--gold2)';
+  row.appendChild(tc);
+  // 6. Мнение (inline)
+  row.appendChild(makeInlineProto(gi,i,'mnenie'));
+  // 7. Протокол (inline)
+  row.appendChild(makeInlineProto(gi,i,'proto'));
+  // 8. − очки
+  var smS=document.createElement('select');smS.id='sm-'+gi+'-'+i;smS.className='score-sel-minus';
+  SM.forEach(function(v){smS.appendChild(opt(v,v));});
+  row.appendChild(smS);
+  // 9. + очки
+  var spS=document.createElement('select');spS.id='sp-'+gi+'-'+i;spS.className='score-sel-plus';
+  SP.forEach(function(v){spS.appendChild(opt(v,v));});
+  row.appendChild(spS);
+  return row;
+}
+
+function buildPUSec(gi){
+  var sec=document.createElement('div');sec.style.marginTop='.75rem';
+  var h=document.createElement('h3');h.textContent='ПУ (первый убиенный)';sec.appendChild(h);
+  var row=document.createElement('div');row.id='pu-'+gi;
+  row.style.cssText='display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;';
+  for(var pi=0;pi<10;pi++){
+    (function(seat){
+      var btn=document.createElement('button');btn.className='pu-btn';btn.textContent=seat+1;
+      btn.setAttribute('data-s',String(seat));
+      btn.addEventListener('click',function(){selectPU(gi,seat);});
+      row.appendChild(btn);
+    })(pi);
+  }
+  var prom=document.createElement('button');prom.className='pu-wide';prom.textContent='Промах';
+  prom.setAttribute('data-s','null');
+  prom.addEventListener('click',function(){selectPU(gi,null);});
+  row.appendChild(prom);
+  sec.appendChild(row);return sec;
+}
+
+function buildLHSec(gi){
+  var sec=document.createElement('div');sec.id='lhsec-'+gi;sec.style.marginTop='.75rem';
+  var h=document.createElement('h3');h.textContent='Лучший ход';sec.appendChild(h);
+  var btnsRow=document.createElement('div');btnsRow.id='lhrow-'+gi;
+  btnsRow.style.cssText='display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;';
+  for(var li=1;li<=10;li++){
+    (function(seat){
+      var btn=document.createElement('button');btn.className='lh-btn';btn.textContent=seat;
+      btn.setAttribute('data-lhs',String(seat));
+      btn.addEventListener('click',function(){toggleLH(gi,seat);});
+      btnsRow.appendChild(btn);
+    })(li);
+  }
+  var clr=document.createElement('button');clr.className='btn-ghost btn-sm';clr.style.marginLeft='4px';
+  clr.textContent='Сброс';
+  clr.addEventListener('click',function(){clearLH(gi);});
+  btnsRow.appendChild(clr);
+  sec.appendChild(btnsRow);return sec;
+}
+
+function buildNomSec(gi){
+  var sec=document.createElement('div');
+  sec.style.cssText='margin-top:.75rem;border-top:1px solid var(--border);padding-top:.6rem;';
+
+  var hRow=document.createElement('div');hRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  var h=document.createElement('h3');h.textContent='Голосование по кругам';h.style.margin='0';
+  hRow.appendChild(h);
+  sec.appendChild(hRow);
+
+  // grid: 5 кругов + shot-block на всю ширину под ними
+  var cont=document.createElement('div');cont.id='nom-'+gi;
+  cont.className='nom-rounds-grid';
+
+  // Стартуем с 5 кругов (0-4)
+  for(var r=0;r<=4;r++) cont.appendChild(buildNomRound(gi,r));
+
+  // Блок отстрела — сразу после первых 5 кругов, занимает всю ширину
+  cont.appendChild(buildShotBlock(gi,0,1));
+
+  sec.appendChild(cont);
+
+  // Кнопки + Круг / − Круг
+  var btnsRow=document.createElement('div');btnsRow.style.cssText='display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;';
+  var addR=document.createElement('button');addR.className='btn btn-out btn-sm';addR.textContent='+ Круг';
+  var remR=document.createElement('button');remR.className='btn btn-out btn-sm';remR.textContent='− Круг';
+  var addNight=document.createElement('button');addNight.className='btn btn-sm';
+  addNight.style.cssText='background:#1a0808;border:1px solid #c0392b55;color:var(--red3);font-size:12px;';
+  addNight.textContent='🔫 + Ночь';
+
+  (function(c){
+    addR.addEventListener('click',function(){
+      // Считаем только .nom-round (не shot-block)
+      var allRounds=c.querySelectorAll('.nom-round');
+      var cnt=allRounds.length;
+
+      // При добавлении 6+ — сворачиваем первый видимый
+      var visible=Array.from(allRounds).filter(function(r){return !r.hasAttribute('data-collapsed');});
+      if(visible.length>=5){
+        var toCollapse=visible[0];
+        toCollapse.style.maxHeight='26px';
+        toCollapse.style.overflow='hidden';
+        toCollapse.style.opacity='.35';
+        toCollapse.style.cursor='pointer';
+        toCollapse.setAttribute('data-collapsed','1');
+        toCollapse.title='Развернуть круг '+toCollapse.querySelector('.nom-label').textContent;
+        (function(el){
+          el.addEventListener('click',function expand(){
+            el.style.maxHeight='';el.style.overflow='';
+            el.style.opacity='';el.style.cursor='';el.title='';
+            el.removeAttribute('data-collapsed');
+            el.removeEventListener('click',expand);
+          });
+        })(toCollapse);
+      }
+
+      // Вставляем новый круг ПЕРЕД первым shot-block (или в конец)
+      var firstShot=c.querySelector('.shot-block');
+      var newRound=buildNomRound(gi,cnt);
+      if(firstShot) c.insertBefore(newRound,firstShot);
+      else c.appendChild(newRound);
+    });
+
+    remR.addEventListener('click',function(){
+      var allRounds=c.querySelectorAll('.nom-round');
+      if(allRounds.length>1){
+        c.removeChild(allRounds[allRounds.length-1]);
+        // Разворачиваем последний свёрнутый если <5 видимых
+        var collapsed=Array.from(c.querySelectorAll('.nom-round[data-collapsed]'));
+        var visible=Array.from(c.querySelectorAll('.nom-round:not([data-collapsed])')).length;
+        if(collapsed.length&&visible<5){
+          var toExpand=collapsed[collapsed.length-1];
+          toExpand.style.maxHeight='';toExpand.style.overflow='';
+          toExpand.style.opacity='';toExpand.style.cursor='';toExpand.title='';
+          toExpand.removeAttribute('data-collapsed');
+        }
+      }
+    });
+
+    addNight.addEventListener('click',function(){
+      // Считаем реальное количество кругов на момент клика
+      var currentRounds=c.querySelectorAll('.nom-round').length;
+      var currentShots=c.querySelectorAll('.shot-block').length;
+      c.appendChild(buildShotBlock(gi,currentRounds-1,currentShots+1));
+    });
+  })(cont);
+
+  btnsRow.appendChild(addR);btnsRow.appendChild(remR);btnsRow.appendChild(addNight);
+  sec.appendChild(btnsRow);
+  return sec;
+}
+
+
+function buildShotBlock(gi,afterRound,shotNum){
+  var gs=S.gamesState[gi]||{};
+  var votedOut=gs.votedOut||[];
+  var block=document.createElement('div');block.className='shot-block';
+  block.setAttribute('data-shot-after',String(afterRound));
+
+  var hRow=document.createElement('div');hRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:5px;';
+  var lbl=document.createElement('div');lbl.className='shot-label';lbl.style.margin='0';
+  var nightNum=shotNum||1;lbl.textContent='🌙 Ночь '+nightNum+' (после круга '+afterRound+')';
+  hRow.appendChild(lbl);
+  block.appendChild(hRow);
+
+  var seats=document.createElement('div');seats.className='shot-seats';
+
+  // Кнопки 1-10
+  for(var p=1;p<=10;p++){
+    (function(seat){
+      var isElim=votedOut.indexOf(seat)>=0;
+      var btn=document.createElement('button');
+      btn.className='shot-btn'+(isElim?' shot-sel':'');
+      btn.textContent=String(seat);
+      btn.title='Отстрел игрока '+seat;
+      if(isElim){btn.style.opacity='.4';btn.style.cursor='default';}
+      btn.addEventListener('click',function(){
+        if(!S.gamesState[gi])S.gamesState[gi]={winner:'',pu:null,lh:[],votedOut:[],shotList:[]};
+        var gs2=S.gamesState[gi];
+        if(!gs2.shotList)gs2.shotList=[];if(!gs2.votedOut)gs2.votedOut=[];
+        if(btn.classList.contains('shot-sel')){
+          btn.classList.remove('shot-sel');btn.style.opacity='';btn.style.cursor='';
+          var si=gs2.shotList.indexOf(seat);if(si>=0)gs2.shotList.splice(si,1);
+          var vi=gs2.votedOut.indexOf(seat);if(vi>=0)gs2.votedOut.splice(vi,1);
+          updateVotedOutVisuals(gi);
+        } else {
+          btn.classList.add('shot-sel');
+          if(gs2.shotList.indexOf(seat)<0)gs2.shotList.push(seat);
+          if(gs2.votedOut.indexOf(seat)<0)gs2.votedOut.push(seat);
+          updateVotedOutVisuals(gi);
+        }
+      });
+      seats.appendChild(btn);
+    })(p);
+  }
+
+  // Кнопка «Промах» — никто не убит
+  var promBtn=document.createElement('button');
+  promBtn.className='shot-promakh';
+  promBtn.textContent='Промах';
+  promBtn.title='Ночью никого не убили';
+  promBtn.addEventListener('click',function(){
+    // Снимаем все отстрелы этой ночи
+    if(!S.gamesState[gi])return;
+    var gs3=S.gamesState[gi];
+    if(!gs3.shotList)gs3.shotList=[];
+    // Убираем из shotList и votedOut тех что добавлены этим блоком
+    seats.querySelectorAll('.shot-btn.shot-sel').forEach(function(b){
+      var sv=parseInt(b.textContent);
+      var si=gs3.shotList.indexOf(sv);if(si>=0)gs3.shotList.splice(si,1);
+      var vi=gs3.votedOut.indexOf(sv);if(vi>=0)gs3.votedOut.splice(vi,1);
+      b.classList.remove('shot-sel');b.style.opacity='';
+    });
+    // Визуально выделяем «Промах»
+    if(promBtn.classList.contains('shot-sel')){
+      promBtn.classList.remove('shot-sel');
+    } else {
+      promBtn.classList.add('shot-sel');
+      updateVotedOutVisuals(gi);
+    }
+  });
+  seats.appendChild(promBtn);
+  block.appendChild(seats);
+  return block;
+}
+
+
+function buildNomRound(gi,round,tiedSeats){
+  var gs=S.gamesState[gi]||{};
+  var votedOut=gs.votedOut||[];
+  var isRevote=(tiedSeats&&tiedSeats.length>0);
+
+  var wrap=document.createElement('div');
+  wrap.className='nom-round'+(isRevote?' nom-revote':'');
+  wrap.id='nomround-'+gi+'-'+round;
+
+  // Заголовок
+  var lbl=document.createElement('div');lbl.className='nom-label';
+  lbl.textContent=isRevote?'↩ Кр.'+round:'Круг '+round;
+  if(isRevote)lbl.style.color='var(--gold)';
+  wrap.appendChild(lbl);
+
+  // Кнопки мест в 2 ряда: 1-5 и 6-10
+  var seats=document.createElement('div');seats.className='nom-seats';
+  seats.id='nomseats-'+gi+'-'+round;
+  var showSeats=isRevote?tiedSeats:[1,2,3,4,5,6,7,8,9,10];
+  // Ряд 1: первые 5 (или все если переголосование с <6)
+  var row1=document.createElement('div');row1.className='nom-seats-row';
+  var row2=document.createElement('div');row2.className='nom-seats-row';
+  showSeats.forEach(function(seat,si){
+    var isElim=votedOut.indexOf(seat)>=0;
+    var btn=document.createElement('button');
+    btn.setAttribute('data-order','0');
+    btn.setAttribute('data-sv',String(seat));
+    btn.textContent=String(seat);
+    if(isElim){
+      btn.className='nom-seat nom-elim';btn.disabled=true;
+    } else {
+      btn.className='nom-seat';
+      btn.addEventListener('click',function(){toggleNomSeat(gi,round,seat,btn,seats);});
+    }
+    // При переголосовании все в одну строку; при обычном — 5+5
+    if(isRevote||showSeats.length<=5){
+      row1.appendChild(btn);
+    } else {
+      if(si<5)row1.appendChild(btn);
+      else row2.appendChild(btn);
+    }
+  });
+  seats.appendChild(row1);
+  if(row2.children.length)seats.appendChild(row2);
+  wrap.appendChild(seats);
+
+  // Порядок выставлений
+  var ordDisp=document.createElement('div');ordDisp.className='nom-order-disp';ordDisp.id='norddisp-'+gi+'-'+round;
+  wrap.appendChild(ordDisp);
+
+  // Счётчики рук (появляются после updateNomOrd)
+  var handsSection=document.createElement('div');handsSection.id='hands-'+gi+'-'+round;
+  handsSection.style.cssText='font-size:11px;';
+  wrap.appendChild(handsSection);
+
+  // Кнопки завершения и сброса
+  var btnGrp=document.createElement('div');btnGrp.style.cssText='display:flex;gap:3px;margin-top:4px;';
+  var finishBtn=document.createElement('button');finishBtn.id='finish-vote-'+gi+'-'+round;
+  finishBtn.className='btn btn-out btn-sm';
+  finishBtn.style.cssText='flex:1;border-color:var(--gold);color:var(--gold);font-size:10px;font-weight:700;';
+  finishBtn.textContent='Завершить';
+  var resetBtn=document.createElement('button');
+  resetBtn.style.cssText='border:1px solid var(--border2);background:transparent;color:var(--text3);border-radius:var(--rs);font-size:10px;padding:2px 5px;cursor:pointer;';
+  resetBtn.textContent='↺';resetBtn.title='Сбросить голосование';
+  resetBtn.addEventListener('click',function(){
+    // Сбрасываем finishBtn
+    finishBtn.textContent='Завершить';finishBtn.disabled=false;
+    finishBtn.style.borderColor='var(--gold)';finishBtn.style.color='var(--gold)';
+    // Убираем tieBlock если есть
+    var tb=wrap.querySelector('.tie-result-block');if(tb)wrap.removeChild(tb);
+    // Снимаем nom-elim в этом круге — только те что добавлены через finishVoting
+    // (не трогаем тех что убраны через toggleVotedOut вручную)
+    var seatsEl=g('nomseats-'+gi+'-'+round);
+    if(seatsEl){
+      seatsEl.querySelectorAll('.nom-elim').forEach(function(b){
+        var sv=parseInt(b.getAttribute('data-sv'));
+        // Восстанавливаем кнопку
+        b.className='nom-seat';b.disabled=false;b.style.cssText='';b.title='';
+      });
+    }
+    // Сбрасываем счётчики рук
+    var handsEl=g('hands-'+gi+'-'+round);
+    if(handsEl){
+      handsEl.querySelectorAll('[id^="hands-count-"]').forEach(function(el){
+        el.textContent='–';el.style.color='var(--text)';el.style.textShadow='';
+      });
+    }
+  });
+  (function(r2,tSeats){
+    finishBtn.addEventListener('click',function(){finishVoting(gi,r2,tSeats);});
+  })(round,isRevote?tiedSeats:null);
+  btnGrp.appendChild(finishBtn);btnGrp.appendChild(resetBtn);
+  wrap.appendChild(btnGrp);
+
+  // Строка «Убрать» — ручной контроль
+  var vRow=document.createElement('div');vRow.style.cssText='display:flex;gap:2px;flex-wrap:wrap;margin-top:3px;';
+  var vLbl=document.createElement('span');vLbl.style.cssText='font-size:10px;color:var(--text3);width:100%;';vLbl.textContent='Убрать:';vRow.appendChild(vLbl);
+  var manualSeats=isRevote?tiedSeats:[1,2,3,4,5,6,7,8,9,10];
+  manualSeats.forEach(function(seat){
+    var isElim=votedOut.indexOf(seat)>=0;
+    var vbtn=document.createElement('button');
+    vbtn.className='nom-vote-btn'+(isElim?' voted-out':'');
+    vbtn.textContent=String(seat);vbtn.id='vbtn-'+gi+'-'+round+'-'+seat;
+    vbtn.style.cssText='width:22px;height:22px;font-size:10px;';
+    vbtn.addEventListener('click',function(){toggleVotedOut(gi,seat);});
+    vRow.appendChild(vbtn);
+  });
+  wrap.appendChild(vRow);
+  return wrap;
+}
+
+
+function toggleVotedOut(gi,seat){
+  if(!S.gamesState[gi])S.gamesState[gi]={winner:'',pu:null,lh:[],votedOut:[]};
+  var gs=S.gamesState[gi];
+  if(!gs.votedOut)gs.votedOut=[];
+  var idx=gs.votedOut.indexOf(seat);
+  if(idx>=0)gs.votedOut.splice(idx,1);
+  else gs.votedOut.push(seat);
+  // Обновляем визуальные метки во всех кругах
+  updateVotedOutVisuals(gi);
+}
+
+function updateVotedOutVisuals(gi){
+  var gs=S.gamesState[gi]||{};
+  var votedOut=gs.votedOut||[];
+  var cont=g('nom-'+gi);if(!cont)return;
+  // Восстанавливаем или помечаем кнопки мест
+  cont.querySelectorAll('.nom-seat,.nom-elim').forEach(function(b){
+    var seat=parseInt(b.getAttribute('data-sv'));
+    if(isNaN(seat))return;
+    var isElim=votedOut.indexOf(seat)>=0;
+    if(isElim){
+      b.className='nom-seat nom-elim';b.disabled=true;
+      b.style.cssText='width:30px;height:30px;border-radius:var(--rs);border:2px solid var(--red2);background:#2a0808;font-size:12px;font-weight:700;color:var(--red3);text-decoration:line-through;cursor:default;';
+      b.title='Заголосован';
+    } else {
+      // Снимаем пометку — восстанавливаем нормальный вид
+      b.className='nom-seat';b.disabled=false;
+      b.style.cssText='';b.title='';
+    }
+  });
+  // Кнопки «Убрать:» — красные если убран, обычные если нет
+  cont.querySelectorAll('[id^="vbtn-'+gi+'-"]').forEach(function(vb){
+    var parts=vb.id.split('-');
+    var s=parseInt(parts[parts.length-1]);
+    var isElim=votedOut.indexOf(s)>=0;
+    vb.className='nom-vote-btn'+(isElim?' voted-out':'');
+    vb.title=isElim?'Нажми чтобы отменить':'Нажми чтобы убрать';
+  });
+}
+
+function markSeatEliminated(gi,round,seat){
+  // Помечает место заголосованным в текущем круге
+  if(!S.gamesState[gi])S.gamesState[gi]={winner:'',pu:null,lh:[],votedOut:[]};
+  var gs=S.gamesState[gi];if(!gs.votedOut)gs.votedOut=[];
+  if(gs.votedOut.indexOf(seat)<0)gs.votedOut.push(seat);
+  var seatsEl=g('nomseats-'+gi+'-'+round);
+  if(seatsEl){
+    seatsEl.querySelectorAll('[data-sv]').forEach(function(b){
+      if(parseInt(b.getAttribute('data-sv'))===seat){
+        b.className='nom-seat nom-elim';b.disabled=true;
+        b.style.cssText='width:30px;height:30px;border-radius:var(--rs);border:2px solid var(--red2);background:#2a0808;font-size:12px;font-weight:700;color:var(--red3);text-decoration:line-through;cursor:default;';
+        b.title='Заголосован';
+      }
+    });
+  }
+  updateVotedOutVisuals(gi);
+}
+
+function buildTieBlock(gi,round,tiedNums,right,finBtn,prevTiedNums){
+  // prevTiedNums — кандидаты предыдущей ничьей (если есть)
+  var sameTie=prevTiedNums&&prevTiedNums.length===tiedNums.length&&
+    tiedNums.every(function(s){return prevTiedNums.indexOf(s)>=0;});
+
+  var tieBlock=document.createElement('div');
+  tieBlock.style.cssText='margin-top:7px;padding:6px 8px;background:#1a1400;border:1px solid var(--gold);border-radius:var(--rs);';
+  var tieLbl=document.createElement('div');tieLbl.style.cssText='font-size:11px;color:var(--gold);font-weight:700;margin-bottom:5px;';
+  tieLbl.textContent=(sameTie?'🔁 Повторная ничья':'⚖ Ничья')+' ('+tiedNums.join(', ')+') — выберите исход:';
+  tieBlock.appendChild(tieLbl);
+  var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:4px;flex-wrap:wrap;';
+
+  // При повторной ничье с теми же кандидатами — нет кнопки «Переголосование»
+  if(!sameTie){
+    // Убрать каждого по отдельности
+    tiedNums.forEach(function(s){
+      var b=document.createElement('button');
+      b.className='btn btn-sm';
+      b.style.cssText='background:#2a0808;border:1px solid var(--red2);color:var(--red3);font-weight:700;font-size:11px;';
+      b.textContent='Убрать м.'+s;
+      b.addEventListener('click',function(){
+        markSeatEliminated(gi,round,s);
+        tieBlock.innerHTML='<span style="font-size:11px;color:var(--red3);font-weight:700;">✓ Заголосован м.'+s+'</span>';
+      });
+      btnRow.appendChild(b);
+    });
+  }
+
+  // Убрать всех
+  var bAll=document.createElement('button');
+  bAll.className='btn btn-sm';
+  bAll.style.cssText='background:#1a0a0a;border:1px solid #c0392b88;color:#e74c3c;font-weight:700;font-size:11px;';
+  bAll.textContent=sameTie?'Поднять всех':'Убрать всех';
+  bAll.addEventListener('click',function(){
+    tiedNums.forEach(function(s){markSeatEliminated(gi,round,s);});
+    tieBlock.innerHTML='<span style="font-size:11px;color:var(--red3);font-weight:700;">✓ Убраны: '+tiedNums.join(', ')+'</span>';
+  });
+  btnRow.appendChild(bAll);
+
+  // Оставить (всегда доступно)
+  var bLeave=document.createElement('button');
+  bLeave.className='btn btn-sm';
+  bLeave.style.cssText='background:var(--bg4);border:1px solid var(--border2);color:var(--text2);font-weight:700;font-size:11px;';
+  bLeave.textContent='Оставить';
+  bLeave.addEventListener('click',function(){
+    tieBlock.innerHTML='<span style="font-size:11px;color:var(--text2);font-weight:600;">— Оставлены без изменений: '+tiedNums.join(', ')+'</span>';
+  });
+  btnRow.appendChild(bLeave);
+
+  // Переголосование — только если ничья новая (другие кандидаты или первая ничья)
+  var bKeep=document.createElement('button');
+  bKeep.className='btn btn-sm';
+  bKeep.style.cssText='background:#1a1400;border:1px solid var(--gold);color:var(--gold);font-weight:700;font-size:11px;';
+  bKeep.textContent='Переголосование';
+  if(sameTie)bKeep.style.display='none'; // скрываем при повторной ничье
+  bKeep.addEventListener('click',function(){
+    // Заменяем tieBlock на новый мини-счётчик для переголосования
+    tieBlock.innerHTML='';
+    var reLbl=document.createElement('div');reLbl.style.cssText='font-size:11px;color:var(--gold);font-weight:700;margin-bottom:5px;';
+    reLbl.textContent='🔁 Переголосование ('+tiedNums.join(', ')+'):';
+    tieBlock.appendChild(reLbl);
+    // Счётчики только для кандидатов ничьей
+    var reCounts={};
+    var reMajority=Math.floor(tiedNums.length/2)+1; // упрощённо
+    // Пересчитываем мажоритарное от активных
+    var gs2=S.gamesState[gi]||{};var vo2=gs2.votedOut||[];
+    var active2=0;for(var k=1;k<=10;k++){if(vo2.indexOf(k)<0)active2++;}
+    if(active2===0)active2=10;
+    var majority2=Math.floor(active2/2)+1;
+
+    tiedNums.forEach(function(s){
+      var reRow=document.createElement('div');reRow.style.cssText='display:flex;align-items:center;gap:4px;margin-top:3px;';
+      var reLbl2=document.createElement('span');reLbl2.style.cssText='font-size:11px;color:var(--text2);min-width:28px;';reLbl2.textContent='м.'+s+':';
+      var reValKey='retie-'+gi+'-'+round+'-'+s;
+      // Кнопки 1-5 и 6+
+      var reVal=0;
+      var reValSpan=document.createElement('span');reValSpan.style.cssText='font-size:13px;font-weight:700;min-width:22px;text-align:center;color:var(--text);';reValSpan.textContent='0';
+      function makeHandBtn(label,val,span,gi2,round2,s2,majority3){
+        var hb=document.createElement('button');
+        hb.style.cssText='min-width:20px;height:20px;border-radius:3px;border:1px solid var(--border2);background:var(--bg4);color:var(--text);font-size:10px;font-weight:700;cursor:pointer;';
+        hb.textContent=label;
+        hb.addEventListener('click',function(){
+          reCounts[s2]=val;
+          span.textContent=label;
+          span.style.color=val>=majority3?'var(--red3)':'var(--text)';
+          // подсвечиваем нажатую кнопку
+          reRow.querySelectorAll('button').forEach(function(b2){b2.style.background='var(--bg4)';});
+          hb.style.background='var(--bg5)';hb.style.borderColor='var(--border3)';
+        });
+        return hb;
+      }
+      [1,2,3,4,5].forEach(function(v){reRow.appendChild(makeHandBtn(String(v),v,reValSpan,gi,round,s,majority2));});
+      reRow.appendChild(makeHandBtn('6+',6,reValSpan,gi,round,s,majority2));
+      reRow.appendChild(reLbl2);reRow.appendChild(reValSpan);
+      reRow.style.flexDirection='row-reverse';reRow.style.justifyContent='flex-end';
+      // Перестраиваем: лейбл, счётчик, кнопки
+      var reRow2=document.createElement('div');reRow2.style.cssText='display:flex;align-items:center;gap:3px;margin-top:3px;';
+      reRow2.appendChild(reLbl2);reRow2.appendChild(reValSpan);
+      [1,2,3,4,5].forEach(function(v){reRow2.appendChild(makeHandBtn(String(v),v,reValSpan,gi,round,s,majority2));});
+      reRow2.appendChild(makeHandBtn('6+',6,reValSpan,gi,round,s,majority2));
+      tieBlock.appendChild(reRow2);
+    });
+
+    // Кнопка завершить переголосование
+    var reFinBtn=document.createElement('button');
+    reFinBtn.className='btn btn-sm';reFinBtn.style.cssText='margin-top:6px;width:100%;border:1px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;background:transparent;';
+    reFinBtn.textContent='Завершить переголосование';
+    reFinBtn.addEventListener('click',function(){
+      var maxRe=0;Object.values(reCounts).forEach(function(v){if(v>maxRe)maxRe=v;});
+      var reWinners=tiedNums.filter(function(s){return(reCounts[s]||0)===maxRe&&maxRe>0;});
+      if(reWinners.length===0){tieBlock.innerHTML='<span style="color:var(--text2);font-size:11px;">Голоса не указаны</span>';return;}
+      if(reWinners.length===1){
+        markSeatEliminated(gi,round,reWinners[0]);
+        tieBlock.innerHTML='<span style="font-size:11px;color:var(--red3);font-weight:700;">✓ После переголосования убран м.'+reWinners[0]+'</span>';
+      } else {
+        // Снова ничья — рекурсивно с указанием prevTied
+        tieBlock.innerHTML='';
+        buildTieBlock(gi,round,reWinners,tieBlock,null,tiedNums);
+      }
+    });
+    tieBlock.appendChild(reFinBtn);
+  });
+
+  btnRow.appendChild(bKeep);
+  tieBlock.appendChild(btnRow);
+  (right||document.createElement('div')).appendChild(tieBlock);
+  if(right)right.appendChild(tieBlock);
+}
+
+function finishVoting(gi,round,prevTied){
+  var handsEl=g('hands-'+gi+'-'+round);
+  if(!handsEl)return;
+  var votes={};var maxVotes=0;
+  handsEl.querySelectorAll('[id^="hands-count-'+gi+'-'+round+'-"]').forEach(function(el){
+    var seat=el.id.replace('hands-count-'+gi+'-'+round+'-','');
+    var v=parseInt(el.textContent||'0');
+    votes[seat]=v;if(v>maxVotes)maxVotes=v;
+  });
+
+  var finBtn=g('finish-vote-'+gi+'-'+round);
+  var right=finBtn?finBtn.parentNode:null;
+
+  // Круг 0: единственная кандидатура не может быть заголосована
+  if(round===0&&Object.keys(votes).length===1){
+    var singleMsg=right&&right.querySelector('.single-cand-msg');
+    if(!singleMsg){
+      var msg=document.createElement('div');msg.className='single-cand-msg';
+      msg.style.cssText='margin-top:4px;font-size:10px;color:var(--gold);font-weight:600;';
+      msg.textContent='⚠ В кругу 0 единственная кандидатура не заголосовывается';
+      if(right)right.appendChild(msg);
+    }
+    if(finBtn){finBtn.textContent='✓ Завершено (без выбывания)';finBtn.disabled=true;finBtn.style.borderColor='var(--green3)';finBtn.style.color='var(--green3)';}
+    return;
+  }
+
+  if(Object.keys(votes).length===0||maxVotes===0){
+    if(finBtn){finBtn.textContent='✓ Завершено';finBtn.disabled=true;finBtn.style.borderColor='var(--green3)';finBtn.style.color='var(--green3)';}
+    return;
+  }
+
+  var winners=Object.keys(votes).filter(function(s){return votes[s]===maxVotes;});
+
+  // Сохраняем ПОРЯДОК выставления из nomseats (не сортируем числово)
+  var seatsEl=g('nomseats-'+gi+'-'+round);
+  var orderedWinners=[];
+  if(seatsEl){
+    // Собираем все кнопки в порядке их data-order
+    var ordPairs=[];
+    seatsEl.querySelectorAll('[data-sv]').forEach(function(b){
+      var sv=b.getAttribute('data-sv');
+      if(winners.indexOf(sv)>=0){
+        var ord=parseInt(b.getAttribute('data-order')||'0');
+        ordPairs.push({sv:sv,ord:ord});
+      }
+    });
+    // Сортируем по порядку выставления (data-order)
+    ordPairs.sort(function(a,b){return a.ord-b.ord;});
+    orderedWinners=ordPairs.map(function(p){return parseInt(p.sv);});
+  }
+  if(!orderedWinners.length)orderedWinners=winners.map(function(s){return parseInt(s);});
+
+  if(orderedWinners.length===1){
+    var seat=orderedWinners[0];
+    markSeatEliminated(gi,round,seat);
+    if(finBtn){
+      finBtn.textContent='✓ Убран м.'+seat;finBtn.disabled=true;
+      finBtn.style.borderColor='var(--red3)';finBtn.style.color='var(--red3)';
+      // Кнопка сброса
+      var resetBtn=document.createElement('button');
+      resetBtn.className='btn btn-out btn-sm';
+      resetBtn.style.cssText='margin-top:3px;width:100%;font-size:10px;border-color:var(--text3);color:var(--text3);';
+      resetBtn.textContent='↩ Сбросить';
+      resetBtn.addEventListener('click',function(){
+        // Снимаем пометку с этого места
+        if(S.gamesState[gi]){
+          var vi=S.gamesState[gi].votedOut.indexOf(seat);
+          if(vi>=0)S.gamesState[gi].votedOut.splice(vi,1);
+        }
+        updateVotedOutVisuals(gi);
+        finBtn.textContent='Завершить';finBtn.disabled=false;
+        finBtn.style.borderColor='var(--gold)';finBtn.style.color='var(--gold)';
+        if(resetBtn.parentNode)resetBtn.parentNode.removeChild(resetBtn);
+      });
+      if(finBtn.parentNode)finBtn.parentNode.insertBefore(resetBtn,finBtn.nextSibling);
+    }
+  } else {
+    var tiedNums=orderedWinners; // уже в порядке выставления
+    if(finBtn){finBtn.textContent='⚖ Ничья: '+tiedNums.join(', ')+' (по '+maxVotes+' гол.)';finBtn.disabled=true;finBtn.style.borderColor='var(--gold)';finBtn.style.color='var(--gold)';}
+    if(right)buildTieBlock(gi,round,tiedNums,right,finBtn,null);
+  }
+}
+
+function rebuildNomRounds(gi){
+  var cont=g('nom-'+gi);if(!cont)return;
+  var rounds=cont.querySelectorAll('.nom-round');
+  var count=rounds.length;
+  cont.innerHTML='';
+  for(var r=0;r<count;r++)cont.appendChild(buildNomRound(gi,r));
+}
+
+function toggleNomSeat(gi,round,seat,btn,container){
+  var cur=parseInt(btn.getAttribute('data-order')||'0');
+  if(cur>0){
+    btn.setAttribute('data-order','0');
+    btn.className='nom-seat';
+    btn.textContent=String(seat);
+    // пересчёт порядков
+    container.querySelectorAll('.nom-seat:not(.nom-voted)').forEach(function(b){
+      var o=parseInt(b.getAttribute('data-order')||'0');
+      if(o>cur)b.setAttribute('data-order',String(o-1));
+    });
+  }else{
+    var maxO=0;
+    container.querySelectorAll('.nom-seat').forEach(function(b){
+      maxO=Math.max(maxO,parseInt(b.getAttribute('data-order')||'0'));
+    });
+    btn.setAttribute('data-order',String(maxO+1));
+    btn.className='nom-seat nom-sel';
+    btn.textContent=String(seat);
+  }
+  updateNomOrd(gi,round,container);
+}
+
+function updateNomOrd(gi,round,container){
+  var pairs=[];
+  container.querySelectorAll('.nom-seat').forEach(function(b){
+    var o=parseInt(b.getAttribute('data-order')||'0');
+    if(o>0)pairs.push({o:o,s:b.getAttribute('data-sv')});
+  });
+  pairs.sort(function(a,b){return a.o-b.o;});
+  var disp=g('norddisp-'+gi+'-'+round);
+  if(disp)disp.textContent=pairs.length?pairs.map(function(p){return p.s;}).join(' → '):'';
+
+  // Обновляем счётчики рук
+  var handsEl=g('hands-'+gi+'-'+round);
+  if(!handsEl)return;
+
+  // Сохраняем текущие значения рук перед перестройкой
+  var savedHands={};
+  handsEl.querySelectorAll('[id^="hands-count-"]').forEach(function(el){
+    savedHands[el.id]=parseInt(el.textContent||'0');
+  });
+
+  handsEl.innerHTML='';
+  if(!pairs.length)return;
+
+  // Считаем активных игроков (не выбывших)
+  var gs=S.gamesState[gi]||{};
+  var votedOut=gs.votedOut||[];
+  var activePlayers=0;
+  for(var i=1;i<=10;i++){if(votedOut.indexOf(i)<0)activePlayers++;}
+  // fallback: считаем по выбранным игрокам
+  if(activePlayers===0){for(var i=0;i<10;i++){var psel=g('ps-'+gi+'-'+i);if(psel&&psel.value)activePlayers++;}}
+  if(activePlayers===0)activePlayers=10;
+  var majority=Math.floor(activePlayers/2)+1;
+
+  pairs.forEach(function(pair){
+    var seat=pair.s;
+    var hidKey='hands-count-'+gi+'-'+round+'-'+seat;
+    var savedVal=savedHands[hidKey]||0;
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:3px;margin-top:2px;flex-wrap:wrap;';
+    var lbl=document.createElement('span');lbl.style.cssText='font-size:10px;color:var(--text3);min-width:18px;flex-shrink:0;';lbl.textContent=seat+':';
+    var valSpan=document.createElement('span');valSpan.id=hidKey;valSpan.style.cssText='min-width:22px;text-align:center;font-size:13px;font-weight:700;color:var(--text);';valSpan.textContent=savedVal>0?String(savedVal):'–';
+    var majLbl=document.createElement('span');majLbl.style.cssText='font-size:9px;color:var(--text3);';majLbl.textContent='/'+majority;
+    function updateHandsVal(val,vSp,mLbl){
+      vSp.textContent=String(val);
+      if(val>=majority){vSp.style.color='var(--red3)';vSp.style.textShadow='0 0 8px #e74c3c88';mLbl.style.color='var(--red3)';}
+      else{vSp.style.color='var(--text)';vSp.style.textShadow='';mLbl.style.color='var(--text3)';}
+    }
+    if(savedVal>0)updateHandsVal(savedVal,valSpan,majLbl);
+    // Кнопки 1-5 и 6+
+    var btnWrap=document.createElement('div');btnWrap.style.cssText='display:flex;gap:2px;flex-wrap:wrap;';
+    (function(vSp,mLbl){
+      [1,2,3,4,5].forEach(function(v){
+        var hb=document.createElement('button');
+        hb.style.cssText='width:22px;height:22px;border-radius:3px;border:1px solid var(--border2);background:var(--bg4);color:var(--text);font-size:11px;font-weight:700;cursor:pointer;';
+        hb.textContent=String(v);
+        hb.addEventListener('click',function(){
+          updateHandsVal(v,vSp,mLbl);
+          btnWrap.querySelectorAll('button').forEach(function(b){b.style.background='var(--bg4)';b.style.borderColor='var(--border2)';});
+          hb.style.background='var(--bg5)';hb.style.borderColor='var(--border3)';
+        });
+        btnWrap.appendChild(hb);
+      });
+      // 6+
+      var hb6=document.createElement('button');
+      hb6.style.cssText='width:22px;height:20px;border-radius:3px;border:1px solid var(--border2);background:var(--bg4);color:var(--gold);font-size:10px;font-weight:700;cursor:pointer;';
+      hb6.textContent='6+';
+      hb6.addEventListener('click',function(){
+        updateHandsVal(6,vSp,mLbl);
+        btnWrap.querySelectorAll('button').forEach(function(b){b.style.background='var(--bg4)';b.style.borderColor='var(--border2)';});
+        hb6.style.background='var(--bg5)';hb6.style.borderColor='var(--gold)';
+      });
+      btnWrap.appendChild(hb6);
+    })(valSpan,majLbl);
+    row.appendChild(lbl);row.appendChild(valSpan);row.appendChild(majLbl);row.appendChild(btnWrap);
+    handsEl.appendChild(row);
+  });
+}
+
+// ── PU / LH / WINNER ─────────────────────────────────────────
+function selectPU(gi,seat){
+  if(!S.gamesState[gi])S.gamesState[gi]={winner:'',pu:null,lh:[],votedOut:[]};
+  S.gamesState[gi].pu=seat;
+  var c=g('pu-'+gi);if(!c)return;
+  c.querySelectorAll('.pu-btn,.pu-wide').forEach(function(b){
+    var bs=b.getAttribute('data-s');
+    var sel=(seat===null&&bs==='null')||(seat!==null&&parseInt(bs)===seat);
+    var base=b.classList.contains('pu-wide')?'pu-wide':'pu-btn';
+    b.className=base+(sel?' sel':'');
+  });
+  var lhSec=g('lhsec-'+gi);
+  if(lhSec){
+    lhSec.querySelectorAll('.lh-btn').forEach(function(b){
+      b.disabled=(seat===null);b.style.opacity=(seat===null)?'0.25':'1';
+    });
+    if(seat===null)clearLH(gi);
+  }
+}
+
+function toggleLH(gi,seat){
+  if(!S.gamesState[gi])S.gamesState[gi]={winner:'',pu:null,lh:[],votedOut:[]};
+  var gs=S.gamesState[gi];if(!gs.lh)gs.lh=[];
+  var idx=gs.lh.indexOf(seat);
+  if(idx>=0)gs.lh.splice(idx,1);
+  else if(gs.lh.length<3)gs.lh.push(seat);
+  updateLHBtns(gi);
+}
+function clearLH(gi){
+  if(S.gamesState[gi])S.gamesState[gi].lh=[];updateLHBtns(gi);
+}
+function updateLHBtns(gi){
+  var gs=S.gamesState[gi]||{};var lh=gs.lh||[];
+  var row=g('lhrow-'+gi);if(!row)return;
+  row.querySelectorAll('.lh-btn').forEach(function(b){
+    var seat=parseInt(b.getAttribute('data-lhs'));
+    var inLH=lh.indexOf(seat)>=0;
+    var rsel=g('role-'+gi+'-'+(seat-1));
+    var isMaf=rsel&&isMafRole(rsel.value);
+    b.className='lh-btn'+(inLH?(isMaf?' lh-sel lh-maf':' lh-sel'):(isMaf?' lh-maf':''));
+  });
+  // LH display removed
+}
+
+function validateGame(gi){
+  var errors=[];
+  var ps=[];
+  var duplicates=[];
+  var roles=[];
+  var plusTotal=0;
+
+  // 1. Дубликаты игроков
+  var allNames=[];
+  for(var i=0;i<10;i++){
+    var psel=g('ps-'+gi+'-'+i);
+    var nm=psel?psel.value:'';
+    if(!nm)continue;
+    if(allNames.indexOf(nm)>=0){
+      if(duplicates.indexOf(nm)<0)duplicates.push(nm);
+    }
+    allNames.push(nm);
+    roles.push((g('role-'+gi+'-'+i)||{value:'Мирный'}).value);
+    var pv=(g('sp-'+gi+'-'+i)||{value:'-'}).value;
+    if(pv&&pv!=='-')plusTotal+=parseFloat(pv)||0;
+    // Подсвечиваем дубликат
+    if(psel){psel.style.border='';}
+  }
+  // Подсвечиваем дубликаты
+  for(var i=0;i<10;i++){
+    var psel=g('ps-'+gi+'-'+i);
+    if(!psel)continue;
+    var nm=psel.value;
+    if(nm&&duplicates.indexOf(nm)>=0){
+      psel.style.border='2px solid #e74c3c';
+      psel.style.boxShadow='0 0 8px #e74c3c88';
+    }else{
+      psel.style.border='';psel.style.boxShadow='';
+    }
+  }
+  if(duplicates.length>0)errors.push('❌ Дублируется игрок: '+duplicates.join(', '));
+
+  // 2. Судья
+  var jsel=g('judge-'+gi);
+  if(!jsel||!jsel.value)errors.push('❌ Не выбран судья');
+
+  // 3. Победа
+  var gs=S.gamesState[gi]||{};
+  if(!gs.winner)errors.push('❌ Не указан победитель');
+
+  // 3b. ПУ
+  if(gs.pu===null||gs.pu===undefined)errors.push('❌ Не указан ПУ (первый убиенный)');
+
+  // 4. ЛХ при непромахе (gs.pu !== null → должно быть хотя бы 1 ЛХ)
+  var lh=gs.lh||[];
+  if(gs.pu!==null&&gs.pu!==undefined&&lh.length===0)errors.push('❌ ЛХ не заполнен (нет промаха)');
+
+  // 5. Роли: 1 дон, 1 шериф, 2 мафии, 6 мирных (только среди заполненных мест)
+  if(allNames.length===10){
+    var roleCnt={Мирный:0,Мафия:0,Шериф:0,Дон:0};
+    roles.forEach(function(r){if(roleCnt[r]!==undefined)roleCnt[r]++;});
+    var roleOk=roleCnt.Мирный===6&&roleCnt.Мафия===2&&roleCnt.Шериф===1&&roleCnt.Дон===1;
+    if(!roleOk)errors.push('❌ Роли неверны (нужно: 6 мирных, 2 мафии, 1 шериф, 1 дон). Сейчас: Мирных '+roleCnt.Мирный+', Мафий '+roleCnt.Мафия+', Шерифов '+roleCnt.Шериф+', Донов '+roleCnt.Дон);
+  }
+
+  // Игроки заполнены (все 10)
+  if(allNames.length<10)errors.push('❌ Заполнены не все места ('+allNames.length+'/10)');
+
+  // 6. Сумма + очков (из отдельной секции)
+  var plusTotal2=0;
+  for(var i=0;i<10;i++){
+    var spEl=g('sp-'+gi+'-'+i);
+    if(spEl)plusTotal2+=parseFloat(spEl.value)||0;
+  }
+  var PLUS_LIMIT=4;
+  if(plusTotal2>PLUS_LIMIT)errors.push('❌ Сумма + очков: '+plusTotal2.toFixed(1)+' — превышает допустимое ('+PLUS_LIMIT+')');
+
+  var msgEl=g('val-msg-'+gi);
+  if(!msgEl)return;
+  if(errors.length===0){
+    msgEl.style.display='block';
+    msgEl.style.background='#0d2a15';
+    msgEl.style.border='1px solid #27ae6044';
+    msgEl.style.borderRadius='6px';
+    msgEl.style.padding='8px 10px';
+    msgEl.style.color='var(--green3)';
+    msgEl.innerHTML='✅ Игра заполнена корректно!';
+    // Показываем кнопку «В таблицу» только после успешной проверки
+    var isb=g('inline-sheet-'+gi);
+    if(isb&&S.scriptUrl)isb.style.display='';
+  }else{
+    msgEl.style.display='block';
+    msgEl.style.background='#1a0808';
+    msgEl.style.border='1px solid #c0392b44';
+    msgEl.style.borderRadius='6px';
+    msgEl.style.padding='8px 10px';
+    msgEl.style.color='var(--red3)';
+    msgEl.innerHTML=errors.join('<br>');
+  }
+}
+
+function selectWinner(gi,w){
+  if(!S.gamesState[gi])S.gamesState[gi]={winner:'',pu:null,lh:[],votedOut:[]};
+  S.gamesState[gi].winner=w;
+  var c=g('win-'+gi);if(!c)return;
+  c.querySelectorAll('.w-btn').forEach(function(b){
+    b.className='w-btn';
+    if(b.textContent===w)b.className='w-btn '+(w==='Красные'?'red':w==='Чёрные'?'black':'draw');
+  });
+  updateLHBtns(gi);
+}
+
+// ── COLLECT ───────────────────────────────────────────────────
+function collectDay(){
+  var forms=document.querySelectorAll('[id^="gform-"]');
+  var games=[];
+  // Сортируем формы по gi чтобы games[] был в правильном порядке
+  var formsArr=Array.from(forms).sort(function(a,b){
+    return parseInt(a.id.replace('gform-',''))-parseInt(b.id.replace('gform-',''));
+  });
+  formsArr.forEach(function(f){
+    var gi=parseInt(f.id.replace('gform-',''));
+    var gs=S.gamesState[gi]||{};var lh=gs.lh||[];
+    var ps=[];
+    for(var i=0;i<10;i++){
+      var pS=g('ps-'+gi+'-'+i);
+      var fHid=g('f-'+gi+'-'+i+'-count');
+      var tHid=g('tf-'+gi+'-'+i+'-count');
+      var fouls=fHid?parseInt(fHid.value||'0'):0;
+      var techF=tHid?parseInt(tHid.value||'0'):0;
+      // Collect mnenie tags
+      var mTags=[];
+      var mTagsEl=g('mnenie-tags-'+gi+'-'+i);
+      if(mTagsEl)mTagsEl.querySelectorAll('.proto-tag').forEach(function(t){mTags.push(t.textContent);});
+      var mVec=(g('mnenie-vec-'+gi+'-'+i)||{value:''}).value||'';
+      // Collect proto tags
+      var prTags=[];
+      var prTagsEl=g('proto-tags-'+gi+'-'+i);
+      if(prTagsEl)prTagsEl.querySelectorAll('.proto-tag').forEach(function(t){prTags.push(t.textContent);});
+      ps.push({
+        name:pS?pS.value:'',
+        role:(g('role-'+gi+'-'+i)||{value:'Мирный'}).value,
+        fouls:fouls,techFouls:techF,
+        plus:(g('sp-'+gi+'-'+i)||{value:'-'}).value,
+        minus:(g('sm-'+gi+'-'+i)||{value:'-'}).value,
+        mnenie:mTags.join(','),
+        mvektor:mVec,
+        proto:prTags.join(',')
+      });
+    }
+    var shots=(S.gamesState[gi]&&S.gamesState[gi].shotList)||[];
+    var noms={};
+    var nomCont=g('nom-'+gi);
+    if(nomCont){
+      var roundIdx=0;
+      Array.from(nomCont.children).forEach(function(el){
+        if(el.classList.contains('nom-round')){
+          var pairs=[];
+          el.querySelectorAll('.nom-seat').forEach(function(b){
+            var o=parseInt(b.getAttribute('data-order')||'0');
+            if(o>0)pairs.push({o:o,s:b.getAttribute('data-sv')});
+          });
+          pairs.sort(function(a,b){return a.o-b.o;});
+          if(pairs.length)noms['round'+roundIdx]=pairs.map(function(p){return p.s;});
+          roundIdx++;
+        } else if(el.classList.contains('shot-block')){
+          // Добавляем отстрелы как отдельный ключ
+          var shotSeats=[];
+          el.querySelectorAll('.shot-btn.shot-sel').forEach(function(b){shotSeats.push(b.textContent.trim());});
+          var promakh=el.querySelector('.shot-promakh.shot-sel');
+          if(promakh)shotSeats=['Промах'];
+          if(shotSeats.length)noms['shot_after_'+(roundIdx-1)]=shotSeats;
+        }
+      });
+    }
+    games.push({
+      judge:(g('judge-'+gi)||{value:''}).value,
+      players:ps,pu:gs.pu!==undefined?gs.pu:null,
+      lh1:lh[0]?String(lh[0]):'-',
+      lh2:lh[1]?String(lh[1]):'-',
+      lh3:lh[2]?String(lh[2]):'-',
+      winner:gs.winner||'',
+      shots:shots,
+      comment:(g('comment-'+gi)||{value:''}).value,
+      nominations:noms,
+      votedOut:gs.votedOut||[]
+    });
+  });
+  return{tabName:g('tab-name').value||'Без названия',games:games,id:Date.now(),sentToSheet:false,overwrite:true};
+}
+
+// ── SUMMARY ───────────────────────────────────────────────────
+function buildSummary(){
+  var day=collectDay();
+  var cont=g('day-summary');cont.innerHTML='';
+  var title=document.createElement('div');
+  title.style.cssText='font-size:16px;font-weight:700;margin-bottom:.75rem;color:var(--text);';
+  title.textContent=day.tabName;cont.appendChild(title);
+  day.games.forEach(function(gm,i){cont.appendChild(buildGameCard(gm,i));});
+}
+
+// ── GAME CARD ─────────────────────────────────────────────────
+function buildGameCard(gm,idx,dayIdx2){
+  var card=document.createElement('div');card.className='ig-card';
+  var hdr=document.createElement('div');hdr.className='ig-hdr';
+  var tit=document.createElement('div');tit.style.cssText='font-size:13px;font-weight:600;';
+  tit.textContent='Игра '+(idx+1);
+  if(gm.judge){var js=document.createElement('span');js.style.cssText='color:var(--text2);font-size:12px;margin-left:7px;font-weight:400;';js.textContent='Судья: '+gm.judge;tit.appendChild(js);}
+  hdr.appendChild(tit);
+  if(gm.winner){var wt=document.createElement('span');wt.className='tag '+winTagClass(gm.winner);wt.textContent=gm.winner;hdr.appendChild(wt);}
+  // Кнопка удаления одной игры из дня
+  if(typeof dayIdx2!=='undefined'){
+    (function(di,gi2){
+      var delBtn=document.createElement('button');
+      delBtn.className='btn-del';
+      delBtn.style.cssText='font-size:11px;padding:2px 7px;margin-left:6px;';
+      delBtn.textContent='Удалить игру';
+      delBtn.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(!confirm('Удалить Игру '+(gi2+1)+' из дня «'+S.days[di].tabName+'»?'))return;
+        S.days[di].games.splice(gi2,1);
+        save();renderDays();
+      });
+      hdr.appendChild(delBtn);
+    })(dayIdx2,idx);
+  }
+
+  // Кнопка обновления одной игры в таблице
+  if(S.scriptUrl&&typeof dayIdx2!=='undefined'){
+    (function(di,gi){
+      var upBtn=document.createElement('button');
+      upBtn.className='btn btn-out btn-sm';
+      upBtn.style.cssText='font-size:11px;padding:2px 8px;margin-left:6px;';
+      upBtn.textContent='↑ Игру в таблицу';
+      var _upSending=false;
+      upBtn.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(_upSending)return;
+        _upSending=true;
+        var origText=upBtn.textContent;
+        upBtn.textContent='Отправка…';
+        sendGame(di,gi,function(){
+          var now=new Date();
+          var ts=now.getDate()+'.'+(now.getMonth()+1)+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+          upBtn.textContent='✓ '+ts;
+          upBtn.style.cssText='font-size:11px;padding:2px 8px;margin-left:6px;border-color:var(--green3);color:var(--green3);cursor:pointer;';
+          _upSending=false;
+        },function(err){
+          upBtn.textContent='↑ Игру в таблицу';
+          upBtn.style.cssText='font-size:11px;padding:2px 8px;margin-left:6px;border-color:var(--red3);color:var(--red3);cursor:pointer;';
+          upBtn.title='Ошибка: '+err;
+          _upSending=false;
+        });
+      });
+      hdr.appendChild(upBtn);
+    })(dayIdx2,idx);
+  }
+  card.appendChild(hdr);
+
+  var body=document.createElement('div');body.className='ig-body';
+  var lhP=[gm.lh1,gm.lh2,gm.lh3].filter(function(l){return l&&l!=='-';}).map(function(l){
+    var p=gm.players[parseInt(l)-1];return l+(p&&p.name?' ('+p.name+')':'');
+  });
+  var puN=(gm.pu!==null&&gm.pu!==undefined)?((gm.pu+1)+(gm.players[gm.pu]&&gm.players[gm.pu].name?' — '+gm.players[gm.pu].name:'')):'—';
+  var meta=document.createElement('div');meta.style.cssText='font-size:12px;color:var(--text2);margin-bottom:6px;';
+  meta.textContent='ПУ: '+puN+(lhP.length?' | ЛХ: '+lhP.join(', '):'');body.appendChild(meta);
+
+  var tbl=document.createElement('table');tbl.className='ptable';
+  var thead=document.createElement('thead');
+  thead.innerHTML='<tr><th style="width:26px">#</th><th>Игрок</th><th style="width:90px">Роль</th><th style="width:48px;text-align:center">Фолы</th><th style="width:42px;text-align:center">Тех</th><th style="width:52px;text-align:center">+</th><th style="width:52px;text-align:center">–</th></tr>';
+  tbl.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  gm.players.forEach(function(p,i){
+    if(!p.name)return;
+    var win=isWinner(gm.winner,p.role);
+    var tr=document.createElement('tr');if(win)tr.className='row-winner';
+    var pv=p.plus&&p.plus!=='-'&&p.plus!=='0'?p.plus:null;
+    var mv=p.minus&&p.minus!=='-'&&p.minus!=='0'?p.minus:null;
+    var puMark=gm.pu===i?'<span style="color:var(--red3);font-size:10px;margin-right:3px;">ПУ</span>':'';
+    var techStr=p.techFouls&&p.techFouls>0?'<span style="color:var(--gold2);font-weight:700;">'+p.techFouls+'</span>':'<span style="color:var(--text3);">—</span>';
+    tr.innerHTML='<td style="color:var(--text3);text-align:center;">'+(i+1)+'</td>'+
+      '<td style="font-weight:'+(win?'700':'400')+';">'+puMark+esc(p.name)+'</td>'+
+      '<td style="text-align:center;"><span class="tag '+roleClass(p.role)+'">'+esc(p.role)+'</span></td>'+
+      '<td style="text-align:center;color:var(--text2);">'+(p.fouls||0)+'</td>'+
+      '<td style="text-align:center;">'+techStr+'</td>'+
+      '<td style="text-align:center;" class="'+(pv?'score-plus':'')+'">'+( pv?'+'+pv:'–')+'</td>'+
+      '<td style="text-align:center;" class="'+(mv?'score-minus':'')+'">'+( mv?'–'+mv:'–')+'</td>';
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);body.appendChild(tbl);
+
+  var noms=gm.nominations||{};
+  var nkeys=Object.keys(noms).sort();
+  if(nkeys.length){
+    var nd=document.createElement('div');nd.className='nom-disp';
+    nkeys.forEach(function(k){
+      var line=document.createElement('div');
+      line.innerHTML='<b>Круг '+k.replace('round','')+': </b>'+esc(noms[k].join(' → '));
+      nd.appendChild(line);
+    });
+    body.appendChild(nd);
+  }
+  if(gm.comment){var cm=document.createElement('div');cm.style.cssText='font-size:12px;color:var(--text2);margin-top:5px;';cm.textContent=gm.comment;body.appendChild(cm);}
+  card.appendChild(body);return card;
+}
+
+// ── DAYS LIST ─────────────────────────────────────────────────
+function sendGame(dayIdx,gameIdx,onOk,onErr){
+  // Берём день из S.days, обновляем одну игру из DOM (если редактируем)
+  var day=S.days[dayIdx];if(!day){onErr('День не найден');return;}
+  var url=buildUrl('');if(!url){onErr('URL не задан');return;}
+  // Отправляем весь день с пометкой что обновляем конкретную игру
+  var payload=JSON.stringify(Object.assign({},day,{overwrite:true,singleGame:gameIdx}));
+  console.log('[sendGame] dayIdx=',dayIdx,'gameIdx=',gameIdx);
+  fetch(url,{method:'POST',body:payload,headers:{'Content-Type':'text/plain;charset=utf-8'},mode:'no-cors'})
+    .then(function(){onOk();}).catch(function(e){onErr(e.message||'Ошибка сети');});
+}
+
+function sendDay(day,onOk,onErr){
+  var url=buildUrl('');if(!url){onErr('URL не задан');return;}
+  var payload=JSON.stringify(Object.assign({},day,{overwrite:true}));
+  console.log('[sendDay] POST →',url,'games=',day.games.length,'bytes=',payload.length);
+  // Apps Script всегда отвечает 302 redirect → CORS block на follow.
+  // Используем no-cors: запрос уходит, ответ opaque — считаем OK.
+  fetch(url,{method:'POST',body:payload,headers:{'Content-Type':'text/plain;charset=utf-8'},mode:'no-cors'})
+    .then(function(r){
+      console.log('[sendDay] no-cors done, type=',r.type);
+      onOk();
+    })
+    .catch(function(e){
+      console.error('[sendDay] error:',e.message);
+      onErr(e.message||'Сетевая ошибка');
+    });
+}
+
+function renderDays(){
+  var cont=g('days-list');
+  if(!S.days.length){cont.innerHTML='<div class="empty">Нет сохранённых дней.<br>Нажми «+ Новый день»</div>';return;}
+  cont.innerHTML='';
+  S.days.slice().reverse().forEach(function(day,ri){
+    var realIdx=S.days.length-1-ri;
+    var wc={};day.games.forEach(function(gm){wc[gm.winner]=(wc[gm.winner]||0)+1;});
+
+    var dc=document.createElement('div');dc.className='day-card';
+    var hdr=document.createElement('div');hdr.className='day-hdr';
+    hdr.addEventListener('click',function(){toggleDay(realIdx);});
+
+    var info=document.createElement('div');
+    var dn=document.createElement('div');dn.style.cssText='font-size:14px;font-weight:700;';dn.textContent=day.tabName;info.appendChild(dn);
+    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text2);margin-top:2px;';
+    sub.textContent=day.games.length+' игр';
+    Object.keys(wc).forEach(function(w){
+      if(!w)return;
+      var b=document.createElement('span');b.className=winBadgeClass(w);b.style.marginLeft='5px';
+      b.textContent=w+' ×'+wc[w];sub.appendChild(b);
+    });
+    info.appendChild(sub);hdr.appendChild(info);
+
+    var acts=document.createElement('div');acts.style.cssText='display:flex;gap:5px;align-items:center;';
+    var eBtn=document.createElement('button');eBtn.className='btn btn-out btn-sm';eBtn.textContent='Изменить';
+    (function(idx){eBtn.addEventListener('click',function(e){e.stopPropagation();editDay(idx);});})(realIdx);
+    acts.appendChild(eBtn);
+    var dBtn=document.createElement('button');dBtn.className='btn-del';dBtn.textContent='Удалить';
+    (function(idx){
+      dBtn.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(!confirm('Удалить «'+S.days[idx].tabName+'»?'))return;
+        S.days.splice(idx,1);save();renderDays();
+      });
+    })(realIdx);
+    acts.appendChild(dBtn);
+
+    // Кнопка "В таблицу" — всегда показываем если есть URL
+    if(S.scriptUrl){
+      var sentInfo=document.createElement('div');sentInfo.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:2px;';
+      if(day.lastSent){
+        var sentLbl=document.createElement('span');sentLbl.style.cssText='font-size:10px;color:var(--text3);';
+        sentLbl.textContent='↑ '+day.lastSent;sentInfo.appendChild(sentLbl);
+      }
+      var sBtn=document.createElement('button');
+      sBtn.className='btn btn-out btn-sm';
+      sBtn.style.cssText=day.sentToSheet?'border-color:var(--green3);color:var(--green3);':'';
+      sBtn.textContent=day.sentToSheet?'✓ Обновить':'В таблицу';
+      (function(idx,btn,info){
+        btn.addEventListener('click',function(e){
+          e.stopPropagation();btn.textContent='Отправка…';btn.disabled=true;
+          sendDay(S.days[idx],function(){
+            var now=new Date();
+            var ts=now.getDate()+'.'+(now.getMonth()+1)+' '+
+              String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+            S.days[idx].sentToSheet=true;S.days[idx].lastSent=ts;
+            save();renderDays();
+          },function(err){btn.textContent='Ошибка';btn.title=err;btn.disabled=false;});
+        });
+      })(realIdx,sBtn,sentInfo);
+      sentInfo.appendChild(sBtn);acts.appendChild(sentInfo);
+    } else if(day.sentToSheet){
+      var sb2=document.createElement('span');sb2.className='badge bg-sheet';sb2.textContent='В таблице';acts.appendChild(sb2);
+    }
+
+    var chev=document.createElement('span');chev.id='chev-'+realIdx;
+    chev.style.cssText='color:var(--text2);font-size:14px;margin-left:3px;';chev.textContent='▼';
+    acts.appendChild(chev);hdr.appendChild(acts);dc.appendChild(hdr);
+
+    var body=document.createElement('div');body.id='dbody-'+realIdx;body.style.cssText='display:none;padding:.65rem 1rem;';
+    day.games.forEach(function(gm,i){body.appendChild(buildGameCard(gm,i,realIdx));});
+    dc.appendChild(body);cont.appendChild(dc);
+  });
+}
+
+function toggleDay(idx){
+  var body=g('dbody-'+idx),chev=g('chev-'+idx);if(!body)return;
+  var open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  if(chev)chev.textContent=open?'▲':'▼';
+}
+
+function editDay(idx){
+  var day=S.days[idx];if(!day)return;
+  S.editingIdx=idx;showTab('new');
+  setTimeout(function(){
+    g('tab-name').value=day.tabName||'';
+    g('new-heading').textContent='Редактировать: '+day.tabName;
+    // Собираем игроков из дня и добавляем в базу
+    var savedPs=[];
+    day.games.forEach(function(gm){gm.players.forEach(function(p){if(p.name&&savedPs.indexOf(p.name)<0)savedPs.push(p.name);});});
+    savedPs.forEach(function(p){if(S.players.indexOf(p)<0)S.players.push(p);});
+    S.dayPlayers=S.players.slice(); // Все из базы доступны при редактировании
+    updatePlayerDatalist();
+    S.gamesState=day.games.map(function(gm){
+      var lhArr=[gm.lh1,gm.lh2,gm.lh3].filter(function(l){return l&&l!=='-';}).map(Number);
+      return{winner:gm.winner||'',pu:gm.pu!==undefined?gm.pu:null,lh:lhArr,votedOut:gm.votedOut||[]};
+    });
+    gameCount=0;g('games-editor').innerHTML='';
+    day.games.forEach(function(gm,gi){
+      gameCount=gi+1;
+      while(S.gamesState.length<=gi)S.gamesState.push({winner:'',pu:null,lh:[],votedOut:[]});
+      g('games-editor').appendChild(buildGameForm(gi));
+      setTimeout(function(){
+        var jS=g('judge-'+gi);if(jS)jS.value=gm.judge||'';
+        if(gm.winner)selectWinner(gi,gm.winner);
+        selectPU(gi,gm.pu!==undefined?gm.pu:null);
+        updateLHBtns(gi);
+        gm.players.forEach(function(p,i){
+          var pS=g('ps-'+gi+'-'+i);if(pS)pS.value=p.name||'';
+          var rS=g('role-'+gi+'-'+i);if(rS)rS.value=p.role||'Мирный';
+          var fHid2=g('f-'+gi+'-'+i+'-count');
+          if(fHid2){
+            fHid2.value=p.fouls||0;
+            var fVal=g('f-'+gi+'-'+i+'-val');
+            if(fVal){fVal.textContent=p.fouls||0;fVal.className='foul-ctr-val'+(p.fouls>0?' has-val':'');}
+          }
+          var tHid2=g('tf-'+gi+'-'+i+'-count');
+          if(tHid2){
+            tHid2.value=p.techFouls||0;
+            var tVal=g('tf-'+gi+'-'+i+'-val');
+            if(tVal){tVal.textContent=p.techFouls||0;if(p.techFouls>0)tVal.style.color='var(--gold2)';}
+          }
+          var sp=g('sp-'+gi+'-'+i);if(sp)sp.value=p.plus||'-';
+          var sm=g('sm-'+gi+'-'+i);if(sm)sm.value=p.minus||'-';
+        });
+        var ci=g('comment-'+gi);if(ci)ci.value=gm.comment||'';
+      },50);
+    });
+    goStep(0); // сначала показываем пул игроков — можно изменить состав
+  },30);
+}
+
+// ── RATING ────────────────────────────────────────────────────
+function renderRating(){
+  if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
+}
+g('btn-loadrating').addEventListener('click',function(){
+  setMsg('rating-msg','Загружаю…','loading');
+  fetch(buildUrl('getRating'))
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status==='ok'&&d.rows){S.ratingData=d.rows;save();renderRatingTable(d.rows);setMsg('rating-msg','Обновлено','ok');}
+      else throw new Error(d.message||'Нет данных');
+    }).catch(function(e){setMsg('rating-msg','Ошибка: '+e.message,'err');});
+});
+
+function renderRatingTable(rows){
+  var cont=g('rating-body');
+  if(!rows||!rows.length){cont.innerHTML='<div class="empty">Нет данных</div>';return;}
+  var heads=['#','Игрок','~Σ²','Σ','Σ+','ПУ','ЛХ','Допы','–','Ci','Общ','Мир','Маф','Шер','Дон'];
+  var tbl=document.createElement('table');tbl.className='rtable';
+  var thead=document.createElement('thead');
+  var htr=document.createElement('tr');
+  heads.forEach(function(h,hi){
+    var th=document.createElement('th');th.textContent=h;
+    if(hi===1)th.className='col-name';
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr);tbl.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  rows.forEach(function(row){
+    if(!row[1])return;
+    var tr=document.createElement('tr');
+    row.forEach(function(cell,ci){
+      var td=document.createElement('td');td.textContent=cell;
+      if(ci===1){td.className='col-name';}
+      else td.style.textAlign='center';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);cont.innerHTML='';cont.appendChild(tbl);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadState();
+if(S.scriptUrl){g('script-url').value=S.scriptUrl;updateConn(true);}
+renderDays();
+renderPlayers();
+if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
+
+// ── LOAD SHEETS LIST ──────────────────────────────────────────
+function loadOneSheet(name,chip){
+  chip.disabled=true;chip.textContent='⏳ '+name;
+  var url=buildUrl('getDay')+'&sheet='+encodeURIComponent(name);
+  fetch(url).then(function(r){return r.json();}).then(function(d2){
+    if(d2.status==='ok'&&d2.day){
+      var existIdx=-1;
+      for(var di=0;di<S.days.length;di++){if(S.days[di].tabName===d2.day.tabName){existIdx=di;break;}}
+      if(existIdx>=0)S.days[existIdx]=d2.day;else S.days.push(d2.day);
+      save();renderDays();
+      chip.textContent='✓ '+name;chip.style.cssText='font-size:11px;color:var(--green3);border-color:var(--green3);';
+      chip.disabled=false;
+    }else{chip.textContent='❌ '+name;chip.disabled=false;}
+  }).catch(function(){chip.textContent='❌ '+name;chip.disabled=false;});
+}
+
+var _sheetNames=[];
+g('btn-loadsheets').addEventListener('click',function(){
+  setMsg('sheets-msg','Загружаю…','loading');
+  fetch(buildUrl('getSheets'))
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status==='ok'&&d.sheets){
+        _sheetNames=d.sheets;
+        setMsg('sheets-msg','Найдено: '+d.sheets.length,'ok');
+        var cont=g('sheets-list');cont.innerHTML='';
+        var importAll=g('btn-importall');if(importAll)importAll.style.display='';
+        d.sheets.forEach(function(name){
+          var chip=document.createElement('button');
+          chip.className='btn btn-out btn-sm';
+          chip.style.cssText='font-size:11px;';
+          chip.textContent=name;
+          chip.addEventListener('click',function(){loadOneSheet(name,chip);});
+          cont.appendChild(chip);
+        });
+      }else throw new Error(d.message||'Нет данных');
+    }).catch(function(e){setMsg('sheets-msg','Ошибка: '+e.message,'err');});
+});
+
+g('btn-importall').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='Импорт…';
+  var chips=Array.from(g('sheets-list').querySelectorAll('button'));
+  var idx=0;
+  function next(){
+    if(idx>=chips.length){btn.textContent='✓ Все импортированы';setTimeout(function(){btn.style.display='none';},3000);return;}
+    loadOneSheet(_sheetNames[idx],chips[idx]);
+    idx++;
+    setTimeout(next,600); // с паузой чтобы не перегружать Apps Script
+  }
+  next();
+});
+
+})();
+</script>
+</body>
+</html>
