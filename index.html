@@ -331,6 +331,24 @@ ol.inst b{color:var(--text);}
   </div>
 </div>
 
+<!-- PROFILE MODAL (смена никнейма/логина) -->
+<div class="auth-overlay hidden" id="profile-overlay">
+  <div class="auth-box">
+    <h3>Профиль администратора</h3>
+    <div class="auth-field">
+      <label>Никнейм (отображается)</label>
+      <input type="text" id="profile-nickname" placeholder="ваш никнейм">
+    </div>
+    <div class="auth-field">
+      <label>Новый пароль <span style="color:var(--text3);font-weight:400;">(оставьте пустым чтобы не менять)</span></label>
+      <input type="password" id="profile-password" placeholder="новый пароль (мин. 6 символов)">
+    </div>
+    <button class="auth-submit" onclick="saveProfile()">Сохранить</button>
+    <button class="auth-cancel" onclick="closeProfileModal()">Закрыть</button>
+    <div class="auth-err" id="profile-err"></div>
+  </div>
+</div>
+
 <div class="header-bar">
   <img id="logo-img" class="logo" alt="logo">
   <h1>Триада Менделеева</h1>
@@ -647,8 +665,8 @@ g('tmstop').addEventListener('click',function(){stopTm();});
 
 // ── NAV ───────────────────────────────────────────────────────
 function showTab(name){
-  // Гости не могут попасть на создание нового дня
-  if(name === 'new' && !S_admin.loggedIn){
+  // Гости не могут попасть на создание нового дня или настройки
+  if((name === 'new' || name === 'settings') && !S_admin.loggedIn){
     openAuthModal();
     return;
   }
@@ -2454,6 +2472,12 @@ function initAuth(){
   } else {
     applyGuestMode();
   }
+  // Дефолтный URL Apps Script если не задан
+  if(!localStorage.getItem('maf_script_url')){
+    var defUrl = 'https://script.google.com/macros/s/AKfycbwgKweuhAsJ2CrrY_cWyjsG1wlkpq_IRLHiV9CftSQHrQDL2pFIxv6IsEtlilzDLXqL/exec';
+    localStorage.setItem('maf_script_url', defUrl);
+    S.scriptUrl = defUrl;
+  }
 }
 
 function verifyToken(token, cb){
@@ -2539,16 +2563,18 @@ function clearAdmin(){
 }
 
 function applyAdminMode(){
-  // Показываем "+ Новый день"
+  // Показываем "+ Новый день" и "Настройки"
   var navNew = g('nav-new'); if(navNew) navNew.style.display = '';
+  var navSet = g('nav-settings'); if(navSet) navSet.style.display = '';
   // Кнопка в header
   renderAuthBtn();
 }
 
 function applyGuestMode(){
-  // Скрываем "+ Новый день"
+  // Скрываем "+ Новый день" и "Настройки"
   var navNew = g('nav-new'); if(navNew) navNew.style.display = 'none';
-  // Если были на вкладке "новый день" — переходим на дни
+  var navSet = g('nav-settings'); if(navSet) navSet.style.display = 'none';
+  // Если были на вкладке настроек или новом дне — переходим на дни
   showTab('days');
   renderAuthBtn();
 }
@@ -2557,12 +2583,49 @@ function renderAuthBtn(){
   var wrap = g('auth-btn-wrap'); if(!wrap) return;
   if(S_admin.loggedIn){
     wrap.innerHTML = '<div style="display:flex;align-items:center;gap:6px;">' +
-      '<span class="admin-badge">' + esc(S_admin.username) + '</span>' +
+      '<span class="admin-badge" onclick="openProfileModal()" style="cursor:pointer;" title="Профиль">' + esc(S_admin.username) + ' ✎</span>' +
       '<button class="btn-ghost btn-sm" style="font-size:11px;" onclick="doLogout()">Выйти</button>' +
       '</div>';
   } else {
     wrap.innerHTML = '<button class="btn btn-out btn-sm" style="font-size:11px;" onclick="openAuthModal()">Вход для админа</button>';
   }
+}
+
+function openProfileModal(){
+  var el = g('profile-overlay'); if(!el) return;
+  el.classList.remove('hidden');
+  var ni = g('profile-nickname');
+  if(ni) ni.value = S_admin.username;
+  var pe = g('profile-err'); if(pe) pe.textContent = '';
+  var pp = g('profile-password'); if(pp) pp.value = '';
+}
+function closeProfileModal(){
+  var el = g('profile-overlay'); if(el) el.classList.add('hidden');
+}
+
+function saveProfile(){
+  var url = getAuthUrl();
+  if(!url){ g('profile-err').textContent = 'URL авторизации не задан'; return; }
+  var newNick = (g('profile-nickname').value || '').trim();
+  var newPass = g('profile-password').value || '';
+  if(!newNick){ g('profile-err').textContent = 'Никнейм не может быть пустым'; return; }
+  if(newPass && newPass.length < 6){ g('profile-err').textContent = 'Пароль минимум 6 символов'; return; }
+  g('profile-err').textContent = 'Сохраняю…';
+  fetch(url + '?action=updateProfile', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Token': S_admin.token},
+    body: JSON.stringify({nickname: newNick, password: newPass || null})
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.status === 'ok'){
+        S_admin.username = newNick;
+        localStorage.setItem('maf_admin_name', newNick);
+        renderAuthBtn();
+        closeProfileModal();
+      } else {
+        g('profile-err').textContent = d.message || 'Ошибка';
+      }
+    }).catch(function(){ g('profile-err').textContent = 'Ошибка соединения'; });
 }
 
 // Перехватываем showTab — гости не могут попасть на "new"
