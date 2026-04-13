@@ -2419,7 +2419,7 @@ renderDays();
 renderPlayers();
 if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
 
-
+// ── AUTH (глобальные функции) ──────────────────────────────
 // ── AUTH ─────────────────────────────────────────────────────
 var AUTH_URL = ''; // Заполнится из настроек
 var S_admin = { loggedIn: false, token: '', username: '' };
@@ -2649,6 +2649,22 @@ g('btn-importall').addEventListener('click',function(){
   }
   next();
 });
+
+// Экспортируем auth функции в глобальный scope
+if(typeof openAuthModal!=="undefined")window.openAuthModal=openAuthModal;
+if(typeof closeAuthModal!=="undefined")window.closeAuthModal=closeAuthModal;
+if(typeof doLogin!=="undefined")window.doLogin=doLogin;
+if(typeof doLogout!=="undefined")window.doLogout=doLogout;
+if(typeof clearAdmin!=="undefined")window.clearAdmin=clearAdmin;
+if(typeof applyAdminMode!=="undefined")window.applyAdminMode=applyAdminMode;
+if(typeof applyGuestMode!=="undefined")window.applyGuestMode=applyGuestMode;
+if(typeof renderAuthBtn!=="undefined")window.renderAuthBtn=renderAuthBtn;
+if(typeof openProfileModal!=="undefined")window.openProfileModal=openProfileModal;
+if(typeof closeProfileModal!=="undefined")window.closeProfileModal=closeProfileModal;
+if(typeof saveProfile!=="undefined")window.saveProfile=saveProfile;
+if(typeof initAuth!=="undefined")window.initAuth=initAuth;
+if(typeof verifyToken!=="undefined")window.verifyToken=verifyToken;
+if(typeof getAuthUrl!=="undefined")window.getAuthUrl=getAuthUrl;
 
 })();
 </script>
