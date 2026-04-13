@@ -2414,7 +2414,7 @@ function renderRatingTable(rows){
 
 // ── INIT ──────────────────────────────────────────────────────
 loadState();
-if(S.scriptUrl){g('script-url').value=S.scriptUrl;updateConn(true);}
+if(S.scriptUrl && g('script-url')){g('script-url').value=S.scriptUrl;} updateConn(true);
 renderDays();
 renderPlayers();
 if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
