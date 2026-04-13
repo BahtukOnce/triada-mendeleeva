@@ -475,25 +475,13 @@ ol.inst b{color:var(--text);}
   <h2>Настройки</h2>
   <div class="card">
     <h3>Авторизация администратора</h3>
-    <div class="hint" style="margin-bottom:.5rem;">URL PHP скрипта авторизации на Beget</div>
-    <div class="mt1">
-      <label>URL auth.php</label>
-      <input type="text" id="auth-url-inp" placeholder="https://triada-mendeleeva.ru/auth.php">
-    </div>
-    <div class="row mt1" style="gap:7px;">
-      <button class="btn btn-out btn-sm" id="btn-save-auth-url">Сохранить</button>
-    </div>
+    <div class="hint">Сервер авторизации: <b>triada-mendeleeva.ru/auth.php</b></div>
   </div>
   <div class="card">
     <h3>Подключение к Google Sheets</h3>
-    <div class="mt1">
-      <label>URL Apps Script</label>
-      <input type="text" id="script-url" placeholder="https://script.google.com/macros/s/.../exec">
-      <div class="hint">После развёртывания скрипта вставь URL и нажми «Сохранить».</div>
-    </div>
+    <div class="hint" style="margin-bottom:.5rem;">URL таблицы зашит в код — менять не нужно.</div>
     <div class="row mt1" style="gap:7px;">
-      <button class="btn btn-out btn-sm" id="btn-saveurl">Сохранить URL</button>
-      <button class="btn btn-out btn-sm" id="btn-testconn">Проверить</button>
+      <button class="btn btn-out btn-sm" id="btn-testconn">Проверить соединение</button>
       <span class="msg" id="conn-msg"></span>
     </div>
   </div>
@@ -570,7 +558,7 @@ var S={
   players:[],    // all players base
   dayPlayers:[], // selected for current day
   days:[],
-  scriptUrl:'',
+  scriptUrl:APPS_SCRIPT_URL,
   gamesState:[],
   editingIdx:-1,
   ratingData:[]
@@ -582,33 +570,28 @@ function loadState(){
   try{S.days=JSON.parse(localStorage.getItem('maf_days')||'[]');}catch(e){S.days=[];}
   try{S.players=JSON.parse(localStorage.getItem('maf_players')||'[]');}catch(e){S.players=[];}
   try{S.ratingData=JSON.parse(localStorage.getItem('maf_rating')||'[]');}catch(e){S.ratingData=[];}
-  S.scriptUrl=localStorage.getItem('maf_script_url')||'';
+  S.scriptUrl=APPS_SCRIPT_URL; // константа
 }
 function save(){
   try{
     localStorage.setItem('maf_days',JSON.stringify(S.days));
     localStorage.setItem('maf_players',JSON.stringify(S.players));
-    localStorage.setItem('maf_script_url',S.scriptUrl);
+    // scriptUrl не сохраняем — константа
     localStorage.setItem('maf_rating',JSON.stringify(S.ratingData||[]));
   }catch(e){}
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
 function g(id){return document.getElementById(id);}
+
+// ── КОНСТАНТЫ ─────────────────────────────────────────────────
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxg9kAseJ-vReJTclVdDy1g3QArC349quw59fyPGgSV0tcsclHKnEtV2zycpreS1iux/exec';
+var AUTH_PHP_URL    = 'https://triada-mendeleeva.ru/auth.php';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function opt(v,l){var o=document.createElement('option');o.value=v;o.textContent=l;return o;}
 function setMsg(id,t,tp){var e=g(id);if(!e)return;e.textContent=t;e.className='msg '+tp;}
 function setSync(t,tp){var e=g('send-status');if(e)e.innerHTML='<span class="sync-box '+tp+'">'+esc(t)+'</span>';}
-function buildUrl(action){
-  var base=S.scriptUrl.trim();
-  if(!base)return '';
-  // strip trailing slash or /dev
-  base=base.replace(/\/+$/,'');
-  var idx=base.indexOf('/dev');
-  if(idx>0)base=base.substring(0,idx)+'/exec';
-  if(!action)return base;
-  return base+(base.indexOf('?')>=0?'&':'?')+'action='+encodeURIComponent(action);
-}
+function buildUrl(action){return APPS_SCRIPT_URL+(action?'?action='+action:'');}
 function roleClass(r){
   if(r==='Мафия')return'tr-maf';
   if(r==='Шериф')return'tr-sher';
@@ -706,23 +689,7 @@ function updateConn(ok){
   e.className='conn-badge'+(ok?' on':'');
   var bs=g('btn-savesheet');if(bs)bs.disabled=!ok;
 }
-// Сохраняем auth URL
-document.addEventListener('DOMContentLoaded', function(){
-  var authInp = g('auth-url-inp');
-  if(authInp) authInp.value = localStorage.getItem('maf_auth_url') || '';
-});
-g('btn-save-auth-url').addEventListener('click',function(){
-  var v = (g('auth-url-inp').value || '').trim();
-  localStorage.setItem('maf_auth_url', v);
-  var btn = g('btn-save-auth-url');
-  btn.textContent = 'Сохранено!';
-  setTimeout(function(){ btn.textContent = 'Сохранить'; }, 1500);
-});
-
-g('btn-saveurl').addEventListener('click',function(){
-  var url=g('script-url').value.trim();if(!url)return;
-  S.scriptUrl=url;save();setMsg('conn-msg','Сохранено','ok');updateConn(true);
-});
+g('btn-saveurl') && // URL Apps Script — константа в коде
 g('btn-testconn').addEventListener('click',function(){
   var url=g('script-url').value.trim();
   if(!url){setMsg('conn-msg','Введите URL','err');return;}
@@ -2472,12 +2439,8 @@ function initAuth(){
   } else {
     applyGuestMode();
   }
-  // Дефолтный URL Apps Script если не задан
-  if(!localStorage.getItem('maf_script_url')){
-    var defUrl = 'https://script.google.com/macros/s/AKfycbwgKweuhAsJ2CrrY_cWyjsG1wlkpq_IRLHiV9CftSQHrQDL2pFIxv6IsEtlilzDLXqL/exec';
-    localStorage.setItem('maf_script_url', defUrl);
-    S.scriptUrl = defUrl;
-  }
+  // Apps Script URL — константа, не зависит от localStorage
+  S.scriptUrl = APPS_SCRIPT_URL;
 }
 
 function verifyToken(token, cb){
@@ -2490,7 +2453,7 @@ function verifyToken(token, cb){
 }
 
 function getAuthUrl(){
-  return localStorage.getItem('maf_auth_url') || '';
+  return AUTH_PHP_URL;
 }
 
 function openAuthModal(){
