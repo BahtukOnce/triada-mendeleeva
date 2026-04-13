@@ -307,27 +307,72 @@ ol.inst b{color:var(--text);}
 /* Admin badge */
 .admin-badge{font-size:10px;padding:2px 8px;border-radius:4px;background:#2a0808;color:var(--red3);font-weight:700;border:1px solid var(--red2);}
 
+
+/* ── CABINET / USER SYSTEM ──────────────────────────────────── */
+.screen-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8000;display:flex;align-items:center;justify-content:center;}
+.screen-overlay.hidden{display:none;}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.75rem;width:100%;max-width:340px;}
+.modal-box h3{color:var(--red2);margin-bottom:1.25rem;font-size:18px;text-align:center;}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+.modal-tab{flex:1;padding:8px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);border-bottom:2px solid transparent;}
+.modal-tab.active{color:var(--red2);border-bottom-color:var(--red2);}
+.modal-field{margin-bottom:.75rem;}
+.modal-field label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600;}
+.modal-field input{width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text);font-size:14px;box-sizing:border-box;}
+.modal-field input:focus{outline:none;border-color:var(--red2);}
+.modal-btn{width:100%;padding:10px;background:var(--red2);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:.5rem;}
+.modal-btn:hover{opacity:.9;}
+.modal-btn-out{width:100%;padding:8px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:6px;font-size:13px;cursor:pointer;margin-top:.5rem;}
+.modal-btn-out:hover{border-color:var(--border3);}
+.modal-err{color:var(--red3);font-size:12px;margin-top:.5rem;min-height:16px;text-align:center;}
+.user-pill{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;}
+.user-pill:hover{border-color:var(--border3);}
+.user-pill-name{font-size:12px;font-weight:600;}
+.user-pill-role{font-size:10px;color:var(--text3);}
+.role-pill-admin{background:#2a0808;color:var(--red3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;}
+.role-pill-user{background:var(--bg4);color:var(--text3);padding:2px 6px;border-radius:4px;font-size:10px;}
+
 </style>
 </head>
 <body>
 <div class="layout">
 
 <!-- HEADER -->
-<!-- AUTH MODAL -->
-<div class="auth-overlay hidden" id="auth-overlay">
-  <div class="auth-box">
-    <h3>Вход для администратора</h3>
-    <div class="auth-field">
-      <label>Логин</label>
-      <input type="text" id="auth-login-inp" placeholder="логин" autocomplete="username">
+<!-- UNIVERSAL AUTH MODAL -->
+<div class="screen-overlay hidden" id="auth-overlay">
+  <div class="modal-box">
+    <h3>Триада Менделеева</h3>
+    <div class="modal-tabs" id="auth-modal-tabs">
+      <div class="modal-tab active" id="tab-login-btn" onclick="authTabSwitch('login')">Вход</div>
+      <div class="modal-tab" id="tab-reg-btn" onclick="authTabSwitch('reg')">Регистрация</div>
     </div>
-    <div class="auth-field">
-      <label>Пароль</label>
-      <input type="password" id="auth-pass-inp" placeholder="пароль" autocomplete="current-password">
+    <!-- Вход -->
+    <div id="auth-login-panel">
+      <div class="modal-field"><label>Логин</label><input type="text" id="auth-login-inp" placeholder="ваш логин" autocomplete="username"></div>
+      <div class="modal-field"><label>Пароль</label><input type="password" id="auth-pass-inp" placeholder="пароль" autocomplete="current-password"></div>
+      <button class="modal-btn" onclick="doLogin()">Войти</button>
     </div>
-    <button class="auth-submit" onclick="doLogin()">Войти</button>
-    <button class="auth-cancel" onclick="closeAuthModal()">Отмена</button>
-    <div class="auth-err" id="auth-err"></div>
+    <!-- Регистрация участника -->
+    <div id="auth-reg-panel" style="display:none">
+      <div class="modal-field"><label>Логин</label><input type="text" id="reg-login-inp" placeholder="придумайте логин"></div>
+      <div class="modal-field"><label>Никнейм (игровой)</label><input type="text" id="reg-nick-inp" placeholder="как вас зовут в клубе"></div>
+      <div class="modal-field"><label>Пароль (мин. 6 символов)</label><input type="password" id="reg-pass-inp" placeholder="придумайте пароль"></div>
+      <button class="modal-btn" onclick="doRegister()">Зарегистрироваться</button>
+    </div>
+    <button class="modal-btn-out" onclick="closeAuthModal()">Отмена</button>
+    <div class="modal-err" id="auth-err"></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="screen-overlay hidden" id="profile-overlay">
+  <div class="modal-box">
+    <h3 id="profile-modal-title">Мой профиль</h3>
+    <div class="modal-field"><label>Никнейм</label><input type="text" id="profile-nickname-inp" placeholder="никнейм"></div>
+    <div class="modal-field"><label>Новый пароль <span style="color:var(--text3);font-weight:400">(пусто = не менять)</span></label><input type="password" id="profile-pass-inp" placeholder="новый пароль"></div>
+    <button class="modal-btn" onclick="saveProfile()">Сохранить</button>
+    <button class="modal-btn-out" onclick="closeProfileModal()">Закрыть</button>
+    <div class="modal-err" id="profile-err"></div>
   </div>
 </div>
 
@@ -649,7 +694,7 @@ g('tmstop').addEventListener('click',function(){stopTm();});
 // ── NAV ───────────────────────────────────────────────────────
 function showTab(name){
   // Гости не могут попасть на создание нового дня или настройки
-  if((name === 'new' || name === 'settings') && !S_admin.loggedIn){
+  if((name === 'new' || name === 'settings') && !S_user.loggedIn){
     openAuthModal();
     return;
   }
@@ -2421,16 +2466,22 @@ if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
 
 // ── AUTH (глобальные функции) ──────────────────────────────
 // ── AUTH ─────────────────────────────────────────────────────
-var AUTH_URL = ''; // Заполнится из настроек
-var S_admin = { loggedIn: false, token: '', username: '' };
+// Единый объект текущего пользователя
+var S_user = {
+  loggedIn: false,
+  token: '',
+  username: '',
+  nickname: '',
+  role: ''  // 'admin' | 'user' | ''
+};
 
 function initAuth(){
   var saved = localStorage.getItem('maf_admin_token');
   var savedName = localStorage.getItem('maf_admin_name');
   if(saved){
-    S_admin.token = saved;
-    S_admin.username = savedName || 'Админ';
-    S_admin.loggedIn = true;
+    S_user.token = saved;
+    S_user.username = savedName || 'Админ';
+    S_user.loggedIn = true;
     // Проверяем токен на сервере
     verifyToken(saved, function(ok){
       if(ok){ applyAdminMode(); }
@@ -2441,15 +2492,65 @@ function initAuth(){
   }
   // Apps Script URL — константа, не зависит от localStorage
   S.scriptUrl = APPS_SCRIPT_URL;
+  // Автозагрузка игровых дней из таблицы для всех пользователей
+  autoLoadDays();
+}
+
+function autoLoadDays(){
+  var url = buildUrl('getSheets');
+  if(!url) return;
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.status!=='ok'||!d.sheets||!d.sheets.length) return;
+      var sheets = d.sheets;
+      var loaded = 0;
+      sheets.forEach(function(name){
+        fetch(buildUrl('getDay')+'&sheet='+encodeURIComponent(name))
+          .then(function(r){ return r.json(); })
+          .then(function(d2){
+            loaded++;
+            if(d2.status==='ok'&&d2.day){
+              var exists = false;
+              for(var i=0;i<S.days.length;i++){
+                if(S.days[i].tabName===d2.day.tabName){ S.days[i]=d2.day; exists=true; break; }
+              }
+              if(!exists) S.days.push(d2.day);
+            }
+            if(loaded===sheets.length){
+              S.days.sort(function(a,b){
+                return (parseTabDate(b.tabName)||0)-(parseTabDate(a.tabName)||0);
+              });
+              save();
+              renderDays();
+            }
+          }).catch(function(){ loaded++; });
+      });
+    }).catch(function(){});
+}
+
+function parseTabDate(name){
+  var months={'январ':1,'феврал':2,'март':3,'апрел':4,'май':5,'мая':5,
+    'июн':6,'июл':7,'август':8,'сентябр':9,'октябр':10,'ноябр':11,'декабр':12};
+  var s=(name||'').toLowerCase().replace(/\(.*\)/,'').trim();
+  var m=s.match(/^(\d{1,2})\s+([а-яё]+)/);
+  if(!m) return 0;
+  var day=parseInt(m[1]), mon=null, ms=m[2].substring(0,6);
+  for(var k in months){
+    if(ms.indexOf(k.substring(0,Math.min(k.length,ms.length)))===0||k.indexOf(ms)===0){mon=months[k];break;}
+  }
+  if(!mon) return 0;
+  var yr=s.match(/(\d{4})/); var year=yr?parseInt(yr[1]):new Date().getFullYear();
+  return new Date(year,mon-1,day).getTime();
 }
 
 function verifyToken(token, cb){
   var url = getAuthUrl();
-  if(!url){ cb(false); return; }
+  if(!url){ cb(false, null); return; }
   fetch(url + '?action=me', {headers:{'X-Token': token}})
     .then(function(r){ return r.json(); })
-    .then(function(d){ cb(d.status === 'ok' && d.role === 'admin'); })
-    .catch(function(){ cb(false); });
+    .then(function(d){ cb(d.status === 'ok', d.status==='ok' ? d : null); })
+    .catch(function(){ cb(false, null); });
 }
 
 function getAuthUrl(){
@@ -2482,11 +2583,11 @@ function doLogin(){
   }).then(function(r){ return r.json(); })
     .then(function(d){
       if(d.status === 'ok' && d.role === 'admin'){
-        S_admin.loggedIn = true;
-        S_admin.token = d.token;
-        S_admin.username = d.nickname || d.username;
+        S_user.loggedIn = true;
+        S_user.token = d.token;
+        S_user.username = d.nickname || d.username;
         localStorage.setItem('maf_admin_token', d.token);
-        localStorage.setItem('maf_admin_name', S_admin.username);
+        localStorage.setItem('maf_admin_name', S_user.username);
         closeAuthModal();
         applyAdminMode();
         g('auth-pass-inp').value = '';
@@ -2508,45 +2609,48 @@ document.addEventListener('DOMContentLoaded', function(){
 
 function doLogout(){
   var url = getAuthUrl();
-  if(url && S_admin.token){
+  if(url && S_user.token){
     fetch(url + '?action=logout', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({token: S_admin.token})
+      body: JSON.stringify({token: S_user.token})
     }).catch(function(){});
   }
   clearAdmin();
 }
 
 function clearAdmin(){
-  S_admin = { loggedIn: false, token: '', username: '' };
+  S_user = { loggedIn: false, token: '', username: '', nickname: '', role: '' };
   localStorage.removeItem('maf_admin_token');
   localStorage.removeItem('maf_admin_name');
   applyGuestMode();
 }
 
 function applyAdminMode(){
-  // Показываем "+ Новый день" и "Настройки"
   var navNew = g('nav-new'); if(navNew) navNew.style.display = '';
   var navSet = g('nav-settings'); if(navSet) navSet.style.display = '';
-  // Кнопка в header
-  renderAuthBtn();
+  renderUserBtn();
+}
+
+function applyUserMode(){
+  // Участник: видит всё как гость + личный кабинет в шапке
+  var navNew = g('nav-new'); if(navNew) navNew.style.display = 'none';
+  var navSet = g('nav-settings'); if(navSet) navSet.style.display = 'none';
+  renderUserBtn();
 }
 
 function applyGuestMode(){
-  // Скрываем "+ Новый день" и "Настройки"
   var navNew = g('nav-new'); if(navNew) navNew.style.display = 'none';
   var navSet = g('nav-settings'); if(navSet) navSet.style.display = 'none';
-  // Если были на вкладке настроек или новом дне — переходим на дни
   showTab('days');
-  renderAuthBtn();
+  renderUserBtn();
 }
 
 function renderAuthBtn(){
   var wrap = g('auth-btn-wrap'); if(!wrap) return;
-  if(S_admin.loggedIn){
+  if(S_user.loggedIn){
     wrap.innerHTML = '<div style="display:flex;align-items:center;gap:6px;">' +
-      '<span class="admin-badge" onclick="openProfileModal()" style="cursor:pointer;" title="Профиль">' + esc(S_admin.username) + ' ✎</span>' +
+      '<span class="admin-badge" onclick="openProfileModal()" style="cursor:pointer;" title="Профиль">' + esc(S_user.username) + ' ✎</span>' +
       '<button class="btn-ghost btn-sm" style="font-size:11px;" onclick="doLogout()">Выйти</button>' +
       '</div>';
   } else {
@@ -2558,7 +2662,7 @@ function openProfileModal(){
   var el = g('profile-overlay'); if(!el) return;
   el.classList.remove('hidden');
   var ni = g('profile-nickname');
-  if(ni) ni.value = S_admin.username;
+  if(ni) ni.value = S_user.username;
   var pe = g('profile-err'); if(pe) pe.textContent = '';
   var pp = g('profile-password'); if(pp) pp.value = '';
 }
@@ -2569,19 +2673,20 @@ function closeProfileModal(){
 function saveProfile(){
   var url = getAuthUrl();
   if(!url){ g('profile-err').textContent = 'URL авторизации не задан'; return; }
-  var newNick = (g('profile-nickname').value || '').trim();
-  var newPass = g('profile-password').value || '';
+  var newNick = (g('profile-nickname-inp').value || '').trim();
+  var newPass = g('profile-pass-inp').value || '';
   if(!newNick){ g('profile-err').textContent = 'Никнейм не может быть пустым'; return; }
   if(newPass && newPass.length < 6){ g('profile-err').textContent = 'Пароль минимум 6 символов'; return; }
   g('profile-err').textContent = 'Сохраняю…';
-  fetch(url + '?action=updateProfile', {
+  var profileAction = S_user.role==='admin' ? 'updateProfile' : 'updateUserProfile';
+  fetch(url + '?action=' + profileAction, {
     method: 'POST',
-    headers: {'Content-Type':'application/json','X-Token': S_admin.token},
+    headers: {'Content-Type':'application/json','X-Token': S_user.token},
     body: JSON.stringify({nickname: newNick, password: newPass || null})
   }).then(function(r){ return r.json(); })
     .then(function(d){
       if(d.status === 'ok'){
-        S_admin.username = newNick;
+        S_user.username = newNick;
         localStorage.setItem('maf_admin_name', newNick);
         renderAuthBtn();
         closeProfileModal();
@@ -2652,6 +2757,9 @@ g('btn-importall').addEventListener('click',function(){
 
 // Экспортируем auth функции в глобальный scope
 if(typeof openAuthModal!=="undefined")window.openAuthModal=openAuthModal;
+if(typeof doRegister!=="undefined")window.doRegister=doRegister;
+if(typeof authTabSwitch!=="undefined")window.authTabSwitch=authTabSwitch;
+if(typeof renderUserBtn!=="undefined")window.renderUserBtn=renderUserBtn;
 if(typeof closeAuthModal!=="undefined")window.closeAuthModal=closeAuthModal;
 if(typeof doLogin!=="undefined")window.doLogin=doLogin;
 if(typeof doLogout!=="undefined")window.doLogout=doLogout;
