@@ -361,33 +361,25 @@ ol.inst b{color:var(--text);}
   </div>
 </div>
 
-<!-- PROFILE MODAL -->
+<!-- PROFILE MODAL / ЛИЧНЫЙ КАБИНЕТ -->
 <div class="screen-overlay hidden" id="profile-overlay">
   <div class="modal-box">
-    <h3 id="profile-modal-title">Мой профиль</h3>
+    <h3 id="profile-modal-title">Личный кабинет</h3>
+    <div id="profile-user-info" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:8px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border2);">
+      <span id="profile-user-name" style="font-weight:600;font-size:13px;"></span>
+      <span id="profile-user-role" style="font-size:10px;padding:2px 6px;border-radius:4px;"></span>
+    </div>
     <div class="modal-field"><label>Никнейм</label><input type="text" id="profile-nickname-inp" placeholder="никнейм"></div>
     <div class="modal-field"><label>Новый пароль <span style="color:var(--text3);font-weight:400">(пусто = не менять)</span></label><input type="password" id="profile-pass-inp" placeholder="новый пароль"></div>
     <button class="modal-btn" onclick="saveProfile()">Сохранить</button>
+
+    <!-- Слот для дополнительных действий личного кабинета -->
+    <div id="profile-extra-actions" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
+
+    <div style="border-top:1px solid var(--border2);margin:14px 0 10px;"></div>
+    <button class="modal-btn" style="background:#2a0808;border-color:#c0392b55;color:#e74c3c;" onclick="doLogout()">Выйти из аккаунта</button>
     <button class="modal-btn-out" onclick="closeProfileModal()">Закрыть</button>
     <div class="modal-err" id="profile-err"></div>
-  </div>
-</div>
-
-<!-- PROFILE MODAL (смена никнейма/логина) -->
-<div class="auth-overlay hidden" id="profile-overlay">
-  <div class="auth-box">
-    <h3>Профиль администратора</h3>
-    <div class="auth-field">
-      <label>Никнейм (отображается)</label>
-      <input type="text" id="profile-nickname" placeholder="ваш никнейм">
-    </div>
-    <div class="auth-field">
-      <label>Новый пароль <span style="color:var(--text3);font-weight:400;">(оставьте пустым чтобы не менять)</span></label>
-      <input type="password" id="profile-password" placeholder="новый пароль (мин. 6 символов)">
-    </div>
-    <button class="auth-submit" onclick="saveProfile()">Сохранить</button>
-    <button class="auth-cancel" onclick="closeProfileModal()">Закрыть</button>
-    <div class="auth-err" id="profile-err"></div>
   </div>
 </div>
 
@@ -400,8 +392,8 @@ ol.inst b{color:var(--text);}
   </div>
 </div>
 
-<!-- TIMER BAR — всегда виден -->
-<div class="timer-bar">
+<!-- TIMER BAR — виден только на вкладке "+ Новый день" -->
+<div class="timer-bar" id="timer-bar" style="display:none;">
   <div class="tm-left">
     <button class="tmbtn" id="tm15">15</button>
     <button class="tmbtn" id="tm20">20</button>
@@ -699,6 +691,9 @@ function showTab(name){
     var e=g('tab-'+t);if(e)e.className='screen'+(t===name?' active':'');
     var b=g('nav-'+t);if(b)b.className='nav-btn'+(t===name?' active':'');
   });
+  var tb=g('timer-bar');
+  if(tb) tb.style.display = (name==='new') ? '' : 'none';
+  if(name!=='new' && typeof stopTm==='function') stopTm();
   if(name==='days')renderDays();
   if(name==='rating')renderRating();
   if(name==='settings')renderPlayers();
@@ -2493,9 +2488,9 @@ function renderUserBtn(){
     var badge=S_user.role==='admin'
       ?'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#2a0808;color:var(--red3);font-weight:700;">Админ</span>'
       :'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--bg4);color:var(--text3);">Участник</span>';
-    wrap.innerHTML='<div style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);" onclick="openProfileModal()">'
+    wrap.innerHTML='<div title="Личный кабинет" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);" onclick="openProfileModal()">'
       +'<span style="font-size:12px;font-weight:600;">'+esc(S_user.nickname||'?')+'</span>'+badge
-      +'<button onclick="event.stopPropagation();doLogout()" style="font-size:10px;background:transparent;border:none;color:var(--text2);cursor:pointer;margin-left:2px;">Выйти</button></div>';
+      +'</div>';
   } else {
     wrap.innerHTML='<button id="btn-open-auth" class="btn btn-out btn-sm" style="font-size:11px;">Войти</button>';
     setTimeout(function(){var b=g('btn-open-auth');if(b)b.addEventListener('click',openAuthModal);},0);
@@ -2560,6 +2555,7 @@ function doRegister(){
 }
 function doLogout(){
   if(S_user.token)fetch(AUTH_PHP_URL+'?action=logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:S_user.token})}).catch(function(){});
+  closeProfileModal();
   clearAdmin();
 }
 function openProfileModal(){
@@ -2568,6 +2564,12 @@ function openProfileModal(){
   var ni=g('profile-nickname-inp');if(ni)ni.value=S_user.nickname||'';
   var pe=g('profile-err');if(pe)pe.textContent='';
   var pp=g('profile-pass-inp');if(pp)pp.value='';
+  var un=g('profile-user-name');if(un)un.textContent=S_user.nickname||'';
+  var ur=g('profile-user-role');
+  if(ur){
+    if(S_user.role==='admin'){ur.textContent='Админ';ur.style.background='#2a0808';ur.style.color='var(--red3)';ur.style.fontWeight='700';}
+    else{ur.textContent='Участник';ur.style.background='var(--bg4)';ur.style.color='var(--text3)';ur.style.fontWeight='400';}
+  }
 }
 function closeProfileModal(){var el=g('profile-overlay');if(el)el.classList.add('hidden');}
 function saveProfile(){
