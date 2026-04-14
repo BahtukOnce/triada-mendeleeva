@@ -2590,6 +2590,8 @@ function initAuth(){
   if(tok){
     S_user.token=tok;S_user.nickname=localStorage.getItem('maf_user_name')||'';
     S_user.role=localStorage.getItem('maf_user_role')||'';S_user.loggedIn=true;
+    renderUserBtn(); // мгновенный рендер по данным из localStorage
+    if(S_user.role==='admin')applyAdminMode();else applyUserMode();
     fetch(AUTH_PHP_URL+'?action=me',{headers:{'X-Token':tok}})
       .then(function(r){return r.json();})
       .then(function(d){
