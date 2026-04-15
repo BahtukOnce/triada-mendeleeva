@@ -423,6 +423,7 @@ ol.inst b{color:var(--text);}
   <button class="nav-btn active" id="nav-days">Дни</button>
   <button class="nav-btn" id="nav-new" style="display:none;">+ Новый день</button>
   <button class="nav-btn" id="nav-rating">Рейтинг</button>
+  <button class="nav-btn" id="nav-logs" style="display:none;">Логи</button>
 </div>
 
 <!-- CONTENT -->
@@ -571,11 +572,14 @@ ol.inst b{color:var(--text);}
   <div class="card">
     <button class="btn-del" id="btn-resetall">Удалить все сохранённые дни</button>
   </div>
-  <div class="card" id="admin-logs-card">
-    <h3>Логи действий</h3>
+</div>
+
+<div class="screen" id="tab-logs">
+  <h2>Логи действий</h2>
+  <div class="card">
     <div class="hint" style="margin-bottom:.5rem;">Последние действия администратора</div>
-    <div id="admin-logs-list" style="font-size:12px;color:var(--text2);max-height:300px;overflow-y:auto;"></div>
-    <button class="btn-del" id="btn-clear-logs" style="margin-top:8px;">Очистить логи</button>
+    <div id="admin-logs-list" style="font-size:13px;color:var(--text2);"></div>
+    <button class="btn-del" id="btn-clear-logs" style="margin-top:10px;">Очистить логи</button>
   </div>
 </div>
 
@@ -694,11 +698,11 @@ g('tmstop').addEventListener('click',function(){stopTm();});
 // ── NAV ───────────────────────────────────────────────────────
 function showTab(name){
   // Гости не могут попасть на создание нового дня или настройки
-  if((name === 'new' || name === 'settings') && !S_user.loggedIn){
+  if((name === 'new' || name === 'settings' || name === 'logs') && !S_user.loggedIn){
     openAuthModal();
     return;
   }
-  ['days','new','rating','settings'].forEach(function(t){
+  ['days','new','rating','settings','logs'].forEach(function(t){
     var e=g('tab-'+t);if(e)e.className='screen'+(t===name?' active':'');
     var b=g('nav-'+t);if(b)b.className='nav-btn'+(t===name?' active':'');
   });
@@ -707,7 +711,8 @@ function showTab(name){
   if(name!=='new' && typeof stopTm==='function') stopTm();
   if(name==='days')renderDays();
   if(name==='rating')renderRating();
-  if(name==='settings'){renderPlayers();renderAdminLogs();}
+  if(name==='settings')renderPlayers();
+  if(name==='logs')renderAdminLogs();
   if(name==='new')initNewDay();
 }
 var tabNameManual=false;
@@ -729,6 +734,7 @@ g('nav-days').addEventListener('click',function(){showTab('days');});
 g('nav-new').addEventListener('click',function(){showTab('new');});
 g('nav-rating').addEventListener('click',function(){showTab('rating');});
 var _ns=g('nav-settings');if(_ns)_ns.addEventListener('click',function(){showTab('settings');});
+g('nav-logs').addEventListener('click',function(){showTab('logs');});
 
 // ── CONN ──────────────────────────────────────────────────────
 function updateConn(ok){
@@ -2472,14 +2478,17 @@ var S_user = { loggedIn:false, token:'', nickname:'', role:'' };
 
 function applyAdminMode(){
   var n=g('nav-new');if(n)n.style.display='';
+  n=g('nav-logs');if(n)n.style.display='';
   renderUserBtn();
 }
 function applyUserMode(){
   var n=g('nav-new');if(n)n.style.display='none';
+  n=g('nav-logs');if(n)n.style.display='none';
   renderUserBtn();
 }
 function applyGuestMode(){
   var n=g('nav-new');if(n)n.style.display='none';
+  n=g('nav-logs');if(n)n.style.display='none';
   renderUserBtn();showTab('days');
 }
 function clearAdmin(){
