@@ -415,9 +415,9 @@ ol.inst b{color:var(--text);}
 <!-- NAV -->
 <div class="nav-bar">
   <button class="nav-btn active" id="nav-days">Дни</button>
-  <button class="nav-btn" id="nav-new">+ Новый день</button>
+  <button class="nav-btn" id="nav-new" style="display:none;">+ Новый день</button>
   <button class="nav-btn" id="nav-rating">Рейтинг</button>
-  <button class="nav-btn" id="nav-settings">Настройки</button>
+  <button class="nav-btn" id="nav-settings" style="display:none;">Настройки</button>
 </div>
 
 <!-- CONTENT -->
@@ -2452,9 +2452,7 @@ function renderRatingTable(rows){
 // ── INIT ──────────────────────────────────────────────────────
 loadState();
 if(S.scriptUrl && g('script-url')){g('script-url').value=S.scriptUrl;} updateConn(true);
-renderDays();
-renderPlayers();
-if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);
+try{renderDays();renderPlayers();if(S.ratingData&&S.ratingData.length)renderRatingTable(S.ratingData);}catch(e){console.error('init render:',e);}
 
 // ── AUTH (глобальные функции) ──────────────────────────────
 // ── AUTH ─────────────────────────────────────────────────────
