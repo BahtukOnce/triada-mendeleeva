@@ -2471,7 +2471,7 @@ function applyUserMode(){
 function applyGuestMode(){
   var n=g('nav-new');if(n)n.style.display='none';
   n=g('nav-settings');if(n)n.style.display='none';
-  showTab('days');renderUserBtn();
+  renderUserBtn();showTab('days');
 }
 function clearAdmin(){
   S_user={loggedIn:false,token:'',nickname:'',role:''};
