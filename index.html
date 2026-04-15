@@ -40,6 +40,12 @@ body{font-family:'Segoe UI',sans-serif;color:var(--text);font-size:15px;display:
 .header-bar h1{font-size:17px;font-weight:700;letter-spacing:.5px;background:linear-gradient(135deg,#e74c3c,#d4a017);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .conn-badge{font-size:11px;padding:3px 9px;border-radius:100px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
 .conn-badge.on{background:#0d2a15;color:var(--green3);border-color:#27ae6044;}
+.user-menu-wrap{position:relative;}
+.user-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:180px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:7000;padding:6px 0;}
+.user-menu.open{display:block;}
+.user-menu-item{display:block;width:100%;padding:9px 14px;background:none;border:none;color:var(--text);font-size:13px;text-align:left;cursor:pointer;font-family:inherit;}
+.user-menu-item:hover{background:var(--bg3);}
+.user-menu-sep{border-top:1px solid var(--border2);margin:4px 0;}
 
 /* TIMER BAR — всегда поверх */
 .timer-bar{flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:.5rem 1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -2486,14 +2492,29 @@ function renderUserBtn(){
     var badge=S_user.role==='admin'
       ?'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#2a0808;color:var(--red3);font-weight:700;">Админ</span>'
       :'<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--bg4);color:var(--text3);">Участник</span>';
-    wrap.innerHTML='<div title="Личный кабинет" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);" onclick="openProfileModal()">'
+    wrap.innerHTML='<div class="user-menu-wrap">'
+      +'<div id="user-menu-toggle" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);">'
       +'<span style="font-size:12px;font-weight:600;">'+esc(S_user.nickname||'?')+'</span>'+badge
-      +'</div>';
+      +'</div>'
+      +'<div class="user-menu" id="user-menu">'
+      +(S_user.role==='admin'?'<button class="user-menu-item" id="um-settings">Настройки</button>':'')
+      +'<button class="user-menu-item" id="um-profile">Личный кабинет</button>'
+      +'<div class="user-menu-sep"></div>'
+      +'<button class="user-menu-item" id="um-logout" style="color:var(--red3);">Выйти</button>'
+      +'</div></div>';
+    setTimeout(function(){
+      var tog=g('user-menu-toggle');if(tog)tog.addEventListener('click',toggleUserMenu);
+      var ms=g('um-settings');if(ms)ms.addEventListener('click',function(){closeUserMenu();showTab('settings');});
+      var mp=g('um-profile');if(mp)mp.addEventListener('click',function(){closeUserMenu();openProfileModal();});
+      var ml=g('um-logout');if(ml)ml.addEventListener('click',function(){closeUserMenu();doLogout();});
+    },0);
   } else {
     wrap.innerHTML='<button id="btn-open-auth" class="btn btn-out btn-sm" style="font-size:11px;">Войти</button>';
     setTimeout(function(){var b=g('btn-open-auth');if(b)b.addEventListener('click',openAuthModal);},0);
   }
 }
+function toggleUserMenu(){var m=g('user-menu');if(m)m.classList.toggle('open');}
+function closeUserMenu(){var m=g('user-menu');if(m)m.classList.remove('open');}
 function openAuthModal(){
   var el=g('auth-overlay');if(el)el.classList.remove('hidden');
   setTimeout(function(){var i=g('auth-login-inp');if(i)i.focus();},100);
@@ -2629,6 +2650,7 @@ document.addEventListener('DOMContentLoaded',function(){
   var br=g('btn-do-register');if(br)br.addEventListener('click',doRegister);
   ['auth-login-inp','auth-pass-inp'].forEach(function(id){var el=g(id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});});
   ['reg-nick-inp','reg-pass-inp'].forEach(function(id){var el=g(id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')doRegister();});});
+  document.addEventListener('click',function(e){var w=document.querySelector('.user-menu-wrap');if(w&&!w.contains(e.target))closeUserMenu();});
   initAuth();
 });
 window.openAuthModal=openAuthModal;window.closeAuthModal=closeAuthModal;
