@@ -50,7 +50,7 @@ function page_head(string $title, string $active = ''): void
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
-    echo '<link rel="icon" href="/assets/img/favicon.svg?v=2" type="image/svg+xml">';
+    echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
     echo '<link rel="stylesheet" href="/assets/css/style.css?v=3">';
     echo '</head><body>';
 
