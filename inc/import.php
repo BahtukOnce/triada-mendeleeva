@@ -451,6 +451,10 @@ function run_import(bool $write, ?callable $progress = null): array
 
     rating_recompute_all();
     $note('рейтинг пересчитан');
+    if (function_exists('elo_recompute')) {
+        elo_recompute();
+        $note('ELO пересчитан');
+    }
     // ── Сверка с листом «Рейтинг» ────────────────────────────
     if (isset($main['Рейтинг']) && $mainRatingId) {
         $ref = parse_reference_rating($main['Рейтинг']);

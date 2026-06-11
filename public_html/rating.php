@@ -18,7 +18,7 @@ if (db_ready()) {
     }
     if ($current) {
         // Рейтинг всегда по принципу клуба (~Σ×Σ); дальнейшая сортировка — кликом по колонке (JS)
-        $st = db()->prepare("SELECT rc.*, p.nickname, p.avatar FROM rating_cache rc
+        $st = db()->prepare("SELECT rc.*, p.nickname, p.avatar, p.elo FROM rating_cache rc
             JOIN players p ON p.id = rc.player_id
             WHERE rc.rating_id = ?
             ORDER BY (rc.club_score IS NULL), rc.club_score DESC, rc.sum_total DESC LIMIT 300");
@@ -54,12 +54,12 @@ if ($rows) {
     // ── Номинации (среди игроков с минимумом игр) ──
     $minG = (int)(setting('min_games_nomination') ?: '15');
     $cands = array_filter($rows, fn($r) => (int)$r['games'] >= $minG);
-    $bestBy = function (array $cands, callable $w, callable $g) {
+    $bestBy = function (array $cands, callable $w, callable $g, int $min = 1) {
         $best = null;
         $bw = -1;
         foreach ($cands as $r) {
             $gg = $g($r);
-            if ($gg <= 0) {
+            if ($gg < $min) {
                 continue;
             }
             $wr = $w($r) / $gg;
@@ -79,10 +79,10 @@ if ($rows) {
     }
     $noms = [
         ['MVP клуба', $mvp ? [$mvp, null] : null, 'выше всех в рейтинге'],
-        ['Лучший дон', $bestBy($cands, fn($r) => (int)$r['w_don'], fn($r) => (int)$r['g_don']), 'дон'],
-        ['Лучший шериф', $bestBy($cands, fn($r) => (int)$r['w_sher'], fn($r) => (int)$r['g_sher']), 'шериф'],
-        ['Лучший красный', $bestBy($cands, fn($r) => $r['w_civ'] + $r['w_sher'], fn($r) => $r['g_civ'] + $r['g_sher']), 'мирные+шериф'],
-        ['Лучший чёрный', $bestBy($cands, fn($r) => $r['w_maf'] + $r['w_don'], fn($r) => $r['g_maf'] + $r['g_don']), 'мафия+дон'],
+        ['Лучший дон', $bestBy($cands, fn($r) => (int)$r['w_don'], fn($r) => (int)$r['g_don'], 4), 'дон'],
+        ['Лучший шериф', $bestBy($cands, fn($r) => (int)$r['w_sher'], fn($r) => (int)$r['g_sher'], 4), 'шериф'],
+        ['Лучший красный', $bestBy($cands, fn($r) => $r['w_civ'] + $r['w_sher'], fn($r) => $r['g_civ'] + $r['g_sher'], 10), 'мирные+шериф'],
+        ['Лучший чёрный', $bestBy($cands, fn($r) => $r['w_maf'] + $r['w_don'], fn($r) => $r['g_maf'] + $r['g_don'], 8), 'мафия+дон'],
     ];
     $hasNoms = false;
     foreach ($noms as $n) {
@@ -111,10 +111,16 @@ if ($rows) {
     echo '<p style="color:var(--tx2);font-size:12.5px;margin:0 0 8px;">Рейтинг по принципу клуба (~Σ×Σ). '
         . 'Нажмите на заголовок колонки, чтобы отсортировать. Номинации — среди игроков от ' . $minG . ' игр.</p>';
 
+    echo '<div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap;">';
+    echo '<label style="font-size:13px;color:var(--tx2);">Показывать игроков от</label>';
+    echo '<input type="number" id="rt-mingames" min="0" value="0" style="width:80px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;"> ';
+    echo '<span style="font-size:13px;color:var(--tx2);">игр</span>';
+    echo '<span id="rt-count" style="font-size:12.5px;color:var(--tx3);"></span></div>';
+
     echo '<div class="card" style="overflow-x:auto;padding:8px 10px;">';
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
     echo '<thead><tr>'
-        . '<th data-type="num">#</th><th>Игрок</th>'
+        . '<th data-type="num">#</th><th>Игрок</th><th class="num" data-type="num">ELO</th>'
         . '<th class="num" data-type="num">~Σ×Σ</th><th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
@@ -125,11 +131,12 @@ if ($rows) {
     foreach ($rows as $row) {
         $pos++;
         $w = $row['w_civ'] + $row['w_maf'] + $row['w_sher'] + $row['w_don'];
-        echo '<tr>';
+        echo '<tr data-games="' . (int)$row['games'] . '">';
         echo '<td data-sort="' . $pos . '">' . $pos . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
             . '<span>' . esc($row['nickname']) . '</span></a></td>';
+        echo '<td class="num" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0) . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['club_score'] . '"><b>' . ($row['club_score'] !== null ? number_format((float)$row['club_score'], 2) : '—') . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . ($row['avg_total'] !== null ? number_format((float)$row['avg_total'], 2) : '—') . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['sum_total'] . '">' . number_format((float)$row['sum_total'], 2) . '</td>';
@@ -148,9 +155,32 @@ if ($rows) {
         echo '</tr>';
     }
     echo '</tbody></table></div>';
-    echo '<p style="color:var(--tx2);font-size:12.5px;">Слева — клубный счёт и баллы; справа (выделено) — '
+    echo '<p style="color:var(--tx2);font-size:12.5px;">ELO — динамический рейтинг (старт 1000). Слева — клубный счёт и баллы; справа (выделено) — '
         . '<b style="color:var(--tx2);">статистика по картам</b>: винрейт общий и по ролям. '
         . 'Σ — сумма итогов; Σ+ — допы + ЛХ + Ci; ~Σ — средний балл; ПУ — первоубиенный; ЛХ — лучший ход; Ci — компенсации.</p>';
+    ?>
+<script>
+(function () {
+  var inp = document.getElementById('rt-mingames'), cnt = document.getElementById('rt-count');
+  if (!inp) return;
+  try { inp.value = localStorage.getItem('rt-mingames') || '0'; } catch (e) {}
+  function apply() {
+    var min = parseInt(inp.value, 10) || 0;
+    try { localStorage.setItem('rt-mingames', min); } catch (e) {}
+    var rows = document.querySelectorAll('.rating-tbl tbody tr'), shown = 0;
+    rows.forEach(function (tr) {
+      var g = parseInt(tr.dataset.games, 10) || 0;
+      var hide = g < min;
+      tr.style.display = hide ? 'none' : '';
+      if (!hide) shown++;
+    });
+    cnt.textContent = '— показано ' + shown + ' из ' + rows.length;
+  }
+  inp.addEventListener('input', apply);
+  apply();
+})();
+</script>
+    <?php
 } else {
     empty_state('Рейтинг пока пуст', 'Таблица появится после переноса истории игр.');
 }

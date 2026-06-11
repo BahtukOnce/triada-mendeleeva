@@ -1,7 +1,8 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
-$u = require_role('judge'); // судья и выше
+require ROOT . '/inc/elo.php';
+$u = require_judge();
 
 $dayId = (int)($_GET['day'] ?? 0);
 $st = db()->prepare('SELECT * FROM game_days WHERE id = ?');
@@ -24,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('DELETE FROM games WHERE id = ? AND day_id = ?')->execute([$gid, $dayId]);
         log_action((int)$u['id'], 'game_delete', ['game_id' => $gid]);
         rating_recompute_all();
+        elo_recompute();
         flash_set('ok', 'Игра удалена, рейтинг пересчитан');
         redirect('/admin/protocol.php?day=' . $dayId);
     }
@@ -124,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
 
         rating_recompute_all();
+        elo_recompute();
         log_action((int)$u['id'], 'game_save', ['game_id' => $gid, 'day_id' => $dayId]);
         flash_set('ok', 'Игра сохранена, рейтинг обновлён');
         redirect('/admin/protocol.php?day=' . $dayId);

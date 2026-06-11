@@ -26,6 +26,17 @@ try {
     echo 'db: ' . $GLOBALS['cfg']['db']['name'] . "\n";
     echo 'applied: ' . implode(', ', db()->query('SELECT id FROM _migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN)) . "\n";
     echo 'ratings rows: ' . (int)db()->query('SELECT COUNT(*) FROM ratings')->fetchColumn() . "\n";
+
+    // Первичный расчёт ELO, если ещё не считался, а игры есть
+    if (is_file(ROOT . '/inc/elo.php')) {
+        $hasElo = (int)db()->query('SELECT COUNT(*) FROM elo_history')->fetchColumn();
+        $hasGames = (int)db()->query("SELECT COUNT(*) FROM games WHERE status='finished' AND winner IS NOT NULL")->fetchColumn();
+        if ($hasElo === 0 && $hasGames > 0) {
+            require ROOT . '/inc/elo.php';
+            elo_recompute();
+            echo 'ELO рассчитан для ' . $hasGames . " игр\n";
+        }
+    }
 } catch (Throwable $e) {
     http_response_code(500);
     echo 'error: ' . $e->getMessage() . "\n";

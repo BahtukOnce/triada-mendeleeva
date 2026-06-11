@@ -140,6 +140,84 @@ if ($judged > 0) {
         . '<span>Вы отсудили <b>' . $judged . '</b> ' . ($judged % 10 === 1 && $judged % 100 !== 11 ? 'игру' : 'игр') . '.</span></div>';
 }
 
+// ── Данные для графиков ──
+$roleWrData = [];
+foreach (['civ', 'sheriff', 'maf', 'don'] as $rk) {
+    [$gg, $ww] = $byRole[$rk];
+    $roleWrData[] = $gg ? round($ww / $gg * 100) : 0;
+}
+$roleDist = [$byRole['civ'][0], $byRole['sheriff'][0], $byRole['maf'][0], $byRole['don'][0]];
+$resultsData = [$wins, $losses, $draws];
+$eh = db()->prepare('SELECT elo_after FROM elo_history WHERE player_id = ? ORDER BY id');
+$eh->execute([$pid]);
+$eloSeries = array_map(fn($r) => (float)$r['elo_after'], $eh->fetchAll());
+array_unshift($eloSeries, 1000.0);
+$myElo = end($eloSeries) ?: 1000;
+
+$chartData = json_encode([
+    'roleWr' => $roleWrData,
+    'roleDist' => $roleDist,
+    'results' => $resultsData,
+    'elo' => array_map(fn($v) => round($v, 1), $eloSeries),
+], JSON_UNESCAPED_UNICODE);
+
+echo '<h2 style="margin-top:14px;">Графики</h2>';
+echo '<div class="grid-2">';
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . number_format((float)$myElo, 0) . '</h2>'
+    . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div></div>';
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Винрейт по ролям</h2>'
+    . '<div style="position:relative;height:220px;"><canvas id="ch-rolewr"></canvas></div></div>';
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Сколько играли за роль</h2>'
+    . '<div style="position:relative;height:220px;"><canvas id="ch-roledist"></canvas></div></div>';
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
+    . '<div style="position:relative;height:220px;"><canvas id="ch-results"></canvas></div></div>';
+echo '</div>';
+?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  var D = <?= $chartData ?>;
+  if (typeof Chart === 'undefined') return;
+  var grid = 'rgba(255,255,255,0.08)', tx = '#9c9ca6';
+  Chart.defaults.color = tx;
+  Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  var red = '#e8332a', roleColors = ['#3a7bd5', '#d5a23a', '#9c2b2b', '#2b2b2b'];
+  var roleLabels = ['Мирный', 'Шериф', 'Мафия', 'Дон'];
+
+  new Chart(document.getElementById('ch-elo'), {
+    type: 'line',
+    data: { labels: D.elo.map(function (_, i) { return i; }),
+      datasets: [{ data: D.elo, borderColor: red, backgroundColor: 'rgba(232,51,42,0.12)',
+        fill: true, tension: 0.25, pointRadius: 0, borderWidth: 2 }] },
+    options: { plugins: { legend: { display: false } },
+      scales: { x: { display: false }, y: { grid: { color: grid } } },
+      maintainAspectRatio: false }
+  });
+
+  new Chart(document.getElementById('ch-rolewr'), {
+    type: 'bar',
+    data: { labels: roleLabels, datasets: [{ data: D.roleWr, backgroundColor: roleColors, borderRadius: 6 }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return c.parsed.y + '%'; } } } },
+      scales: { y: { beginAtZero: true, max: 100, grid: { color: grid }, ticks: { callback: function (v) { return v + '%'; } } }, x: { grid: { display: false } } },
+      maintainAspectRatio: false }
+  });
+
+  new Chart(document.getElementById('ch-roledist'), {
+    type: 'doughnut',
+    data: { labels: roleLabels, datasets: [{ data: D.roleDist, backgroundColor: roleColors, borderWidth: 0 }] },
+    options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }
+  });
+
+  new Chart(document.getElementById('ch-results'), {
+    type: 'doughnut',
+    data: { labels: ['Победы', 'Поражения', 'Ничьи'],
+      datasets: [{ data: D.results, backgroundColor: ['#2fa45c', red, '#888'], borderWidth: 0 }] },
+    options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }
+  });
+})();
+</script>
+<?php
+
 // По ролям
 echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">Винрейт по ролям</h2>';
 echo '<table class="tbl"><tr><th>Роль</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';

@@ -23,6 +23,7 @@ header('Content-Type: text/plain; charset=utf-8');
 require ROOT . '/inc/db.php';
 require ROOT . '/inc/xlsx.php';
 require ROOT . '/inc/rating.php';
+require ROOT . '/inc/elo.php';
 require ROOT . '/inc/import.php';
 
 $mode = (string)($_GET['mode'] ?? 'dry');
