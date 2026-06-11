@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
-$u = require_role('admin');
+$u = require_judge();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();

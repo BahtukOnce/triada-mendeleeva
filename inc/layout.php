@@ -51,7 +51,7 @@ function page_head(string $title, string $active = ''): void
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=11">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=12">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -70,8 +70,7 @@ function page_head(string $title, string $active = ''): void
     echo '<div class="header-right">';
 
     if ($u) {
-        echo '<a class="btn btn-ghost suggest-btn" href="/suggest.php" title="Предложить идею по сайту">💡 Идея</a>';
-        $roleCls = role_level($u['role']) >= 3 ? 'role-admin' : (role_level($u['role']) === 2 ? 'role-judge' : 'role-player');
+        $roleCls = role_level($u['role']) >= 3 ? 'role-admin' : (user_can_judge($u) ? 'role-judge' : 'role-player');
         echo '<div class="user-pill-wrap"><button class="user-pill ' . $roleCls . '" id="user-pill">' . esc($u['nickname']) . '</button>';
         echo '<div class="user-menu" id="user-menu">';
         echo '<span class="user-menu-role">' . esc(role_label($u['role'])) . '</span>';
@@ -81,6 +80,13 @@ function page_head(string $title, string $active = ''): void
         echo '<a href="/suggest.php">Предложить идею</a>';
         if (role_level($u['role']) >= 3) {
             echo '<a href="/admin/">Админка</a>';
+        } else {
+            if (user_can_judge($u)) {
+                echo '<a href="/admin/days.php">Вечера и игры</a>';
+            }
+            if (user_can_photo($u)) {
+                echo '<a href="/admin/albums.php">Фотоальбомы</a>';
+            }
         }
         echo '<form method="post" action="/logout.php">' . csrf_field()
            . '<button type="submit" class="linklike danger">Выйти</button></form>';
@@ -117,7 +123,7 @@ function page_foot(): void
        . '<a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=4"></script>';
+    echo '<script src="/assets/js/app.js?v=5"></script>';
     echo '</body></html>';
 }
 

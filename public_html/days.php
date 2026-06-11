@@ -19,13 +19,13 @@ page_head('Игровые вечера', 'days');
 echo '<h1>Игровые вечера</h1>';
 
 if ($list) {
-    echo '<div class="card"><table class="tbl">';
+    echo '<div class="card"><table class="tbl row-link">';
     echo '<tr><th>Дата</th><th>Вечер</th><th>Статус</th><th class="num">Игр</th><th class="num">Записалось</th></tr>';
     foreach ($list as $d) {
         $tag = $d['status'] === 'reg_open' ? 'tag-open' : ($d['status'] === 'finished' ? '' : 'tag-ok');
-        echo '<tr>';
+        echo '<tr data-href="/day.php?id=' . (int)$d['id'] . '">';
         echo '<td>' . esc(date('d.m.Y', strtotime($d['date']))) . '</td>';
-        echo '<td><a href="/day.php?id=' . (int)$d['id'] . '" style="color:var(--tx);font-weight:550;">' . esc($d['title']) . '</a></td>';
+        echo '<td style="font-weight:550;">' . esc($d['title']) . '</td>';
         echo '<td><span class="tag ' . $tag . '">' . esc($statusLabel[$d['status']] ?? $d['status']) . '</span></td>';
         echo '<td class="num">' . (int)$d['games_cnt'] . '</td>';
         echo '<td class="num">' . (int)$d['regs_cnt'] . '</td>';

@@ -106,9 +106,13 @@ foreach ($mine as $g) {
             $teammates[$opid]['games']++;
             if ($won) { $teammates[$opid]['wins']++; }
         } else {
-            $opponents[$opid] = $opponents[$opid] ?? ['nick' => $other['nickname'], 'games' => 0, 'beat' => 0];
+            $opponents[$opid] = $opponents[$opid] ?? ['nick' => $other['nickname'], 'games' => 0, 'beat' => 0, 'lost' => 0];
             $opponents[$opid]['games']++;
-            if ($won) { $opponents[$opid]['beat']++; }
+            if ($won) {
+                $opponents[$opid]['beat']++;
+            } elseif ($g['winner'] !== 'draw') {
+                $opponents[$opid]['lost']++;
+            }
         }
     }
 }
@@ -117,10 +121,13 @@ $decided = $games - $draws;
 $wr = fn($w, $g) => $g ? round($w / $g * 100) . '%' : '—';
 
 // ── Вывод ──
+$losses = $decided - $wins;
 echo '<div class="grid-stats">';
 echo '<div class="stat"><div class="lbl">всего игр</div><div class="val">' . $games . '</div></div>';
 echo '<div class="stat"><div class="lbl">винрейт</div><div class="val">' . $wr($wins, $decided) . '</div></div>';
-echo '<div class="stat"><div class="lbl">побед / ничьих</div><div class="val">' . $wins . ' / ' . $draws . '</div></div>';
+echo '<div class="stat"><div class="lbl">лузрейт</div><div class="val">' . $wr($losses, $decided) . '</div></div>';
+echo '<div class="stat"><div class="lbl">побед / пораж / ничьих</div><div class="val" style="font-size:18px;">'
+    . $wins . ' / ' . $losses . ' / ' . $draws . '</div></div>';
 echo '<div class="stat"><div class="lbl">ПУ (первоубит)</div><div class="val">' . $puCount . '</div></div>';
 echo '</div>';
 
@@ -206,6 +213,43 @@ if ($bestChem) {
     echo '</table>';
 } else {
     echo '<p style="color:var(--tx2);">Пока мало совместных игр для расчёта.</p>';
+}
+echo '</div></div>';
+
+// ── Разноцветы: соперники ──
+$beat = $opponents;
+uasort($beat, fn($a, $b) => [$b['beat'], $b['games']] <=> [$a['beat'], $a['games']]);
+$lostTo = $opponents;
+uasort($lostTo, fn($a, $b) => [$b['lost'], $b['games']] <=> [$a['lost'], $a['games']]);
+
+echo '<h2 style="margin-top:8px;">Разноцветы — против кого играли</h2>';
+echo '<div class="grid-2">';
+
+echo '<div class="card"><h2 style="margin-top:0;">Кого чаще всего обыгрывали</h2>';
+$top = array_slice(array_filter($beat, fn($m) => $m['beat'] > 0), 0, 12, true);
+if ($top) {
+    echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Обыграли</th><th class="num">Игр против</th></tr>';
+    foreach ($top as $opid => $m) {
+        echo '<tr><td><a href="/player.php?id=' . $opid . '" style="color:var(--tx);">' . esc($m['nick']) . '</a></td>'
+            . '<td class="num"><b>' . $m['beat'] . '</b></td><td class="num">' . $m['games'] . '</td></tr>';
+    }
+    echo '</table>';
+} else {
+    echo '<p style="color:var(--tx2);">Нет данных.</p>';
+}
+echo '</div>';
+
+echo '<div class="card"><h2 style="margin-top:0;">Кому чаще всего проигрывали</h2>';
+$topL = array_slice(array_filter($lostTo, fn($m) => $m['lost'] > 0), 0, 12, true);
+if ($topL) {
+    echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Проиграли</th><th class="num">Игр против</th></tr>';
+    foreach ($topL as $opid => $m) {
+        echo '<tr><td><a href="/player.php?id=' . $opid . '" style="color:var(--tx);">' . esc($m['nick']) . '</a></td>'
+            . '<td class="num"><b style="color:var(--ac);">' . $m['lost'] . '</b></td><td class="num">' . $m['games'] . '</td></tr>';
+    }
+    echo '</table>';
+} else {
+    echo '<p style="color:var(--tx2);">Нет данных.</p>';
 }
 echo '</div></div>';
 

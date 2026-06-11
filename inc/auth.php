@@ -73,6 +73,57 @@ function require_role(string $minRole): array
     return $u;
 }
 
+// Капабилити: судья и фотограф — флаги поверх роли; админ/глава имеют всё
+function user_can_judge(?array $u): bool
+{
+    return $u && (role_level($u['role']) >= 3 || !empty($u['is_judge']));
+}
+
+function user_can_photo(?array $u): bool
+{
+    return $u && (role_level($u['role']) >= 3 || !empty($u['is_photographer']));
+}
+
+function require_judge(): array
+{
+    $u = require_login();
+    if (!user_can_judge($u)) {
+        http_response_code(403);
+        exit('Доступно судьям и администраторам.');
+    }
+    return $u;
+}
+
+function require_photo(): array
+{
+    $u = require_login();
+    if (!user_can_photo($u)) {
+        http_response_code(403);
+        exit('Доступно фотографам и администраторам.');
+    }
+    return $u;
+}
+
+// Подписи ролей пользователя: для админов/главы — одна; для игрока — флаги
+function user_role_badges(array $u): array
+{
+    if ($u['role'] === 'owner') {
+        return ['глава клуба'];
+    }
+    if ($u['role'] === 'admin') {
+        return ['админ'];
+    }
+    $b = [];
+    if (!empty($u['is_judge'])) {
+        $b[] = 'судья';
+    }
+    if (!empty($u['is_photographer'])) {
+        $b[] = 'фотограф';
+    }
+    $b[] = 'игрок';
+    return $b;
+}
+
 function valid_nickname(string $nick): ?string
 {
     $nick = trim((string)preg_replace('/\s+/u', ' ', $nick));

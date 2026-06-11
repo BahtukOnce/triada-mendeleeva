@@ -29,13 +29,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('/admin/users.php');
     }
 
+    if ($form === 'cap') {
+        $cap = (string)($_POST['cap'] ?? '');
+        $val = !empty($_POST['val']) ? 1 : 0;
+        $col = $cap === 'judge' ? 'is_judge' : ($cap === 'photo' ? 'is_photographer' : null);
+        if ($col) {
+            db()->prepare("UPDATE users SET $col = ? WHERE id = ?")->execute([$val, $targetId]);
+            log_action((int)$u['id'], 'cap_change', ['user_id' => $targetId, 'cap' => $cap, 'val' => $val]);
+            flash_set('ok', ($cap === 'judge' ? 'Судья' : 'Фотограф') . ($val ? ' назначен' : ' снят') . ': ' . $target['nickname']);
+        }
+        redirect('/admin/users.php');
+    }
+
     if ($form === 'role') {
         if (!$isOwner) {
-            flash_set('err', 'Менять роли может только глава клуба');
+            flash_set('err', 'Менять роли админ/глава может только глава клуба');
             redirect('/admin/users.php');
         }
         $newRole = (string)($_POST['role'] ?? '');
-        if (!in_array($newRole, ['player', 'judge', 'admin', 'owner'], true)) {
+        if (!in_array($newRole, ['player', 'admin', 'owner'], true)) {
             flash_set('err', 'Неизвестная роль');
             redirect('/admin/users.php');
         }
@@ -89,11 +101,23 @@ echo '<a class="tag ' . ($onlyTg ? 'tag-open' : '') . '" href="/admin/users.php'
     . ($onlyTg ? 'показать всех' : 'только с Telegram') . '</a>';
 echo '</div>';
 
-$roles = ['player' => 'игрок', 'judge' => 'судья', 'admin' => 'админ', 'owner' => 'глава'];
+$roles = ['player' => 'игрок', 'admin' => 'админ', 'owner' => 'глава'];
+
+function cap_btn(int $rid, string $cap, bool $on, string $label): string
+{
+    $h = csrf_field() . '<input type="hidden" name="form" value="cap"><input type="hidden" name="user_id" value="' . $rid . '">'
+        . '<input type="hidden" name="cap" value="' . $cap . '"><input type="hidden" name="val" value="' . ($on ? '0' : '1') . '">';
+    $cls = $on ? 'tag-open' : '';
+    return '<form method="post" action="/admin/users.php" style="display:inline;">' . $h
+        . '<button class="tag ' . $cls . '" style="cursor:pointer;border:none;" type="submit">'
+        . ($on ? '✓ ' : '+ ') . $label . '</button></form>';
+}
+
 echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
-echo '<tr><th>Аккаунт</th><th>Игрок</th><th>Telegram</th><th>Роль</th><th>Действия</th></tr>';
+echo '<tr><th>Аккаунт</th><th>Игрок</th><th>Telegram</th><th>Статус</th><th>Роли</th><th>Сброс</th></tr>';
 foreach ($list as $row) {
     $rid = (int)$row['id'];
+    $isAdminRow = $row['role'] === 'owner' || $row['role'] === 'admin';
     echo '<tr><td>' . esc($row['nickname']) . '</td>';
     echo '<td>' . ($row['player_id']
         ? '<a href="/player.php?id=' . (int)$row['player_id'] . '">' . esc($row['player_nick']) . '</a>'
@@ -101,15 +125,20 @@ foreach ($list as $row) {
     echo '<td>' . ($row['tg_user_id']
         ? '<span class="tag tag-ok">' . ($row['tg_username'] ? '@' . esc($row['tg_username']) : 'привязан') . '</span>'
         : '<span style="color:var(--tx3);">—</span>') . '</td>';
-    echo '<td>' . ($row['role'] === 'owner' || $row['role'] === 'admin'
-        ? '<span class="tag" style="color:var(--ac);">' . $roles[$row['role']] . '</span>'
-        : $roles[$row['role']]) . '</td>';
+    // Статус
+    $badges = user_role_badges($row);
+    echo '<td>';
+    foreach ($badges as $bi => $b) {
+        $red = in_array($b, ['глава клуба', 'админ'], true);
+        echo '<span class="tag" style="margin-right:4px;' . ($red ? 'color:var(--ac);' : '') . '">' . $b . '</span>';
+    }
+    echo '</td>';
+    // Управление ролями
     echo '<td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">';
-
-    echo '<form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Сбросить пароль ' . esc($row['nickname']) . '?\');">' . csrf_field();
-    echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
-    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">Сбросить пароль</button></form>';
-
+    if (!$isAdminRow) {
+        echo cap_btn($rid, 'judge', !empty($row['is_judge']), 'судья');
+        echo cap_btn($rid, 'photo', !empty($row['is_photographer']), 'фотограф');
+    }
     if ($isOwner && $rid !== (int)$u['id']) {
         echo '<form method="post" action="/admin/users.php" style="display:inline;">' . csrf_field();
         echo '<input type="hidden" name="form" value="role"><input type="hidden" name="user_id" value="' . $rid . '">';
@@ -119,7 +148,11 @@ foreach ($list as $row) {
         }
         echo '</select></form>';
     }
-    echo '</td></tr>';
+    echo '</td>';
+    echo '<td><form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Сбросить пароль ' . esc($row['nickname']) . '?\');">' . csrf_field();
+    echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
+    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">Сбросить пароль</button></form></td>';
+    echo '</tr>';
 }
 echo '</table></div>';
 page_foot();

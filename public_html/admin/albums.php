@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
-$u = require_role('admin');
+$u = require_photo();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -36,13 +36,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
                 $base = 'a' . $albumId . '_' . time() . '_' . $i;
+                $ext = strtolower(pathinfo($one['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['mp4', 'webm', 'mov', 'm4v'], true)) {
+                    // Видео — сохраняем как есть
+                    if ($one['size'] > 200 * 1024 * 1024) {
+                        continue;
+                    }
+                    $dir = ROOT . '/public_html/uploads/photos';
+                    if (!is_dir($dir)) {
+                        @mkdir($dir, 0755, true);
+                    }
+                    $rel = '/uploads/photos/' . $base . '.' . ($ext === 'mov' ? 'mp4' : $ext);
+                    if (!move_uploaded_file($one['tmp_name'], ROOT . '/public_html' . $rel)) {
+                        continue;
+                    }
+                    db()->prepare('INSERT INTO photos (album_id, file, thumb, kind, uploaded_by) VALUES (?,?,?,?,?)')
+                        ->execute([$albumId, $rel, null, 'video', (int)$u['id']]);
+                    $count++;
+                    continue;
+                }
                 $full = save_image_upload($one, 'photos', $base, 1920);
                 if (!is_string($full) || !str_starts_with($full, '/uploads/')) {
                     continue;
                 }
                 $thumb = save_image_upload($one, 'photos/thumbs', $base, 420);
-                db()->prepare('INSERT INTO photos (album_id, file, thumb, uploaded_by) VALUES (?,?,?,?)')
-                    ->execute([$albumId, $full, is_string($thumb) ? $thumb : $full, (int)$u['id']]);
+                db()->prepare('INSERT INTO photos (album_id, file, thumb, kind, uploaded_by) VALUES (?,?,?,?,?)')
+                    ->execute([$albumId, $full, is_string($thumb) ? $thumb : $full, 'image', (int)$u['id']]);
                 $count++;
             }
         }
@@ -54,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ->execute([$cid, $albumId]);
         }
         log_action((int)$u['id'], 'photos_upload', ['album_id' => $albumId, 'count' => $count]);
-        flash_set('ok', "Загружено фото: $count");
+        flash_set('ok', "Загружено в альбом: $count");
         redirect('/admin/albums.php?album=' . $albumId);
     }
     redirect('/admin/albums.php');
@@ -90,8 +109,8 @@ foreach ($albums as $a) {
     echo '<div class="section-head"><h2 style="margin:0;">' . esc($a['title']) . '</h2><span class="tag">' . (int)$a['cnt'] . ' фото</span></div>';
     echo '<form method="post" action="/admin/albums.php" enctype="multipart/form-data" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' . csrf_field();
     echo '<input type="hidden" name="form" value="upload"><input type="hidden" name="album_id" value="' . (int)$a['id'] . '">';
-    echo '<input type="file" name="photos[]" multiple accept="image/*" required>';
-    echo '<button class="btn" type="submit">Загрузить</button>';
+    echo '<input type="file" name="photos[]" multiple accept="image/*,video/*" required>';
+    echo '<button class="btn" type="submit">Загрузить фото / видео</button>';
     echo '<a href="/album.php?id=' . (int)$a['id'] . '" style="font-size:13px;">смотреть альбом →</a></form>';
     echo '</div>';
 }

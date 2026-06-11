@@ -23,6 +23,15 @@
     });
   }
 
+  // Кликабельные строки таблиц (tr[data-href])
+  document.querySelectorAll('tr[data-href]').forEach(function (tr) {
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, input, select, form')) return;
+      window.location.href = tr.dataset.href;
+    });
+  });
+
   // Сортировка таблиц по клику на заголовок
   document.querySelectorAll('table.sortable').forEach(function (table) {
     var heads = table.querySelectorAll('thead th');

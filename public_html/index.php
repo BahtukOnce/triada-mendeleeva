@@ -35,9 +35,10 @@ if ($dbok) {
             $st->execute([$mainId]);
             $top5 = $st->fetchAll();
         }
-        $admins = db()->query("SELECT nickname, role FROM users
-            WHERE role IN ('owner','admin')
-            ORDER BY FIELD(role,'owner','admin'), nickname LIMIT 12")->fetchAll();
+        $admins = db()->query("SELECT u.nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar
+            FROM users u LEFT JOIN players p ON p.user_id = u.id
+            WHERE u.role IN ('owner','admin') OR u.is_judge = 1 OR u.is_photographer = 1
+            ORDER BY FIELD(u.role,'owner','admin','player'), u.is_judge DESC, u.nickname LIMIT 30")->fetchAll();
     } catch (Throwable $e) {
         // каркас не падает из-за БД
     }
@@ -149,13 +150,16 @@ page_head('Главная', 'index');
     <?php if ($admins): ?>
       <div class="admin-list">
         <?php foreach ($admins as $a):
-            $isOwner = $a['role'] === 'owner';
-            $letter = mb_strtoupper(mb_substr($a['nickname'], 0, 1)); ?>
+            $isLead = $a['role'] === 'owner' || $a['role'] === 'admin';
+            $label = implode(' · ', user_role_badges($a));
+            $nameHtml = $a['player_id']
+                ? '<a href="/player.php?id=' . (int)$a['player_id'] . '" style="color:var(--tx);">' . esc($a['nickname']) . '</a>'
+                : esc($a['nickname']); ?>
           <div class="admin-item">
-            <span class="avatar-circle<?= $isOwner ? ' accent' : '' ?>"><?= esc($letter) ?></span>
+            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 30, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
-              <div class="nm"><?= esc($a['nickname']) ?></div>
-              <div class="rl<?= $isOwner ? ' accent' : '' ?>"><?= esc(role_label($a['role'])) ?></div>
+              <div class="nm"><?= $nameHtml ?></div>
+              <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>
             </div>
           </div>
         <?php endforeach; ?>

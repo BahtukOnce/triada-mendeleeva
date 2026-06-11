@@ -38,11 +38,17 @@ if ($album['dlink']) {
 echo '<p style="color:var(--tx2);margin-top:-6px;">' . $link . count($photos) . ' фото · <a href="/photos.php">все альбомы</a></p>';
 
 if ($photos) {
-    echo '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">';
+    echo '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">';
     foreach ($photos as $p) {
-        echo '<a href="' . esc($p['file']) . '" target="_blank" rel="noopener">'
-            . '<img src="' . esc($p['thumb'] ?: $p['file']) . '" alt="" loading="lazy" '
-            . 'style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--bd);"></a>';
+        if (($p['kind'] ?? 'image') === 'video') {
+            echo '<video controls preload="metadata" '
+                . 'style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--bd);background:#000;">'
+                . '<source src="' . esc($p['file']) . '"></video>';
+        } else {
+            echo '<a href="' . esc($p['file']) . '" target="_blank" rel="noopener">'
+                . '<img src="' . esc($p['thumb'] ?: $p['file']) . '" alt="" loading="lazy" '
+                . 'style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--bd);"></a>';
+        }
     }
     echo '</div>';
 } else {
