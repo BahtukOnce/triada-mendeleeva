@@ -59,7 +59,10 @@ function seat_total(array $seat, ?string $winner, bool $isPu, float $bmBonus, fl
     $minus = (float)$seat['minus'];
     $total = 0.0;
 
-    if ($winner === 'draw') {
+    if ($winner === null) {
+        // Победитель не заполнен: без победного балла и ЛХ
+        $total = $plus - $minus + $ci;
+    } elseif ($winner === 'draw') {
         $total = $ci + $plus - $minus;
         if ($isPu && $bmBonus > 0) {
             $total += $bmBonus; // при ничьей ПУ получает ЛХ независимо от роли

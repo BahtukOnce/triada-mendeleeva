@@ -95,7 +95,7 @@ function parse_tournament_sheet_name(string $name): array
 }
 
 // Разбор листа с играми (дневного или турнирного): блоки по 15 строк
-function parse_games_sheet(array $sheet): array
+function parse_games_sheet(array $sheet, array &$warnings = [], string $ctx = ''): array
 {
     $games = [];
     $maxRow = $sheet ? max(array_keys($sheet)) : 0;
@@ -142,6 +142,9 @@ function parse_games_sheet(array $sheet): array
         }
         $puRaw = xc($sheet, $b + 12, 3);
         $pu = is_numeric($puRaw) ? (int)(float)$puRaw : null;
+        if ($pu === null && $puRaw !== '' && $puRaw !== '-') {
+            $warnings[] = "$ctx, игра " . (count($games) + 1) . ": ПУ нечисловой: «{$puRaw}»";
+        }
         if ($pu !== null && ($pu < 1 || $pu > 10)) {
             $pu = null;
         }
@@ -152,6 +155,9 @@ function parse_games_sheet(array $sheet): array
         }
         $winRaw = mb_strtolower(xc($sheet, $b + 13, 3));
         $winner = ['чёрные' => 'black', 'черные' => 'black', 'красные' => 'red', 'ничья' => 'draw'][$winRaw] ?? null;
+        if ($winner === null) {
+            $warnings[] = "$ctx, игра " . (count($games) + 1) . ': победитель не распознан: «' . $winRaw . '»';
+        }
 
         $games[] = [
             'no' => count($games) + 1,
@@ -210,19 +216,42 @@ function run_import(bool $write, ?callable $progress = null): array
     // Классификация листов
     $days = [];
     $tournaments = [];
+    $warnings = [];
     foreach ($main as $name => $sheet) {
         if ($name === 'Рейтинг') {
             continue;
         }
         $date = parse_day_sheet_name($name);
         if ($date !== null) {
-            $days[$name] = ['date' => $date, 'games' => parse_games_sheet($sheet)];
+            $days[$name] = ['date' => $date, 'games' => parse_games_sheet($sheet, $warnings, $name)];
         } else {
             [$title, $table] = parse_tournament_sheet_name($name);
-            $tournaments[$title][$table] = parse_games_sheet($sheet);
+            $tournaments[$title][$table] = parse_games_sheet($sheet, $warnings, $name);
         }
     }
     ksort($days);
+    foreach ($warnings as $w) {
+        $note('⚠ ' . $w);
+    }
+
+    // Какие дни включены в эталонный лист «Рейтинг» (чекбоксы W/X)
+    if (isset($main['Рейтинг'])) {
+        $refDays = [];
+        for ($r = 5; $r <= 60; $r++) {
+            $dn = xc($main['Рейтинг'], $r, 24);
+            if ($dn !== '' && isset($days[$dn])) {
+                if (xc($main['Рейтинг'], $r, 23) === 'TRUE') {
+                    $refDays[] = $dn;
+                }
+            }
+        }
+        if ($refDays) {
+            $extra = array_diff(array_keys($days), $refDays);
+            if ($extra) {
+                $note('⚠ дни вне эталона листа «Рейтинг» (учтены у нас, но не в таблице): ' . implode(', ', $extra));
+            }
+        }
+    }
     $gamesCount = 0;
     foreach ($days as $d) {
         $gamesCount += count($d['games']);
