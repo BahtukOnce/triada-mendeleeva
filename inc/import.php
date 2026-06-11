@@ -302,6 +302,7 @@ function run_import(bool $write): array
 
     // ── Запись в БД ──────────────────────────────────────────
     $pdo = db();
+    $pdo->beginTransaction();
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
     foreach (['game_seats', 'games', 'rating_days', 'day_registrations', 'game_days', 'tournament_regs', 'tournaments', 'rating_cache'] as $tbl) {
         $pdo->exec("DELETE FROM $tbl");
@@ -397,6 +398,7 @@ function run_import(bool $write): array
         }
     }
     $log[] = 'турниры записаны';
+    $pdo->commit();
 
     rating_recompute_all();
     $log[] = 'рейтинг пересчитан';

@@ -183,6 +183,10 @@ function rating_recompute(int $ratingId): void
     }
 
     $pdo = db();
+    $ownTx = !$pdo->inTransaction();
+    if ($ownTx) {
+        $pdo->beginTransaction();
+    }
     $pdo->prepare('DELETE FROM rating_cache WHERE rating_id = ?')->execute([$ratingId]);
     $ins = $pdo->prepare('INSERT INTO rating_cache
         (rating_id, player_id, games, sum_total, sum_plus, avg_total, club_score, pu_count,
@@ -203,6 +207,9 @@ function rating_recompute(int $ratingId): void
             $a['w_civ'], $a['g_civ'], $a['w_maf'], $a['g_maf'],
             $a['w_sher'], $a['g_sher'], $a['w_don'], $a['g_don'],
         ]);
+    }
+    if ($ownTx) {
+        $pdo->commit();
     }
 }
 
