@@ -1,5 +1,21 @@
 # План разработки сайта triada-mendeleeva.ru
 
+> **Статус на 11.06.2026 — этап 1 почти развёрнут.**
+>
+> Сделано:
+> - Ветка `test`: полный каркас сайта (ядро PHP 8, все вкладки, auth по никам, темы, deploy.php, схема БД). Макет утверждён.
+> - Сервер: создан сайт-каталог и поддомен `test.triada-mendeleeva.ru` (привязаны, SSL выпускается автоматически); в каталоге `git init`, remote → `BahtukOnce/triada-mendeleeva`; `config.php` создан (имя БД `bahtukai_test`, пароль — плейсхолдер).
+> - Глава клуба: ник `Бант.` (через `owner_nickname` в config; в серверный config.php ещё не дописан — добавить при продолжении).
+>
+> ⚠ Открытие: на боевом домене сейчас чужой Vue SPA «MAFIA club», который крон `deploy.sh` ежеминутно тянет из публичного репо `Kloijon/Mafia-website`. Пуши в `BahtukOnce/triada-mendeleeva` на прод не попадали. При переключении прода этот крон отключить.
+>
+> Блокеры (действия владельца):
+> 1. Открыть серверу доступ к репо: сделать репозиторий публичным (Settings → Danger Zone → Change visibility) или выдать токен.
+> 2. Войти в GitHub в Chrome (для настройки вебхука деплоя) — либо добавить вебхук самому: Settings → Webhooks → `https://test.triada-mendeleeva.ru/deploy.php`, content type `application/json`, событие push, секрет — в `config.php` на сервере.
+> 3. Панель Beget → MySQL → создать БД `bahtukai_test`; в файловом менеджере в `test.triada-mendeleeva.ru/config.php` заменить `VPISHITE_PAROL_BD` на пароль БД.
+>
+> Продолжение (после блокеров): в терминале Beget `git fetch origin test && git checkout -f -B test origin/test` в каталоге теста → открыть `/migrate.php?key=<deploy_secret>` → зарегистрировать `Бант.` (станет главой) → этап 2 (миграция данных из Google-таблиц).
+
 Клубная платформа спортивной мафии «Триада Менделеева» (РХТУ). Функциональный ориентир — mafiauniverse.org, но **полностью независимая платформа** одного клуба. Старый код (монолитный index.html + auth.php + Google Apps Script) полностью заменяется.
 
 ---
