@@ -162,10 +162,29 @@ echo '<tr><td style="color:var(--tx2);">Допов всего / минусов</
 echo '<tr><td style="color:var(--tx2);">Фолов / техфолов</td><td class="num">' . $foulsSum . ' / ' . $techSum . '</td></tr>';
 echo '</table></div>';
 
-// Химия с партнёрами по цвету
-uasort($teammates, fn($a, $b) => $b['games'] <=> $a['games']);
+// Лучший напарник: больше всего совместных побед в одном цвете
+$bestMate = null;
+foreach ($teammates as $opid => $m) {
+    if ($bestMate === null || $m['wins'] > $bestMate['wins']
+        || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
+        $bestMate = $m + ['id' => $opid];
+    }
+}
+if ($bestMate && $bestMate['wins'] > 0) {
+    echo '<div class="card card-accent" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">';
+    echo avatar_html(['nickname' => $bestMate['nick']], 44, 'background:var(--acsf);color:var(--ac);');
+    echo '<div><div style="font-size:13px;color:var(--tx2);">Лучший напарник в одном цвете</div>'
+        . '<div style="font-size:17px;font-weight:600;"><a href="/player.php?id=' . (int)$bestMate['id'] . '" style="color:var(--tx);">'
+        . esc($bestMate['nick']) . '</a></div>'
+        . '<div style="font-size:13px;color:var(--tx2);">' . $bestMate['wins'] . ' совместных побед в '
+        . $bestMate['games'] . ' играх вместе · винрейт ' . $wr($bestMate['wins'], $bestMate['games']) . '</div></div>';
+    echo '</div>';
+}
+
+// Химия с партнёрами по цвету — по числу совместных побед
+uasort($teammates, fn($a, $b) => [$b['wins'], $b['games']] <=> [$a['wins'], $a['games']]);
 $topMates = array_slice($teammates, 0, 12, true);
-echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">В одном цвете чаще всего</h2>';
+echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">В одном цвете: больше всего побед</h2>';
 if ($topMates) {
     echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Вместе</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
     foreach ($topMates as $opid => $m) {

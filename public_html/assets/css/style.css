@@ -254,6 +254,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .guest-stats b { display: block; font-size: 24px; font-weight: 700; color: var(--ac); }
 .guest-stats span { font-size: 12px; color: var(--tx2); }
 .guest-hint { font-size: 13px; color: var(--tx3); max-width: 460px; margin: 0 auto; line-height: 1.5; }
+.guest-social { display: flex; gap: 16px; justify-content: center; margin-top: 16px; }
+.guest-social a { font-size: 14px; color: var(--tx2); }
+.guest-social a:hover { color: var(--ac); }
 @media (prefers-reduced-motion: no-preference) {
   .guest-hero::before { animation: glowShift 14s ease-in-out infinite alternate; }
   .guest-logo { transition: transform 0.5s cubic-bezier(0.2,0.7,0.2,1); }

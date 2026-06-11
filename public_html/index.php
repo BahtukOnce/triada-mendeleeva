@@ -65,6 +65,10 @@ page_head('Главная', 'index');
     </div>
     <p class="guest-hint">Уже играли в клубе? Зарегистрируйтесь под своим ником — вся ваша
       статистика и история игр подтянутся автоматически.</p>
+    <div class="guest-social">
+      <a href="https://t.me/triada_mendeleeva" rel="noopener" target="_blank">Telegram</a>
+      <a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>
+    </div>
   </div>
 </section>
 <?php endif; ?>
