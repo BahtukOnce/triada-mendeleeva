@@ -34,10 +34,10 @@ if (db_ready()) {
 function wr(int $w, int $g): string
 {
     if (!$g) {
-        return '<span style="color:var(--tx3);">—</span>';
+        return '<div style="text-align:center;color:var(--tx3);">—</div>';
     }
     $pct = round($w / $g * 100);
-    return '<div style="white-space:nowrap;line-height:1.15;">' . $pct . '%'
+    return '<div style="white-space:nowrap;line-height:1.15;text-align:center;">' . $pct . '%'
         . '<div style="font-size:11px;color:var(--tx2);">' . $w . '/' . $g . '</div></div>';
 }
 
@@ -66,7 +66,7 @@ if ($rows) {
     echo '<tr><th>#</th><th>Игрок</th><th class="num">~Σ×Σ</th><th class="num">~Σ</th><th class="num">Σ</th>'
         . '<th class="num">Σ+</th><th class="num">Игр</th><th class="num">ПУ</th><th class="num">ЛХ</th>'
         . '<th class="num">Допы</th><th class="num">−</th><th class="num">Ci</th>'
-        . '<th class="num">Общ</th><th class="num">Мир</th><th class="num">Маф</th><th class="num">Шер</th><th class="num">Дон</th></tr>';
+        . '<th style="text-align:center;">Общ</th><th style="text-align:center;">Мир</th><th style="text-align:center;">Маф</th><th style="text-align:center;">Шер</th><th style="text-align:center;">Дон</th></tr>';
     $pos = 0;
     foreach ($rows as $row) {
         $pos++;

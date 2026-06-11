@@ -46,6 +46,29 @@ if ($dbok) {
 page_head('Главная', 'index');
 ?>
 
+<?php if (!current_user()): ?>
+<section class="guest-hero">
+  <div class="guest-hero-inner">
+    <div class="guest-logo"><?= logo_svg(72) ?></div>
+    <h1 class="guest-title">Триада Менделеева</h1>
+    <p class="guest-sub">Клуб спортивной мафии РХТУ. Игровые вечера, турниры, клубный рейтинг
+      с подробной статистикой по каждому игроку.</p>
+    <div class="guest-cta">
+      <a class="btn" href="/register.php">Присоединиться к клубу</a>
+      <a class="btn btn-ghost" href="/login.php">Войти</a>
+    </div>
+    <div class="guest-stats">
+      <div><b><?= $stats['players'] ?></b><span>игроков</span></div>
+      <div><b><?= $stats['games'] ?></b><span>игр сыграно</span></div>
+      <div><b><?= $stats['days'] ?></b><span>вечеров</span></div>
+      <div><b><?= $stats['tournaments'] ?></b><span>турниров</span></div>
+    </div>
+    <p class="guest-hint">Уже играли в клубе? Зарегистрируйтесь под своим ником — вся ваша
+      статистика и история игр подтянутся автоматически.</p>
+  </div>
+</section>
+<?php endif; ?>
+
 <?php if ($nextDay): ?>
 <div class="card card-accent hero">
   <div class="hero-info">
