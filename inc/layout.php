@@ -51,10 +51,10 @@ function page_head(string $title, string $active = ''): void
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=4">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=5">';
     echo '</head><body>';
 
-    echo '<header class="site-header"><div class="container header-row">';
+    echo '<header class="site-header"><div class="header-inner header-row">';
     echo '<a class="brand" href="/index.php">' . logo_svg(34);
     echo '<span class="brand-text"><b>Триада Менделеева</b><i>клуб спортивной мафии · РХТУ</i></span></a>';
 

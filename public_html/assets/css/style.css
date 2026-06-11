@@ -26,6 +26,7 @@ main.container { flex: 1; padding-bottom: 40px; }
   background: var(--sf); border-bottom: 1px solid var(--bd);
   position: sticky; top: 0; z-index: 50;
 }
+.header-inner { width: 100%; padding: 0 24px; }
 .header-row { display: flex; align-items: center; gap: 10px; min-height: 56px; }
 .brand { display: flex; align-items: center; gap: 9px; color: var(--tx); }
 .brand:hover { color: var(--tx); }
@@ -212,6 +213,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 
 /* ── Мобильная версия ──────────────────────────── */
 @media (max-width: 900px) {
+  .header-inner { padding: 0 14px; }
   .brand-text i { display: none; }
   .burger { display: block; margin-left: auto; }
   .nav {
