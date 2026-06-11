@@ -73,6 +73,9 @@ function page_head(string $title, string $active = ''): void
         echo '<div class="user-menu" id="user-menu">';
         echo '<span class="user-menu-role">' . esc(role_label($u['role'])) . '</span>';
         echo '<a href="/cabinet.php">Личный кабинет</a>';
+        if (role_level($u['role']) >= 3) {
+            echo '<a href="/admin/">Админка</a>';
+        }
         echo '<form method="post" action="/logout.php">' . csrf_field()
            . '<button type="submit" class="linklike danger">Выйти</button></form>';
         echo '</div></div>';

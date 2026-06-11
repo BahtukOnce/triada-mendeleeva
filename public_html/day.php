@@ -47,6 +47,35 @@ echo '<h1>' . esc($day['title']) . ' · ' . esc(date('d.m.Y', strtotime($day['da
 echo '<p style="color:var(--tx2);margin-top:-6px;">Игр сыграно: ' . count($games)
     . ($day['location'] ? ' · ' . esc($day['location']) : '') . ' · <a href="/days.php">все вечера</a></p>';
 
+if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
+    $st = db()->prepare('SELECT r.*, p.nickname, p.avatar, p.id AS pid FROM day_registrations r
+        JOIN players p ON p.id = r.player_id
+        WHERE r.day_id = ? AND r.cancelled_at IS NULL ORDER BY r.created_at');
+    $st->execute([$id]);
+    $regs = $st->fetchAll();
+    echo '<div class="card card-accent">';
+    echo '<div class="section-head"><h2 style="margin:0;">Записавшиеся (' . count($regs) . ')</h2>';
+    echo '<span class="tag ' . ($day['status'] === 'reg_open' ? 'tag-open' : '') . '">'
+        . ($day['status'] === 'reg_open' ? 'запись открыта' : 'запись закрыта') . '</span></div>';
+    if ($regs) {
+        echo '<div class="admin-list" style="margin-top:10px;">';
+        foreach ($regs as $r) {
+            $time = $r['time_from'] ? substr($r['time_from'], 0, 5) . '–' . substr((string)$r['time_to'], 0, 5) : '';
+            echo '<div class="admin-item">' . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 28);
+            echo '<div><div class="nm"><a href="/player.php?id=' . (int)$r['pid'] . '" style="color:var(--tx);">'
+                . esc($r['nickname']) . '</a></div>'
+                . ($time ? '<div class="rl">' . $time . '</div>' : '') . '</div></div>';
+        }
+        echo '</div>';
+    } else {
+        echo '<p style="color:var(--tx2);font-size:14px;margin:8px 0 0;">Пока никто не записался — будьте первым!</p>';
+    }
+    if ($day['status'] === 'reg_open') {
+        echo '<p style="margin:12px 0 0;"><a class="btn" href="/cabinet.php">Записаться</a></p>';
+    }
+    echo '</div>';
+}
+
 foreach ($games as $g) {
     $seats = $seatsByGame[(int)$g['id']] ?? [];
     $totals = game_display_totals($g, $seats);
