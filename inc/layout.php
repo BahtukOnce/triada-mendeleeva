@@ -51,7 +51,7 @@ function page_head(string $title, string $active = ''): void
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=8">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=9">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';

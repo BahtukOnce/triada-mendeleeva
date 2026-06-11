@@ -58,10 +58,10 @@ page_head('Главная', 'index');
       <a class="btn btn-ghost" href="/login.php">Войти</a>
     </div>
     <div class="guest-stats">
-      <div><b><?= $stats['players'] ?></b><span>игроков</span></div>
-      <div><b><?= $stats['games'] ?></b><span>игр сыграно</span></div>
-      <div><b><?= $stats['days'] ?></b><span>вечеров</span></div>
-      <div><b><?= $stats['tournaments'] ?></b><span>турниров</span></div>
+      <a href="/players.php"><b><?= $stats['players'] ?></b><span>игроков</span></a>
+      <a href="/rating.php"><b><?= $stats['games'] ?></b><span>игр сыграно</span></a>
+      <a href="/days.php"><b><?= $stats['days'] ?></b><span>вечеров</span></a>
+      <a href="/tournaments.php"><b><?= $stats['tournaments'] ?></b><span>турниров</span></a>
     </div>
     <p class="guest-hint">Уже играли в клубе? Зарегистрируйтесь под своим ником — вся ваша
       статистика и история игр подтянутся автоматически.</p>
@@ -101,10 +101,10 @@ page_head('Главная', 'index');
 <?php endif; ?>
 
 <div class="grid-stats">
-  <div class="stat"><div class="lbl">игроков</div><div class="val"><?= $stats['players'] ?></div></div>
-  <div class="stat"><div class="lbl">сыграно игр</div><div class="val"><?= $stats['games'] ?></div></div>
-  <div class="stat"><div class="lbl">вечеров</div><div class="val"><?= $stats['days'] ?></div></div>
-  <div class="stat"><div class="lbl">турниров</div><div class="val"><?= $stats['tournaments'] ?></div></div>
+  <a class="stat" href="/players.php"><div class="lbl">игроков</div><div class="val"><?= $stats['players'] ?></div></a>
+  <a class="stat" href="/rating.php"><div class="lbl">сыграно игр</div><div class="val"><?= $stats['games'] ?></div></a>
+  <a class="stat" href="/days.php"><div class="lbl">вечеров</div><div class="val"><?= $stats['days'] ?></div></a>
+  <a class="stat" href="/tournaments.php"><div class="lbl">турниров</div><div class="val"><?= $stats['tournaments'] ?></div></a>
 </div>
 
 <div class="grid-2">
