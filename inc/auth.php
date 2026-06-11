@@ -1,6 +1,31 @@
 <?php
 declare(strict_types=1);
 
+// Привязать аккаунт к игроку с тем же ником (если игрок свободен). Возвращает игрока или null.
+function ensure_player_link(array $user): ?array
+{
+    if (!db_ready()) {
+        return null;
+    }
+    $st = db()->prepare('SELECT * FROM players WHERE user_id = ?');
+    $st->execute([(int)$user['id']]);
+    $p = $st->fetch();
+    if ($p) {
+        return $p;
+    }
+    $st = db()->prepare('SELECT * FROM players WHERE user_id IS NULL AND LOWER(nickname) = LOWER(?) LIMIT 1');
+    $st->execute([$user['nickname']]);
+    $p = $st->fetch();
+    if ($p) {
+        db()->prepare('UPDATE players SET user_id = ? WHERE id = ? AND user_id IS NULL')
+            ->execute([(int)$user['id'], (int)$p['id']]);
+        $p['user_id'] = (int)$user['id'];
+        log_action((int)$user['id'], 'player_autolink', ['player_id' => (int)$p['id']]);
+        return $p;
+    }
+    return null;
+}
+
 function current_user(): ?array
 {
     static $user = false;
@@ -127,22 +152,23 @@ function auth_register(string $nick, string $pass1, string $pass2)
     note_attempt($ip, $nick, true);
     log_action($id, 'register', ['role' => $role]);
 
-    // Профиль игрока: свободный совпавший ник → заявка на привязку (подтвердит админ),
-    // ника нет в базе → создаём игрока и привязываем сразу
+    // Профиль игрока: тот же ник свободен → привязываем сразу;
+    // ника нет в базе → создаём нового игрока; ник уже занят аккаунтом → без привязки
     $linked = 'new';
     try {
-        $st = db()->prepare('SELECT * FROM players WHERE LOWER(nickname) = LOWER(?)');
-        $st->execute([$nick]);
-        $pl = $st->fetch();
-        if ($pl && $pl['user_id'] === null) {
-            db()->prepare('INSERT INTO link_requests (user_id, player_id) VALUES (?,?)')
-                ->execute([$id, (int)$pl['id']]);
-            $linked = 'pending';
-        } elseif (!$pl) {
-            db()->prepare('INSERT INTO players (nickname, user_id) VALUES (?,?)')
-                ->execute([$nick, $id]);
+        $user = ['id' => $id, 'nickname' => $nick];
+        $pl = ensure_player_link($user);
+        if ($pl) {
+            $linked = 'linked';
         } else {
-            $linked = 'taken';
+            $st = db()->prepare('SELECT id FROM players WHERE LOWER(nickname) = LOWER(?)');
+            $st->execute([$nick]);
+            if (!$st->fetch()) {
+                db()->prepare('INSERT INTO players (nickname, user_id) VALUES (?,?)')
+                    ->execute([$nick, $id]);
+            } else {
+                $linked = 'taken';
+            }
         }
     } catch (Throwable $e) {
     }

@@ -57,7 +57,7 @@ function client_ip(): string
     return $_SERVER['REMOTE_ADDR'] ?? '';
 }
 
-// Игрок, привязанный к текущему пользователю
+// Игрок, привязанный к текущему пользователю (с автопривязкой по совпадающему нику)
 function current_player(): ?array
 {
     static $p = false;
@@ -68,6 +68,9 @@ function current_player(): ?array
             $st = db()->prepare('SELECT * FROM players WHERE user_id = ?');
             $st->execute([(int)$u['id']]);
             $p = $st->fetch() ?: null;
+            if (!$p) {
+                $p = ensure_player_link($u);
+            }
         }
     }
     return $p;
