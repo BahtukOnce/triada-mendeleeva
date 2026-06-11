@@ -64,24 +64,29 @@ function elo_recompute(): void
         $avgRed = $avg($red);
         $avgBlack = $avg($black);
         $scoreRed = $g['winner'] === 'red' ? 1.0 : ($g['winner'] === 'black' ? 0.0 : 0.5);
-
         $meanScore = fn($t) => array_sum(array_column($t, 'score')) / count($t);
-        $mRed = $meanScore($red);
-        $mBlack = $meanScore($black);
 
-        $apply = function (array $team, float $oppAvg, float $teamScoreResult, float $teamMeanScore) use (&$elo, $get, $hist, $g) {
+        // Командная дельта (zero-sum): красные получают +X, чёрные −X
+        $expRed = 1.0 / (1.0 + pow(10, ($avgBlack - $avgRed) / 400.0));
+        $deltaRedTeam = ELO_K * ($scoreRed - $expRed);
+
+        // Распределение внутри команды с учётом вклада (сумма долей = командной дельте)
+        $distribute = function (array $team, float $teamDelta, float $teamMean) use (&$elo, $get, $hist, $g) {
+            $sgn = $teamDelta >= 0 ? 1.0 : -1.0;
+            $factors = [];
             foreach ($team as $p) {
-                $exp = 1.0 / (1.0 + pow(10, ($oppAvg - $p['elo']) / 400.0));
-                // вклад: ±0.5 от базового в зависимости от перформанса в игре
-                $contrib = 1.0 + 0.5 * max(-1.0, min(1.0, $p['score'] - $teamMeanScore));
-                $delta = ELO_K * ($teamScoreResult - $exp) * $contrib;
+                $factors[] = max(0.25, 1.0 + 0.4 * $sgn * max(-1.0, min(1.0, $p['score'] - $teamMean)));
+            }
+            $fsum = array_sum($factors) ?: count($team);
+            foreach ($team as $i => $p) {
+                $delta = $teamDelta * $factors[$i] / $fsum;
                 $newElo = $get($p['pid']) + $delta;
                 $elo[$p['pid']] = $newElo;
                 $hist->execute([$p['pid'], (int)$g['id'], $g['gdate'], round($newElo, 1), round($delta, 1)]);
             }
         };
-        $apply($red, $avgBlack, $scoreRed, $mRed);
-        $apply($black, $avgRed, 1.0 - $scoreRed, $mBlack);
+        $distribute($red, $deltaRedTeam, $meanScore($red));
+        $distribute($black, -$deltaRedTeam, $meanScore($black));
     }
 
     $upd = $pdo->prepare('UPDATE players SET elo = ? WHERE id = ?');

@@ -27,11 +27,11 @@ try {
     echo 'applied: ' . implode(', ', db()->query('SELECT id FROM _migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN)) . "\n";
     echo 'ratings rows: ' . (int)db()->query('SELECT COUNT(*) FROM ratings')->fetchColumn() . "\n";
 
-    // Первичный расчёт ELO, если ещё не считался, а игры есть
+    // Расчёт ELO: при первом запуске или принудительно ?elo=1
     if (is_file(ROOT . '/inc/elo.php')) {
         $hasElo = (int)db()->query('SELECT COUNT(*) FROM elo_history')->fetchColumn();
         $hasGames = (int)db()->query("SELECT COUNT(*) FROM games WHERE status='finished' AND winner IS NOT NULL")->fetchColumn();
-        if ($hasElo === 0 && $hasGames > 0) {
+        if (($hasElo === 0 || !empty($_GET['elo'])) && $hasGames > 0) {
             require ROOT . '/inc/elo.php';
             elo_recompute();
             echo 'ELO рассчитан для ' . $hasGames . " игр\n";
