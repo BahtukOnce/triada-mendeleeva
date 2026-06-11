@@ -85,6 +85,18 @@ function avatar_html(?array $player, int $size = 30, string $style = ''): string
         . $style . '">' . esc($letter) . '</span>';
 }
 
+function player_id_by_nick(string $nick): ?int
+{
+    $nick = trim($nick);
+    if ($nick === '') {
+        return null;
+    }
+    $st = db()->prepare('SELECT id FROM players WHERE LOWER(nickname) = LOWER(?) LIMIT 1');
+    $st->execute([$nick]);
+    $id = $st->fetchColumn();
+    return $id !== false ? (int)$id : null;
+}
+
 function setting(string $key, string $default = ''): string
 {
     try {

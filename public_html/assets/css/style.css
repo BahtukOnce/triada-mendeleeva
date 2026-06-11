@@ -171,6 +171,33 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .progress { height: 6px; background: var(--sf2); border-radius: 3px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--ac); border-radius: 3px; }
 
+/* ── Панель ведущего ─────────────────────────────── */
+.timer-card { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; position: sticky; top: 56px; z-index: 20; }
+.timer-display {
+  font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums;
+  min-width: 100px; text-align: center; color: var(--tx); letter-spacing: 1px;
+}
+.timer-display.tm-low { color: var(--ac); }
+.timer-display.tm-zero { color: var(--ac); animation: tmblink 0.5s steps(2) infinite; }
+@keyframes tmblink { 50% { opacity: 0.3; } }
+.timer-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+.tm-btn {
+  background: var(--sf2); color: var(--tx); border: 1px solid var(--bd);
+  border-radius: 8px; padding: 9px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+  min-width: 44px;
+}
+.tm-btn:hover { border-color: var(--tx2); }
+.tm-btn:active { transform: scale(0.96); }
+.tm-stop { color: var(--ac); border-color: #c0392b55; }
+
+.protocol-tbl input, .protocol-tbl select {
+  background: var(--sf2); color: var(--tx); border: 1px solid var(--bd);
+  border-radius: 6px; padding: 6px 8px; font-size: 13px; font-family: inherit;
+}
+.protocol-tbl input:focus, .protocol-tbl select:focus { outline: none; border-color: var(--ac); }
+.protocol-tbl td { padding: 5px 6px; }
+.protocol-tbl .f-total { font-size: 14px; }
+
 .site-footer { border-top: 1px solid var(--bd); background: var(--sf); margin-top: 24px; }
 .footer-row {
   display: flex; justify-content: space-between; align-items: center;

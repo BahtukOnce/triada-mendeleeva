@@ -73,6 +73,9 @@ if ($list) {
         echo '<td><a href="/day.php?id=' . (int)$d['id'] . '">' . esc($d['title']) . '</a></td>';
         echo '<td><span class="tag ' . ($d['status'] === 'reg_open' ? 'tag-open' : '') . '">' . $statusLabel[$d['status']] . '</span></td>';
         echo '<td class="num">' . (int)$d['regs'] . '</td><td class="num">' . (int)$d['games'] . '</td><td>';
+        if (in_array($d['status'], ['reg_closed', 'live', 'finished'], true)) {
+            echo '<a class="btn" style="padding:4px 12px;font-size:12px;" href="/admin/protocol.php?day=' . (int)$d['id'] . '">Вести игры</a> ';
+        }
         foreach ($nextStatus[$d['status']] as [$to, $lbl]) {
             echo '<form method="post" action="/admin/days.php" style="display:inline;">' . csrf_field();
             echo '<input type="hidden" name="form" value="status"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
