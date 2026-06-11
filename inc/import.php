@@ -41,12 +41,18 @@ function import_download(string $url, string $tmpName): string
         'follow_location' => 1,
         'header' => "User-Agent: Mozilla/5.0 (triada-import)\r\n",
     ]]);
-    $data = file_get_contents($url, false, $ctx);
-    if ($data === false || strlen($data) < 1000) {
-        throw new RuntimeException("download failed: $url");
+    $lastErr = '';
+    for ($try = 1; $try <= 4; $try++) {
+        $data = @file_get_contents($url, false, $ctx);
+        if ($data !== false && strlen($data) > 1000 && str_starts_with($data, "PK\x03\x04")) {
+            file_put_contents($path, $data);
+            return $path;
+        }
+        // Google вернул не-xlsx (интерстишл/лимит) — пауза и повтор
+        $lastErr = $data === false ? 'нет ответа' : 'не xlsx (' . strlen((string)$data) . ' байт)';
+        sleep(3 * $try);
     }
-    file_put_contents($path, $data);
-    return $path;
+    throw new RuntimeException("download failed ($lastErr): $url");
 }
 
 function excel_to_date(string $v): ?string
