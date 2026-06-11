@@ -131,6 +131,15 @@ echo '<div class="stat"><div class="lbl">побед / пораж / ничьих<
 echo '<div class="stat"><div class="lbl">ПУ (первоубит)</div><div class="val">' . $puCount . '</div></div>';
 echo '</div>';
 
+$jst = db()->prepare("SELECT COUNT(*) FROM games WHERE judge_player_id = ? AND status = 'finished'");
+$jst->execute([$pid]);
+$judged = (int)$jst->fetchColumn();
+if ($judged > 0) {
+    echo '<div class="card" style="display:flex;align-items:center;gap:12px;">'
+        . '<span class="tag tag-open" style="font-size:14px;">судья</span>'
+        . '<span>Вы отсудили <b>' . $judged . '</b> ' . ($judged % 10 === 1 && $judged % 100 !== 11 ? 'игру' : 'игр') . '.</span></div>';
+}
+
 // По ролям
 echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">Винрейт по ролям</h2>';
 echo '<table class="tbl"><tr><th>Роль</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';

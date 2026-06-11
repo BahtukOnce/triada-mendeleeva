@@ -119,9 +119,9 @@ page_head('Главная', 'index');
     <table class="tbl">
       <tr><th>#</th><th>Игрок</th><th class="num">~Σ×Σ</th><th class="num">Σ</th></tr>
       <?php $pos = 0; foreach ($top5 as $t5): $pos++; ?>
-      <tr>
+      <tr data-href="/player.php?id=<?= (int)$t5['player_id'] ?>">
         <td><?= $pos ?></td>
-        <td><a href="/player.php?id=<?= (int)$t5['player_id'] ?>" style="color:var(--tx);"><?= esc($t5['nickname']) ?></a></td>
+        <td><?= esc($t5['nickname']) ?></td>
         <td class="num"><b><?= number_format((float)$t5['club_score'], 1) ?></b></td>
         <td class="num"><?= number_format((float)$t5['sum_total'], 1) ?></td>
       </tr>
@@ -135,10 +135,10 @@ page_head('Главная', 'index');
       <a class="more" href="/news.php">все новости →</a>
     </div>
     <?php if ($news): $first = true; foreach ($news as $n): ?>
-      <div class="news-item<?= $first ? ' first' : '' ?>">
-        <div class="ttl"><a href="/news.php?id=<?= (int)$n['id'] ?>" style="color:var(--tx);"><?= esc($n['title']) ?></a></div>
+      <a class="news-item<?= $first ? ' first' : '' ?>" href="/news.php?id=<?= (int)$n['id'] ?>" style="display:block;text-decoration:none;">
+        <div class="ttl" style="color:var(--tx);"><?= esc($n['title']) ?></div>
         <div class="dt"><?= esc(date('d.m.Y', strtotime($n['published_at']))) ?></div>
-      </div>
+      </a>
     <?php $first = false; endforeach; else: ?>
       <p style="color:var(--tx2);font-size:14px;">Новостей пока нет — скоро появятся.</p>
     <?php endif; ?>

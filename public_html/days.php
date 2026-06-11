@@ -1,11 +1,37 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
 
+$canEdit = user_can_judge(current_user());
+
+// Создание вечера прямо во вкладке «Игры» (судья/админ)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'create_day') {
+    $u = require_judge();
+    csrf_check();
+    $date = (string)($_POST['date'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        flash_set('err', 'Укажите дату');
+        redirect('/days.php');
+    }
+    $title = trim((string)($_POST['title'] ?? ''));
+    if ($title === '') {
+        $months = [1 => 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+            'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+        $ts = strtotime($date);
+        $title = (int)date('j', $ts) . ' ' . $months[(int)date('n', $ts)];
+    }
+    $loc = in_array($_POST['location'] ?? '', ['Тушино', 'Миусы', 'Другое'], true) ? $_POST['location'] : null;
+    db()->prepare("INSERT INTO game_days (date, title, location, status) VALUES (?,?,?, 'reg_open')")
+        ->execute([$date, $title, $loc]);
+    $newId = (int)db()->lastInsertId();
+    log_action((int)$u['id'], 'day_create', ['date' => $date]);
+    flash_set('ok', 'Вечер создан. Запись открыта — можно вести игры.');
+    redirect('/day.php?id=' . $newId);
+}
+
 $list = [];
 if (db_ready()) {
     $list = db()->query('SELECT d.*,
-            (SELECT COUNT(*) FROM games g WHERE g.day_id = d.id) AS games_cnt,
-            (SELECT COUNT(*) FROM day_registrations r WHERE r.day_id = d.id AND r.cancelled_at IS NULL) AS regs_cnt
+            (SELECT COUNT(*) FROM games g WHERE g.day_id = d.id) AS games_cnt
         FROM game_days d
         ORDER BY d.date DESC LIMIT 100')->fetchAll();
 }
@@ -18,21 +44,36 @@ $statusLabel = [
 page_head('Игровые вечера', 'days');
 echo '<h1>Игровые вечера</h1>';
 
+if ($canEdit) {
+    echo '<div class="card"><h2 style="margin-top:0;">Создать вечер</h2>';
+    echo '<form method="post" action="/days.php">' . csrf_field() . '<input type="hidden" name="form" value="create_day">';
+    echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
+    echo '<div class="field" style="margin:0;"><label>Дата</label><input type="date" name="date" required value="' . date('Y-m-d') . '"></div>';
+    echo '<div class="field" style="margin:0;"><label>Название (авто)</label><input type="text" name="title" placeholder="' . (int)date('j') . ' ' . ['', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'][(int)date('n')] . '"></div>';
+    echo '<div class="field" style="margin:0;min-width:140px;"><label>Локация</label>'
+        . '<select name="location" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;width:100%;">'
+        . '<option value="Тушино">Тушино</option><option value="Миусы">Миусы</option><option value="Другое">Другое</option></select></div>';
+    echo '<button class="btn" type="submit">Создать и вести</button>';
+    echo '</div></form></div>';
+}
+
 if ($list) {
     echo '<div class="card"><table class="tbl row-link">';
-    echo '<tr><th>Дата</th><th>Вечер</th><th>Статус</th><th class="num">Игр</th><th class="num">Записалось</th></tr>';
+    echo '<tr><th>Дата</th><th>Вечер</th><th>Локация</th><th class="num">Игр</th></tr>';
     foreach ($list as $d) {
-        $tag = $d['status'] === 'reg_open' ? 'tag-open' : ($d['status'] === 'finished' ? '' : 'tag-ok');
         echo '<tr data-href="/day.php?id=' . (int)$d['id'] . '">';
         echo '<td>' . esc(date('d.m.Y', strtotime($d['date']))) . '</td>';
-        echo '<td style="font-weight:550;">' . esc($d['title']) . '</td>';
-        echo '<td><span class="tag ' . $tag . '">' . esc($statusLabel[$d['status']] ?? $d['status']) . '</span></td>';
+        echo '<td style="font-weight:550;">' . esc($d['title']);
+        if ($d['status'] === 'reg_open') {
+            echo ' <span class="tag tag-open" style="font-weight:400;">запись открыта</span>';
+        }
+        echo '</td>';
+        echo '<td style="color:var(--tx2);">' . esc($d['location'] ?: '—') . '</td>';
         echo '<td class="num">' . (int)$d['games_cnt'] . '</td>';
-        echo '<td class="num">' . (int)$d['regs_cnt'] . '</td>';
         echo '</tr>';
     }
     echo '</table></div>';
 } else {
-    empty_state('Архив вечеров пока пуст', 'После переноса истории из таблиц здесь будут все игровые вечера клуба с протоколами каждой игры (этап 2).');
+    empty_state('Архив вечеров пока пуст', 'Здесь будут все игровые вечера клуба с протоколами игр.');
 }
 page_foot();

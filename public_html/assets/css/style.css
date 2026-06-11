@@ -132,6 +132,17 @@ main.container { flex: 1; padding-bottom: 40px; }
 }
 .tag-open { background: var(--acsf); color: var(--ac); }
 .tag-ok { background: var(--oksf); color: var(--ok); }
+.tag-red { background: var(--ac); color: #fff; font-weight: 600; }
+.tag-black { background: #000; color: #fff; border: 1px solid #555; font-weight: 600; }
+.tag-draw { background: var(--sf2); color: var(--tx2); }
+
+/* Стилизованный файловый инпут */
+input[type="file"] { font-size: 13px; color: var(--tx2); }
+input[type="file"]::file-selector-button {
+  background: var(--sf2); color: var(--tx); border: 1px solid var(--bd);
+  border-radius: 8px; padding: 8px 14px; margin-right: 10px; cursor: pointer; font-size: 13px;
+}
+input[type="file"]::file-selector-button:hover { border-color: var(--ac); color: var(--tx); }
 
 .grid-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin: 12px 0; }
 .stat { background: var(--sf); border: 1px solid var(--bd); border-radius: 12px; padding: 12px 14px; display: block; color: var(--tx); text-decoration: none; }
@@ -159,6 +170,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .rating-tbl .c-cards-first { border-left: 2px solid var(--ac); }
 .rating-tbl thead .c-cards { text-align: center; }
 .rt-player { display: inline-flex; align-items: center; }
+
+/* Номинации */
+.noms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 4px 0 14px; }
+.nom-card { background: var(--sf); border: 1px solid var(--bd); border-radius: 12px; padding: 12px 14px; border-top: 2px solid var(--ac); }
+.nom-title { font-size: 12px; color: var(--ac); font-weight: 600; margin-bottom: 8px; }
+.nom-player { display: flex; align-items: center; gap: 8px; color: var(--tx); font-weight: 550; }
+.nom-player:hover { color: var(--tx); }
+.nom-meta { font-size: 12px; color: var(--tx2); margin-top: 6px; }
 
 .field { margin: 0 0 14px; }
 .field label { display: block; font-size: 13px; color: var(--tx2); margin-bottom: 5px; }

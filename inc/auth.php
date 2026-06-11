@@ -51,7 +51,7 @@ function role_level(?string $role): int
 
 function role_label(?string $role): string
 {
-    return ['player' => 'игрок', 'judge' => 'судья', 'admin' => 'админ', 'owner' => 'глава клуба'][$role] ?? '';
+    return ['player' => 'игрок', 'judge' => 'судья', 'admin' => 'админ', 'owner' => 'руководитель'][$role] ?? '';
 }
 
 function require_login(): array
@@ -108,7 +108,7 @@ function require_photo(): array
 function user_role_badges(array $u): array
 {
     if ($u['role'] === 'owner') {
-        return ['глава клуба'];
+        return ['руководитель'];
     }
     if ($u['role'] === 'admin') {
         return ['админ'];

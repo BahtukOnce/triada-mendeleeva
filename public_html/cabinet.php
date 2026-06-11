@@ -65,14 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($form === 'profile' && $player) {
         $birth = trim((string)($_POST['birth_date'] ?? ''));
         $birthVal = preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth) ? $birth : null;
-        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?
+        $fav = (string)($_POST['fav_role'] ?? '');
+        $favVal = in_array($fav, ['civ', 'maf', 'sheriff', 'don'], true) ? $fav : null;
+        $rhtu = !empty($_POST['is_rhtu']) ? 1 : 0;
+        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, is_rhtu = ?
             WHERE id = ?')->execute([
             trim((string)($_POST['real_name'] ?? '')) ?: null,
             trim((string)($_POST['tg'] ?? '')) ?: null,
             trim((string)($_POST['vk'] ?? '')) ?: null,
-            trim((string)($_POST['faculty'] ?? '')) ?: null,
-            trim((string)($_POST['study_group'] ?? '')) ?: null,
+            $rhtu ? (trim((string)($_POST['faculty'] ?? '')) ?: null) : null,
+            $rhtu ? (trim((string)($_POST['study_group'] ?? '')) ?: null) : null,
             $birthVal,
+            $favVal,
+            $rhtu,
             (int)$player['id'],
         ]);
         if (!empty($_FILES['avatar']['name'])) {
@@ -152,6 +157,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         log_action((int)$u['id'], 'avatars_upload', ['count' => $added]);
         flash_set($added ? 'ok' : 'err', $added ? "Загружено в галерею: $added" : 'Не удалось загрузить (нужны картинки)');
+        redirect('/cabinet.php');
+    }
+
+    if ($form === 'avatar_cropped' && $player) {
+        $data = (string)($_POST['image'] ?? '');
+        if (preg_match('#^data:image/(jpeg|png);base64,#', $data)) {
+            $bin = base64_decode(substr($data, strpos($data, ',') + 1), true);
+            if ($bin !== false && strlen($bin) > 100 && strlen($bin) < 8 * 1024 * 1024) {
+                $dir = ROOT . '/public_html/uploads/avatars';
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0775, true);
+                }
+                $base = 'p' . (int)$player['id'] . '_' . time();
+                $rel = '/uploads/avatars/' . $base . '.jpg';
+                if (@file_put_contents($dir . '/' . $base . '.jpg', $bin) !== false) {
+                    db()->prepare('INSERT INTO player_avatars (player_id, file, thumb) VALUES (?,?,?)')
+                        ->execute([(int)$player['id'], $rel, $rel]);
+                    if (empty($player['avatar'])) {
+                        db()->prepare('UPDATE players SET avatar = ? WHERE id = ?')->execute([$rel, (int)$player['id']]);
+                    }
+                    log_action((int)$u['id'], 'avatar_cropped');
+                    flash_set('ok', 'Аватар добавлен');
+                } else {
+                    flash_set('err', 'Не удалось сохранить аватар');
+                }
+            } else {
+                flash_set('err', 'Картинка не распозналась');
+            }
+        }
         redirect('/cabinet.php');
     }
 
@@ -268,12 +302,13 @@ if ($player) {
     $av->execute([(int)$player['id']]);
     $avatars = $av->fetchAll();
     echo '<div class="card"><h2 style="margin-top:0;">Аватары · галерея</h2>';
-    echo '<p style="color:var(--tx2);font-size:13px;margin-top:0;">Загрузите одну или несколько картинок. Выбранная отмечена как основная — она показывается рядом с ником. Галерея пригодится для турниров.</p>';
-    echo '<form method="post" action="/cabinet.php" enctype="multipart/form-data" style="margin-bottom:14px;">' . csrf_field();
-    echo '<input type="hidden" name="form" value="avatars_upload">';
-    echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
-        . '<input type="file" name="avatars[]" accept="image/*" multiple required>'
-        . '<button class="btn" type="submit">Загрузить в галерею</button></div></form>';
+    echo '<p style="color:var(--tx2);font-size:13px;margin-top:0;">Загрузите фото — откроется редактор обрезки (квадрат). Выбранная аватарка показывается рядом с ником. Галерея пригодится для турниров.</p>';
+    echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">';
+    echo '<input type="file" id="ava-file" accept="image/*" style="display:none;">';
+    echo '<button type="button" class="btn" id="ava-pick">Загрузить фото с обрезкой</button>';
+    echo '</div>';
+    echo '<form method="post" action="/cabinet.php" id="ava-crop-form" style="display:none;">' . csrf_field()
+        . '<input type="hidden" name="form" value="avatar_cropped"><input type="hidden" name="image" id="ava-image-data"></form>';
     if ($avatars) {
         echo '<div class="avatar-gallery">';
         foreach ($avatars as $a) {
@@ -316,17 +351,11 @@ if ($tgrow && $tgrow['tg_user_id']) {
 } else {
     $cs = db()->prepare('SELECT code FROM tg_link_codes WHERE user_id = ?');
     $cs->execute([(int)$u['id']]);
-    $code = $cs->fetchColumn();
-    if (!$code) {
-        $code = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
-        db()->prepare('INSERT INTO tg_link_codes (code, user_id) VALUES (?,?)')->execute([$code, (int)$u['id']]);
-    }
-    echo '<p style="color:var(--tx2);margin-top:0;">Привяжите Telegram, чтобы участвовать в голосовалках на игровой день и получать уведомления. Привязка идёт по вашему нику.</p>';
+    echo '<p style="color:var(--tx2);margin-top:0;">Привяжите Telegram, чтобы участвовать в голосовалках на игровой день и получать уведомления. Откройте бота, нажмите «Старт» — он спросит ваш игровой ник.</p>';
     if ($botUser) {
-        echo '<a class="btn" href="https://t.me/' . esc($botUser) . '?start=' . esc($code) . '" target="_blank" rel="noopener">Привязать через бота</a>';
-        echo '<p style="font-size:12.5px;color:var(--tx3);margin:10px 0 0;">Или отправьте боту: <code>/link ' . esc($code) . '</code></p>';
+        echo '<a class="btn" href="https://t.me/' . esc($botUser) . '?start=link" target="_blank" rel="noopener">Открыть бота и привязать</a>';
     } else {
-        echo '<p style="margin-bottom:0;">Откройте бота клуба в Telegram и отправьте команду: <code>/link ' . esc($code) . '</code></p>';
+        echo '<p style="margin-bottom:0;color:var(--tx3);">Бот ещё не настроен. Username указывается в Админка → Тексты.</p>';
     }
 }
 echo '</div>';
@@ -339,17 +368,31 @@ if ($player) {
     echo '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' . avatar_html($player, 56);
     echo '<div><b>' . esc($player['nickname']) . '</b><div style="font-size:12px;color:var(--tx2);">'
         . esc(role_label($u['role'])) . ' · <a href="/player.php?id=' . (int)$player['id'] . '">публичный профиль</a></div></div></div>';
-    echo '<form method="post" action="/cabinet.php" enctype="multipart/form-data">' . csrf_field();
+    echo '<form method="post" action="/cabinet.php">' . csrf_field();
     echo '<input type="hidden" name="form" value="profile">';
     echo '<div class="field"><label>ФИО</label><input type="text" name="real_name" value="' . esc($player['real_name']) . '"></div>';
     echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
     echo '<div class="field"><label>Telegram</label><input type="text" name="tg" value="' . esc($player['tg']) . '"></div>';
     echo '<div class="field"><label>VK</label><input type="text" name="vk" value="' . esc($player['vk']) . '"></div>';
+    echo '</div>';
+    $rhtu = !empty($player['is_rhtu']);
+    echo '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:4px 0 10px;cursor:pointer;">'
+        . '<input type="checkbox" name="is_rhtu" id="rhtu-check" value="1" ' . ($rhtu ? 'checked' : '') . '> Учусь в РХТУ</label>';
+    echo '<div id="rhtu-fields" style="display:' . ($rhtu ? 'grid' : 'none') . ';grid-template-columns:1fr 1fr;gap:10px;">';
     echo '<div class="field"><label>Факультет</label><input type="text" name="faculty" value="' . esc($player['faculty']) . '"></div>';
     echo '<div class="field"><label>Группа</label><input type="text" name="study_group" value="' . esc($player['study_group']) . '"></div>';
     echo '</div>';
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
     echo '<div class="field"><label>Дата рождения</label><input type="date" name="birth_date" value="' . esc($player['birth_date']) . '"></div>';
+    $favOpts = ['' => '— не выбрана —', 'civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
+    echo '<div class="field"><label>Любимая роль</label><select name="fav_role" style="width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;">';
+    foreach ($favOpts as $fk => $fl) {
+        echo '<option value="' . $fk . '" ' . (($player['fav_role'] ?? '') === $fk ? 'selected' : '') . '>' . $fl . '</option>';
+    }
+    echo '</select></div></div>';
     echo '<button class="btn" type="submit">Сохранить профиль</button></form>';
+    echo '<script>(function(){var c=document.getElementById("rhtu-check"),f=document.getElementById("rhtu-fields");'
+        . 'if(c&&f)c.addEventListener("change",function(){f.style.display=c.checked?"grid":"none";});})();</script>';
 } else {
     echo '<p style="color:var(--tx2);">Анкета станет доступна после привязки ника.</p>';
     echo '<table class="tbl"><tr><td style="color:var(--tx2);width:40%;">Ник аккаунта</td><td>' . esc($u['nickname']) . '</td></tr>';
@@ -367,4 +410,49 @@ echo '<div class="field"><label>Новый пароль ещё раз</label><in
 echo '<button class="btn" type="submit">Сохранить</button></form></div>';
 
 echo '</div>';
+
+// ── Модалка обрезки аватара (Cropper.js) ──
+if ($player) {
+    ?>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+<div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:18px;max-width:520px;width:100%;">
+    <h3 style="margin:0 0 12px;">Обрежьте фото</h3>
+    <div style="max-height:60vh;overflow:hidden;"><img id="crop-img" style="max-width:100%;display:block;"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;">
+      <button type="button" class="btn btn-ghost" id="crop-cancel">Отмена</button>
+      <button type="button" class="btn" id="crop-ok">Обрезать и загрузить</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script>
+(function () {
+  var fileInput = document.getElementById('ava-file'), pick = document.getElementById('ava-pick'),
+      modal = document.getElementById('crop-modal'), img = document.getElementById('crop-img'), cropper = null;
+  if (!pick) return;
+  pick.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function (e) {
+      img.src = e.target.result; modal.style.display = 'flex';
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(img, { aspectRatio: 1, viewMode: 1, autoCropArea: 1, background: false });
+    };
+    rd.readAsDataURL(f);
+  });
+  document.getElementById('crop-cancel').addEventListener('click', function () {
+    modal.style.display = 'none'; if (cropper) { cropper.destroy(); cropper = null; } fileInput.value = '';
+  });
+  document.getElementById('crop-ok').addEventListener('click', function () {
+    if (!cropper) return;
+    var canvas = cropper.getCroppedCanvas({ width: 512, height: 512, imageSmoothingQuality: 'high' });
+    document.getElementById('ava-image-data').value = canvas.toDataURL('image/jpeg', 0.85);
+    document.getElementById('ava-crop-form').submit();
+  });
+})();
+</script>
+    <?php
+}
 page_foot();

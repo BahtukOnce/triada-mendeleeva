@@ -101,7 +101,7 @@ foreach ($byTable as $tableNo => $tGames) {
         echo '<div class="card' . ($multi ? ' card-compact' : '') . '">';
         echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
         if ($g['winner']) {
-            echo '<span class="tag ' . ($g['winner'] === 'red' ? 'tag-open' : ($g['winner'] === 'draw' ? 'tag-ok' : '')) . '">'
+            echo '<span class="tag ' . ($g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'draw' ? 'tag-draw' : 'tag-black')) . '">'
                 . esc($winLabel[$g['winner']]) . '</span>';
         }
         echo '</div>';

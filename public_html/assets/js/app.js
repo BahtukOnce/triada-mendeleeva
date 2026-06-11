@@ -39,7 +39,8 @@
       th.addEventListener('click', function () {
         var tbody = table.querySelector('tbody');
         var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-        var asc = !th.classList.contains('sorted-asc');
+        // первый клик — по убыванию, повторный — по возрастанию
+        var asc = th.classList.contains('sorted-desc');
         heads.forEach(function (h) { h.classList.remove('sorted-asc', 'sorted-desc'); });
         th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
         rows.sort(function (a, b) {

@@ -116,7 +116,7 @@ if ($games) {
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats);
-        $winTag = $g['winner'] === 'red' ? 'tag-open' : ($g['winner'] === 'black' ? '' : 'tag-ok');
+        $winTag = $g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'black' ? 'tag-black' : 'tag-draw');
 
         echo '<div class="card card-compact">';
         echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2><span>';

@@ -55,12 +55,19 @@ $me = current_user();
 $canSeePrivate = $me && (role_level($me['role']) >= 3 || ($player['user_id'] && (int)$player['user_id'] === (int)$me['id']));
 $letter = mb_strtoupper(mb_substr($player['nickname'], 0, 1));
 
+$roleLbl = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
 echo '<div style="display:flex;align-items:center;gap:14px;margin:20px 0 4px;">';
-echo '<span class="avatar-circle accent" style="width:54px;height:54px;font-size:22px;">' . esc($letter) . '</span>';
+echo avatar_html($player, 54, 'background:var(--acsf);color:var(--ac);font-size:22px;');
 echo '<div><h1 style="margin:0;">' . esc($player['nickname']) . '</h1>';
 $sub = [];
 if ($player['user_role']) {
     $sub[] = role_label($player['user_role']);
+}
+if (!empty($player['fav_role'])) {
+    $sub[] = 'любит играть: ' . $roleLbl[$player['fav_role']];
+}
+if (!empty($player['is_rhtu'])) {
+    $sub[] = 'студент РХТУ';
 }
 if ($player['birth_date']) {
     $sub[] = 'день рождения: ' . date('d.m', strtotime($player['birth_date']));

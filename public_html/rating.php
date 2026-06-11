@@ -51,8 +51,65 @@ if (count($ratings) > 1) {
 }
 
 if ($rows) {
+    // ── Номинации (среди игроков с минимумом игр) ──
+    $minG = (int)(setting('min_games_nomination') ?: '15');
+    $cands = array_filter($rows, fn($r) => (int)$r['games'] >= $minG);
+    $bestBy = function (array $cands, callable $w, callable $g) {
+        $best = null;
+        $bw = -1;
+        foreach ($cands as $r) {
+            $gg = $g($r);
+            if ($gg <= 0) {
+                continue;
+            }
+            $wr = $w($r) / $gg;
+            if ($wr > $bw + 1e-9 || (abs($wr - $bw) < 1e-9 && $best && $gg > $g($best))) {
+                $bw = $wr;
+                $best = $r;
+            }
+        }
+        return $best ? [$best, $bw] : null;
+    };
+    $mvp = null;
+    foreach ($rows as $r) {
+        if ((int)$r['games'] >= $minG) {
+            $mvp = $r;
+            break;
+        }
+    }
+    $noms = [
+        ['MVP клуба', $mvp ? [$mvp, null] : null, 'выше всех в рейтинге'],
+        ['Лучший дон', $bestBy($cands, fn($r) => (int)$r['w_don'], fn($r) => (int)$r['g_don']), 'дон'],
+        ['Лучший шериф', $bestBy($cands, fn($r) => (int)$r['w_sher'], fn($r) => (int)$r['g_sher']), 'шериф'],
+        ['Лучший красный', $bestBy($cands, fn($r) => $r['w_civ'] + $r['w_sher'], fn($r) => $r['g_civ'] + $r['g_sher']), 'мирные+шериф'],
+        ['Лучший чёрный', $bestBy($cands, fn($r) => $r['w_maf'] + $r['w_don'], fn($r) => $r['g_maf'] + $r['g_don']), 'мафия+дон'],
+    ];
+    $hasNoms = false;
+    foreach ($noms as $n) {
+        if ($n[1]) {
+            $hasNoms = true;
+        }
+    }
+    if ($hasNoms) {
+        echo '<div class="noms-grid">';
+        foreach ($noms as [$title, $data, $hint]) {
+            if (!$data) {
+                continue;
+            }
+            [$row, $wr] = $data;
+            echo '<div class="nom-card">';
+            echo '<div class="nom-title">' . esc($title) . '</div>';
+            echo '<a class="nom-player" href="/player.php?id=' . (int)$row['player_id'] . '">'
+                . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 34)
+                . '<span>' . esc($row['nickname']) . '</span></a>';
+            echo '<div class="nom-meta">' . ($wr !== null ? round($wr * 100) . '% · ' : '') . esc($hint) . '</div>';
+            echo '</div>';
+        }
+        echo '</div>';
+    }
+
     echo '<p style="color:var(--tx2);font-size:12.5px;margin:0 0 8px;">Рейтинг по принципу клуба (~Σ×Σ). '
-        . 'Нажмите на заголовок колонки, чтобы отсортировать.</p>';
+        . 'Нажмите на заголовок колонки, чтобы отсортировать. Номинации — среди игроков от ' . $minG . ' игр.</p>';
 
     echo '<div class="card" style="overflow-x:auto;padding:8px 10px;">';
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';

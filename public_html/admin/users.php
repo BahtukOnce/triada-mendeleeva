@@ -101,7 +101,7 @@ echo '<a class="tag ' . ($onlyTg ? 'tag-open' : '') . '" href="/admin/users.php'
     . ($onlyTg ? 'показать всех' : 'только с Telegram') . '</a>';
 echo '</div>';
 
-$roles = ['player' => 'игрок', 'admin' => 'админ', 'owner' => 'глава'];
+$roles = ['player' => 'игрок', 'admin' => 'админ', 'owner' => 'руководитель'];
 
 function cap_btn(int $rid, string $cap, bool $on, string $label): string
 {
@@ -129,7 +129,7 @@ foreach ($list as $row) {
     $badges = user_role_badges($row);
     echo '<td>';
     foreach ($badges as $bi => $b) {
-        $red = in_array($b, ['глава клуба', 'админ'], true);
+        $red = in_array($b, ['руководитель', 'админ'], true);
         echo '<span class="tag" style="margin-right:4px;' . ($red ? 'color:var(--ac);' : '') . '">' . $b . '</span>';
     }
     echo '</td>';

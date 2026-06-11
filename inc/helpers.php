@@ -118,27 +118,51 @@ function setting_set(string $key, string $value): void
         ->execute([$key, $value]);
 }
 
-// Сохранение загруженной картинки: пережатие в JPEG, максимум $maxSide px.
-// Возвращает web-путь или строку-ошибку.
+// Сохранение загруженной картинки. С GD — пережатие в JPEG до $maxSide px;
+// без GD — сохраняем оригинал как есть. Возвращает web-путь или строку-ошибку.
 function save_image_upload(array $file, string $subdir, string $name, int $maxSide = 512)
 {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        return 'Файл не загрузился';
+        return 'Файл не загрузился (код ' . ($file['error'] ?? '?') . ')';
     }
-    if ($file['size'] > 10 * 1024 * 1024) {
-        return 'Файл больше 10 МБ';
+    if (($file['size'] ?? 0) > 15 * 1024 * 1024) {
+        return 'Файл больше 15 МБ';
     }
     $info = @getimagesize($file['tmp_name']);
     if (!$info || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)) {
         return 'Нужна картинка JPG, PNG или WebP';
     }
+    $dir = ROOT . '/public_html/uploads/' . $subdir;
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
+        return 'Не удалось создать папку загрузок (' . $subdir . ')';
+    }
+    $extByType = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
+
+    // Резерв: сохранить оригинал (если GD недоступен или обработка не удалась)
+    $saveRaw = function () use ($file, $dir, $name, $subdir, $extByType, $info) {
+        $ext = $extByType[$info[2]];
+        $path = $dir . '/' . $name . '.' . $ext;
+        if (is_uploaded_file($file['tmp_name'])) {
+            if (!@move_uploaded_file($file['tmp_name'], $path) && !@copy($file['tmp_name'], $path)) {
+                return 'Не удалось сохранить файл';
+            }
+        } elseif (!@copy($file['tmp_name'], $path)) {
+            return 'Не удалось сохранить файл';
+        }
+        return '/uploads/' . $subdir . '/' . $name . '.' . $ext;
+    };
+
+    if (!function_exists('imagecreatetruecolor')) {
+        return $saveRaw();
+    }
     $img = match ($info[2]) {
         IMAGETYPE_JPEG => @imagecreatefromjpeg($file['tmp_name']),
         IMAGETYPE_PNG => @imagecreatefrompng($file['tmp_name']),
-        IMAGETYPE_WEBP => @imagecreatefromwebp($file['tmp_name']),
+        IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($file['tmp_name']) : false,
+        default => false,
     };
     if (!$img) {
-        return 'Не удалось прочитать картинку';
+        return $saveRaw();
     }
     $w = imagesx($img);
     $h = imagesy($img);
@@ -149,15 +173,12 @@ function save_image_upload(array $file, string $subdir, string $name, int $maxSi
     imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
     imagecopyresampled($dst, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
     imagedestroy($img);
-
-    $dir = ROOT . '/public_html/uploads/' . $subdir;
-    if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
-        imagedestroy($dst);
-        return 'Не удалось создать папку загрузок';
-    }
     $path = $dir . '/' . $name . '.jpg';
-    imagejpeg($dst, $path, 85);
+    $ok = @imagejpeg($dst, $path, 85);
     imagedestroy($dst);
+    if (!$ok) {
+        return $saveRaw();
+    }
     return '/uploads/' . $subdir . '/' . $name . '.jpg';
 }
 
