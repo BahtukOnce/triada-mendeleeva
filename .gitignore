@@ -1,5 +1,5 @@
 .idea/
-auth.php
-config.php
+/auth.php
+/config.php
 deploy.log
 public_html/uploads/
