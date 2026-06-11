@@ -60,9 +60,11 @@ echo '<p><a href="/admin/">← Админка</a></p><h1>Игровые вече
 echo '<div class="card"><h2 style="margin-top:0;">Создать вечер</h2>';
 echo '<form method="post" action="/admin/days.php">' . csrf_field() . '<input type="hidden" name="form" value="create">';
 echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
-echo '<div class="field" style="margin:0;"><label>Дата</label><input type="date" name="date" required></div>';
+echo '<div class="field" style="margin:0;"><label>Дата</label><input type="date" name="date" required value="' . date('Y-m-d') . '"></div>';
 echo '<div class="field" style="margin:0;"><label>Название (авто, если пусто)</label><input type="text" name="title" placeholder="14 июня"></div>';
-echo '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>Место</label><input type="text" name="location" placeholder="РХТУ, Миусская пл., 9"></div>';
+echo '<div class="field" style="margin:0;min-width:160px;"><label>Место</label>'
+    . '<select name="location" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;width:100%;">'
+    . '<option value="Тушино">Тушино</option><option value="Миусы">Миусы</option></select></div>';
 echo '<button class="btn" type="submit">Создать</button></div></form></div>';
 
 if ($list) {
