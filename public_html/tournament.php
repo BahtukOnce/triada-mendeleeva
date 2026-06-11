@@ -44,7 +44,7 @@ if (!$t) {
 
 echo '<h1>' . esc($t['title']) . '</h1>';
 echo '<p style="color:var(--tx2);margin-top:-6px;">Столов: ' . (int)$t['tables_count']
-    . ' · игр: ' . count($games) . ' · <a href="/tournaments.php">все турниры</a></p>';
+    . ' · игр: ' . count($games) . '</p>';
 
 // Итоговая таблица турнира
 $standing = [];
@@ -78,36 +78,53 @@ $byTable = [];
 foreach ($games as $g) {
     $byTable[(int)$g['table_no']][] = $g;
 }
+$multi = count($byTable) > 1;
+ksort($byTable);
+
+if ($multi) {
+    echo '<div class="tables-grid" style="grid-template-columns:repeat(' . count($byTable) . ',minmax(0,1fr));">';
+}
 foreach ($byTable as $tableNo => $tGames) {
-    if (count($byTable) > 1) {
-        echo '<h2>Стол ' . $tableNo . '</h2>';
+    echo $multi ? '<div class="table-col">' : '';
+    if ($multi) {
+        echo '<h2 style="margin:4px 0 8px;">Стол ' . $tableNo . '</h2>';
     }
     foreach ($tGames as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats);
-        echo '<div class="card">';
-        echo '<div class="section-head"><h2 style="margin:0;font-size:16px;">Игра ' . (int)$g['game_no'] . '</h2><span>';
-        if ($g['judge_nick']) {
-            echo '<span style="color:var(--tx2);font-size:13px;margin-right:10px;">судья: ' . esc($g['judge_nick']) . '</span>';
-        }
+        echo '<div class="card' . ($multi ? ' card-compact' : '') . '">';
+        echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
         if ($g['winner']) {
             echo '<span class="tag ' . ($g['winner'] === 'red' ? 'tag-open' : ($g['winner'] === 'draw' ? 'tag-ok' : '')) . '">'
                 . esc($winLabel[$g['winner']]) . '</span>';
         }
-        echo '</span></div>';
-        echo '<div style="overflow-x:auto;"><table class="tbl">';
-        echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">+</th><th class="num">−</th><th class="num">Итог</th></tr>';
+        echo '</div>';
+        if (!$multi && $g['judge_nick']) {
+            echo '<p style="color:var(--tx2);font-size:13px;margin:2px 0 6px;">судья: ' . esc($g['judge_nick']) . '</p>';
+        }
+        echo '<div style="overflow-x:auto;"><table class="tbl"' . ($multi ? ' style="font-size:12.5px;"' : '') . '>';
+        if ($multi) {
+            echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">Итог</th></tr>';
+        } else {
+            echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">+</th><th class="num">−</th><th class="num">Итог</th></tr>';
+        }
         foreach ($seats as $s) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
-                . '<td>' . $roleLabel[$s['role']] . '</td>'
-                . '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'
-                . '<td class="num">' . ((float)$s['minus'] ? number_format((float)$s['minus'], 1) : '') . '</td>'
-                . '<td class="num"><b>' . number_format($tt['total'], 2) . '</b></td></tr>';
+                . '<td>' . $roleLabel[$s['role']] . '</td>';
+            if (!$multi) {
+                echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'
+                    . '<td class="num">' . ((float)$s['minus'] ? number_format((float)$s['minus'], 1) : '') . '</td>';
+            }
+            echo '<td class="num"><b>' . number_format($tt['total'], 2) . '</b></td></tr>';
         }
         echo '</table></div></div>';
     }
+    echo $multi ? '</div>' : '';
+}
+if ($multi) {
+    echo '</div>';
 }
 page_foot();

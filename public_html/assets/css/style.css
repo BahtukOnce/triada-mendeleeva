@@ -100,6 +100,15 @@ main.container { flex: 1; padding-bottom: 40px; }
   padding: 16px 18px; margin: 12px 0;
 }
 .card-accent { border-left: 3px solid var(--ac); border-radius: 0 12px 12px 0; }
+.card-link { display: block; color: var(--tx); text-decoration: none; }
+.card-link:hover { color: var(--tx); }
+.card-compact { padding: 10px 12px; margin: 8px 0; }
+
+.tables-grid { display: grid; gap: 14px; align-items: start; }
+.table-col { min-width: 0; }
+.table-col > .card:first-of-type { margin-top: 0; }
+
+.suggest-btn { padding: 7px 12px; }
 
 .hero { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .hero-info { flex: 1; min-width: 240px; }
@@ -216,6 +225,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 @media (max-width: 900px) {
   .header-inner { padding: 0 14px; }
   .brand-text i { display: none; }
+  .suggest-btn { display: none; }
+  .tables-grid { grid-template-columns: 1fr !important; }
   .burger { display: block; margin-left: auto; }
   .nav {
     display: none; position: absolute; left: 0; right: 0; top: 100%;

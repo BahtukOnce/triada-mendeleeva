@@ -51,7 +51,7 @@ function page_head(string $title, string $active = ''): void
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=9">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=10">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -70,6 +70,7 @@ function page_head(string $title, string $active = ''): void
     echo '<div class="header-right">';
 
     if ($u) {
+        echo '<a class="btn btn-ghost suggest-btn" href="/suggest.php" title="Предложить идею по сайту">💡 Идея</a>';
         $roleCls = role_level($u['role']) >= 3 ? 'role-admin' : (role_level($u['role']) === 2 ? 'role-judge' : 'role-player');
         echo '<div class="user-pill-wrap"><button class="user-pill ' . $roleCls . '" id="user-pill">' . esc($u['nickname']) . '</button>';
         echo '<div class="user-menu" id="user-menu">';
@@ -77,6 +78,7 @@ function page_head(string $title, string $active = ''): void
         echo '<a href="/cabinet.php">Личный кабинет</a>';
         echo '<a href="/my_games.php">Мои игры</a>';
         echo '<a href="/my_stats.php">Моя статистика</a>';
+        echo '<a href="/suggest.php">Предложить идею</a>';
         if (role_level($u['role']) >= 3) {
             echo '<a href="/admin/">Админка</a>';
         }

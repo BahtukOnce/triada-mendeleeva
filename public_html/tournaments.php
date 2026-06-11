@@ -20,8 +20,8 @@ echo '<h1>Турниры</h1>';
 if ($list) {
     foreach ($list as $t) {
         $tag = $t['status'] === 'reg_open' ? 'tag-open' : ($t['status'] === 'finished' ? '' : 'tag-ok');
-        echo '<div class="card">';
-        echo '<div class="section-head"><h2 style="margin:0;"><a href="/tournament.php?id=' . (int)$t['id'] . '" style="color:var(--tx);">' . esc($t['title']) . '</a></h2>';
+        echo '<a class="card card-link" href="/tournament.php?id=' . (int)$t['id'] . '">';
+        echo '<div class="section-head"><h2 style="margin:0;color:var(--tx);">' . esc($t['title']) . '</h2>';
         echo '<span class="tag ' . $tag . '">' . esc($statusLabel[$t['status']] ?? $t['status']) . '</span></div>';
         $dates = $t['date_from'] ? date('d.m.Y', strtotime($t['date_from'])) : '';
         if ($t['date_to'] && $t['date_to'] !== $t['date_from']) {
@@ -32,7 +32,7 @@ if ($list) {
             . ($t['location'] ? ' · ' . esc($t['location']) : '')
             . ' · столов: ' . (int)$t['tables_count']
             . ' · участников: ' . (int)$t['regs_cnt'] . '</p>';
-        echo '</div>';
+        echo '</a>';
     }
 } else {
     empty_state('Турниров пока нет', '«Точка кипения», «Турнир победы», кубки РХТУ — вся турнирная история переедет сюда на этапе 2, а новые турниры будут анонсироваться здесь.');
