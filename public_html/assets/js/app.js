@@ -1,17 +1,6 @@
 (function () {
   'use strict';
 
-  var root = document.documentElement;
-
-  var themeBtn = document.getElementById('theme-toggle');
-  if (themeBtn) {
-    themeBtn.addEventListener('click', function () {
-      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      root.setAttribute('data-theme', next);
-      try { localStorage.setItem('theme', next); } catch (e) {}
-    });
-  }
-
   var burger = document.getElementById('nav-burger');
   var nav = document.getElementById('site-nav');
   if (burger && nav) {

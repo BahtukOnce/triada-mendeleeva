@@ -33,7 +33,12 @@ if (db_ready()) {
 
 function wr(int $w, int $g): string
 {
-    return $g ? "$w/$g (" . round($w / $g * 100) . " %)" : '—';
+    if (!$g) {
+        return '<span style="color:var(--tx3);">—</span>';
+    }
+    $pct = round($w / $g * 100);
+    return '<div style="white-space:nowrap;line-height:1.15;">' . $pct . '%'
+        . '<div style="font-size:11px;color:var(--tx2);">' . $w . '/' . $g . '</div></div>';
 }
 
 page_head('Рейтинг', 'rating');

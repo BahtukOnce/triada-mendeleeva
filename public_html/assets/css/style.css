@@ -1,14 +1,8 @@
-:root, [data-theme="dark"] {
+:root {
   --bg: #0e0e11; --sf: #17171c; --sf2: #1f1f26;
-  --tx: #f1f1f3; --tx2: #9c9ca6; --bd: #2b2b33;
+  --tx: #f1f1f3; --tx2: #9c9ca6; --tx3: #5c5c66; --bd: #2b2b33;
   --ac: #e8332a; --ac-h: #f04339; --acsf: #2a0d0c;
   --ok: #2fa45c; --oksf: #0e2417;
-}
-[data-theme="light"] {
-  --bg: #f5f5f2; --sf: #ffffff; --sf2: #eceae5;
-  --tx: #1a1a1e; --tx2: #6d6d76; --bd: #e2e0da;
-  --ac: #d6261d; --ac-h: #b91f17; --acsf: #fbe9e8;
-  --ok: #1e7a43; --oksf: #e4f3ea;
 }
 
 * { box-sizing: border-box; }

@@ -16,21 +16,29 @@ function nav_items(): array
     ];
 }
 
-function logo_svg(int $width = 30): string
+function logo_svg(int $width = 34): string
 {
-    $h = (int)round($width * 140 / 120);
-    return '<svg viewBox="0 0 120 140" width="' . $width . '" height="' . $h . '" aria-hidden="true" class="logo-svg">'
-        . '<path d="M41 42 C41 20 48 11 60 11 C72 11 79 20 79 42 Q60 48 41 42 Z" fill="currentColor"/>'
-        . '<path d="M41 33 Q60 40 79 33 L79 42 Q60 48 41 42 Z" fill="#e8332a"/>'
-        . '<ellipse cx="60" cy="47" rx="38" ry="7.5" fill="currentColor"/>'
+    // Если в репозитории лежит фирменный PNG — используем его (белая версия под тёмную тему)
+    if (is_file(ROOT . '/public_html/assets/img/logo.png')) {
+        return '<img src="/assets/img/logo.png?v=1" alt="" class="logo-svg" '
+            . 'style="width:' . $width . 'px;height:auto;display:block;">';
+    }
+    $h = (int)round($width * 150 / 120);
+    return '<svg viewBox="0 0 120 150" width="' . $width . '" height="' . $h . '" aria-hidden="true" class="logo-svg">'
+        // шляпа
+        . '<path d="M41 45 C41 21 48 12 60 12 C72 12 79 21 79 45 Q60 51 41 45 Z" fill="currentColor"/>'
+        . '<path d="M42 38 Q60 44 78 38 L78 43 Q60 49 42 43 Z" fill="#e8332a"/>'
+        . '<ellipse cx="60" cy="47" rx="41" ry="7" fill="currentColor"/>'
+        // кольцо + серьги + шея
         . '<g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round">'
-        . '<path d="M37 53 v8"/><circle cx="37" cy="66" r="4.5"/>'
-        . '<path d="M83 53 v8"/><circle cx="83" cy="66" r="4.5"/>'
-        . '<path d="M60 56 L75 64.5 V81 L60 89.5 L45 81 V64.5 Z"/>'
-        . '<path d="M40 95 L60 107 L80 95"/></g>'
-        . '<path d="M42 113 L57 119 L42 125 Q39.5 119 42 113 Z" fill="currentColor"/>'
-        . '<path d="M78 113 L63 119 L78 125 Q80.5 119 78 113 Z" fill="currentColor"/>'
-        . '<rect x="56" y="111.5" width="8" height="15" rx="2.5" fill="#e8332a"/></svg>';
+        . '<path d="M37 54 v7"/><circle cx="37" cy="66" r="4.2"/>'
+        . '<path d="M83 54 v7"/><circle cx="83" cy="66" r="4.2"/>'
+        . '<path d="M60 56 L76 65 V82 L60 91 L44 82 V65 Z"/>'
+        . '<path d="M44 96 L60 106 L76 96"/></g>'
+        // бабочка
+        . '<path d="M43 113 L58 119 L43 125 Q40.5 119 43 113 Z" fill="currentColor"/>'
+        . '<path d="M77 113 L62 119 L77 125 Q79.5 119 77 113 Z" fill="currentColor"/>'
+        . '<rect x="56" y="111" width="8" height="16" rx="2.5" fill="#e8332a"/></svg>';
 }
 
 function page_head(string $title, string $active = ''): void
@@ -38,19 +46,16 @@ function page_head(string $title, string $active = ''): void
     $u = current_user();
     $env = cfg('env', 'test');
     $robots = $env === 'prod' ? '' : '<meta name="robots" content="noindex, nofollow">' . "\n";
-    echo '<!doctype html><html lang="ru"><head><meta charset="utf-8">';
+    echo '<!doctype html><html lang="ru" data-theme="dark"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
-    echo '<link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=1">';
-    echo '<script>(function(){var t=null;try{t=localStorage.getItem("theme");}catch(e){}'
-       . 'if(!t){t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}'
-       . 'document.documentElement.setAttribute("data-theme",t);})();</script>';
+    echo '<link rel="icon" href="/assets/img/favicon.svg?v=2" type="image/svg+xml">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=3">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="container header-row">';
-    echo '<a class="brand" href="/index.php">' . logo_svg(30);
+    echo '<a class="brand" href="/index.php">' . logo_svg(34);
     echo '<span class="brand-text"><b>Триада Менделеева</b><i>клуб спортивной мафии · РХТУ</i></span></a>';
 
     echo '<button class="burger" id="nav-burger" aria-label="Меню"><span></span><span></span><span></span></button>';
@@ -63,10 +68,6 @@ function page_head(string $title, string $active = ''): void
     echo '</nav>';
 
     echo '<div class="header-right">';
-    echo '<button class="theme-btn" id="theme-toggle" aria-label="Сменить тему">'
-       . '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">'
-       . '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
-       . '</button>';
 
     if ($u) {
         $roleCls = role_level($u['role']) >= 3 ? 'role-admin' : (role_level($u['role']) === 2 ? 'role-judge' : 'role-player');
@@ -112,7 +113,7 @@ function page_foot(): void
        . '<a href="https://t.me" rel="noopener" target="_blank">Telegram</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=1"></script>';
+    echo '<script src="/assets/js/app.js?v=2"></script>';
     echo '</body></html>';
 }
 
