@@ -163,7 +163,7 @@ $chartData = json_encode([
 
 echo '<h2 style="margin-top:14px;">Графики</h2>';
 echo '<div class="grid-2">';
-echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . number_format((float)$myElo, 0) . '</h2>'
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . number_format((float)$myElo, 0, '.', '') . '</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Винрейт по ролям</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-rolewr"></canvas></div></div>';
