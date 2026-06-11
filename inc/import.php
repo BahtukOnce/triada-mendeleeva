@@ -315,7 +315,10 @@ function run_import(bool $write, ?callable $progress = null): array
     foreach ($pdo->query('SELECT id, nickname FROM players')->fetchAll() as $p) {
         $playerId[nick_key($p['nickname'])] = (int)$p['id'];
     }
-    $insP = $pdo->prepare('INSERT INTO players (nickname) VALUES (?)');
+    // ON DUPLICATE: разные написания, совпадающие по MySQL-коллации (ё=е и т.п.),
+    // схлопываются в одного игрока
+    $insP = $pdo->prepare('INSERT INTO players (nickname) VALUES (?)
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)');
     $allKeys = $nicks;
     foreach ($profiles as $k => $pr) {
         $allKeys[$k] = $allKeys[$k] ?? $k;
@@ -325,7 +328,9 @@ function run_import(bool $write, ?callable $progress = null): array
         if (!isset($playerId[$k])) {
             $insP->execute([$display]);
             $playerId[$k] = (int)$pdo->lastInsertId();
-            $created++;
+            if ($insP->rowCount() === 1) {
+                $created++;
+            }
         }
     }
     $note("игроков создано: $created, всего: " . count($playerId));
