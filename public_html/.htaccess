@@ -1,0 +1,10 @@
+AddDefaultCharset utf-8
+DirectoryIndex index.php index.html
+ErrorDocument 404 /404.php
+
+RewriteEngine On
+RewriteRule ^robots\.txt$ robots.php [L]
+
+<FilesMatch "\.(log|sql)$">
+    Require all denied
+</FilesMatch>

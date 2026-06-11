@@ -1,0 +1,86 @@
+<?php
+require dirname(__DIR__, 2) . '/inc/bootstrap.php';
+$u = require_role('admin');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+    $form = (string)($_POST['form'] ?? '');
+
+    if ($form === 'create') {
+        $date = (string)($_POST['date'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            flash_set('err', 'Укажите дату');
+            redirect('/admin/days.php');
+        }
+        $title = trim((string)($_POST['title'] ?? ''));
+        if ($title === '') {
+            $months = [1 => 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+            $ts = strtotime($date);
+            $title = (int)date('j', $ts) . ' ' . $months[(int)date('n', $ts)];
+        }
+        db()->prepare("INSERT INTO game_days (date, title, location, status) VALUES (?,?,?, 'draft')")
+            ->execute([$date, $title, trim((string)($_POST['location'] ?? '')) ?: null]);
+        log_action((int)$u['id'], 'day_create', ['date' => $date]);
+        flash_set('ok', 'Вечер создан (черновик). Откройте запись, когда будете готовы.');
+        redirect('/admin/days.php');
+    }
+
+    if ($form === 'status') {
+        $id = (int)($_POST['day_id'] ?? 0);
+        $to = (string)($_POST['to'] ?? '');
+        if (in_array($to, ['draft', 'reg_open', 'reg_closed', 'live', 'finished'], true)) {
+            db()->prepare('UPDATE game_days SET status = ? WHERE id = ?')->execute([$to, $id]);
+            log_action((int)$u['id'], 'day_status', ['day_id' => $id, 'to' => $to]);
+            flash_set('ok', 'Статус обновлён');
+        }
+        redirect('/admin/days.php');
+    }
+    redirect('/admin/days.php');
+}
+
+$list = db_ready() ? db()->query('SELECT d.*,
+        (SELECT COUNT(*) FROM day_registrations r WHERE r.day_id = d.id AND r.cancelled_at IS NULL) AS regs,
+        (SELECT COUNT(*) FROM games g WHERE g.day_id = d.id) AS games
+    FROM game_days d ORDER BY d.date DESC LIMIT 60')->fetchAll() : [];
+
+$statusLabel = ['draft' => 'черновик', 'reg_open' => 'запись открыта', 'reg_closed' => 'запись закрыта',
+    'live' => 'идёт', 'finished' => 'завершён'];
+$nextStatus = [
+    'draft' => [['reg_open', 'Открыть запись']],
+    'reg_open' => [['reg_closed', 'Закрыть запись']],
+    'reg_closed' => [['reg_open', 'Снова открыть'], ['finished', 'Завершить']],
+    'live' => [['finished', 'Завершить']],
+    'finished' => [],
+];
+
+page_head('Админка — вечера', '');
+echo '<p><a href="/admin/">← Админка</a></p><h1>Игровые вечера</h1>';
+
+echo '<div class="card"><h2 style="margin-top:0;">Создать вечер</h2>';
+echo '<form method="post" action="/admin/days.php">' . csrf_field() . '<input type="hidden" name="form" value="create">';
+echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
+echo '<div class="field" style="margin:0;"><label>Дата</label><input type="date" name="date" required></div>';
+echo '<div class="field" style="margin:0;"><label>Название (авто, если пусто)</label><input type="text" name="title" placeholder="14 июня"></div>';
+echo '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>Место</label><input type="text" name="location" placeholder="РХТУ, Миусская пл., 9"></div>';
+echo '<button class="btn" type="submit">Создать</button></div></form></div>';
+
+if ($list) {
+    echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
+    echo '<tr><th>Дата</th><th>Вечер</th><th>Статус</th><th class="num">Записей</th><th class="num">Игр</th><th>Действия</th></tr>';
+    foreach ($list as $d) {
+        echo '<tr><td>' . date('d.m.Y', strtotime($d['date'])) . '</td>';
+        echo '<td><a href="/day.php?id=' . (int)$d['id'] . '">' . esc($d['title']) . '</a></td>';
+        echo '<td><span class="tag ' . ($d['status'] === 'reg_open' ? 'tag-open' : '') . '">' . $statusLabel[$d['status']] . '</span></td>';
+        echo '<td class="num">' . (int)$d['regs'] . '</td><td class="num">' . (int)$d['games'] . '</td><td>';
+        foreach ($nextStatus[$d['status']] as [$to, $lbl]) {
+            echo '<form method="post" action="/admin/days.php" style="display:inline;">' . csrf_field();
+            echo '<input type="hidden" name="form" value="status"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
+            echo '<input type="hidden" name="to" value="' . $to . '">';
+            echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . $lbl . '</button></form> ';
+        }
+        echo '</td></tr>';
+    }
+    echo '</table></div>';
+}
+page_foot();
