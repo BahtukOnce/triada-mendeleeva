@@ -127,9 +127,29 @@ function auth_register(string $nick, string $pass1, string $pass2)
     note_attempt($ip, $nick, true);
     log_action($id, 'register', ['role' => $role]);
 
+    // Профиль игрока: свободный совпавший ник → заявка на привязку (подтвердит админ),
+    // ника нет в базе → создаём игрока и привязываем сразу
+    $linked = 'new';
+    try {
+        $st = db()->prepare('SELECT * FROM players WHERE LOWER(nickname) = LOWER(?)');
+        $st->execute([$nick]);
+        $pl = $st->fetch();
+        if ($pl && $pl['user_id'] === null) {
+            db()->prepare('INSERT INTO link_requests (user_id, player_id) VALUES (?,?)')
+                ->execute([$id, (int)$pl['id']]);
+            $linked = 'pending';
+        } elseif (!$pl) {
+            db()->prepare('INSERT INTO players (nickname, user_id) VALUES (?,?)')
+                ->execute([$nick, $id]);
+        } else {
+            $linked = 'taken';
+        }
+    } catch (Throwable $e) {
+    }
+
     session_regenerate_id(true);
     $_SESSION['uid'] = $id;
-    return ['id' => $id, 'nickname' => $nick, 'role' => $role];
+    return ['id' => $id, 'nickname' => $nick, 'role' => $role, 'linked' => $linked];
 }
 
 // Возвращает массив пользователя или строку с ошибкой
