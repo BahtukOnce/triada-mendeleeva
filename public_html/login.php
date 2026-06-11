@@ -36,5 +36,6 @@ page_head('Вход', '');
     </form>
   </div>
   <div class="form-foot">Нет аккаунта? <a href="/register.php">Зарегистрироваться</a></div>
+  <div class="form-foot" style="font-size:12.5px;">Забыли пароль? Его сбросит любой администратор клуба — обратитесь к ним.</div>
 </div>
 <?php page_foot(); ?>
