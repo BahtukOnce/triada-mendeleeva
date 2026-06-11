@@ -25,14 +25,13 @@ if ($list) {
         $tag = $d['status'] === 'reg_open' ? 'tag-open' : ($d['status'] === 'finished' ? '' : 'tag-ok');
         echo '<tr>';
         echo '<td>' . esc(date('d.m.Y', strtotime($d['date']))) . '</td>';
-        echo '<td>' . esc($d['title']) . '</td>';
+        echo '<td><a href="/day.php?id=' . (int)$d['id'] . '" style="color:var(--tx);font-weight:550;">' . esc($d['title']) . '</a></td>';
         echo '<td><span class="tag ' . $tag . '">' . esc($statusLabel[$d['status']] ?? $d['status']) . '</span></td>';
         echo '<td class="num">' . (int)$d['games_cnt'] . '</td>';
         echo '<td class="num">' . (int)$d['regs_cnt'] . '</td>';
         echo '</tr>';
     }
     echo '</table></div>';
-    echo '<p style="color:var(--tx2);font-size:13px;">Страницы вечеров с полными протоколами игр появятся на этапе 2.</p>';
 } else {
     empty_state('Архив вечеров пока пуст', 'После переноса истории из таблиц здесь будут все игровые вечера клуба с протоколами каждой игры (этап 2).');
 }

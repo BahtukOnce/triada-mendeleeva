@@ -25,6 +25,16 @@ if ($dbok) {
         $stats['tournaments'] = (int)db()->query('SELECT COUNT(*) FROM tournaments')->fetchColumn();
         $news = db()->query('SELECT id, title, published_at FROM news
             WHERE published_at IS NOT NULL ORDER BY pinned DESC, published_at DESC LIMIT 3')->fetchAll();
+        $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+        $top5 = [];
+        if ($mainId) {
+            $st = db()->prepare('SELECT rc.player_id, rc.club_score, rc.sum_total, p.nickname
+                FROM rating_cache rc JOIN players p ON p.id = rc.player_id
+                WHERE rc.rating_id = ? AND rc.club_score IS NOT NULL
+                ORDER BY rc.club_score DESC LIMIT 5');
+            $st->execute([$mainId]);
+            $top5 = $st->fetchAll();
+        }
         $admins = db()->query("SELECT nickname, role FROM users
             WHERE role IN ('owner','admin')
             ORDER BY FIELD(role,'owner','admin'), nickname LIMIT 12")->fetchAll();
@@ -71,6 +81,26 @@ page_head('Главная', 'index');
 </div>
 
 <div class="grid-2">
+  <div>
+  <?php if (!empty($top5)): ?>
+  <div class="card">
+    <div class="section-head">
+      <h2 style="margin-top:0;">Рейтинг — топ 5</h2>
+      <a class="more" href="/rating.php">весь рейтинг →</a>
+    </div>
+    <table class="tbl">
+      <tr><th>#</th><th>Игрок</th><th class="num">~Σ×Σ</th><th class="num">Σ</th></tr>
+      <?php $pos = 0; foreach ($top5 as $t5): $pos++; ?>
+      <tr>
+        <td><?= $pos ?></td>
+        <td><a href="/player.php?id=<?= (int)$t5['player_id'] ?>" style="color:var(--tx);"><?= esc($t5['nickname']) ?></a></td>
+        <td class="num"><b><?= number_format((float)$t5['club_score'], 1) ?></b></td>
+        <td class="num"><?= number_format((float)$t5['sum_total'], 1) ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+  <?php endif; ?>
   <div class="card">
     <div class="section-head">
       <h2 style="margin-top:0;">Новости</h2>
@@ -84,6 +114,7 @@ page_head('Главная', 'index');
     <?php $first = false; endforeach; else: ?>
       <p style="color:var(--tx2);font-size:14px;">Новостей пока нет — скоро появятся.</p>
     <?php endif; ?>
+  </div>
   </div>
 
   <div class="card">
