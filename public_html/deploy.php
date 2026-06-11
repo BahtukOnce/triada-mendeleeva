@@ -38,9 +38,10 @@ if ($ref !== '' && $ref !== 'refs/heads/' . $branch) {
 
 $out = [];
 $rc = 0;
+$gitCfg = '-c safe.directory=' . escapeshellarg(ROOT);
 exec(
-    'cd ' . escapeshellarg(ROOT) . ' && git fetch origin ' . escapeshellarg($branch) . ' 2>&1'
-    . ' && git reset --hard origin/' . escapeshellarg($branch) . ' 2>&1',
+    'cd ' . escapeshellarg(ROOT) . ' && git ' . $gitCfg . ' fetch origin ' . escapeshellarg($branch) . ' 2>&1'
+    . ' && git ' . $gitCfg . ' reset --hard origin/' . escapeshellarg($branch) . ' 2>&1',
     $out,
     $rc
 );
