@@ -350,15 +350,13 @@ function run_import(bool $write, ?callable $progress = null): array
         $playerId[nick_key($p['nickname'])] = (int)$p['id'];
     }
     // ON DUPLICATE: разные написания, совпадающие по MySQL-коллации (ё=е и т.п.),
-    // схлопываются в одного игрока
+    // схлопываются в одного игрока.
+    // Создаём ТОЛЬКО игроков, участвовавших в играх (включая судивших) — $nicks.
+    // Анкеты лишь обогащают существующих, новых не плодят.
     $insP = $pdo->prepare('INSERT INTO players (nickname) VALUES (?)
         ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)');
-    $allKeys = $nicks;
-    foreach ($profiles as $k => $pr) {
-        $allKeys[$k] = $allKeys[$k] ?? $k;
-    }
     $created = 0;
-    foreach ($allKeys as $k => $display) {
+    foreach ($nicks as $k => $display) {
         if (!isset($playerId[$k])) {
             $insP->execute([$display]);
             $playerId[$k] = (int)$pdo->lastInsertId();
@@ -367,7 +365,7 @@ function run_import(bool $write, ?callable $progress = null): array
             }
         }
     }
-    $note("игроков создано: $created, всего: " . count($playerId));
+    $note("игроков из игр создано: $created");
     // Профили из анкет (заполняем пустые поля)
     $updP = $pdo->prepare('UPDATE players SET
         real_name = COALESCE(real_name, ?), status = COALESCE(status, ?),
@@ -434,6 +432,15 @@ function run_import(bool $write, ?callable $progress = null): array
         }
     }
     $note('турниры записаны');
+
+    // Чистка: на сайте остаются только игроки из игр (сыгравшие или судившие).
+    // Привязанные к аккаунту (user_id) не трогаем.
+    $removed = $pdo->exec("DELETE FROM players
+        WHERE user_id IS NULL
+          AND id NOT IN (SELECT DISTINCT player_id FROM game_seats)
+          AND id NOT IN (SELECT DISTINCT judge_player_id FROM games WHERE judge_player_id IS NOT NULL)");
+    $note("удалено игроков без игр: " . (int)$removed);
+    $note('игроков на сайте: ' . (int)$pdo->query('SELECT COUNT(*) FROM players')->fetchColumn());
     $pdo->commit();
 
     rating_recompute_all();
