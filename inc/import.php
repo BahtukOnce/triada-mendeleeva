@@ -189,20 +189,24 @@ function parse_reference_rating(array $sheet): array
     return $ref;
 }
 
-function run_import(bool $write): array
+function run_import(bool $write, ?callable $progress = null): array
 {
     $log = [];
+    $note = function (string $msg) use (&$log, $progress) {
+        $log[] = $msg;
+        if ($progress) {
+            $progress($msg);
+        }
+    };
     $t0 = microtime(true);
 
     $mainPath = import_download(IMPORT_MAIN_XLSX, 'triada_main.xlsx');
-    $log[] = 'скачана основная книга: ' . round(filesize($mainPath) / 1024) . ' КБ';
+    $note('скачана основная книга: ' . round(filesize($mainPath) / 1024) . ' КБ');
     $techPath = import_download(IMPORT_TECH_XLSX, 'triada_tech.xlsx');
-    $log[] = 'скачана техническая книга: ' . round(filesize($techPath) / 1024) . ' КБ';
-
+    $note('скачана техническая книга: ' . round(filesize($techPath) / 1024) . ' КБ');
     $main = xlsx_load($mainPath, fn($n) => $n === 'Рейтинг' || !in_array($n, IMPORT_SERVICE_SHEETS, true));
     $tech = xlsx_load($techPath, fn($n) => $n === 'Регистрация в клуб');
-    $log[] = 'листов основной книги: ' . count($main);
-
+    $note('листов основной книги: ' . count($main));
     // Классификация листов
     $days = [];
     $tournaments = [];
@@ -223,15 +227,14 @@ function run_import(bool $write): array
     foreach ($days as $d) {
         $gamesCount += count($d['games']);
     }
-    $log[] = 'игровых дней: ' . count($days) . ', игр в днях: ' . $gamesCount;
+    $note('игровых дней: ' . count($days) . ', игр в днях: ' . $gamesCount);
     $tCount = 0;
     foreach ($tournaments as $tt) {
         foreach ($tt as $g) {
             $tCount += count($g);
         }
     }
-    $log[] = 'турниров: ' . count($tournaments) . ', игр в турнирах: ' . $tCount;
-
+    $note('турниров: ' . count($tournaments) . ', игр в турнирах: ' . $tCount);
     // Анкеты
     $profiles = [];
     $reg = $tech['Регистрация в клуб'] ?? [];
@@ -252,8 +255,7 @@ function run_import(bool $write): array
             'joined_at' => excel_to_date(xc($reg, $r, 1)),
         ];
     }
-    $log[] = 'анкет (уникальных ников): ' . count($profiles);
-
+    $note('анкет (уникальных ников): ' . count($profiles));
     // Сбор всех ников из игр
     $nicks = []; // key => display
     $collect = function (array $games) use (&$nicks) {
@@ -276,8 +278,7 @@ function run_import(bool $write): array
             $collect($g);
         }
     }
-    $log[] = 'уникальных ников в играх: ' . count($nicks);
-
+    $note('уникальных ников в играх: ' . count($nicks));
     // Похожие ники (для ручной проверки)
     $keys = array_keys($nicks);
     $similar = [];
@@ -292,11 +293,11 @@ function run_import(bool $write): array
         }
     }
     if ($similar) {
-        $log[] = 'ПОХОЖИЕ НИКИ (проверить, не дубли ли): ' . implode('; ', $similar);
+        $note('ПОХОЖИЕ НИКИ (проверить, не дубли ли): ' . implode('; ', $similar));
     }
 
     if (!$write) {
-        $log[] = 'режим dry — в базу ничего не записано';
+        $note('режим dry — в базу ничего не записано');
         return $log;
     }
 
@@ -308,8 +309,7 @@ function run_import(bool $write): array
         $pdo->exec("DELETE FROM $tbl");
     }
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
-    $log[] = 'старые игровые данные очищены';
-
+    $note('старые игровые данные очищены');
     // Игроки: существующие по ключу
     $playerId = [];
     foreach ($pdo->query('SELECT id, nickname FROM players')->fetchAll() as $p) {
@@ -328,8 +328,7 @@ function run_import(bool $write): array
             $created++;
         }
     }
-    $log[] = "игроков создано: $created, всего: " . count($playerId);
-
+    $note("игроков создано: $created, всего: " . count($playerId));
     // Профили из анкет (заполняем пустые поля)
     $updP = $pdo->prepare('UPDATE players SET
         real_name = COALESCE(real_name, ?), status = COALESCE(status, ?),
@@ -346,8 +345,7 @@ function run_import(bool $write): array
             $filled++;
         }
     }
-    $log[] = "профилей заполнено из анкет: $filled";
-
+    $note("профилей заполнено из анкет: $filled");
     $mainRatingId = (int)$pdo->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
 
     $insDay = $pdo->prepare("INSERT INTO game_days (date, title, status) VALUES (?,?, 'finished')");
@@ -386,8 +384,7 @@ function run_import(bool $write): array
         }
         $writeGames($d['games'], $dayId, null, 1);
     }
-    $log[] = 'дни и игры записаны';
-
+    $note('дни и игры записаны');
     $insT = $pdo->prepare("INSERT INTO tournaments (title, date_from, status, tables_count) VALUES (?,?, 'finished', ?)");
     foreach ($tournaments as $title => $tables) {
         $year = preg_match('/(20\d\d)/', $title, $m) ? $m[1] : null;
@@ -397,12 +394,11 @@ function run_import(bool $write): array
             $writeGames($games, null, $tid, (int)$tableNo);
         }
     }
-    $log[] = 'турниры записаны';
+    $note('турниры записаны');
     $pdo->commit();
 
     rating_recompute_all();
-    $log[] = 'рейтинг пересчитан';
-
+    $note('рейтинг пересчитан');
     // ── Сверка с листом «Рейтинг» ────────────────────────────
     if (isset($main['Рейтинг']) && $mainRatingId) {
         $ref = parse_reference_rating($main['Рейтинг']);
@@ -432,12 +428,12 @@ function run_import(bool $write): array
                 $matched++;
             }
         }
-        $log[] = "СВЕРКА: совпало игроков: $matched, расхождений: " . count($mismatches);
+        $note("СВЕРКА: совпало игроков: $matched, расхождений: " . count($mismatches));
         foreach (array_slice($mismatches, 0, 40) as $mm) {
-            $log[] = '  ✗ ' . $mm;
+            $note('  ✗ ' . $mm);
         }
     }
 
-    $log[] = 'готово за ' . round(microtime(true) - $t0, 1) . ' с';
+    $note('готово за ' . round(microtime(true) - $t0, 1) . ' с');
     return $log;
 }
