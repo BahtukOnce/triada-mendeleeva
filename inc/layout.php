@@ -51,7 +51,7 @@ function page_head(string $title, string $active = ''): void
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=5">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=6">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -114,7 +114,7 @@ function page_foot(): void
        . '<a href="https://t.me" rel="noopener" target="_blank">Telegram</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=2"></script>';
+    echo '<script src="/assets/js/app.js?v=3"></script>';
     echo '</body></html>';
 }
 
