@@ -23,6 +23,9 @@ require ROOT . '/inc/db.php';
 try {
     $log = run_migrations();
     echo "ok\n" . implode("\n", $log) . "\n";
+    echo 'db: ' . $GLOBALS['cfg']['db']['name'] . "\n";
+    echo 'applied: ' . implode(', ', db()->query('SELECT id FROM _migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN)) . "\n";
+    echo 'ratings rows: ' . (int)db()->query('SELECT COUNT(*) FROM ratings')->fetchColumn() . "\n";
 } catch (Throwable $e) {
     http_response_code(500);
     echo 'error: ' . $e->getMessage() . "\n";

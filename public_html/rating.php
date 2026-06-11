@@ -7,7 +7,7 @@ $rows = [];
 $sort = in_array($_GET['sort'] ?? '', ['club', 'avg', 'minus'], true) ? $_GET['sort'] : 'club';
 
 if (db_ready()) {
-    $ratings = db()->query('SELECT * FROM ratings WHERE is_active = 1 ORDER BY is_main DESC, id DESC')->fetchAll();
+    $ratings = db()->query('SELECT * FROM ratings WHERE is_active = 1 ORDER BY is_main DESC, id ASC')->fetchAll();
     $reqId = isset($_GET['r']) ? (int)$_GET['r'] : 0;
     foreach ($ratings as $r) {
         if ((int)$r['id'] === $reqId) {
