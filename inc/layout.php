@@ -76,6 +76,7 @@ function page_head(string $title, string $active = ''): void
         echo '<span class="user-menu-role">' . esc(role_label($u['role'])) . '</span>';
         echo '<a href="/cabinet.php">Личный кабинет</a>';
         echo '<a href="/my_games.php">Мои игры</a>';
+        echo '<a href="/my_stats.php">Моя статистика</a>';
         if (role_level($u['role']) >= 3) {
             echo '<a href="/admin/">Админка</a>';
         }
