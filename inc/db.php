@@ -53,10 +53,12 @@ function run_migrations(): array
             continue;
         }
         $sql = (string)file_get_contents($f);
+        // убрать строки-комментарии, чтобы не маскировали стейтменты
+        $sql = (string)preg_replace('/^\s*--.*$/m', '', $sql);
         $stmts = preg_split('/;\s*(?:\r?\n|$)/', $sql);
         foreach ($stmts as $stmt) {
             $stmt = trim($stmt);
-            if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+            if ($stmt !== '') {
                 $pdo->exec($stmt);
             }
         }
