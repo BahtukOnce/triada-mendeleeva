@@ -142,7 +142,7 @@ function parse_games_sheet(array $sheet, array &$warnings = [], string $ctx = ''
         }
         $puRaw = xc($sheet, $b + 12, 3);
         $pu = is_numeric($puRaw) ? (int)(float)$puRaw : null;
-        if ($pu === null && $puRaw !== '' && $puRaw !== '-') {
+        if ($pu === null && $puRaw !== '' && $puRaw !== '-' && mb_strtolower($puRaw) !== 'промах') {
             $warnings[] = "$ctx, игра " . (count($games) + 1) . ": ПУ нечисловой: «{$puRaw}»";
         }
         if ($pu !== null && ($pu < 1 || $pu > 10)) {
@@ -153,10 +153,15 @@ function parse_games_sheet(array $sheet, array &$warnings = [], string $ctx = ''
             $v = xc($sheet, $b + 12, $c);
             $bm[] = is_numeric($v) ? (int)(float)$v : null;
         }
-        $winRaw = mb_strtolower(xc($sheet, $b + 13, 3));
+        $winRawOrig = xc($sheet, $b + 13, 3);
+        $winRaw = mb_strtolower($winRawOrig);
         $winner = ['чёрные' => 'black', 'черные' => 'black', 'красные' => 'red', 'ничья' => 'draw'][$winRaw] ?? null;
-        if ($winner === null) {
-            $warnings[] = "$ctx, игра " . (count($games) + 1) . ': победитель не распознан: «' . $winRaw . '»';
+        if ($winner === null && $winRawOrig !== '') {
+            $warnings[] = "$ctx, игра " . (count($games) + 1) . ': победитель не распознан: «' . $winRawOrig . '»';
+        }
+        if ($winRaw === 'черные') {
+            $warnings[] = "$ctx, игра " . (count($games) + 1)
+                . ': «Черные» без ё — формула клубной таблицы в этой игре отдавала победу красным';
         }
 
         $games[] = [
