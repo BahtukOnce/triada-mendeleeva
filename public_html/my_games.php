@@ -31,12 +31,6 @@ if ($mainId) {
     }
 }
 
-// Быстрые ссылки
-echo '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">';
-echo '<a class="btn btn-ghost" href="/player.php?id=' . (int)$player['id'] . '">Мой профиль</a>';
-echo '<a class="btn btn-ghost" href="/rating.php">Общий рейтинг</a>';
-echo '</div>';
-
 if ($stats) {
     echo '<div class="grid-stats">';
     echo '<div class="stat"><div class="lbl">место в рейтинге</div><div class="val">' . ($rank ?: '—') . '</div></div>';

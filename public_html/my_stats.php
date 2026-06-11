@@ -117,12 +117,6 @@ $decided = $games - $draws;
 $wr = fn($w, $g) => $g ? round($w / $g * 100) . '%' : '—';
 
 // ── Вывод ──
-echo '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">';
-echo '<a class="btn btn-ghost" href="/player.php?id=' . $pid . '">Мой профиль</a>';
-echo '<a class="btn btn-ghost" href="/my_games.php">Мои игры</a>';
-echo '<a class="btn btn-ghost" href="/rating.php">Рейтинг</a>';
-echo '</div>';
-
 echo '<div class="grid-stats">';
 echo '<div class="stat"><div class="lbl">всего игр</div><div class="val">' . $games . '</div></div>';
 echo '<div class="stat"><div class="lbl">винрейт</div><div class="val">' . $wr($wins, $decided) . '</div></div>';
