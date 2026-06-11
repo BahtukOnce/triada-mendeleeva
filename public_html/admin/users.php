@@ -60,8 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $q = trim((string)($_GET['q'] ?? ''));
+$onlyTg = !empty($_GET['tg']);
 $sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick FROM users us
     LEFT JOIN players p ON p.user_id = us.id';
+if ($onlyTg) {
+    $sql .= ' WHERE us.tg_user_id IS NOT NULL';
+}
 $params = [];
 if ($q !== '') {
     $sql .= ' WHERE us.nickname LIKE ?';
@@ -78,18 +82,25 @@ if (!$isOwner) {
     echo '<p style="color:var(--tx2);font-size:13px;">Сброс пароля доступен админам. Менять роли может только глава клуба.</p>';
 }
 
-echo '<form method="get" action="/admin/users.php" style="max-width:340px;margin-bottom:14px;">';
+echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';
+echo '<form method="get" action="/admin/users.php" style="max-width:300px;flex:1;min-width:200px;">';
 echo '<div class="field" style="margin:0;"><input type="search" name="q" placeholder="Поиск по нику аккаунта" value="' . esc($q) . '"></div></form>';
+echo '<a class="tag ' . ($onlyTg ? 'tag-open' : '') . '" href="/admin/users.php' . ($onlyTg ? '' : '?tg=1') . '">'
+    . ($onlyTg ? 'показать всех' : 'только с Telegram') . '</a>';
+echo '</div>';
 
 $roles = ['player' => 'игрок', 'judge' => 'судья', 'admin' => 'админ', 'owner' => 'глава'];
 echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
-echo '<tr><th>Аккаунт</th><th>Игрок</th><th>Роль</th><th>Действия</th></tr>';
+echo '<tr><th>Аккаунт</th><th>Игрок</th><th>Telegram</th><th>Роль</th><th>Действия</th></tr>';
 foreach ($list as $row) {
     $rid = (int)$row['id'];
     echo '<tr><td>' . esc($row['nickname']) . '</td>';
     echo '<td>' . ($row['player_id']
         ? '<a href="/player.php?id=' . (int)$row['player_id'] . '">' . esc($row['player_nick']) . '</a>'
         : '<span style="color:var(--tx2);">—</span>') . '</td>';
+    echo '<td>' . ($row['tg_user_id']
+        ? '<span class="tag tag-ok">' . ($row['tg_username'] ? '@' . esc($row['tg_username']) : 'привязан') . '</span>'
+        : '<span style="color:var(--tx3);">—</span>') . '</td>';
     echo '<td>' . ($row['role'] === 'owner' || $row['role'] === 'admin'
         ? '<span class="tag" style="color:var(--ac);">' . $roles[$row['role']] . '</span>'
         : $roles[$row['role']]) . '</td>';

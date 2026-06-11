@@ -110,6 +110,17 @@ main.container { flex: 1; padding-bottom: 40px; }
 
 .suggest-btn { padding: 7px 12px; }
 
+/* Галерея аватаров */
+.avatar-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.ava-item { background: var(--sf2); border: 1px solid var(--bd); border-radius: 12px; padding: 8px; text-align: center; position: relative; }
+.ava-item.ava-main { border-color: var(--ac); }
+.ava-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.ava-badge { position: absolute; top: 12px; left: 12px; background: var(--ac); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 10px; }
+.ava-actions { display: flex; gap: 6px; margin-top: 8px; justify-content: center; flex-wrap: wrap; }
+.ava-actions button { background: var(--sf); color: var(--tx); border: 1px solid var(--bd); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; }
+.ava-actions button:hover { border-color: var(--tx2); }
+.ava-actions .ava-del { color: var(--ac); }
+
 .hero { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .hero-info { flex: 1; min-width: 240px; }
 .hero-date { font-size: 20px; font-weight: 650; margin: 4px 0 2px; }
@@ -138,6 +149,16 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl td { padding: 8px 10px; border-bottom: 1px solid var(--bd); }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Рейтинг: сортируемые заголовки и выделение «статистики по картам» */
+.sortable thead th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable thead th:hover { color: var(--tx); }
+.sortable thead th.sorted-asc::after { content: " ▲"; font-size: 9px; color: var(--ac); }
+.sortable thead th.sorted-desc::after { content: " ▼"; font-size: 9px; color: var(--ac); }
+.rating-tbl .c-cards { background: rgba(232,51,42,0.055); }
+.rating-tbl .c-cards-first { border-left: 2px solid var(--ac); }
+.rating-tbl thead .c-cards { text-align: center; }
+.rt-player { display: inline-flex; align-items: center; }
 
 .field { margin: 0 0 14px; }
 .field label { display: block; font-size: 13px; color: var(--tx2); margin-bottom: 5px; }

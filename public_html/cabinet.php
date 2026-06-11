@@ -120,6 +120,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('/cabinet.php');
     }
 
+    if ($form === 'avatars_upload' && $player) {
+        $files = $_FILES['avatars'] ?? null;
+        $added = 0;
+        if ($files && is_array($files['name'])) {
+            $n = count($files['name']);
+            for ($i = 0; $i < $n && $added < 12; $i++) {
+                if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                    continue;
+                }
+                $one = ['name' => $files['name'][$i], 'tmp_name' => $files['tmp_name'][$i],
+                    'error' => $files['error'][$i], 'size' => $files['size'][$i]];
+                $base = 'p' . (int)$player['id'] . '_' . time() . '_' . $i;
+                $full = save_image_upload($one, 'avatars', $base, 512);
+                if (!is_string($full) || !str_starts_with($full, '/uploads/')) {
+                    continue;
+                }
+                $thumb = save_image_upload($one, 'avatars/thumbs', $base, 160);
+                db()->prepare('INSERT INTO player_avatars (player_id, file, thumb) VALUES (?,?,?)')
+                    ->execute([(int)$player['id'], $full, is_string($thumb) ? $thumb : $full]);
+                $added++;
+            }
+        }
+        if (empty($player['avatar'])) {
+            $f = db()->prepare('SELECT file FROM player_avatars WHERE player_id = ? ORDER BY id LIMIT 1');
+            $f->execute([(int)$player['id']]);
+            $file = $f->fetchColumn();
+            if ($file) {
+                db()->prepare('UPDATE players SET avatar = ? WHERE id = ?')->execute([$file, (int)$player['id']]);
+            }
+        }
+        log_action((int)$u['id'], 'avatars_upload', ['count' => $added]);
+        flash_set($added ? 'ok' : 'err', $added ? "Загружено в галерею: $added" : 'Не удалось загрузить (нужны картинки)');
+        redirect('/cabinet.php');
+    }
+
+    if ($form === 'avatar_set' && $player) {
+        $file = (string)($_POST['file'] ?? '');
+        $chk = db()->prepare('SELECT id FROM player_avatars WHERE player_id = ? AND file = ?');
+        $chk->execute([(int)$player['id'], $file]);
+        if ($chk->fetch()) {
+            db()->prepare('UPDATE players SET avatar = ? WHERE id = ?')->execute([$file, (int)$player['id']]);
+            flash_set('ok', 'Аватар выбран основным');
+        }
+        redirect('/cabinet.php');
+    }
+
+    if ($form === 'avatar_delete' && $player) {
+        $id = (int)($_POST['avatar_id'] ?? 0);
+        $row = db()->prepare('SELECT * FROM player_avatars WHERE id = ? AND player_id = ?');
+        $row->execute([$id, (int)$player['id']]);
+        $av = $row->fetch();
+        if ($av) {
+            @unlink(ROOT . '/public_html' . $av['file']);
+            if ($av['thumb']) {
+                @unlink(ROOT . '/public_html' . $av['thumb']);
+            }
+            db()->prepare('DELETE FROM player_avatars WHERE id = ?')->execute([$id]);
+            if (($player['avatar'] ?? '') === $av['file']) {
+                db()->prepare('UPDATE players SET avatar = NULL WHERE id = ?')->execute([(int)$player['id']]);
+            }
+            flash_set('ok', 'Удалено из галереи');
+        }
+        redirect('/cabinet.php');
+    }
+
+    if ($form === 'tg_unlink') {
+        db()->prepare('UPDATE users SET tg_user_id = NULL, tg_username = NULL, tg_linked_at = NULL WHERE id = ?')
+            ->execute([(int)$u['id']]);
+        log_action((int)$u['id'], 'tg_unlink');
+        flash_set('ok', 'Telegram отвязан');
+        redirect('/cabinet.php');
+    }
+
     redirect('/cabinet.php');
 }
 
@@ -189,6 +262,75 @@ if ($openDay && $player) {
     echo '</div>';
 }
 
+// ── Галерея аватаров ──
+if ($player) {
+    $av = db()->prepare('SELECT * FROM player_avatars WHERE player_id = ? ORDER BY id DESC');
+    $av->execute([(int)$player['id']]);
+    $avatars = $av->fetchAll();
+    echo '<div class="card"><h2 style="margin-top:0;">Аватары · галерея</h2>';
+    echo '<p style="color:var(--tx2);font-size:13px;margin-top:0;">Загрузите одну или несколько картинок. Выбранная отмечена как основная — она показывается рядом с ником. Галерея пригодится для турниров.</p>';
+    echo '<form method="post" action="/cabinet.php" enctype="multipart/form-data" style="margin-bottom:14px;">' . csrf_field();
+    echo '<input type="hidden" name="form" value="avatars_upload">';
+    echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+        . '<input type="file" name="avatars[]" accept="image/*" multiple required>'
+        . '<button class="btn" type="submit">Загрузить в галерею</button></div></form>';
+    if ($avatars) {
+        echo '<div class="avatar-gallery">';
+        foreach ($avatars as $a) {
+            $isMain = ($player['avatar'] ?? '') === $a['file'];
+            echo '<div class="ava-item' . ($isMain ? ' ava-main' : '') . '">';
+            echo '<img src="' . esc($a['thumb'] ?: $a['file']) . '" alt="">';
+            if ($isMain) {
+                echo '<span class="ava-badge">основная</span>';
+            }
+            echo '<div class="ava-actions">';
+            if (!$isMain) {
+                echo '<form method="post" action="/cabinet.php">' . csrf_field()
+                    . '<input type="hidden" name="form" value="avatar_set"><input type="hidden" name="file" value="' . esc($a['file']) . '">'
+                    . '<button type="submit">Основной</button></form>';
+            }
+            echo '<form method="post" action="/cabinet.php" onsubmit="return confirm(\'Удалить аватар?\');">' . csrf_field()
+                . '<input type="hidden" name="form" value="avatar_delete"><input type="hidden" name="avatar_id" value="' . (int)$a['id'] . '">'
+                . '<button type="submit" class="ava-del">Удалить</button></form>';
+            echo '</div></div>';
+        }
+        echo '</div>';
+    } else {
+        echo '<p style="color:var(--tx3);font-size:13px;">Пока пусто — загрузите первую картинку.</p>';
+    }
+    echo '</div>';
+}
+
+// ── Telegram-бот ──
+$tg = db()->prepare('SELECT tg_user_id, tg_username FROM users WHERE id = ?');
+$tg->execute([(int)$u['id']]);
+$tgrow = $tg->fetch();
+$botUser = setting('bot_username');
+echo '<div class="card"><h2 style="margin-top:0;">Telegram-бот</h2>';
+if ($tgrow && $tgrow['tg_user_id']) {
+    echo '<p style="color:var(--ok);margin:0 0 12px;">✓ Telegram привязан'
+        . ($tgrow['tg_username'] ? ' (@' . esc($tgrow['tg_username']) . ')' : '')
+        . '. Вы будете получать анонсы и голосовалки по игровым дням.</p>';
+    echo '<form method="post" action="/cabinet.php">' . csrf_field()
+        . '<input type="hidden" name="form" value="tg_unlink"><button class="btn btn-ghost" type="submit">Отвязать Telegram</button></form>';
+} else {
+    $cs = db()->prepare('SELECT code FROM tg_link_codes WHERE user_id = ?');
+    $cs->execute([(int)$u['id']]);
+    $code = $cs->fetchColumn();
+    if (!$code) {
+        $code = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
+        db()->prepare('INSERT INTO tg_link_codes (code, user_id) VALUES (?,?)')->execute([$code, (int)$u['id']]);
+    }
+    echo '<p style="color:var(--tx2);margin-top:0;">Привяжите Telegram, чтобы участвовать в голосовалках на игровой день и получать уведомления. Привязка идёт по вашему нику.</p>';
+    if ($botUser) {
+        echo '<a class="btn" href="https://t.me/' . esc($botUser) . '?start=' . esc($code) . '" target="_blank" rel="noopener">Привязать через бота</a>';
+        echo '<p style="font-size:12.5px;color:var(--tx3);margin:10px 0 0;">Или отправьте боту: <code>/link ' . esc($code) . '</code></p>';
+    } else {
+        echo '<p style="margin-bottom:0;">Откройте бота клуба в Telegram и отправьте команду: <code>/link ' . esc($code) . '</code></p>';
+    }
+}
+echo '</div>';
+
 echo '<div class="grid-2">';
 
 // ── Профиль ──
@@ -199,7 +341,6 @@ if ($player) {
         . esc(role_label($u['role'])) . ' · <a href="/player.php?id=' . (int)$player['id'] . '">публичный профиль</a></div></div></div>';
     echo '<form method="post" action="/cabinet.php" enctype="multipart/form-data">' . csrf_field();
     echo '<input type="hidden" name="form" value="profile">';
-    echo '<div class="field"><label>Аватар (JPG/PNG, до 10 МБ)</label><input type="file" name="avatar" accept="image/*"></div>';
     echo '<div class="field"><label>ФИО</label><input type="text" name="real_name" value="' . esc($player['real_name']) . '"></div>';
     echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
     echo '<div class="field"><label>Telegram</label><input type="text" name="tg" value="' . esc($player['tg']) . '"></div>';

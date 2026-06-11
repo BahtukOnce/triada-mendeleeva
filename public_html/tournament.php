@@ -42,8 +42,14 @@ if (!$t) {
     exit;
 }
 
-echo '<h1>' . esc($t['title']) . '</h1>';
-echo '<p style="color:var(--tx2);margin-top:-6px;">Столов: ' . (int)$t['tables_count']
+if (!empty($t['logo'])) {
+    echo '<div style="display:flex;align-items:center;gap:16px;">'
+        . '<img src="' . esc($t['logo']) . '" alt="" style="width:64px;height:64px;object-fit:contain;border-radius:12px;flex:none;">'
+        . '<h1 style="margin:0;">' . esc($t['title']) . '</h1></div>';
+} else {
+    echo '<h1>' . esc($t['title']) . '</h1>';
+}
+echo '<p style="color:var(--tx2);margin-top:6px;">Столов: ' . (int)$t['tables_count']
     . ' · игр: ' . count($games) . '</p>';
 
 // Итоговая таблица турнира

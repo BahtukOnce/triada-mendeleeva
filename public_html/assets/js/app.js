@@ -23,6 +23,31 @@
     });
   }
 
+  // Сортировка таблиц по клику на заголовок
+  document.querySelectorAll('table.sortable').forEach(function (table) {
+    var heads = table.querySelectorAll('thead th');
+    heads.forEach(function (th, idx) {
+      th.addEventListener('click', function () {
+        var tbody = table.querySelector('tbody');
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+        var asc = !th.classList.contains('sorted-asc');
+        heads.forEach(function (h) { h.classList.remove('sorted-asc', 'sorted-desc'); });
+        th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+        rows.sort(function (a, b) {
+          var ca = a.children[idx], cb = b.children[idx];
+          var va = ca.dataset.sort !== undefined ? ca.dataset.sort : ca.textContent.trim();
+          var vb = cb.dataset.sort !== undefined ? cb.dataset.sort : cb.textContent.trim();
+          var na = parseFloat(va), nb = parseFloat(vb);
+          var cmp;
+          if (!isNaN(na) && !isNaN(nb)) { cmp = na - nb; }
+          else { cmp = String(va).localeCompare(String(vb), 'ru'); }
+          return asc ? cmp : -cmp;
+        });
+        rows.forEach(function (r) { tbody.appendChild(r); });
+      });
+    });
+  });
+
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce || !('IntersectionObserver' in window)) return;
 
