@@ -371,7 +371,6 @@ JS;
 }
 
 if ($history) {
-    $histClr = ['civ' => '#3a7bd5', 'sheriff' => '#d5a23a', 'maf' => '#c0392b', 'don' => '#8c8c96'];
     echo '<div class="card"><h2 style="margin-top:0;">История игр (' . count($history) . ')</h2>';
     echo '<div style="overflow-x:auto;"><table class="tbl">';
     echo '<tr><th>Дата</th><th>Где</th><th>Роль</th><th>Результат</th></tr>';
@@ -386,7 +385,7 @@ if ($history) {
             : ($won ? '<span class="tag tag-ok">победа</span>' : '<span class="tag">поражение</span>');
         $date = $h['day_date'] ? date('d.m.Y', strtotime($h['day_date'])) : '';
         echo '<tr><td>' . $date . '</td><td>' . $where . ' · игра ' . (int)$h['game_no'] . '</td>'
-            . '<td><span class="hist-dot" style="background:' . ($histClr[$h['role']] ?? '#888') . ';"></span>'
+            . '<td>' . role_dot($h['role'])
             . $roleLabel[$h['role']] . ((int)$h['first_killed_seat'] === (int)$h['seat'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
             . '<td>' . $res . '</td></tr>';
     }
