@@ -74,8 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'delete_user') {
-        if (!$isOwner) {
-            flash_set('err', 'Удалять аккаунты может только глава клуба');
+        // Админ может удалять аккаунты игроков; аккаунты админов/руководителей — только руководитель.
+        $targetPriv = in_array($target['role'], ['owner', 'admin'], true);
+        if (!$isOwner && $targetPriv) {
+            flash_set('err', 'Аккаунты админов и руководителей удаляет только руководитель');
             redirect('/admin/users.php');
         }
         if ($targetId === (int)$u['id']) {
@@ -126,7 +128,7 @@ echo '<div class="stat"><div class="lbl">зарегистрировано</div><
 echo '<div class="stat"><div class="lbl">привязали Telegram</div><div class="val">' . (int)$cnt['tg'] . '</div></div>';
 echo '<div class="stat"><div class="lbl">сейчас в сети</div><div class="val" style="color:var(--ok);">' . (int)$cnt['online'] . '</div></div>';
 echo '</div>';
-echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы и руководители. Руководителей может быть несколько; последнего снять нельзя. Удаление аккаунта — только у руководителя.</p>';
+echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы и руководители. Руководителей может быть несколько; последнего снять нельзя. Аккаунт игрока может удалить и админ (аккаунты админов/руководителей — только руководитель); игрок и статистика при этом сохраняются.</p>';
 
 echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';
 echo '<form method="get" action="/admin/users.php" style="max-width:300px;flex:1;min-width:200px;">';
@@ -193,7 +195,8 @@ foreach ($list as $row) {
     echo '<td><form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Сбросить пароль ' . esc($row['nickname']) . '?\');">' . csrf_field();
     echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
     echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">Сбросить пароль</button></form>';
-    if ($isOwner && $rid !== (int)$u['id']) {
+    $canDelete = $rid !== (int)$u['id'] && ($isOwner || !in_array($row['role'], ['owner', 'admin'], true));
+    if ($canDelete) {
         echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc($row['nickname']) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
             . '<input type="hidden" name="form" value="delete_user"><input type="hidden" name="user_id" value="' . $rid . '">'
             . '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
