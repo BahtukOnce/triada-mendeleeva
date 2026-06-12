@@ -36,6 +36,13 @@ function current_user(): ?array
                 $st = db()->prepare('SELECT * FROM users WHERE id = ?');
                 $st->execute([(int)$_SESSION['uid']]);
                 $user = $st->fetch() ?: null;
+                if ($user) {
+                    // отметка «в сети» (раз за запрос — current_user кеширует)
+                    try {
+                        db()->prepare('UPDATE users SET last_seen = NOW() WHERE id = ?')->execute([(int)$user['id']]);
+                    } catch (Throwable $e) {
+                    }
+                }
             } catch (Throwable $e) {
                 $user = null;
             }

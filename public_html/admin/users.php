@@ -73,7 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $q = trim((string)($_GET['q'] ?? ''));
 $onlyTg = !empty($_GET['tg']);
-$sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick FROM users us
+$sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick,
+        (us.last_seen IS NOT NULL AND us.last_seen > NOW() - INTERVAL 5 MINUTE) AS online
+    FROM users us
     LEFT JOIN players p ON p.user_id = us.id';
 if ($onlyTg) {
     $sql .= ' WHERE us.tg_user_id IS NOT NULL';
@@ -88,8 +90,18 @@ $st = db()->prepare($sql);
 $st->execute($params);
 $list = $st->fetchAll();
 
+$cnt = db()->query("SELECT COUNT(*) total,
+        SUM(tg_user_id IS NOT NULL) tg,
+        SUM(last_seen IS NOT NULL AND last_seen > NOW() - INTERVAL 5 MINUTE) online
+    FROM users")->fetch();
+
 page_head('Админка — пользователи', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Пользователи и роли</h1>';
+echo '<div class="grid-stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px;">';
+echo '<div class="stat"><div class="lbl">зарегистрировано</div><div class="val">' . (int)$cnt['total'] . '</div></div>';
+echo '<div class="stat"><div class="lbl">привязали Telegram</div><div class="val">' . (int)$cnt['tg'] . '</div></div>';
+echo '<div class="stat"><div class="lbl">сейчас в сети</div><div class="val" style="color:var(--ok);">' . (int)$cnt['online'] . '</div></div>';
+echo '</div>';
 if (!$isOwner) {
     echo '<p style="color:var(--tx2);font-size:13px;">Сброс пароля доступен админам. Менять роли может только глава клуба.</p>';
 }
@@ -118,7 +130,9 @@ echo '<tr><th>Аккаунт</th><th>Игрок</th><th>Telegram</th><th>Ста�
 foreach ($list as $row) {
     $rid = (int)$row['id'];
     $isAdminRow = $row['role'] === 'owner' || $row['role'] === 'admin';
-    echo '<tr><td>' . esc($row['nickname']) . '</td>';
+    echo '<tr><td>' . ($row['online']
+        ? '<span title="в сети" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:7px;vertical-align:1px;"></span>'
+        : '') . esc($row['nickname']) . '</td>';
     echo '<td>' . ($row['player_id']
         ? '<a href="/player.php?id=' . (int)$row['player_id'] . '">' . esc($row['player_nick']) . '</a>'
         : '<span style="color:var(--tx2);">—</span>') . '</td>';
