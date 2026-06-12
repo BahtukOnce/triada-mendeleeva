@@ -295,6 +295,24 @@ if ($stats) {
     } catch (Throwable $e) {
     }
     $donWr = (int)$stats['g_don'] >= 4 ? round((int)$stats['w_don'] / (int)$stats['g_don'] * 100) : 0;
+    // доп. серии и рекорды для ачивок
+    $chrono = array_reverse($history); // старые → новые
+    $blackStreak = 0; $bs = 0;
+    $redWinStreak = 0; $rws = 0;
+    $maxPlusGame = 0.0;
+    foreach ($chrono as $h) {
+        $maxPlusGame = max($maxPlusGame, (float)$h['plus']);
+        $isBlack = in_array($h['role'], ['maf', 'don'], true);
+        if ($isBlack) { $bs++; $blackStreak = max($blackStreak, $bs); } else { $bs = 0; }
+        if (!$isBlack && $h['winner'] === 'red') { $rws++; $redWinStreak = max($redWinStreak, $rws); } else { $rws = 0; }
+    }
+    $maxEloDay = 0.0;
+    try {
+        $ed = db()->prepare('SELECT SUM(delta) s FROM elo_history WHERE player_id = ? GROUP BY gdate');
+        $ed->execute([$id]);
+        foreach ($ed->fetchAll() as $r) { $maxEloDay = max($maxEloDay, (float)$r['s']); }
+    } catch (Throwable $e) {
+    }
     $ach = [
         ['🎬', 'Дебют', 'Первая игра', $games >= 1],
         ['🎯', 'Десятка', '10 игр сыграно', $games >= 10],
@@ -308,6 +326,10 @@ if ($stats) {
         ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', $triples >= 1],
         ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', $donWr >= 60],
         ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)', $games >= 20 && $puPct < 20],
+        ['🌑', 'Власть тьмы', '5 чёрных ролей подряд', $blackStreak >= 5],
+        ['🚩', 'Красная машина', '3 победы красными подряд', $redWinStreak >= 3],
+        ['💰', 'Жирная игра', '1.5+ допа за одну игру', $maxPlusGame >= 1.5],
+        ['📈', 'Прорыв вечера', '+150 ELO за вечер', $maxEloDay >= 150],
     ];
     $earnedN = count(array_filter($ach, fn($a) => $a[3]));
     echo '<div class="card"><div class="section-head"><h2 style="margin:0;">Достижения</h2>'
