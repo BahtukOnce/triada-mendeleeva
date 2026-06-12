@@ -373,7 +373,8 @@ if ($player) {
         . esc(role_label($u['role'])) . ' · <a href="/player.php?id=' . (int)$player['id'] . '">публичный профиль</a></div></div></div>';
     echo '<form method="post" action="/cabinet.php">' . csrf_field();
     echo '<input type="hidden" name="form" value="profile">';
-    echo '<div class="field"><label>ФИО</label><input type="text" name="real_name" value="' . esc($player['real_name']) . '"></div>';
+    echo '<div class="field"><label>ФИО <span style="color:var(--tx3);font-weight:400;">— часто нужно для пропусков в университет</span></label>'
+        . '<input type="text" name="real_name" value="' . esc($player['real_name']) . '"></div>';
     echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
     echo '<div class="field"><label>Telegram</label><input type="text" name="tg" value="' . esc($player['tg']) . '"></div>';
     echo '<div class="field"><label>VK</label><input type="text" name="vk" value="' . esc($player['vk']) . '"></div>';

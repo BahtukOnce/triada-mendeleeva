@@ -54,7 +54,7 @@ if (count($ratings) > 1) {
 
 if ($rows) {
     // ── Номинации (среди игроков с минимумом игр) ──
-    $minG = (int)(setting('min_games_nomination') ?: '15');
+    $minG = (int)(setting('min_games_nomination') ?: '10');
     $cands = array_filter($rows, fn($r) => (int)$r['games'] >= $minG);
     $bestBy = function (array $cands, callable $w, callable $g, int $min = 1) {
         $best = null;
@@ -125,7 +125,7 @@ if ($rows) {
         . '<th data-type="num">#</th><th>Игрок</th><th class="num" data-type="num">ELO</th>'
         . '<th class="num c-club" data-type="num">~Σ×Σ</th><th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
-        . '<th class="num" data-type="num">Допы</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
+        . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
         . '<th class="c-cards c-cards-first" data-type="num">Общ</th><th class="c-cards" data-type="num">Мир</th>'
         . '<th class="c-cards" data-type="num">Маф</th><th class="c-cards" data-type="num">Шер</th><th class="c-cards" data-type="num">Дон</th>'
         . '</tr></thead><tbody>';
@@ -148,6 +148,8 @@ if ($rows) {
         echo '<td class="num" data-sort="' . (int)$row['pu_count'] . '">' . (int)$row['pu_count'] . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['lh_sum'] . '">' . number_format((float)$row['lh_sum'], 1) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['dop_sum'] . '">' . number_format((float)$row['dop_sum'], 1) . '</td>';
+        $avgDop = (int)$row['games'] ? (float)$row['dop_sum'] / (int)$row['games'] : 0;
+        echo '<td class="num c-club" data-sort="' . round($avgDop, 3) . '"><b>' . number_format($avgDop, 2) . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['minus_sum'] . '">' . number_format((float)$row['minus_sum'], 1) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['ci_sum'] . '">' . number_format((float)$row['ci_sum'], 2) . '</td>';
         echo str_replace('c-cards"', 'c-cards c-cards-first"', wr_cell((int)$w, (int)$row['games']));

@@ -140,17 +140,22 @@ if ($stats) {
         $seat = (int)$h['seat'];
         if ($seat >= 1 && $seat <= 10) { $seatG[$seat]++; if ($won) { $seatW[$seat]++; } }
     }
-    $eh = db()->prepare('SELECT elo_after FROM elo_history WHERE player_id = ? ORDER BY id');
+    $eh = db()->prepare('SELECT elo_after, gdate FROM elo_history WHERE player_id = ? ORDER BY id');
     $eh->execute([$id]);
-    $eloSeries = array_map(fn($r) => round((float)$r['elo_after'], 1), $eh->fetchAll());
-    array_unshift($eloSeries, 1000.0);
+    $eloSeries = [1000.0];
+    $eloDates = ['старт'];
+    foreach ($eh->fetchAll() as $r) {
+        $eloSeries[] = round((float)$r['elo_after'], 1);
+        $eloDates[] = $r['gdate'] ? date('d.m.y', strtotime($r['gdate'])) : '';
+    }
     $chartData = json_encode([
         'outcomes' => [$winRed, $winBlk, $lossRed, $lossBlk, $dr],
         'elo' => $eloSeries,
+        'eloDates' => $eloDates,
     ], JSON_UNESCAPED_UNICODE);
 
     // ── Графики ──
-    echo '<div class="grid-2">';
+    echo '<div class="grid-2eq">';
     echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . $elo . '</h2>'
         . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div></div>';
     echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
@@ -158,7 +163,7 @@ if ($stats) {
     echo '</div>';
 
     // ── Винрейт по ролям (бары) + Показатели ──
-    echo '<div class="grid-2">';
+    echo '<div class="grid-2eq">';
     echo '<div class="card"><h2 style="margin-top:0;">Винрейт по ролям</h2><div class="role-bars">';
     foreach ($roleOrder as [$rk, $rl]) {
         $g = (int)$stats['g_' . $rk];
@@ -189,7 +194,7 @@ if ($stats) {
     $blkG = (int)$stats['g_maf'] + (int)$stats['g_don'];
     $blkW = (int)$stats['w_maf'] + (int)$stats['w_don'];
 
-    echo '<div class="grid-2">';
+    echo '<div class="grid-2eq">';
     echo '<div class="card"><h2 style="margin-top:0;">Раскладка по ролям</h2>'
         . '<p style="color:var(--tx2);font-size:12.5px;margin:-4px 0 12px;">как часто играл за каждую роль</p><div class="role-bars">';
     foreach ($roleOrder as [$rk, $rl2]) {
@@ -228,7 +233,7 @@ if ($stats) {
     }
     $form = array_slice($resDesc, 0, 14);
 
-    echo '<div class="grid-2">';
+    echo '<div class="grid-2eq">';
     echo '<div class="card"><h2 style="margin-top:0;">Серии и форма</h2>';
     $stType = $curType === 'W' ? 'побед подряд' : ($curType === 'L' ? 'поражений подряд' : 'нет серии');
     $stColor = $curType === 'W' ? 'var(--ok)' : ($curType === 'L' ? 'var(--ac)' : 'var(--tx2)');
@@ -312,11 +317,11 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
   c.restore();
 }};
 new Chart(document.getElementById('ch-elo'),{type:'line',
-  data:{labels:D.elo.map(function(_,i){return i;}),
+  data:{labels:D.eloDates,
     datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,borderWidth:2}]},
-  options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:function(){return '';},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
     label:function(c){return 'ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y);}}}},
-    scales:{x:{display:false},y:{grid:{color:grid}}},maintainAspectRatio:false},
+    scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{grid:{color:grid}}},maintainAspectRatio:false},
   plugins:[tierBands]});
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],

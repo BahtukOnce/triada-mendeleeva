@@ -103,6 +103,25 @@ function client_ip(): string
     return $_SERVER['REMOTE_ADDR'] ?? '';
 }
 
+// Кол-во требующих внимания админа: новые предложения + заявки на привязку
+function admin_alerts(): int
+{
+    static $n = -1;
+    if ($n < 0) {
+        $n = 0;
+        if (db_ready()) {
+            try {
+                $n = (int)db()->query("SELECT
+                    (SELECT COUNT(*) FROM suggestions WHERE status = 'new')
+                    + (SELECT COUNT(*) FROM link_requests WHERE status = 'pending')")->fetchColumn();
+            } catch (Throwable $e) {
+                $n = 0;
+            }
+        }
+    }
+    return $n;
+}
+
 // Игрок, привязанный к текущему пользователю (с автопривязкой по совпадающему нику)
 function current_player(): ?array
 {

@@ -64,7 +64,7 @@ function page_head(string $title, string $active = ''): void
     echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
     echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=17">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=18">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -84,7 +84,8 @@ function page_head(string $title, string $active = ''): void
 
     if ($u) {
         $roleCls = role_level($u['role']) >= 3 ? 'role-admin' : (user_can_judge($u) ? 'role-judge' : 'role-player');
-        echo '<div class="user-pill-wrap"><button class="user-pill ' . $roleCls . '" id="user-pill">' . esc($u['nickname']) . '</button>';
+        $pillDot = (role_level($u['role']) >= 3 && admin_alerts() > 0) ? '<span class="pill-dot" title="есть новые предложения/заявки"></span>' : '';
+        echo '<div class="user-pill-wrap"><button class="user-pill ' . $roleCls . '" id="user-pill">' . esc($u['nickname']) . $pillDot . '</button>';
         echo '<div class="user-menu" id="user-menu">';
         echo '<span class="user-menu-role">' . esc(role_label($u['role'])) . '</span>';
         echo '<a href="/cabinet.php">Личный кабинет</a>';
@@ -92,7 +93,8 @@ function page_head(string $title, string $active = ''): void
         echo '<a href="/my_stats.php">Моя статистика</a>';
         echo '<a href="/suggest.php">Предложить идею</a>';
         if (role_level($u['role']) >= 3) {
-            echo '<a href="/admin/">Админка</a>';
+            $al = admin_alerts();
+            echo '<a href="/admin/">Админка' . ($al > 0 ? ' <span class="nav-badge">' . $al . '</span>' : '') . '</a>';
         } else {
             if (user_can_judge($u)) {
                 echo '<a href="/admin/days.php">Вечера и игры</a>';

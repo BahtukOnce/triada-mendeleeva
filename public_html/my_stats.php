@@ -148,17 +148,22 @@ foreach (['civ', 'sheriff', 'maf', 'don'] as $rk) {
 }
 $roleDist = [$byRole['civ'][0], $byRole['sheriff'][0], $byRole['maf'][0], $byRole['don'][0]];
 $resultsData = [$wins, $losses, $draws];
-$eh = db()->prepare('SELECT elo_after FROM elo_history WHERE player_id = ? ORDER BY id');
+$eh = db()->prepare('SELECT elo_after, gdate FROM elo_history WHERE player_id = ? ORDER BY id');
 $eh->execute([$pid]);
-$eloSeries = array_map(fn($r) => (float)$r['elo_after'], $eh->fetchAll());
-array_unshift($eloSeries, 1000.0);
+$eloSeries = [1000.0];
+$eloDates = ['старт'];
+foreach ($eh->fetchAll() as $r) {
+    $eloSeries[] = round((float)$r['elo_after'], 1);
+    $eloDates[] = $r['gdate'] ? date('d.m.y', strtotime($r['gdate'])) : '';
+}
 $myElo = end($eloSeries) ?: 1000;
 
 $chartData = json_encode([
     'roleWr' => $roleWrData,
     'roleDist' => $roleDist,
     'results' => $resultsData,
-    'elo' => array_map(fn($v) => round($v, 1), $eloSeries),
+    'elo' => $eloSeries,
+    'eloDates' => $eloDates,
 ], JSON_UNESCAPED_UNICODE);
 
 echo '<h2 style="margin-top:14px;">Графики</h2>';
@@ -191,11 +196,12 @@ echo '</div>';
 
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',
-    data: { labels: D.elo.map(function (_, i) { return i; }),
+    data: { labels: D.eloDates,
       datasets: [{ data: D.elo, borderColor: red, backgroundColor: 'rgba(232,51,42,0.12)',
         fill: true, tension: 0.25, pointRadius: 0, borderWidth: 2 }] },
-    options: { plugins: { legend: { display: false } },
-      scales: { x: { display: false }, y: { grid: { color: grid } } },
+    options: { plugins: { legend: { display: false },
+        tooltip: { callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; } } } },
+      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { grid: { color: grid } } },
       maintainAspectRatio: false }
   });
 
