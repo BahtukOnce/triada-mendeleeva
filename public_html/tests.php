@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_login(); // тесты видно только участникам клуба
 
 page_head('Тесты', 'tests');
 echo '<h1>Тесты</h1>';

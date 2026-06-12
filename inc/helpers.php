@@ -39,10 +39,16 @@ function player_label(?array $p): string
 }
 
 // Цветная точка роли (мирный/шериф/мафия/дон) — единый код цвета по сайту
+// Палитра ролей — красно-чёрная: красная команда (мирный/шериф) красными
+// оттенками, чёрная (мафия/дон) — тёмными.
+function role_color(string $role): string
+{
+    return ['civ' => '#e8332a', 'sheriff' => '#f4938b', 'maf' => '#3f3f4a', 'don' => '#73737e'][$role] ?? '#888';
+}
+
 function role_dot(string $role): string
 {
-    $c = ['civ' => '#3a7bd5', 'sheriff' => '#d5a23a', 'maf' => '#c0392b', 'don' => '#8c8c96'][$role] ?? '#888';
-    return '<span class="hist-dot" style="background:' . $c . ';"></span>';
+    return '<span class="hist-dot" style="background:' . role_color($role) . ';"></span>';
 }
 
 // Медаль за место (1–3) или само место
@@ -122,10 +128,10 @@ function avatar_html(?array $player, int $size = 30, string $style = ''): string
     $fs = (int)round($size * 0.4);
     if (!empty($player['avatar']) && is_file(ROOT . '/public_html' . $player['avatar'])) {
         return '<img src="' . esc($player['avatar']) . '" alt="" style="width:' . $size . 'px;height:' . $size
-            . 'px;border-radius:50%;object-fit:cover;flex:none;' . $style . '">';
+            . 'px;border-radius:50%;object-fit:cover;flex:none;vertical-align:middle;' . $style . '">';
     }
     return '<span class="avatar-circle" style="width:' . $size . 'px;height:' . $size . 'px;font-size:' . $fs . 'px;'
-        . $style . '">' . esc($letter) . '</span>';
+        . 'vertical-align:middle;' . $style . '">' . esc($letter) . '</span>';
 }
 
 function player_id_by_nick(string $nick): ?int

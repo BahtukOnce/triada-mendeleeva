@@ -1,19 +1,25 @@
 <?php
 declare(strict_types=1);
 
-function nav_items(): array
+function nav_items(bool $authed = true): array
 {
-    return [
+    $items = [
         'index'       => ['index.php', 'Главная'],
         'news'        => ['news.php', 'Новости'],
         'days'        => ['days.php', 'Игры'],
         'tournaments' => ['tournaments.php', 'Турниры'],
         'rating'      => ['rating.php', 'Рейтинг'],
         'players'     => ['players.php', 'Игроки'],
-        'photos'      => ['photos.php', 'Фото'],
-        'rules'       => ['rules.php', 'Правила'],
-        'tests'       => ['tests.php', 'Тесты'],
     ];
+    // Фото и Тесты — только для вошедших
+    if ($authed) {
+        $items['photos'] = ['photos.php', 'Фото'];
+    }
+    $items['rules'] = ['rules.php', 'Правила'];
+    if ($authed) {
+        $items['tests'] = ['tests.php', 'Тесты'];
+    }
+    return $items;
 }
 
 function logo_svg(int $width = 34): string
@@ -68,7 +74,7 @@ function page_head(string $title, string $active = ''): void
     echo '<button class="burger" id="nav-burger" aria-label="Меню"><span></span><span></span><span></span></button>';
 
     echo '<nav class="nav" id="site-nav">';
-    foreach (nav_items() as $key => [$href, $label]) {
+    foreach (nav_items($u !== null) as $key => [$href, $label]) {
         $cls = $key === $active ? ' class="active"' : '';
         echo '<a href="/' . $href . '"' . $cls . '>' . $label . '</a>';
     }

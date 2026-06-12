@@ -174,14 +174,19 @@ echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы и
 echo '</div>';
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
   var D = <?= $chartData ?>;
   if (typeof Chart === 'undefined') return;
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false });
+  var pctLabel = { display: true, color: '#fff', font: { weight: '600', size: 11 },
+    formatter: function (v, ctx) { var s = ctx.dataset.data.reduce(function (a, b) { return a + (+b || 0); }, 0); return s && v ? Math.round(v / s * 100) + '%' : ''; } };
   var grid = 'rgba(255,255,255,0.08)', tx = '#9c9ca6';
   Chart.defaults.color = tx;
   Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-  var red = '#e8332a', roleColors = ['#3a7bd5', '#d5a23a', '#9c2b2b', '#2b2b2b'];
+  var red = '#e8332a', roleColors = ['#e8332a', '#f4938b', '#3f3f4a', '#73737e'];
   var roleLabels = ['Мирный', 'Шериф', 'Мафия', 'Дон'];
 
   new Chart(document.getElementById('ch-elo'), {
@@ -205,14 +210,14 @@ echo '</div>';
   new Chart(document.getElementById('ch-roledist'), {
     type: 'doughnut',
     data: { labels: roleLabels, datasets: [{ data: D.roleDist, backgroundColor: roleColors, borderWidth: 0 }] },
-    options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }
+    options: { plugins: { legend: { position: 'bottom' }, datalabels: pctLabel }, maintainAspectRatio: false }
   });
 
   new Chart(document.getElementById('ch-results'), {
     type: 'doughnut',
     data: { labels: ['Победы', 'Поражения', 'Ничьи'],
       datasets: [{ data: D.results, backgroundColor: ['#2fa45c', red, '#888'], borderWidth: 0 }] },
-    options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }
+    options: { plugins: { legend: { position: 'bottom' }, datalabels: pctLabel }, maintainAspectRatio: false }
   });
 })();
 </script>

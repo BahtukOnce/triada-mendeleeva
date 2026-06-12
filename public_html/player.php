@@ -121,7 +121,7 @@ if ($stats) {
 
     // ── Данные графиков ──
     $roleOrder = [['civ', 'Мирный'], ['sher', 'Шериф'], ['maf', 'Мафия'], ['don', 'Дон']];
-    $roleClr = ['civ' => '#3a7bd5', 'sher' => '#d5a23a', 'maf' => '#c0392b', 'don' => '#8c8c96'];
+    $roleClr = ['civ' => '#e8332a', 'sher' => '#f4938b', 'maf' => '#3f3f4a', 'don' => '#73737e'];
     $wn = 0; $ls = 0; $dr = 0;
     $winRed = 0; $winBlk = 0; $lossRed = 0; $lossBlk = 0;
     $foulsSum = 0; $techSum = 0;
@@ -280,10 +280,14 @@ if ($stats) {
 
     // ── Chart.js: ELO с уровнями + исходы по командам ──
     echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>';
+    echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>';
     $js = <<<JS
 <script>(function(){
 var D = $chartData;
 if (typeof Chart === 'undefined') return;
+if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', {display:false});
+var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:function(v,ctx){var s=ctx.dataset.data.reduce(function(a,b){return a+(+b||0);},0);return s&&v?Math.round(v/s*100)+'%':'';}};
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
@@ -317,7 +321,7 @@ new Chart(document.getElementById('ch-elo'),{type:'line',
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
     datasets:[{data:D.outcomes,backgroundColor:['#2fa45c','#1f7a45','#e8332a','#8c2420','#888'],borderWidth:0}]},
-  options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},maintainAspectRatio:false}});
+  options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},datalabels:pctLabel},maintainAspectRatio:false}});
 })();</script>
 JS;
     echo $js;

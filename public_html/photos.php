@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_login(); // фото видно только участникам клуба
 
 $albums = [];
 if (db_ready()) {
