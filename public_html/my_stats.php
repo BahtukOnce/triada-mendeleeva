@@ -135,9 +135,10 @@ $jst = db()->prepare("SELECT COUNT(*) FROM games WHERE judge_player_id = ? AND s
 $jst->execute([$pid]);
 $judged = (int)$jst->fetchColumn();
 if ($judged > 0) {
-    echo '<div class="card" style="display:flex;align-items:center;gap:12px;">'
+    echo '<a class="card card-link" href="/my_judged.php" style="display:flex;align-items:center;gap:12px;">'
         . '<span class="tag tag-open" style="font-size:14px;">судья</span>'
-        . '<span>Вы отсудили <b>' . $judged . '</b> ' . ($judged % 10 === 1 && $judged % 100 !== 11 ? 'игру' : 'игр') . '.</span></div>';
+        . '<span>Вы отсудили <b>' . $judged . '</b> ' . ($judged % 10 === 1 && $judged % 100 !== 11 ? 'игру' : 'игр')
+        . '. <span style="color:var(--ac);">посмотреть, какие →</span></span></a>';
 }
 
 // ── Данные для графиков ──
@@ -249,6 +250,16 @@ echo '<p style="font-size:12.5px;color:var(--tx2);margin:10px 0 0;">Чёрных
     . ' из ' . $games . ' (' . ($games ? round($byColor['black'][0] / $games * 100) : 0) . '%).</p>';
 echo '</div></div>';
 
+// Лучший напарник: больше всего совместных побед в одном цвете (считаем заранее)
+$bestMate = null;
+foreach ($teammates as $opid => $m) {
+    if ($bestMate === null || $m['wins'] > $bestMate['wins']
+        || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
+        $bestMate = $m + ['id' => $opid];
+    }
+}
+
+echo '<div class="grid-2eq">';
 // ПУ и лучший ход
 echo '<div class="card"><h2 style="margin-top:0;">Первоубиенный и лучший ход</h2>';
 echo '<table class="tbl">';
@@ -261,14 +272,7 @@ echo '<tr><td style="color:var(--tx2);">Допов всего / минусов</
 echo '<tr><td style="color:var(--tx2);">Фолов / техфолов</td><td class="num">' . $foulsSum . ' / ' . $techSum . '</td></tr>';
 echo '</table></div>';
 
-// Лучший напарник: больше всего совместных побед в одном цвете
-$bestMate = null;
-foreach ($teammates as $opid => $m) {
-    if ($bestMate === null || $m['wins'] > $bestMate['wins']
-        || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
-        $bestMate = $m + ['id' => $opid];
-    }
-}
+// Лучший напарник
 if ($bestMate && $bestMate['wins'] > 0) {
     echo '<div class="card card-accent" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">';
     echo avatar_html(['nickname' => $bestMate['nick']], 44, 'background:var(--acsf);color:var(--ac);');
@@ -278,7 +282,10 @@ if ($bestMate && $bestMate['wins'] > 0) {
         . '<div style="font-size:13px;color:var(--tx2);">' . $bestMate['wins'] . ' совместных побед в '
         . $bestMate['games'] . ' играх вместе · винрейт ' . $wr($bestMate['wins'], $bestMate['games']) . '</div></div>';
     echo '</div>';
+} else {
+    echo '<div class="card"><h2 style="margin-top:0;">Лучший напарник</h2><p style="color:var(--tx2);margin:0;">Пока мало совместных побед для расчёта.</p></div>';
 }
+echo '</div>';
 
 // Химия с партнёрами по цвету — по числу совместных побед
 uasort($teammates, fn($a, $b) => [$b['wins'], $b['games']] <=> [$a['wins'], $a['games']]);
