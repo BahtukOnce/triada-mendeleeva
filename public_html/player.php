@@ -68,7 +68,16 @@ $medal = $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : ($rank === 3 ? '🥉' : 
 
 echo '<div class="pf-hero">';
 echo '<div class="pf-ava">' . avatar_html($player, 64, 'background:var(--acsf);color:var(--ac);font-size:26px;') . '</div>';
-echo '<div class="pf-id"><h1 class="pf-name">' . player_label($player) . '</h1>';
+$flairStr = trim((string)($player['flair'] ?? ''));
+$flairHtml = '';
+if ($flairStr !== '') {
+    $cps = [];
+    foreach (mb_str_split($flairStr) as $ch) {
+        $cps[] = dechex(mb_ord($ch));
+    }
+    $flairHtml = ' <span class="flair flair-anim" data-cp="' . esc(implode('_', $cps)) . '">' . esc($flairStr) . '</span>';
+}
+echo '<div class="pf-id"><h1 class="pf-name">' . esc($player['nickname']) . $flairHtml . '</h1>';
 echo '<div class="pf-badges">';
 if ($rank) {
     echo '<span class="rank-badge' . ($rank <= 3 ? ' r' . $rank : '') . '">'
@@ -408,4 +417,15 @@ if ($history) {
     }
     echo '</table></div></div>';
 }
+
+// Живые стикеры-висюльки: анимация эмодзи (Google Noto), если доступна; иначе статичный эмодзи
+echo '<script>(function(){var els=document.querySelectorAll(".flair-anim[data-cp]");if(!els.length){return;}'
+    . 'var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js";'
+    . 's.onload=function(){els.forEach(function(el){var cp=el.getAttribute("data-cp");'
+    . 'fetch("https://fonts.gstatic.com/s/e/notoemoji/latest/"+cp+"/lottie.json").then(function(r){if(!r.ok){throw 0;}return r.json();})'
+    . '.then(function(data){var box=document.createElement("span");box.style.cssText="display:inline-block;width:1.05em;height:1.05em;vertical-align:-0.18em;";'
+    . 'el.textContent="";el.classList.add("is-lottie");el.appendChild(box);'
+    . 'lottie.loadAnimation({container:box,renderer:"svg",loop:true,autoplay:true,animationData:data});}).catch(function(){});});};'
+    . 'document.head.appendChild(s);})();</script>';
+
 page_foot();

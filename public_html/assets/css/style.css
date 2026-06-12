@@ -500,6 +500,7 @@ body::before {
 .emoji-pick button:hover { border-color: var(--ac); background: var(--acsf); }
 .emoji-pick button.ep-sel { border-color: var(--ac); background: var(--acsf); }
 
+.pf-name .flair.is-lottie { animation: none; }
 @media (prefers-reduced-motion: no-preference) {
   .pf-name .flair { display: inline-block; animation: flairWiggle 2.6s ease-in-out infinite; transform-origin: 50% 80%; }
   @keyframes flairWiggle {
