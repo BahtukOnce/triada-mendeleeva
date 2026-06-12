@@ -68,14 +68,42 @@ foreach ($games as $g) {
     $totals = game_display_totals($g, $seats);
     foreach ($seats as $s) {
         $pid = (int)$s['player_id'];
-        $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0];
+        $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'elo' => $s['elo'], 'pid' => $pid, 'games' => 0, 'sum' => 0.0, 'plus' => 0.0];
         $standing[$pid]['games']++;
         $standing[$pid]['sum'] += $totals[(int)$s['seat']]['total'] ?? 0;
+        $standing[$pid]['plus'] += (float)$s['plus'];
     }
 }
 uasort($standing, fn($a, $b) => $b['sum'] <=> $a['sum']);
 
 if ($standing) {
+    // ── Номинации турнира: считаются по допам за карту ──
+    $mvp = reset($standing); // $standing уже отсортирован по Σ
+    $byPlus = $standing;
+    uasort($byPlus, fn($a, $b) => $b['plus'] <=> $a['plus']);
+    $topPlus = reset($byPlus);
+    $byAvg = array_filter($standing, fn($r) => $r['games'] >= 3);
+    uasort($byAvg, fn($a, $b) => ($b['plus'] / max(1, $b['games'])) <=> ($a['plus'] / max(1, $a['games'])));
+    $topAvg = reset($byAvg);
+    $nomCard = function (string $title, array $r, string $meta): string {
+        return '<div class="nom-card"><div class="nom-title">' . $title . '</div>'
+            . '<a class="nom-player" href="/player.php?id=' . (int)$r['pid'] . '">'
+            . avatar_html(['nickname' => $r['nick'], 'avatar' => $r['avatar']], 34)
+            . '<span>' . esc($r['nick']) . '</span></a>'
+            . '<div class="nom-meta">' . $meta . '</div></div>';
+    };
+    echo '<div class="noms-grid">';
+    if ($mvp) {
+        echo $nomCard('🏆 MVP турнира', $mvp, 'Σ ' . number_format($mvp['sum'], 2) . ' · ' . (int)$mvp['games'] . ' игр');
+    }
+    if ($topPlus && $topPlus['plus'] > 0) {
+        echo $nomCard('➕ Король допов', $topPlus, number_format($topPlus['plus'], 1) . ' допов за турнир');
+    }
+    if ($topAvg && $topAvg['plus'] > 0) {
+        echo $nomCard('🎯 Допы за карту', $topAvg, number_format($topAvg['plus'] / $topAvg['games'], 2) . ' доп/игра');
+    }
+    echo '</div>';
+
     echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2><table class="tbl">';
     echo '<tr><th>#</th><th>Игрок</th><th class="num">Игр</th><th class="num">Σ</th><th class="num">ELO</th></tr>';
     $pos = 0;
