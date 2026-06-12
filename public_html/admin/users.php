@@ -38,8 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->prepare("UPDATE users SET $col = ? WHERE id = ?")->execute([$val, $targetId]);
             log_action((int)$u['id'], 'cap_change', ['user_id' => $targetId, 'cap' => $cap, 'val' => $val]);
             if ($isAjax) {
+                $target[$col] = $val;
                 header('Content-Type: application/json');
-                echo json_encode(['ok' => true, 'on' => (bool)$val]);
+                echo json_encode(['ok' => true, 'on' => (bool)$val, 'status' => status_html($target)]);
                 exit;
             }
             flash_set('ok', ($cap === 'judge' ? 'Судья' : 'Фотограф') . ($val ? ' назначен' : ' снят') . ': ' . $target['nickname']);
@@ -53,10 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'role') {
-        if (!$isOwner) {
-            flash_set('err', 'Менять роли админ/глава может только глава клуба');
-            redirect('/admin/users.php');
-        }
+        // Менять роли может любой админ/руководитель. Руководителей может быть несколько.
         $newRole = (string)($_POST['role'] ?? '');
         if (!in_array($newRole, ['player', 'admin', 'owner'], true)) {
             flash_set('err', 'Неизвестная роль');
@@ -66,17 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Нельзя менять собственную роль');
             redirect('/admin/users.php');
         }
-        if ($newRole === 'owner') {
-            // Передача главенства: текущий глава становится админом
-            db()->prepare("UPDATE users SET role = 'admin' WHERE id = ?")->execute([(int)$u['id']]);
-            db()->prepare("UPDATE users SET role = 'owner' WHERE id = ?")->execute([$targetId]);
-            log_action((int)$u['id'], 'owner_transfer', ['to' => $targetId]);
-            flash_set('ok', 'Главой клуба назначен «' . $target['nickname'] . '». Вы теперь админ.');
-        } else {
-            db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$newRole, $targetId]);
-            log_action((int)$u['id'], 'role_change', ['user_id' => $targetId, 'role' => $newRole]);
-            flash_set('ok', 'Роль «' . $target['nickname'] . '» → ' . role_label($newRole));
+        if ($target['role'] === 'owner' && $newRole !== 'owner') {
+            $owners = (int)db()->query("SELECT COUNT(*) FROM users WHERE role = 'owner'")->fetchColumn();
+            if ($owners <= 1) {
+                flash_set('err', 'Нельзя снять последнего руководителя — сначала назначьте ещё одного');
+                redirect('/admin/users.php');
+            }
         }
+        db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$newRole, $targetId]);
+        log_action((int)$u['id'], 'role_change', ['user_id' => $targetId, 'role' => $newRole]);
+        flash_set('ok', 'Роль «' . $target['nickname'] . '» → ' . role_label($newRole));
         redirect('/admin/users.php');
     }
 
@@ -133,9 +130,7 @@ echo '<div class="stat"><div class="lbl">зарегистрировано</div><
 echo '<div class="stat"><div class="lbl">привязали Telegram</div><div class="val">' . (int)$cnt['tg'] . '</div></div>';
 echo '<div class="stat"><div class="lbl">сейчас в сети</div><div class="val" style="color:var(--ok);">' . (int)$cnt['online'] . '</div></div>';
 echo '</div>';
-if (!$isOwner) {
-    echo '<p style="color:var(--tx2);font-size:13px;">Сброс пароля доступен админам. Менять роли может только глава клуба.</p>';
-}
+echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы и руководители. Руководителей может быть несколько; последнего снять нельзя. Удаление аккаунта — только у руководителя.</p>';
 
 echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';
 echo '<form method="get" action="/admin/users.php" style="max-width:300px;flex:1;min-width:200px;">';
@@ -156,6 +151,16 @@ function cap_btn(int $rid, string $cap, bool $on, string $label): string
         . ($on ? '✓ ' : '+ ') . $label . '</button></form>';
 }
 
+function status_html(array $row): string
+{
+    $h = '';
+    foreach (user_role_badges($row) as $b) {
+        $red = in_array($b, ['руководитель', 'админ'], true);
+        $h .= '<span class="tag" style="margin-right:4px;' . ($red ? 'color:var(--ac);' : '') . '">' . $b . '</span>';
+    }
+    return $h;
+}
+
 echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
 echo '<tr><th>Аккаунт</th><th>Имя</th><th>Telegram</th><th>Статус</th><th>Роли</th><th></th></tr>';
 foreach ($list as $row) {
@@ -171,21 +176,15 @@ foreach ($list as $row) {
     echo '<td>' . ($row['tg_user_id']
         ? '<span class="tag tag-ok">' . ($row['tg_username'] ? '@' . esc($row['tg_username']) : 'привязан') . '</span>'
         : '<span style="color:var(--tx3);">—</span>') . '</td>';
-    // Статус
-    $badges = user_role_badges($row);
-    echo '<td>';
-    foreach ($badges as $bi => $b) {
-        $red = in_array($b, ['руководитель', 'админ'], true);
-        echo '<span class="tag" style="margin-right:4px;' . ($red ? 'color:var(--ac);' : '') . '">' . $b . '</span>';
-    }
-    echo '</td>';
+    // Статус (напр. «судья + игрок»)
+    echo '<td class="us-status" data-uid="' . $rid . '">' . status_html($row) . '</td>';
     // Управление ролями
     echo '<td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">';
     if (!$isAdminRow) {
         echo cap_btn($rid, 'judge', !empty($row['is_judge']), 'судья');
         echo cap_btn($rid, 'photo', !empty($row['is_photographer']), 'фотограф');
     }
-    if ($isOwner && $rid !== (int)$u['id']) {
+    if ($rid !== (int)$u['id']) {
         echo '<form method="post" action="/admin/users.php" style="display:inline;">' . csrf_field();
         echo '<input type="hidden" name="form" value="role"><input type="hidden" name="user_id" value="' . $rid . '">';
         echo '<select name="role" onchange="if(confirm(\'Сменить роль?\'))this.form.submit();" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;font-size:12px;">';
@@ -216,7 +215,8 @@ echo '<script>(function(){'
     . 'var fd=new FormData(f);fd.append("ajax","1");btn.disabled=true;'
     . 'fetch("/admin/users.php",{method:"POST",body:fd,headers:{"X-Requested-With":"XMLHttpRequest"}})'
     . '.then(function(r){return r.json();}).then(function(d){btn.disabled=false;if(!d.ok){return;}'
-    . 'var on=d.on;btn.classList.toggle("tag-open",on);btn.textContent=(on?"✓ ":"+ ")+label;valInp.value=on?"0":"1";})'
+    . 'var on=d.on;btn.classList.toggle("tag-open",on);btn.textContent=(on?"✓ ":"+ ")+label;valInp.value=on?"0":"1";'
+    . 'var tr=f.closest("tr");if(tr&&d.status!==undefined){var st=tr.querySelector(".us-status");if(st){st.innerHTML=d.status;}}})'
     . '.catch(function(){btn.disabled=false;});});});})();</script>';
 
 page_foot();
