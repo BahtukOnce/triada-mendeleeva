@@ -408,6 +408,14 @@ body::before {
 
 .hist-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
 
+/* ── Достижения ─────────────────────────────────── */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(142px, 1fr)); gap: 10px; margin-top: 10px; }
+.ach { background: var(--sf2); border: 1px solid var(--bd); border-radius: 12px; padding: 12px 10px; text-align: center; opacity: 0.5; filter: grayscale(0.75); }
+.ach-on { opacity: 1; filter: none; border-color: var(--ac); background: var(--acsf); }
+.ach-ic { font-size: 26px; line-height: 1; }
+.ach-t { font-weight: 650; font-size: 13px; margin-top: 6px; }
+.ach-d { font-size: 11px; color: var(--tx2); margin-top: 2px; line-height: 1.3; }
+
 .rating-tbl .c-club { background: rgba(232,51,42,0.07); }
 .rating-tbl tr.rt-top td { background: rgba(232,51,42,0.045); }
 .rating-tbl tr.rt-top:hover td { background: var(--sf2); }
@@ -450,6 +458,13 @@ body::before {
 /* ── Бейдж-уведомление и красивая кнопка «ещё» ──── */
 .nav-badge { display: inline-block; background: var(--ac); color: #fff; font-size: 11px; font-weight: 700; min-width: 17px; height: 17px; line-height: 17px; padding: 0 5px; border-radius: 9px; text-align: center; vertical-align: 1px; }
 .pill-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ac); margin-left: 7px; vertical-align: 1px; box-shadow: 0 0 0 3px var(--acsf); }
+.stat-alert { border-color: var(--ac) !important; background: var(--acsf); }
+.fav-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--sf2); color: var(--tx); }
+.fav-chip .fdot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,0.18); }
+
+.nav a.nav-admin { color: var(--ac); font-weight: 600; }
+.nav a.nav-admin:hover { color: var(--ac-h); background: var(--acsf); }
+.nav a.nav-admin::after { background: var(--ac); }
 .section-head .more {
   font-size: 12.5px; color: var(--ac); padding: 5px 13px; border: 1px solid var(--bd);
   border-radius: 20px; white-space: nowrap;

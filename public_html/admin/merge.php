@@ -24,9 +24,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
     }
     $src = $found[$srcId];
     $dst = $found[$dstId];
-    if ($src['user_id'] && $dst['user_id']) {
-        flash_set('err', 'У обоих ников есть аккаунты — сначала отвяжите один (через БД/поддержку)');
-        redirect('/admin/merge.php');
+    // Если у обоих есть аккаунт — аккаунт источника отвяжется (источник удаляется),
+    // аккаунт цели остаётся. Сообщим об этом.
+    $bothAccts = $src['user_id'] && $dst['user_id'];
+    if ($bothAccts) {
+        // снимаем привязку аккаунта с источника заранее (на всякий случай)
+        $pdo = db();
+        $pdo->prepare('UPDATE players SET user_id = NULL WHERE id = ?')->execute([$srcId]);
+        $src['user_id'] = null;
     }
 
     $pdo = db();
@@ -68,7 +73,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
     rating_recompute_all();
     elo_recompute();
     log_action((int)$u['id'], 'players_merge', ['src' => $src['nickname'], 'dst' => $dst['nickname']]);
-    flash_set('ok', 'Слито: «' . $src['nickname'] . '» → «' . $dst['nickname'] . '». Рейтинг и ELO пересчитаны.');
+    flash_set('ok', 'Слито: «' . $src['nickname'] . '» → «' . $dst['nickname'] . '». Рейтинг и ELO пересчитаны.'
+        . ($bothAccts ? ' Аккаунт ника-источника отвязан (при необходимости удалите его в «Пользователи»).' : ''));
+    redirect('/admin/merge.php');
+}
+
+// Переименование ника игрока
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'rename') {
+    csrf_check();
+    $pidR = (int)($_POST['player_id'] ?? 0);
+    $newNick = nickname_clean((string)($_POST['new_nick'] ?? ''));
+    if (!$pidR || $newNick === '') {
+        flash_set('err', 'Выберите игрока и укажите новый ник (без эмодзи)');
+        redirect('/admin/merge.php');
+    }
+    $c = db()->prepare('SELECT id FROM players WHERE LOWER(nickname) = LOWER(?) AND id <> ?');
+    $c->execute([$newNick, $pidR]);
+    if ($c->fetch()) {
+        flash_set('err', 'Ник «' . $newNick . '» уже занят другим игроком — используйте слияние');
+        redirect('/admin/merge.php');
+    }
+    $old = db()->prepare('SELECT nickname FROM players WHERE id = ?');
+    $old->execute([$pidR]);
+    $oldNick = (string)$old->fetchColumn();
+    db()->prepare('UPDATE players SET nickname = ? WHERE id = ?')->execute([$newNick, $pidR]);
+    log_action((int)$u['id'], 'player_rename', ['id' => $pidR, 'from' => $oldNick, 'to' => $newNick]);
+    flash_set('ok', 'Ник изменён: «' . $oldNick . '» → «' . $newNick . '»');
     redirect('/admin/merge.php');
 }
 
@@ -125,6 +155,21 @@ echo $sel('src', 'Источник (будет удалён)');
 echo $sel('dst', 'Цель (останется)');
 echo '<button class="btn" type="submit">Слить</button>';
 echo '</div></form></div>';
+
+// ── Переименование ника ──
+echo '<div class="card"><h2 style="margin-top:0;">Переименовать ник игрока</h2>';
+echo '<form method="post" action="/admin/merge.php" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">' . csrf_field();
+echo '<input type="hidden" name="form" value="rename">';
+echo '<div class="field" style="margin:0;flex:1;min-width:220px;"><label>Игрок</label>'
+    . '<select name="player_id" required style="width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;">'
+    . '<option value="">— выбрать —</option>';
+foreach ($players as $p) {
+    echo '<option value="' . (int)$p['id'] . '">' . esc($p['nickname']) . ' (' . (int)$p['games'] . ' игр)</option>';
+}
+echo '</select></div>';
+echo '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>Новый ник (без эмодзи)</label><input type="text" name="new_nick" required></div>';
+echo '<button class="btn" type="submit">Переименовать</button>';
+echo '</form></div>';
 
 if ($pairs) {
     echo '<div class="card"><h2 style="margin-top:0;">Похожие ники (' . count($pairs) . ')</h2>';

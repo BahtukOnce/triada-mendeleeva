@@ -64,7 +64,7 @@ function page_head(string $title, string $active = ''): void
     echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
     echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=18">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=19">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -77,6 +77,11 @@ function page_head(string $title, string $active = ''): void
     foreach (nav_items($u !== null) as $key => [$href, $label]) {
         $cls = $key === $active ? ' class="active"' : '';
         echo '<a href="/' . $href . '"' . $cls . '>' . $label . '</a>';
+    }
+    if ($u && role_level($u['role']) >= 3) {
+        $al = admin_alerts();
+        echo '<a href="/admin/" class="nav-admin' . ($active === 'admin' ? ' active' : '') . '">Админка'
+            . ($al > 0 ? ' <span class="nav-badge">' . $al . '</span>' : '') . '</a>';
     }
     echo '</nav>';
 

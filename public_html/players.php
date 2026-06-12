@@ -49,9 +49,12 @@ if ($list) {
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
         echo '<a class="player-card" href="/player.php?id=' . (int)$p['id'] . '">';
+        $favHtml = $p['fav_role']
+            ? '<span class="fav-chip"><span class="fdot" style="background:' . role_color($p['fav_role'] === 'sheriff' ? 'sheriff' : $p['fav_role']) . ';"></span>' . esc($roleLbl[$p['fav_role']]) . '</span>'
+            : '<span style="color:var(--tx3);font-size:11.5px;">роль не выбрана</span>';
         echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
             . '<div class="pc-name">' . player_label($p)
-            . '<div class="pc-fav">' . ($p['fav_role'] ? esc($roleLbl[$p['fav_role']]) : 'роль не выбрана') . '</div></div></div>';
+            . '<div class="pc-fav">' . $favHtml . '</div></div></div>';
         echo '<div class="pc-stats">'
             . '<div><b>' . $g . '</b><span>игр</span></div>'
             . '<div><b>' . ($wr !== null ? $wr . '%' : '—') . '</b><span>винрейт</span></div>'

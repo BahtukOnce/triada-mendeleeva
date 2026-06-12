@@ -9,6 +9,7 @@ if (db_ready()) {
     $counts['days_open'] = (int)db()->query("SELECT COUNT(*) FROM game_days WHERE status = 'reg_open'")->fetchColumn();
     $counts['players'] = (int)db()->query('SELECT COUNT(*) FROM players')->fetchColumn();
     $counts['news'] = (int)db()->query('SELECT COUNT(*) FROM news')->fetchColumn();
+    $counts['sugg_new'] = (int)db()->query("SELECT COUNT(*) FROM suggestions WHERE status = 'new'")->fetchColumn();
     try {
         $online = db()->query("SELECT us.nickname, us.last_seen, p.id AS player_id, p.avatar, p.nickname AS pnick
             FROM users us LEFT JOIN players p ON p.user_id = us.id
@@ -21,26 +22,38 @@ if (db_ready()) {
 page_head('Админка', '');
 echo '<h1>Админка</h1>';
 
-$items = [
-    ['/admin/days.php', 'Игровые вечера', 'создание, запись, статусы'],
-    ['/admin/tournaments.php', 'Турниры', 'создание, лого, статусы'],
-    ['/admin/links.php', 'Заявки на привязку', $counts['pending'] ? '⚠ ожидают: ' . $counts['pending'] : 'нет ожидающих'],
-    ['/admin/users.php', 'Пользователи и роли', 'сброс паролей, роли'],
-    ['/admin/suggestions.php', 'Предложения', 'идеи от участников'],
-    ['/admin/merge.php', 'Слияние ников', 'дубли игроков'],
-    ['/admin/news.php', 'Новости', 'публикации: ' . $counts['news']],
-    ['/admin/rules.php', 'Правила и тексты', 'правила, «О клубе», бот'],
-    ['/admin/notify.php', 'Telegram-рассылка', 'анонсы и напоминания'],
-    ['/admin/albums.php', 'Фотоальбомы', 'загрузка фото'],
-    ['/admin/logs.php', 'Логи', 'действия пользователей'],
+// [href, заголовок, подсказка, alert?] — alert подсвечивает плитку
+$groups = [
+    'Игры и турниры' => [
+        ['/admin/days.php', 'Игровые вечера', $counts['days_open'] ? $counts['days_open'] . ' с открытой записью' : 'создание, запись, статусы', $counts['days_open'] > 0],
+        ['/admin/tournaments.php', 'Турниры', 'создание, лого, статусы', false],
+        ['/admin/merge.php', 'Игроки: слияние и ники', 'дубли, переименование', false],
+    ],
+    'Люди' => [
+        ['/admin/users.php', 'Пользователи и роли', 'роли, Telegram, в сети, пароли', false],
+        ['/admin/links.php', 'Заявки на привязку', $counts['pending'] ? '⚠ ожидают: ' . $counts['pending'] : 'нет ожидающих', $counts['pending'] > 0],
+        ['/admin/suggestions.php', 'Предложения', $counts['sugg_new'] ? '⚠ новых: ' . $counts['sugg_new'] : 'идеи от участников', $counts['sugg_new'] > 0],
+    ],
+    'Контент' => [
+        ['/admin/news.php', 'Новости', 'публикаций: ' . $counts['news'], false],
+        ['/admin/albums.php', 'Фотоальбомы', 'загрузка фото и видео', false],
+        ['/admin/rules.php', 'Правила и тексты', 'правила, «О клубе», бот', false],
+        ['/admin/notify.php', 'Telegram-рассылка', 'анонсы и напоминания', false],
+    ],
+    'Система' => [
+        ['/admin/logs.php', 'Логи', 'действия пользователей', false],
+    ],
 ];
-echo '<div class="grid-stats" style="grid-template-columns:repeat(3,minmax(0,1fr));">';
-foreach ($items as [$href, $title, $hint]) {
-    echo '<a class="stat" href="' . $href . '" style="color:var(--tx);">'
-        . '<div class="val" style="font-size:16px;">' . $title . '</div>'
-        . '<div class="lbl">' . esc($hint) . '</div></a>';
+foreach ($groups as $gname => $gitems) {
+    echo '<h2 style="margin:18px 0 8px;">' . $gname . '</h2>';
+    echo '<div class="grid-stats" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">';
+    foreach ($gitems as [$href, $title, $hint, $alert]) {
+        echo '<a class="stat' . ($alert ? ' stat-alert' : '') . '" href="' . $href . '" style="color:var(--tx);">'
+            . '<div class="val" style="font-size:16px;">' . $title . '</div>'
+            . '<div class="lbl"' . ($alert ? ' style="color:var(--ac);"' : '') . '>' . esc($hint) . '</div></a>';
+    }
+    echo '</div>';
 }
-echo '</div>';
 
 echo '<div class="card"><div class="section-head"><h2 style="margin:0;">Сейчас в сети (' . count($online) . ')</h2>'
     . '<a class="more" href="/admin/users.php">все пользователи →</a></div>';

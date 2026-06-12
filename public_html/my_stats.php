@@ -191,7 +191,7 @@ echo '</div>';
   var grid = 'rgba(255,255,255,0.08)', tx = '#9c9ca6';
   Chart.defaults.color = tx;
   Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-  var red = '#e8332a', roleColors = ['#e8332a', '#f4938b', '#3f3f4a', '#73737e'];
+  var red = '#e8332a', roleColors = ['#e8332a', '#e6b13a', '#50505a', '#0e0e12'];
   var roleLabels = ['Мирный', 'Шериф', 'Мафия', 'Дон'];
 
   new Chart(document.getElementById('ch-elo'), {
@@ -215,7 +215,7 @@ echo '</div>';
 
   new Chart(document.getElementById('ch-roledist'), {
     type: 'doughnut',
-    data: { labels: roleLabels, datasets: [{ data: D.roleDist, backgroundColor: roleColors, borderWidth: 0 }] },
+    data: { labels: roleLabels, datasets: [{ data: D.roleDist, backgroundColor: roleColors, borderColor: '#17171c', borderWidth: 2 }] },
     options: { plugins: { legend: { position: 'bottom' }, datalabels: pctLabel }, maintainAspectRatio: false }
   });
 

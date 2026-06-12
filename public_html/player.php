@@ -75,7 +75,7 @@ if ($rank) {
         . ($medal ? $medal . ' #' . $rank : '#' . $rank) . ' в рейтинге</span>';
 }
 if (!empty($player['fav_role'])) {
-    echo '<span class="tag">любимая роль: ' . esc($roleLbl[$player['fav_role']]) . '</span>';
+    echo '<span class="fav-chip"><span class="fdot" style="background:' . role_color($player['fav_role']) . ';"></span>любимая роль: ' . esc($roleLbl[$player['fav_role']]) . '</span>';
 }
 if (!empty($player['is_rhtu'])) {
     echo '<span class="tag">студент РХТУ</span>';
@@ -121,7 +121,7 @@ if ($stats) {
 
     // ── Данные графиков ──
     $roleOrder = [['civ', 'Мирный'], ['sher', 'Шериф'], ['maf', 'Мафия'], ['don', 'Дон']];
-    $roleClr = ['civ' => '#e8332a', 'sher' => '#f4938b', 'maf' => '#3f3f4a', 'don' => '#73737e'];
+    $roleClr = ['civ' => '#e8332a', 'sher' => '#e6b13a', 'maf' => '#50505a', 'don' => '#0e0e12'];
     $wn = 0; $ls = 0; $dr = 0;
     $winRed = 0; $winBlk = 0; $lossRed = 0; $lossBlk = 0;
     $foulsSum = 0; $techSum = 0;
@@ -282,6 +282,42 @@ if ($stats) {
         }
         echo '</div></div>';
     }
+
+    // ── Достижения (ачивки) ──
+    $triples = 0;
+    try {
+        $tq = db()->prepare("SELECT COUNT(*) FROM games g
+            JOIN game_seats me ON me.game_id = g.id AND me.player_id = ? AND me.seat = g.first_killed_seat AND me.role IN ('civ','sheriff')
+            WHERE g.status = 'finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+              AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id = g.id AND s.seat IN (g.bm_seat1, g.bm_seat2, g.bm_seat3) AND s.role IN ('maf','don')) = 3");
+        $tq->execute([$id]);
+        $triples = (int)$tq->fetchColumn();
+    } catch (Throwable $e) {
+    }
+    $donWr = (int)$stats['g_don'] >= 4 ? round((int)$stats['w_don'] / (int)$stats['g_don'] * 100) : 0;
+    $ach = [
+        ['🎬', 'Дебют', 'Первая игра', $games >= 1],
+        ['🎯', 'Десятка', '10 игр сыграно', $games >= 10],
+        ['🏛', 'Ветеран', '100 игр сыграно', $games >= 100],
+        ['🔥', 'На кураже', '3 победы подряд', $maxW >= 3],
+        ['⚡', 'Неудержимый', '5 побед подряд', $maxW >= 5],
+        ['⭐', 'Сильный', 'ELO 1500+', $elo >= 1500],
+        ['💎', 'Эксперт', 'ELO 2000+', $elo >= 2000],
+        ['👑', 'Мастер', 'ELO 2600+', $elo >= 2600],
+        ['➕', 'Щедрый на допы', '30+ допов всего', (float)$stats['dop_sum'] >= 30],
+        ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', $triples >= 1],
+        ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', $donWr >= 60],
+        ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)', $games >= 20 && $puPct < 20],
+    ];
+    $earnedN = count(array_filter($ach, fn($a) => $a[3]));
+    echo '<div class="card"><div class="section-head"><h2 style="margin:0;">Достижения</h2>'
+        . '<span style="font-size:13px;color:var(--tx2);">' . $earnedN . ' из ' . count($ach) . '</span></div>';
+    echo '<div class="ach-grid">';
+    foreach ($ach as [$ic, $t, $d, $ok]) {
+        echo '<div class="ach' . ($ok ? ' ach-on' : '') . '"><div class="ach-ic">' . $ic . '</div>'
+            . '<div class="ach-t">' . $t . '</div><div class="ach-d">' . $d . '</div></div>';
+    }
+    echo '</div></div>';
 
     // ── Chart.js: ELO с уровнями + исходы по командам ──
     echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>';
