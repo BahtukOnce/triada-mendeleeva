@@ -60,10 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Неизвестная роль');
             redirect('/admin/users.php');
         }
-        if ($targetId === (int)$u['id']) {
-            flash_set('err', 'Нельзя менять собственную роль');
-            redirect('/admin/users.php');
-        }
         if ($target['role'] === 'owner' && $newRole !== 'owner') {
             $owners = (int)db()->query("SELECT COUNT(*) FROM users WHERE role = 'owner'")->fetchColumn();
             if ($owners <= 1) {
@@ -184,7 +180,7 @@ foreach ($list as $row) {
         echo cap_btn($rid, 'judge', !empty($row['is_judge']), 'судья');
         echo cap_btn($rid, 'photo', !empty($row['is_photographer']), 'фотограф');
     }
-    if ($rid !== (int)$u['id']) {
+    if (true) {
         echo '<form method="post" action="/admin/users.php" style="display:inline;">' . csrf_field();
         echo '<input type="hidden" name="form" value="role"><input type="hidden" name="user_id" value="' . $rid . '">';
         echo '<select name="role" onchange="if(confirm(\'Сменить роль?\'))this.form.submit();" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;font-size:12px;">';
