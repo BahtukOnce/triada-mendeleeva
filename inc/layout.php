@@ -50,6 +50,13 @@ function page_head(string $title, string $active = ''): void
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
+    $base = rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/');
+    echo '<meta name="description" content="Клуб спортивной мафии «Триада Менделеева» (РХТУ): игровые вечера, турниры, клубный рейтинг и статистика игроков.">';
+    echo '<meta property="og:title" content="' . esc($title) . ' — Триада Менделеева">';
+    echo '<meta property="og:site_name" content="Триада Менделеева">';
+    echo '<meta property="og:type" content="website">';
+    echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
+    echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
     echo '<link rel="stylesheet" href="/assets/css/style.css?v=13">';
     echo '</head><body>';

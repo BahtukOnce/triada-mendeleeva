@@ -3,6 +3,40 @@ require dirname(__DIR__) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
 
 $id = (int)($_GET['id'] ?? 0);
+
+// Запись/отмена прямо со страницы вечера
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['form'] ?? '', ['day_reg', 'day_cancel'], true)) {
+    $u = require_login();
+    csrf_check();
+    $player = current_player();
+    if (!$player) {
+        flash_set('err', 'Сначала привяжите игровой ник в личном кабинете');
+        redirect('/cabinet.php');
+    }
+    if ($_POST['form'] === 'day_reg') {
+        $st = db()->prepare("SELECT id FROM game_days WHERE id = ? AND status = 'reg_open'");
+        $st->execute([$id]);
+        if ($st->fetch()) {
+            $tf = preg_match('/^\d{2}:\d{2}$/', (string)($_POST['time_from'] ?? '')) ? $_POST['time_from'] : null;
+            $tt = preg_match('/^\d{2}:\d{2}$/', (string)($_POST['time_to'] ?? '')) ? $_POST['time_to'] : null;
+            db()->prepare('INSERT INTO day_registrations (day_id, player_id, time_from, time_to, comment)
+                VALUES (?,?,?,?,?)
+                ON DUPLICATE KEY UPDATE time_from = VALUES(time_from), time_to = VALUES(time_to),
+                    comment = VALUES(comment), cancelled_at = NULL')
+                ->execute([$id, (int)$player['id'], $tf, $tt, trim((string)($_POST['comment'] ?? '')) ?: null]);
+            log_action((int)$u['id'], 'day_register', ['day_id' => $id]);
+            flash_set('ok', 'Вы записаны!');
+        } else {
+            flash_set('err', 'Запись на этот вечер закрыта');
+        }
+    } else {
+        db()->prepare('UPDATE day_registrations SET cancelled_at = NOW() WHERE day_id = ? AND player_id = ?')
+            ->execute([$id, (int)$player['id']]);
+        log_action((int)$u['id'], 'day_cancel', ['day_id' => $id]);
+        flash_set('ok', 'Запись отменена');
+    }
+    redirect('/day.php?id=' . $id);
+}
 $day = null;
 $games = [];
 $seatsByGame = [];
@@ -76,7 +110,37 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
         echo '<p style="color:var(--tx2);font-size:14px;margin:8px 0 0;">Пока никто не записался — будьте первым!</p>';
     }
     if ($day['status'] === 'reg_open') {
-        echo '<p style="margin:12px 0 0;"><a class="btn" href="/cabinet.php">Записаться</a></p>';
+        $me = current_user();
+        $myPlayer = current_player();
+        $myReg = null;
+        if ($myPlayer) {
+            foreach ($regs as $r) {
+                if ((int)$r['pid'] === (int)$myPlayer['id']) {
+                    $myReg = $r;
+                }
+            }
+        }
+        echo '<div style="margin:14px 0 0;border-top:1px solid var(--bd);padding-top:12px;">';
+        if (!$me) {
+            echo '<a class="btn" href="/login.php">Войти и записаться</a>';
+        } elseif (!$myPlayer) {
+            echo '<a class="btn" href="/cabinet.php">Привязать ник и записаться</a>';
+        } elseif ($myReg) {
+            echo '<form method="post" action="/day.php?id=' . $id . '" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' . csrf_field();
+            echo '<input type="hidden" name="form" value="day_cancel">';
+            echo '<span style="color:var(--ok);">✓ Вы записаны'
+                . ($myReg['time_from'] ? ' (' . substr($myReg['time_from'], 0, 5) . '–' . substr((string)$myReg['time_to'], 0, 5) . ')' : '') . '</span>';
+            echo '<button class="btn btn-ghost" type="submit">Отменить запись</button></form>';
+        } else {
+            echo '<form method="post" action="/day.php?id=' . $id . '">' . csrf_field();
+            echo '<input type="hidden" name="form" value="day_reg">';
+            echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
+            echo '<div class="field" style="margin:0;"><label>Могу с</label><input type="time" name="time_from"></div>';
+            echo '<div class="field" style="margin:0;"><label>до</label><input type="time" name="time_to"></div>';
+            echo '<div class="field" style="margin:0;flex:1;min-width:150px;"><label>Комментарий</label><input type="text" name="comment" placeholder="необязательно"></div>';
+            echo '<button class="btn" type="submit">Записаться</button></div></form>';
+        }
+        echo '</div>';
     }
     echo '</div>';
 }
@@ -111,6 +175,19 @@ if ($games) {
 
 // ── Игры вечера (сеткой) ──
 if ($games) {
+    // ELO-дельты по играм
+    $eloDelta = [];
+    try {
+        $gids = array_column($games, 'id');
+        $in = implode(',', array_fill(0, count($gids), '?'));
+        $st = db()->prepare("SELECT game_id, player_id, delta FROM elo_history WHERE game_id IN ($in)");
+        $st->execute($gids);
+        foreach ($st->fetchAll() as $row) {
+            $eloDelta[(int)$row['game_id']][(int)$row['player_id']] = (float)$row['delta'];
+        }
+    } catch (Throwable $e) {
+    }
+
     echo '<h2>Игры вечера</h2>';
     echo '<div class="tables-grid" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr));">';
     foreach ($games as $g) {
@@ -132,15 +209,23 @@ if ($games) {
                 . '<a href="/player.php?id=' . (int)$g['judge_id'] . '">' . esc($g['judge_nick']) . '</a></p>';
         }
         echo '<table class="tbl" style="font-size:12.5px;">';
-        echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">Итог</th></tr>';
+        echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">Итог</th><th class="num">ELO</th></tr>';
         foreach ($seats as $s) {
             $t = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             $isBlack = in_array($s['role'], ['maf', 'don'], true);
+            $ed = $eloDelta[(int)$g['id']][(int)$s['player_id']] ?? null;
+            $edHtml = '';
+            if ($ed !== null) {
+                $edHtml = $ed >= 0
+                    ? '<span style="color:var(--ok);">+' . number_format($ed, 1) . '</span>'
+                    : '<span style="color:var(--ac);">' . number_format($ed, 1) . '</span>';
+            }
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
                 . '<td>' . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
-                . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td></tr>';
+                . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
+                . '<td class="num" style="font-size:11.5px;">' . $edHtml . '</td></tr>';
         }
         echo '</table>';
         $bm = array_filter([(int)$g['bm_seat1'], (int)$g['bm_seat2'], (int)$g['bm_seat3']]);

@@ -145,6 +145,14 @@ page_head('Главная', 'index');
   </div>
   </div>
 
+  <?php $about = db_ready() ? trim(setting('about_text')) : ''; ?>
+  <?php if ($about !== ''): ?>
+  <div class="card">
+    <h2 style="margin-top:0;">О клубе</h2>
+    <div style="line-height:1.7;color:var(--tx2);"><?= nl2br(esc($about)) ?></div>
+  </div>
+  <?php endif; ?>
+
   <div class="card">
     <h2 style="margin-top:0;">Администрация клуба</h2>
     <?php if ($admins): ?>
