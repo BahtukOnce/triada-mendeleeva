@@ -20,7 +20,7 @@ if ($id && db_ready()) {
         if ($games) {
             $ids = array_column($games, 'id');
             $in = implode(',', array_fill(0, count($ids), '?'));
-            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar FROM game_seats gs
+            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs
                 JOIN players p ON p.id = gs.player_id
                 WHERE gs.game_id IN ($in) ORDER BY gs.game_id, gs.seat");
             $st->execute($ids);
@@ -50,7 +50,16 @@ if (!empty($t['logo'])) {
     echo '<h1>' . esc($t['title']) . '</h1>';
 }
 echo '<p style="color:var(--tx2);margin-top:6px;">Столов: ' . (int)$t['tables_count']
-    . ' · игр: ' . count($games) . '</p>';
+    . ' · игр: ' . count($games)
+    . ($t['date_from'] ? ' · ' . esc(date('d.m.Y', strtotime($t['date_from']))) : '')
+    . ($t['location'] ? ' · ' . esc($t['location']) : '') . '</p>';
+if (!empty($t['description'])) {
+    echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
+}
+if (user_can_judge(current_user())) {
+    echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
+        . '<a class="btn btn-ghost" href="/admin/tournaments.php">Все турниры / создать</a></p>';
+}
 
 // Итоговая таблица турнира
 $standing = [];
@@ -59,7 +68,7 @@ foreach ($games as $g) {
     $totals = game_display_totals($g, $seats);
     foreach ($seats as $s) {
         $pid = (int)$s['player_id'];
-        $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'games' => 0, 'sum' => 0.0];
+        $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0];
         $standing[$pid]['games']++;
         $standing[$pid]['sum'] += $totals[(int)$s['seat']]['total'] ?? 0;
     }
@@ -67,8 +76,8 @@ foreach ($games as $g) {
 uasort($standing, fn($a, $b) => $b['sum'] <=> $a['sum']);
 
 if ($standing) {
-    echo '<div class="card"><h2 style="margin-top:0;">Итоговая таблица</h2><table class="tbl">';
-    echo '<tr><th>#</th><th>Игрок</th><th class="num">Игр</th><th class="num">Σ</th></tr>';
+    echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2><table class="tbl">';
+    echo '<tr><th>#</th><th>Игрок</th><th class="num">Игр</th><th class="num">Σ</th><th class="num">ELO</th></tr>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
@@ -77,7 +86,8 @@ if ($standing) {
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 24, 'margin-right:7px;')
             . '<span style="vertical-align:middle;">' . esc($row['nick']) . '</span></a></td>'
             . '<td class="num">' . $row['games'] . '</td>'
-            . '<td class="num"><b>' . number_format($row['sum'], 2) . '</b></td></tr>';
+            . '<td class="num"><b>' . number_format($row['sum'], 2) . '</b></td>'
+            . '<td class="num">' . number_format((float)$row['elo'], 0, '.', '') . '</td></tr>';
     }
     echo '</table></div>';
 }

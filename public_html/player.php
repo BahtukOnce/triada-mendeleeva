@@ -123,6 +123,7 @@ if ($stats) {
     $roleOrder = [['civ', 'Мирный'], ['sher', 'Шериф'], ['maf', 'Мафия'], ['don', 'Дон']];
     $roleClr = ['civ' => '#3a7bd5', 'sher' => '#d5a23a', 'maf' => '#c0392b', 'don' => '#8c8c96'];
     $wn = 0; $ls = 0; $dr = 0;
+    $winRed = 0; $winBlk = 0; $lossRed = 0; $lossBlk = 0;
     $foulsSum = 0; $techSum = 0;
     $seatG = array_fill(1, 10, 0); $seatW = array_fill(1, 10, 0);
     $resDesc = []; // исходы от новых к старым: 'W' / 'L' / 'D'
@@ -132,9 +133,9 @@ if ($stats) {
             $dr++; $resDesc[] = 'D';
             continue;
         }
-        $won = ($h['winner'] === 'red' && in_array($h['role'], ['civ', 'sheriff'], true))
-            || ($h['winner'] === 'black' && in_array($h['role'], ['maf', 'don'], true));
-        $won ? $wn++ : $ls++;
+        $isRed = in_array($h['role'], ['civ', 'sheriff'], true);
+        $won = ($h['winner'] === 'red' && $isRed) || ($h['winner'] === 'black' && !$isRed);
+        if ($won) { $wn++; $isRed ? $winRed++ : $winBlk++; } else { $ls++; $isRed ? $lossRed++ : $lossBlk++; }
         $resDesc[] = $won ? 'W' : 'L';
         $seat = (int)$h['seat'];
         if ($seat >= 1 && $seat <= 10) { $seatG[$seat]++; if ($won) { $seatW[$seat]++; } }
@@ -144,7 +145,7 @@ if ($stats) {
     $eloSeries = array_map(fn($r) => round((float)$r['elo_after'], 1), $eh->fetchAll());
     array_unshift($eloSeries, 1000.0);
     $chartData = json_encode([
-        'results' => [$wn, $ls, $dr],
+        'outcomes' => [$winRed, $winBlk, $lossRed, $lossBlk, $dr],
         'elo' => $eloSeries,
     ], JSON_UNESCAPED_UNICODE);
 
@@ -277,18 +278,49 @@ if ($stats) {
         echo '</div></div>';
     }
 
-    // ── Chart.js ──
+    // ── Chart.js: ELO с уровнями + исходы по командам ──
     echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>';
-    echo '<script>(function(){var D=' . $chartData . ';if(typeof Chart==="undefined")return;'
-        . 'var grid="rgba(255,255,255,0.08)",tx="#9c9ca6",red="#e8332a";'
-        . 'Chart.defaults.color=tx;Chart.defaults.font.family="system-ui,-apple-system,\'Segoe UI\',Roboto,sans-serif";'
-        . 'new Chart(document.getElementById("ch-elo"),{type:"line",data:{labels:D.elo.map(function(_,i){return i;}),'
-        . 'datasets:[{data:D.elo,borderColor:red,backgroundColor:"rgba(232,51,42,0.12)",fill:true,tension:0.25,pointRadius:0,borderWidth:2}]},'
-        . 'options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:grid}}},maintainAspectRatio:false}});'
-        . 'new Chart(document.getElementById("ch-results"),{type:"doughnut",data:{labels:["Победы","Поражения","Ничьи"],'
-        . 'datasets:[{data:D.results,backgroundColor:["#2fa45c",red,"#888"],borderWidth:0}]},'
-        . 'options:{plugins:{legend:{position:"bottom"}},maintainAspectRatio:false}});'
-        . '})();</script>';
+    $js = <<<JS
+<script>(function(){
+var D = $chartData;
+if (typeof Chart === 'undefined') return;
+var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
+Chart.defaults.color = tx;
+Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
+function tierName(v){ return v>=2600?'Мастер':(v>=2000?'Сильный':(v>=1500?'Уверенный':(v>=1100?'Игрок':'Новичок'))); }
+var TIERS=[{f:0,t:1100,n:'Новичок',c:'rgba(140,140,150,0.05)'},
+  {f:1100,t:1500,n:'Игрок',c:'rgba(58,123,213,0.07)'},
+  {f:1500,t:2000,n:'Уверенный',c:'rgba(213,162,58,0.07)'},
+  {f:2000,t:2600,n:'Сильный',c:'rgba(232,51,42,0.08)'},
+  {f:2600,t:99999,n:'Мастер',c:'rgba(232,51,42,0.14)'}];
+var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
+  var ya=ch.scales.y, ar=ch.chartArea; if(!ya||!ar) return;
+  var c=ch.ctx; c.save();
+  TIERS.forEach(function(T){
+    var y1=ya.getPixelForValue(Math.min(T.t,ya.max));
+    var y2=ya.getPixelForValue(Math.max(T.f,ya.min));
+    if(y2<=ar.top||y1>=ar.bottom) return;
+    var top=Math.max(y1,ar.top), bot=Math.min(y2,ar.bottom);
+    c.fillStyle=T.c; c.fillRect(ar.left,top,ar.right-ar.left,bot-top);
+    if(bot-top>15){ c.fillStyle='rgba(255,255,255,0.32)'; c.font='10px system-ui'; c.textAlign='right';
+      c.fillText(T.n, ar.right-6, top+12); }
+  });
+  c.restore();
+}};
+new Chart(document.getElementById('ch-elo'),{type:'line',
+  data:{labels:D.elo.map(function(_,i){return i;}),
+    datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,borderWidth:2}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:function(){return '';},
+    label:function(c){return 'ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y);}}}},
+    scales:{x:{display:false},y:{grid:{color:grid}}},maintainAspectRatio:false},
+  plugins:[tierBands]});
+new Chart(document.getElementById('ch-results'),{type:'doughnut',
+  data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
+    datasets:[{data:D.outcomes,backgroundColor:['#2fa45c','#1f7a45','#e8332a','#8c2420','#888'],borderWidth:0}]},
+  options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},maintainAspectRatio:false}});
+})();</script>
+JS;
+    echo $js;
 } else {
     echo '<p style="color:var(--tx2);">Сыгранных игр в основном рейтинге пока нет.</p>';
 }

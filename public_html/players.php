@@ -6,12 +6,22 @@ $list = [];
 
 if (db_ready()) {
     $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    $sql = 'SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, p.elo, rc.games,
-            rc.w_civ, rc.w_maf, rc.w_sher, rc.w_don
+    // Игры и победы — ГЛОБАЛЬНО (дни + турниры), а не только основной рейтинг,
+    // чтобы у турнирных игроков тоже были игры и винрейт.
+    $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, p.elo,
+            agg.games, agg.wins
         FROM players p
-        LEFT JOIN rating_cache rc ON rc.player_id = p.id AND rc.rating_id = ?
-        WHERE p.banned_at IS NULL';
-    $params = [$mainId];
+        LEFT JOIN (
+            SELECT gs.player_id,
+                COUNT(*) AS games,
+                SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
+                          OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS wins
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            WHERE g.status = 'finished'
+            GROUP BY gs.player_id
+        ) agg ON agg.player_id = p.id
+        WHERE p.banned_at IS NULL";
+    $params = [];
     if ($q !== '') {
         $sql .= ' AND p.nickname LIKE ?';
         $params[] = '%' . $q . '%';
@@ -35,7 +45,7 @@ if ($list) {
     echo '<div class="player-grid">';
     foreach ($list as $p) {
         $g = $p['games'] !== null ? (int)$p['games'] : 0;
-        $w = (int)$p['w_civ'] + (int)$p['w_maf'] + (int)$p['w_sher'] + (int)$p['w_don'];
+        $w = (int)$p['wins'];
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
         echo '<a class="player-card" href="/player.php?id=' . (int)$p['id'] . '">';

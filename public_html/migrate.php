@@ -27,6 +27,40 @@ try {
     echo 'applied: ' . implode(', ', db()->query('SELECT id FROM _migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN)) . "\n";
     echo 'ratings rows: ' . (int)db()->query('SELECT COUNT(*) FROM ratings')->fetchColumn() . "\n";
 
+    // Разовая чистка существующих ников от эмодзи: ?cleannicks=1
+    // Эмодзи уходит в «висюльку» (flair), если она пуста. Коллизии (когда чистый
+    // ник уже занят другим игроком) пропускаются — их нужно слить вручную.
+    if (!empty($_GET['cleannicks'])) {
+        require_once ROOT . '/inc/helpers.php';
+        $players = db()->query('SELECT id, nickname, flair FROM players')->fetchAll();
+        $byNick = [];
+        foreach ($players as $p) {
+            $byNick[mb_strtolower($p['nickname'])][] = (int)$p['id'];
+        }
+        $changed = 0; $skipped = [];
+        foreach ($players as $p) {
+            $clean = nickname_clean((string)$p['nickname']);
+            if ($clean === '' || $clean === $p['nickname']) {
+                continue;
+            }
+            $low = mb_strtolower($clean);
+            $collide = false;
+            foreach ($byNick[$low] ?? [] as $oid) {
+                if ($oid !== (int)$p['id']) { $collide = true; break; }
+            }
+            if ($collide) { $skipped[] = $p['nickname']; continue; }
+            $emoji = flair_clean((string)$p['nickname']);
+            $flair = ($p['flair'] === null || $p['flair'] === '') ? ($emoji ?: null) : $p['flair'];
+            db()->prepare('UPDATE players SET nickname = ?, flair = ? WHERE id = ?')->execute([$clean, $flair, (int)$p['id']]);
+            $byNick[$low][] = (int)$p['id'];
+            $changed++;
+        }
+        echo 'ники очищены от эмодзи: ' . $changed . "\n";
+        if ($skipped) {
+            echo 'пропущены (коллизия — слейте вручную в Админка→Слияние): ' . implode(', ', $skipped) . "\n";
+        }
+    }
+
     // Расчёт ELO: при первом запуске или принудительно ?elo=1
     if (is_file(ROOT . '/inc/elo.php')) {
         $hasElo = (int)db()->query('SELECT COUNT(*) FROM elo_history')->fetchColumn();

@@ -54,7 +54,7 @@ if ($id && db_ready()) {
         if ($games) {
             $ids = array_column($games, 'id');
             $in = implode(',', array_fill(0, count($ids), '?'));
-            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar FROM game_seats gs
+            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs
                 JOIN players p ON p.id = gs.player_id
                 WHERE gs.game_id IN ($in) ORDER BY gs.game_id, gs.seat");
             $st->execute($ids);
@@ -153,7 +153,7 @@ if ($games) {
         $tt = game_display_totals($g, $seats);
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
-            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'games' => 0, 'sum' => 0.0];
+            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0];
             $standing[$pid]['games']++;
             $standing[$pid]['sum'] += $tt[(int)$s['seat']]['total'] ?? 0;
         }
@@ -161,7 +161,8 @@ if ($games) {
     uasort($standing, fn($a, $b) => $b['sum'] <=> $a['sum']);
     echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
-        . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th></tr></thead><tbody>';
+        . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
+        . '<th class="num" data-type="num">ELO</th></tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
@@ -171,7 +172,8 @@ if ($games) {
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 24, 'margin-right:7px;')
             . '<span style="vertical-align:middle;">' . esc($row['nick']) . '</span></a></td>'
             . '<td class="num" data-sort="' . $row['games'] . '">' . $row['games'] . '</td>'
-            . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td></tr>';
+            . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td>'
+            . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td></tr>';
     }
     echo '</tbody></table></div>';
 }

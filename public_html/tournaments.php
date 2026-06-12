@@ -17,6 +17,10 @@ $statusLabel = [
 page_head('Турниры', 'tournaments');
 echo '<h1>Турниры</h1>';
 
+if (user_can_judge(current_user())) {
+    echo '<p style="margin:-6px 0 14px;"><a class="btn" href="/admin/tournaments.php">+ Создать турнир / управлять</a></p>';
+}
+
 if ($list) {
     foreach ($list as $t) {
         $tag = $t['status'] === 'reg_open' ? 'tag-open' : ($t['status'] === 'finished' ? '' : 'tag-ok');
