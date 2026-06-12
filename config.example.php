@@ -22,4 +22,10 @@ return [
 
     // Ник, который при регистрации получает роль главы клуба (пока главы нет)
     'owner_nickname' => 'Бант.',
+
+    // Telegram-бот (вебхук). Токен от @BotFather; секрет — любая длинная случайная строка
+    // (Telegram шлёт его в заголовке X-Telegram-Bot-Api-Secret-Token, бот сверяет).
+    // Вебхук ставится один раз: /setup_webhook.php?key=<deploy_secret>&go=1
+    'bot_token'  => '',
+    'bot_secret' => '',
 ];
