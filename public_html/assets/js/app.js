@@ -34,7 +34,7 @@
 
   // Сортировка таблиц по клику на заголовок
   document.querySelectorAll('table.sortable').forEach(function (table) {
-    var heads = table.querySelectorAll('thead th');
+    var heads = table.querySelectorAll('thead tr:last-child th');
     heads.forEach(function (th, idx) {
       th.addEventListener('click', function () {
         var tbody = table.querySelector('tbody');

@@ -130,27 +130,114 @@ function records_fmt($v, string $type): string
     };
 }
 
-// Каталог достижений: ключ => [иконка, название, описание]. Условия — в профиле.
+// Каталог достижений: ключ => [иконка, название, описание, группа]. Условия — в профиле.
 function achievements_catalog(): array
 {
     return [
-        'debut'    => ['🎬', 'Дебют', 'Первая игра'],
-        'ten'      => ['🎯', 'Десятка', '10 игр сыграно'],
-        'veteran'  => ['🏛', 'Ветеран', '100 игр сыграно'],
-        'streak3'  => ['🔥', 'На кураже', '3 победы подряд'],
-        'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд'],
-        'elo1500'  => ['⭐', 'Сильный', 'ELO 1500+'],
-        'elo2000'  => ['💎', 'Эксперт', 'ELO 2000+'],
-        'elo2600'  => ['👑', 'Мастер', 'ELO 2600+'],
-        'dop30'    => ['➕', 'Щедрый на допы', '30+ допов всего'],
-        'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3'],
-        'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)'],
-        'survivor' => ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)'],
-        'black5'   => ['🌑', 'Власть тьмы', '5 чёрных ролей подряд'],
-        'red3'     => ['🚩', 'Красная машина', '3 победы красными подряд'],
-        'fatgame'  => ['💰', 'Жирная игра', '1.5+ допа за одну игру'],
-        'eloday'   => ['📈', 'Прорыв вечера', '+150 ELO за вечер'],
+        'debut'    => ['🎬', 'Дебют', 'Первая игра', 'Игры'],
+        'ten'      => ['🎯', 'Десятка', '10 игр сыграно', 'Игры'],
+        'veteran'  => ['🏛', 'Ветеран', '100 игр сыграно', 'Игры'],
+        'streak3'  => ['🔥', 'На кураже', '3 победы подряд', 'Серии'],
+        'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд', 'Серии'],
+        'black5'   => ['🌑', 'Власть тьмы', '5 чёрных ролей подряд', 'Серии'],
+        'red3'     => ['🚩', 'Красная машина', '3 победы красными подряд', 'Серии'],
+        'elo1500'  => ['⭐', 'Сильный', 'ELO 1500+', 'ELO'],
+        'elo2000'  => ['💎', 'Эксперт', 'ELO 2000+', 'ELO'],
+        'elo2500'  => ['👑', 'Мастер', 'ELO 2500+', 'ELO'],
+        'eloday'   => ['📈', 'Прорыв вечера', '+150 ELO за вечер', 'ELO'],
+        'dop30'    => ['➕', 'Щедрый на допы', '30+ допов всего', 'Мастерство'],
+        'fatgame'  => ['💰', 'Жирная игра', '1.5+ допа за одну игру', 'Мастерство'],
+        'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Мастерство'],
+        'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Мастерство'],
+        'survivor' => ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)', 'Мастерство'],
     ];
+}
+
+// Кто уже получил каждое достижение: ключ => [ник, ...]. Считается по всему клубу.
+function achievement_earners(): array
+{
+    $out = array_fill_keys(array_keys(achievements_catalog()), []);
+    if (!db_ready()) {
+        return $out;
+    }
+    try {
+        $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+        // агрегаты из rating_cache + игроки
+        $rc = [];
+        if ($mainId) {
+            foreach (db()->query("SELECT rc.*, p.nickname, p.elo FROM rating_cache rc JOIN players p ON p.id = rc.player_id WHERE rc.rating_id = $mainId") as $r) {
+                $rc[(int)$r['player_id']] = $r;
+            }
+        }
+        // глобальные игры (для серий) — по хронологии
+        $byPlayer = [];
+        $q = db()->query("SELECT gs.player_id, gs.role, gs.plus, g.winner
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            WHERE g.status = 'finished' AND g.winner IS NOT NULL
+            ORDER BY gs.player_id, COALESCE((SELECT date FROM game_days WHERE id=g.day_id),(SELECT date_from FROM tournaments WHERE id=g.tournament_id)), g.id");
+        foreach ($q as $row) {
+            $byPlayer[(int)$row['player_id']][] = $row;
+        }
+        // ELO за вечер
+        $eloDay = [];
+        foreach (db()->query("SELECT player_id, MAX(s) m FROM (SELECT player_id, gdate, SUM(delta) s FROM elo_history GROUP BY player_id, gdate) t GROUP BY player_id") as $r) {
+            $eloDay[(int)$r['player_id']] = (float)$r['m'];
+        }
+        // тройка в ЛХ
+        $triples = [];
+        foreach (db()->query("SELECT DISTINCT me.player_id FROM games g
+            JOIN game_seats me ON me.game_id=g.id AND me.seat=g.first_killed_seat AND me.role IN ('civ','sheriff')
+            WHERE g.status='finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+            AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id=g.id AND s.seat IN (g.bm_seat1,g.bm_seat2,g.bm_seat3) AND s.role IN ('maf','don'))=3") as $r) {
+            $triples[(int)$r['player_id']] = true;
+        }
+
+        $nickOf = [];
+        foreach ($rc as $pid => $r) {
+            $nickOf[$pid] = $r['nickname'];
+        }
+        $allPids = array_unique(array_merge(array_keys($rc), array_keys($byPlayer)));
+        if (!$nickOf) {
+            foreach (db()->query('SELECT id, nickname FROM players') as $p) {
+                $nickOf[(int)$p['id']] = $p['nickname'];
+            }
+        }
+
+        foreach ($allPids as $pid) {
+            $r = $rc[$pid] ?? null;
+            $games = $r ? (int)$r['games'] : count($byPlayer[$pid] ?? []);
+            $elo = $r ? (float)$r['elo'] : 1000;
+            $nick = $nickOf[$pid] ?? ('#' . $pid);
+            // серии
+            $maxW = 0; $w = 0; $blk = 0; $bsr = 0; $redW = 0; $rwsr = 0; $maxPlus = 0.0;
+            foreach (($byPlayer[$pid] ?? []) as $g) {
+                $maxPlus = max($maxPlus, (float)$g['plus']);
+                $isBlack = in_array($g['role'], ['maf', 'don'], true);
+                $won = ($g['winner'] === 'red' && !$isBlack) || ($g['winner'] === 'black' && $isBlack);
+                if ($won) { $w++; $maxW = max($maxW, $w); } else { $w = 0; }
+                if ($isBlack) { $bsr++; $blk = max($blk, $bsr); } else { $bsr = 0; }
+                if (!$isBlack && $g['winner'] === 'red') { $rwsr++; $redW = max($redW, $rwsr); } else { $rwsr = 0; }
+            }
+            $puPct = $games ? ((int)($r['pu_count'] ?? 0)) / $games * 100 : 100;
+            $donWr = ($r && (int)$r['g_don'] >= 4) ? (int)$r['w_don'] / (int)$r['g_don'] * 100 : 0;
+            $cond = [
+                'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
+                'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'black5' => $blk >= 5, 'red3' => $redW >= 3,
+                'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2500' => $elo >= 2500,
+                'eloday' => ($eloDay[$pid] ?? 0) >= 150,
+                'dop30' => $r && (float)$r['dop_sum'] >= 30, 'fatgame' => $maxPlus >= 1.5,
+                'triple' => isset($triples[$pid]),
+                'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
+            ];
+            foreach ($cond as $k => $ok) {
+                if ($ok) {
+                    $out[$k][] = $nick;
+                }
+            }
+        }
+    } catch (Throwable $e) {
+    }
+    return $out;
 }
 
 function csrf_token(): string

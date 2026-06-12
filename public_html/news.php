@@ -37,7 +37,9 @@ if ($dbok) {
 
 page_head('Новости', 'news');
 echo '<h1>Новости</h1>';
-echo '<p style="margin-top:-6px;"><a class="btn btn-ghost" href="/rules.php">📖 Правила игры</a></p>';
+echo '<p style="margin-top:-6px;display:flex;gap:8px;flex-wrap:wrap;">'
+    . '<a class="btn btn-ghost" href="/rules.php">📖 Правила игры</a>'
+    . '<a class="btn btn-ghost" href="/suggest.php">💡 Предложить идею</a></p>';
 
 if ($list) {
     echo '<div class="card">';
@@ -72,12 +74,24 @@ if ($recs) {
 
 // ── Достижения ──
 echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
-echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Получай их в своём профиле — стимул к гринду и прокачке скилла.</p>';
-echo '<div class="ach-grid">';
-foreach (achievements_catalog() as [$ic, $t, $d]) {
-    echo '<div class="ach ach-on"><div class="ach-ic">' . $ic . '</div>'
-        . '<div class="ach-t">' . esc($t) . '</div><div class="ach-d">' . esc($d) . '</div></div>';
+echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Получай их в своём профиле. Наведи курсор на ачивку — увидишь, кто её уже получил.</p>';
+$earners = $dbok ? achievement_earners() : [];
+$byGroup = [];
+foreach (achievements_catalog() as $k => [$ic, $t, $d, $grp]) {
+    $byGroup[$grp][$k] = [$ic, $t, $d];
 }
-echo '</div>';
+foreach ($byGroup as $grp => $items) {
+    echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
+    echo '<div class="ach-grid">';
+    foreach ($items as $k => [$ic, $t, $d]) {
+        $who = $earners[$k] ?? [];
+        $cnt = count($who);
+        $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($who, 0, 40)) : 'Пока ни у кого';
+        echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" title="' . esc($tip) . '">'
+            . '<div class="ach-ic">' . $ic . '</div><div class="ach-t">' . esc($t) . '</div>'
+            . '<div class="ach-d">' . esc($d) . '</div><div class="ach-cnt">' . $cnt . ' получ.</div></div>';
+    }
+    echo '</div>';
+}
 
 page_foot();

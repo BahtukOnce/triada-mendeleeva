@@ -121,8 +121,11 @@ if ($rows) {
 
     echo '<div class="card" style="overflow-x:auto;padding:8px 10px;">';
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
-    echo '<thead><tr>'
-        . '<th data-type="num">#</th><th>Игрок</th><th class="num" data-type="num">ELO</th>'
+    echo '<thead>'
+        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
+        . '<th colspan="11">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
+        . '<tr>'
+        . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num">ELO</th>'
         . '<th class="num c-club" data-type="num">~Σ×Σ</th><th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
@@ -134,12 +137,12 @@ if ($rows) {
         $pos++;
         $w = $row['w_civ'] + $row['w_maf'] + $row['w_sher'] + $row['w_don'];
         $medal = $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : ''));
-        echo '<tr data-games="' . (int)$row['games'] . '"' . ($medal !== '' ? ' class="rt-top"' : '') . '>';
+        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . '>';
         echo '<td data-sort="' . $pos . '">' . ($medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
             . '<span>' . esc($row['nickname']) . '</span></a></td>';
-        echo '<td class="num" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
+        echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num c-club" data-sort="' . (float)$row['club_score'] . '"><b>' . ($row['club_score'] !== null ? number_format((float)$row['club_score'], 2) : '—') . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . ($row['avg_total'] !== null ? number_format((float)$row['avg_total'], 2) : '—') . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['sum_total'] . '">' . number_format((float)$row['sum_total'], 2) . '</td>';

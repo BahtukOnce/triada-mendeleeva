@@ -325,25 +325,42 @@ if ($stats) {
     $cond = [
         'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
         'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5,
-        'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2600' => $elo >= 2600,
-        'dop30' => (float)$stats['dop_sum'] >= 30, 'triple' => $triples >= 1,
-        'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
         'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
-        'fatgame' => $maxPlusGame >= 1.5, 'eloday' => $maxEloDay >= 150,
+        'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2500' => $elo >= 2500,
+        'eloday' => $maxEloDay >= 150,
+        'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.5,
+        'triple' => $triples >= 1, 'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
     ];
-    $ach = [];
-    foreach (achievements_catalog() as $k => [$ic, $t, $d]) {
-        $ach[] = [$ic, $t, $d, $cond[$k] ?? false];
+    $cat = achievements_catalog();
+    $earners = achievement_earners();
+    $earnedN = 0;
+    foreach ($cat as $k => $c) {
+        if (!empty($cond[$k])) {
+            $earnedN++;
+        }
     }
-    $earnedN = count(array_filter($ach, fn($a) => $a[3]));
     echo '<div class="card"><div class="section-head"><h2 style="margin:0;">Достижения</h2>'
-        . '<span style="font-size:13px;color:var(--tx2);">' . $earnedN . ' из ' . count($ach) . '</span></div>';
-    echo '<div class="ach-grid">';
-    foreach ($ach as [$ic, $t, $d, $ok]) {
-        echo '<div class="ach' . ($ok ? ' ach-on' : '') . '"><div class="ach-ic">' . $ic . '</div>'
-            . '<div class="ach-t">' . $t . '</div><div class="ach-d">' . $d . '</div></div>';
+        . '<span style="font-size:13px;color:var(--tx2);">получено ' . $earnedN . ' из ' . count($cat) . '</span></div>';
+    $byGroup = [];
+    foreach ($cat as $k => [$ic, $t, $d, $grp]) {
+        $byGroup[$grp][$k] = [$ic, $t, $d];
     }
-    echo '</div></div>';
+    foreach ($byGroup as $grp => $items) {
+        echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
+        echo '<div class="ach-grid">';
+        foreach ($items as $k => [$ic, $t, $d]) {
+            $ok = !empty($cond[$k]);
+            $who = $earners[$k] ?? [];
+            $cnt = count($who);
+            $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($who, 0, 40)) : 'Пока ни у кого';
+            echo '<div class="ach' . ($ok ? ' ach-on' : '') . '" title="' . esc($tip) . '">'
+                . '<div class="ach-ic">' . $ic . '</div>'
+                . '<div class="ach-t">' . esc($t) . '</div><div class="ach-d">' . esc($d) . '</div>'
+                . '<div class="ach-cnt">' . ($ok ? '✓ ' : '') . $cnt . ' получ.</div></div>';
+        }
+        echo '</div>';
+    }
+    echo '</div>';
 
     // ── Chart.js: ELO с уровнями + исходы по командам ──
     echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>';
@@ -358,12 +375,12 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-function tierName(v){ return v>=2600?'Мастер':(v>=2000?'Сильный':(v>=1500?'Уверенный':(v>=1100?'Игрок':'Новичок'))); }
+function tierName(v){ return v>=2500?'Мастер':(v>=2000?'Сильный':(v>=1500?'Уверенный':(v>=1100?'Игрок':'Новичок'))); }
 var TIERS=[{f:0,t:1100,n:'Новичок',c:'rgba(140,140,150,0.05)'},
   {f:1100,t:1500,n:'Игрок',c:'rgba(58,123,213,0.07)'},
   {f:1500,t:2000,n:'Уверенный',c:'rgba(213,162,58,0.07)'},
-  {f:2000,t:2600,n:'Сильный',c:'rgba(232,51,42,0.08)'},
-  {f:2600,t:99999,n:'Мастер',c:'rgba(232,51,42,0.14)'}];
+  {f:2000,t:2500,n:'Сильный',c:'rgba(232,51,42,0.08)'},
+  {f:2500,t:99999,n:'Мастер',c:'rgba(232,51,42,0.14)'}];
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
   var ya=ch.scales.y, ar=ch.chartArea; if(!ya||!ar) return;
   var c=ch.ctx; c.save();

@@ -10,7 +10,6 @@ function nav_items(bool $authed = true): array
         'tournaments' => ['tournaments.php', 'Турниры'],
         'rating'      => ['rating.php', 'Рейтинг'],
         'players'     => ['players.php', 'Игроки'],
-        'records'     => ['records.php', 'Рекорды'],
     ];
     // Фото и Тесты — только для вошедших; Правила переехали в Новости (кнопкой)
     if ($authed) {
@@ -62,7 +61,7 @@ function page_head(string $title, string $active = ''): void
     echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
     echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=24">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=25">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -141,7 +140,7 @@ function page_foot(): void
        . '<a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=6"></script>';
+    echo '<script src="/assets/js/app.js?v=7"></script>';
     echo '</body></html>';
 }
 
