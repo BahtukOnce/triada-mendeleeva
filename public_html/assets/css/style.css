@@ -367,3 +367,48 @@ body::before {
   .flash { animation: flashIn 0.4s ease; }
   @keyframes flashIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 }
+
+/* ── Профиль игрока: визуальная статистика ──────── */
+.pf-hero {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: var(--sf); border: 1px solid var(--bd); border-radius: 16px;
+  padding: 18px 20px; margin: 16px 0 8px; position: relative; overflow: hidden;
+}
+.pf-hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(440px circle at 0% 0%, rgba(232,51,42,0.13), transparent 62%);
+}
+.pf-hero > * { position: relative; z-index: 1; }
+.pf-id { flex: 1; min-width: 200px; }
+.pf-name { font-size: 27px; font-weight: 700; margin: 0; line-height: 1.12; }
+.pf-badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 9px; }
+.pf-sub { color: var(--tx2); font-size: 13px; margin-top: 9px; }
+.pf-elo { text-align: center; padding-left: 8px; }
+.pf-elo .v { font-size: 36px; font-weight: 750; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; line-height: 1; }
+.pf-elo .l { font-size: 10.5px; color: var(--tx2); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+.pf-ava .avatar-circle, .pf-ava img { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--ac); }
+
+.rank-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650;
+  padding: 5px 13px; border-radius: 20px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx);
+}
+.rank-badge.r1 { color: #f3d27a; border-color: #7a6320; background: #241f0c; }
+.rank-badge.r2 { color: #d2d6dd; border-color: #4a4e57; background: #191b1f; }
+.rank-badge.r3 { color: #e3a878; border-color: #6b4527; background: #231910; }
+
+.pf-tiles { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+
+.role-bars { display: flex; flex-direction: column; gap: 11px; }
+.role-bar { display: grid; grid-template-columns: 68px 1fr 66px; align-items: center; gap: 10px; font-size: 13px; }
+.role-bar .rb-name { color: var(--tx2); white-space: nowrap; }
+.role-bar .rb-track { height: 9px; background: var(--sf2); border-radius: 5px; overflow: hidden; }
+.role-bar .rb-fill { height: 100%; border-radius: 5px; min-width: 2px; }
+.role-bar .rb-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--tx2); }
+.role-bar .rb-val b { color: var(--tx); font-weight: 650; }
+
+.hist-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+
+@media (max-width: 900px) {
+  .pf-tiles { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .pf-elo { width: 100%; text-align: left; padding-left: 0; }
+}
