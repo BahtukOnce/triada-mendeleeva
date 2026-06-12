@@ -38,9 +38,14 @@ $secret = (string)($cfg['bot_secret'] ?? '');
 
 // 1) если в живом config токена ещё нет — взять из архивного config бота
 if ($token === '') {
-    $arch = dirname(ROOT) . '/archive_old_site/public_html_20260611/config.php';
+    // PHP заперт open_basedir в каталоге сайта; архив за его пределами.
+    // Сначала ищем копию конфига бота, положенную внутрь сайта (вне public_html), затем архив.
+    $arch = ROOT . '/_botcfg.php';
     if (!is_file($arch)) {
-        exit("Архивный config бота не найден: $arch\nДобавьте 'bot_token' в config.php вручную.");
+        $arch = dirname(ROOT) . '/archive_old_site/public_html_20260611/config.php';
+    }
+    if (!is_file($arch) || !is_readable($arch)) {
+        exit("Конфиг бота недоступен ($arch).\nДобавьте 'bot_token' в config.php вручную.");
     }
     require $arch; // define('BOT_TOKEN',...), define('WEBHOOK_SECRET',...)
     $token = defined('BOT_TOKEN') ? (string)BOT_TOKEN : '';
