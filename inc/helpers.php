@@ -38,6 +38,19 @@ function player_label(?array $p): string
     return $f !== '' ? $n . ' <span class="flair">' . esc($f) . '</span>' : $n;
 }
 
+// Цветная точка роли (мирный/шериф/мафия/дон) — единый код цвета по сайту
+function role_dot(string $role): string
+{
+    $c = ['civ' => '#3a7bd5', 'sheriff' => '#d5a23a', 'maf' => '#c0392b', 'don' => '#8c8c96'][$role] ?? '#888';
+    return '<span class="hist-dot" style="background:' . $c . ';"></span>';
+}
+
+// Медаль за место (1–3) или само место
+function rank_medal(int $pos): string
+{
+    return $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : (string)$pos));
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {
