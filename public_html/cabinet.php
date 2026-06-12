@@ -395,7 +395,20 @@ if ($player) {
     }
     echo '</select></div></div>';
     echo '<div class="field"><label>Эмодзи-«висюлька» (необязательно — показывается рядом с ником; в играх и рейтинге ник остаётся чистым)</label>'
-        . '<input type="text" name="flair" maxlength="32" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;"></div>';
+        . '<input type="text" id="flair-input" name="flair" maxlength="32" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;">';
+    $emojiList = ['🦊', '🐺', '🐻', '🦁', '🐯', '🐱', '🐶', '🐼', '🦄', '🐲', '🦅', '🦉', '🐢', '🐍', '🦂', '🐙', '🦈', '🐳',
+        '🔥', '⭐', '🌟', '💫', '⚡', '💀', '☠️', '🎭', '🃏', '👑', '💎', '🏆', '🥇', '🌈', '🍀', '🌙', '❤️', '🖤', '💛',
+        '😎', '🤡', '👻', '🤖', '🦹', '🕵️', '🎯', '🎲', '♠️', '♦️'];
+    echo '<div class="emoji-pick">';
+    foreach ($emojiList as $e) {
+        echo '<button type="button" data-e="' . $e . '" title="добавить">' . $e . '</button>';
+    }
+    echo '<button type="button" id="flair-clear" title="очистить">✕</button>';
+    echo '</div></div>';
+    echo '<script>(function(){var inp=document.getElementById("flair-input");if(!inp)return;'
+        . 'document.querySelectorAll(".emoji-pick button[data-e]").forEach(function(b){'
+        . 'b.addEventListener("click",function(){var e=b.getAttribute("data-e");if((inp.value||"").length<12){inp.value=(inp.value||"")+e;}});});'
+        . 'var c=document.getElementById("flair-clear");if(c){c.addEventListener("click",function(){inp.value="";});}})();</script>';
     echo '<button class="btn" type="submit">Сохранить профиль</button></form>';
     echo '<script>(function(){var c=document.getElementById("rhtu-check"),f=document.getElementById("rhtu-fields");'
         . 'if(c&&f)c.addEventListener("change",function(){f.style.display=c.checked?"grid":"none";});})();</script>';

@@ -466,6 +466,10 @@ body::before {
 .fav-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--sf2); color: var(--tx); }
 .fav-chip .fdot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,0.18); }
 
+.emoji-pick { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; max-width: 430px; }
+.emoji-pick button { background: var(--sf2); border: 1px solid var(--bd); border-radius: 8px; padding: 4px 7px; font-size: 17px; line-height: 1; cursor: pointer; }
+.emoji-pick button:hover { border-color: var(--ac); background: var(--acsf); }
+
 .nav a.nav-admin { color: var(--ac); font-weight: 600; }
 .nav a.nav-admin:hover { color: var(--ac-h); background: var(--acsf); }
 .nav a.nav-admin::after { background: var(--ac); }
