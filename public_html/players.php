@@ -6,7 +6,8 @@ $list = [];
 
 if (db_ready()) {
     $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    $sql = 'SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, rc.games
+    $sql = 'SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, p.elo, rc.games,
+            rc.w_civ, rc.w_maf, rc.w_sher, rc.w_don
         FROM players p
         LEFT JOIN rating_cache rc ON rc.player_id = p.id AND rc.rating_id = ?
         WHERE p.banned_at IS NULL';
@@ -30,17 +31,24 @@ echo '</form>';
 
 if ($list) {
     $roleLbl = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
-    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 8px;">Всего игроков: ' . count($list) . '</p>';
-    echo '<div class="card" style="overflow-x:auto;"><table class="tbl row-link">';
-    echo '<tr><th>Игрок</th><th class="num">Игр</th><th>Любимая роль</th></tr>';
+    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">Всего игроков: ' . count($list) . '</p>';
+    echo '<div class="player-grid">';
     foreach ($list as $p) {
-        echo '<tr data-href="/player.php?id=' . (int)$p['id'] . '"><td>'
-            . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 26, 'margin-right:8px;')
-            . '<span style="vertical-align:middle;">' . player_label($p) . '</span></td>';
-        echo '<td class="num">' . ($p['games'] !== null ? (int)$p['games'] : '—') . '</td>';
-        echo '<td style="color:var(--tx2);">' . ($p['fav_role'] ? esc($roleLbl[$p['fav_role']]) : '—') . '</td></tr>';
+        $g = $p['games'] !== null ? (int)$p['games'] : 0;
+        $w = (int)$p['w_civ'] + (int)$p['w_maf'] + (int)$p['w_sher'] + (int)$p['w_don'];
+        $wr = $g ? round($w / $g * 100) : null;
+        $elo = (int)round((float)($p['elo'] ?? 1000));
+        echo '<a class="player-card" href="/player.php?id=' . (int)$p['id'] . '">';
+        echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
+            . '<div class="pc-name">' . player_label($p)
+            . '<div class="pc-fav">' . ($p['fav_role'] ? esc($roleLbl[$p['fav_role']]) : 'роль не выбрана') . '</div></div></div>';
+        echo '<div class="pc-stats">'
+            . '<div><b>' . $g . '</b><span>игр</span></div>'
+            . '<div><b>' . ($wr !== null ? $wr . '%' : '—') . '</b><span>винрейт</span></div>'
+            . '<div><b>' . $elo . '</b><span>ELO</span></div>'
+            . '</div></a>';
     }
-    echo '</table></div>';
+    echo '</div>';
 } elseif ($q !== '') {
     empty_state('Никого не нашлось', 'Попробуйте изменить запрос.');
 } else {

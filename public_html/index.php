@@ -5,6 +5,8 @@ $dbok = db_ready();
 $nextDay = null;
 $regCount = 0;
 $stats = ['players' => 0, 'games' => 0, 'days' => 0, 'tournaments' => 0];
+$balance = ['red' => 0, 'black' => 0, 'draw' => 0];
+$top5 = [];
 $news = [];
 $admins = [];
 
@@ -28,12 +30,17 @@ if ($dbok) {
         $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
         $top5 = [];
         if ($mainId) {
-            $st = db()->prepare('SELECT rc.player_id, rc.club_score, rc.sum_total, p.nickname
+            $st = db()->prepare('SELECT rc.player_id, rc.club_score, rc.sum_total, p.nickname, p.avatar, p.flair, p.elo
                 FROM rating_cache rc JOIN players p ON p.id = rc.player_id
                 WHERE rc.rating_id = ? AND rc.club_score IS NOT NULL
                 ORDER BY rc.club_score DESC LIMIT 5');
             $st->execute([$mainId]);
             $top5 = $st->fetchAll();
+        }
+        foreach (db()->query("SELECT winner, COUNT(*) c FROM games WHERE status = 'finished' GROUP BY winner")->fetchAll() as $b) {
+            if (isset($balance[$b['winner']])) {
+                $balance[$b['winner']] = (int)$b['c'];
+            }
         }
         $admins = db()->query("SELECT u.nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar
             FROM users u LEFT JOIN players p ON p.user_id = u.id
@@ -116,17 +123,37 @@ page_head('Главная', 'index');
       <h2 style="margin-top:0;">Рейтинг — топ 5</h2>
       <a class="more" href="/rating.php">весь рейтинг →</a>
     </div>
-    <table class="tbl">
-      <tr><th>#</th><th>Игрок</th><th class="num">~Σ×Σ</th><th class="num">Σ</th></tr>
-      <?php $pos = 0; foreach ($top5 as $t5): $pos++; ?>
-      <tr data-href="/player.php?id=<?= (int)$t5['player_id'] ?>">
-        <td><?= $pos ?></td>
-        <td><?= esc($t5['nickname']) ?></td>
+    <table class="tbl row-link">
+      <tr><th>#</th><th>Игрок</th><th class="num">~Σ×Σ</th><th class="num">ELO</th></tr>
+      <?php $pos = 0; foreach ($top5 as $t5): $pos++;
+          $medal = $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : '')); ?>
+      <tr data-href="/player.php?id=<?= (int)$t5['player_id'] ?>"<?= $medal !== '' ? ' class="rt-top"' : '' ?>>
+        <td><?= $medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos ?></td>
+        <td><?= avatar_html(['nickname' => $t5['nickname'], 'avatar' => $t5['avatar']], 26, 'margin-right:8px;') ?><span style="vertical-align:middle;"><?= player_label($t5) ?></span></td>
         <td class="num"><b><?= number_format((float)$t5['club_score'], 1) ?></b></td>
-        <td class="num"><?= number_format((float)$t5['sum_total'], 1) ?></td>
+        <td class="num"><?= number_format((float)$t5['elo'], 0, '.', '') ?></td>
       </tr>
       <?php endforeach; ?>
     </table>
+  </div>
+  <?php endif; ?>
+  <?php $balTot = $balance['red'] + $balance['black'] + $balance['draw'];
+  if ($balTot > 0):
+      $rp = round($balance['red'] / $balTot * 100);
+      $bp = round($balance['black'] / $balTot * 100);
+      $dp = 100 - $rp - $bp; ?>
+  <div class="card">
+    <h2 style="margin-top:0;">Баланс игр клуба <span style="font-size:12px;color:var(--tx2);font-weight:400;">(<?= $balTot ?> игр)</span></h2>
+    <div class="bal-bar">
+      <span style="width:<?= $rp ?>%;background:#c0392b;"></span>
+      <span style="width:<?= $bp ?>%;background:#33333c;"></span>
+      <span style="width:<?= $dp ?>%;background:var(--tx3);"></span>
+    </div>
+    <div class="bal-legend">
+      <span><i style="background:#c0392b;"></i>Красные победили <b><?= $balance['red'] ?></b> (<?= $rp ?>%)</span>
+      <span><i style="background:#33333c;"></i>Чёрные <b><?= $balance['black'] ?></b> (<?= $bp ?>%)</span>
+      <?php if ($balance['draw'] > 0): ?><span><i style="background:var(--tx3);"></i>Ничьи <b><?= $balance['draw'] ?></b></span><?php endif; ?>
+    </div>
   </div>
   <?php endif; ?>
   <div class="card">

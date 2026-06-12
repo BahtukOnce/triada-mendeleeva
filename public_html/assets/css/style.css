@@ -408,6 +408,36 @@ body::before {
 
 .hist-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
 
+.rating-tbl .c-club { background: rgba(232,51,42,0.07); }
+.rating-tbl tr.rt-top td { background: rgba(232,51,42,0.045); }
+.rating-tbl tr.rt-top:hover td { background: var(--sf2); }
+
+/* ── Список игроков: карточки ──────────────────── */
+.player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 12px; }
+.player-card {
+  display: block; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px;
+  padding: 14px; color: var(--tx);
+}
+.player-card:hover { color: var(--tx); border-color: var(--tx2); }
+.pc-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pc-name { font-weight: 600; line-height: 1.2; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pc-fav { font-size: 11.5px; color: var(--tx2); font-weight: 400; margin-top: 2px; }
+.pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; text-align: center; }
+.pc-stats > div { background: var(--sf2); border-radius: 8px; padding: 7px 4px; }
+.pc-stats b { display: block; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.pc-stats span { font-size: 10.5px; color: var(--tx2); }
+@media (prefers-reduced-motion: no-preference) {
+  .player-card { transition: transform 0.2s ease, border-color 0.2s ease; }
+  .player-card:hover { transform: translateY(-3px); }
+}
+
+/* ── Баланс игр клуба ──────────────────────────── */
+.bal-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--sf2); }
+.bal-bar > span { height: 100%; }
+.bal-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--tx2); }
+.bal-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.bal-legend b { color: var(--tx); }
+
 @media (max-width: 900px) {
   .pf-tiles { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .pf-elo { width: 100%; text-align: left; padding-left: 0; }
