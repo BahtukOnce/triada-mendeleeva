@@ -65,7 +65,7 @@ function page_head(string $title, string $active = ''): void
     echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
     echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=22">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=23">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';

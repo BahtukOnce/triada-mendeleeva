@@ -22,12 +22,28 @@ function nickname_clean(string $s): string
     return trim((string)preg_replace('/\s+/u', ' ', $s));
 }
 
-// Извлечь эмодзи из строки (для авто-«висюльки» при вводе ника со смайлом)
+// Один эмодзи-«висюлька» (ровно один кластер: база + модификаторы/ZWJ-сцепки)
 function flair_clean(string $s): string
 {
-    preg_match_all('/[' . EMOJI_RANGES . ']/u', $s, $m);
-    $e = implode('', $m[0] ?? []);
-    return mb_substr($e, 0, 16);
+    preg_match_all('/[' . EMOJI_RANGES . '\x{1F3FB}-\x{1F3FF}]/u', $s, $m);
+    $chars = $m[0] ?? [];
+    if (!$chars) {
+        return '';
+    }
+    $out = $chars[0];
+    $n = count($chars);
+    for ($i = 1; $i < $n; $i++) {
+        $code = mb_ord($chars[$i]);
+        $isMod = ($code >= 0xFE00 && $code <= 0xFE0F) || $code === 0x200D
+            || ($code >= 0x1F3FB && $code <= 0x1F3FF) || $code === 0x20E3;
+        $prevZwj = mb_ord(mb_substr($out, -1)) === 0x200D;
+        if ($isMod || $prevZwj) {
+            $out .= $chars[$i];
+        } else {
+            break;
+        }
+    }
+    return $out;
 }
 
 // Имя игрока для публичного показа: чистый ник + опциональная эмодзи-«висюлька»

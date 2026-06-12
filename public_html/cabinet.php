@@ -395,7 +395,7 @@ if ($player) {
     }
     echo '</select></div></div>';
     echo '<div class="field"><label>Эмодзи-«висюлька» (необязательно — показывается рядом с ником; в играх и рейтинге ник остаётся чистым)</label>'
-        . '<input type="text" id="flair-input" name="flair" maxlength="32" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;">';
+        . '<input type="text" id="flair-input" name="flair" maxlength="12" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;">';
     $emojiList = ['🦊', '🐺', '🐻', '🦁', '🐯', '🐱', '🐶', '🐼', '🦄', '🐲', '🦅', '🦉', '🐢', '🐍', '🦂', '🐙', '🦈', '🐳',
         '🔥', '⭐', '🌟', '💫', '⚡', '💀', '☠️', '🎭', '🃏', '👑', '💎', '🏆', '🥇', '🌈', '🍀', '🌙', '❤️', '🖤', '💛',
         '😎', '🤡', '👻', '🤖', '🦹', '🕵️', '🎯', '🎲', '♠️', '♦️'];
@@ -407,8 +407,10 @@ if ($player) {
     echo '</div></div>';
     echo '<script>(function(){var inp=document.getElementById("flair-input");if(!inp)return;'
         . 'document.querySelectorAll(".emoji-pick button[data-e]").forEach(function(b){'
-        . 'b.addEventListener("click",function(){var e=b.getAttribute("data-e");if((inp.value||"").length<12){inp.value=(inp.value||"")+e;}});});'
-        . 'var c=document.getElementById("flair-clear");if(c){c.addEventListener("click",function(){inp.value="";});}})();</script>';
+        . 'b.addEventListener("click",function(){inp.value=b.getAttribute("data-e");'
+        . 'document.querySelectorAll(".emoji-pick button[data-e]").forEach(function(x){x.classList.remove("ep-sel");});b.classList.add("ep-sel");});});'
+        . 'var c=document.getElementById("flair-clear");if(c){c.addEventListener("click",function(){inp.value="";'
+        . 'document.querySelectorAll(".emoji-pick button.ep-sel").forEach(function(x){x.classList.remove("ep-sel");});});}})();</script>';
     echo '<button class="btn" type="submit">Сохранить профиль</button></form>';
     echo '<script>(function(){var c=document.getElementById("rhtu-check"),f=document.getElementById("rhtu-fields");'
         . 'if(c&&f)c.addEventListener("change",function(){f.style.display=c.checked?"grid":"none";});})();</script>';

@@ -498,6 +498,17 @@ body::before {
 .emoji-pick { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; max-width: 430px; }
 .emoji-pick button { background: var(--sf2); border: 1px solid var(--bd); border-radius: 8px; padding: 4px 7px; font-size: 17px; line-height: 1; cursor: pointer; }
 .emoji-pick button:hover { border-color: var(--ac); background: var(--acsf); }
+.emoji-pick button.ep-sel { border-color: var(--ac); background: var(--acsf); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pf-name .flair { display: inline-block; animation: flairWiggle 2.6s ease-in-out infinite; transform-origin: 50% 80%; }
+  @keyframes flairWiggle {
+    0%, 100% { transform: rotate(0) scale(1); }
+    20% { transform: rotate(-9deg) scale(1.14); }
+    45% { transform: rotate(0) scale(1.04); }
+    70% { transform: rotate(9deg) scale(1.14); }
+  }
+}
 
 .nav a.nav-admin { color: var(--ac); font-weight: 600; }
 .nav a.nav-admin:hover { color: var(--ac-h); background: var(--acsf); }

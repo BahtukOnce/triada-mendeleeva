@@ -33,10 +33,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cap = (string)($_POST['cap'] ?? '');
         $val = !empty($_POST['val']) ? 1 : 0;
         $col = $cap === 'judge' ? 'is_judge' : ($cap === 'photo' ? 'is_photographer' : null);
+        $isAjax = !empty($_POST['ajax']);
         if ($col) {
             db()->prepare("UPDATE users SET $col = ? WHERE id = ?")->execute([$val, $targetId]);
             log_action((int)$u['id'], 'cap_change', ['user_id' => $targetId, 'cap' => $cap, 'val' => $val]);
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['ok' => true, 'on' => (bool)$val]);
+                exit;
+            }
             flash_set('ok', ($cap === 'judge' ? 'Судья' : 'Фотограф') . ($val ? ' назначен' : ' снят') . ': ' . $target['nickname']);
+        }
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false]);
+            exit;
         }
         redirect('/admin/users.php');
     }
@@ -68,12 +79,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('/admin/users.php');
     }
+
+    if ($form === 'delete_user') {
+        if (!$isOwner) {
+            flash_set('err', 'Удалять аккаунты может только глава клуба');
+            redirect('/admin/users.php');
+        }
+        if ($targetId === (int)$u['id']) {
+            flash_set('err', 'Нельзя удалить собственный аккаунт');
+            redirect('/admin/users.php');
+        }
+        try {
+            db()->prepare('UPDATE players SET user_id = NULL WHERE user_id = ?')->execute([$targetId]); // игрок и статистика остаются
+            db()->prepare('DELETE FROM users WHERE id = ?')->execute([$targetId]);
+            log_action((int)$u['id'], 'user_delete', ['nick' => $target['nickname']]);
+            flash_set('ok', 'Аккаунт «' . $target['nickname'] . '» удалён (игрок и статистика сохранены)');
+        } catch (Throwable $e) {
+            flash_set('err', 'Не удалось удалить аккаунт: ' . $e->getMessage());
+        }
+        redirect('/admin/users.php');
+    }
     redirect('/admin/users.php');
 }
 
 $q = trim((string)($_GET['q'] ?? ''));
 $onlyTg = !empty($_GET['tg']);
-$sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick,
+$sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick, p.real_name,
         (us.last_seen IS NOT NULL AND us.last_seen > NOW() - INTERVAL 5 MINUTE) AS online
     FROM users us
     LEFT JOIN players p ON p.user_id = us.id';
@@ -120,21 +151,22 @@ function cap_btn(int $rid, string $cap, bool $on, string $label): string
     $h = csrf_field() . '<input type="hidden" name="form" value="cap"><input type="hidden" name="user_id" value="' . $rid . '">'
         . '<input type="hidden" name="cap" value="' . $cap . '"><input type="hidden" name="val" value="' . ($on ? '0' : '1') . '">';
     $cls = $on ? 'tag-open' : '';
-    return '<form method="post" action="/admin/users.php" style="display:inline;">' . $h
-        . '<button class="tag ' . $cls . '" style="cursor:pointer;border:none;" type="submit">'
+    return '<form method="post" action="/admin/users.php" class="cap-form" style="display:inline;">' . $h
+        . '<button class="tag ' . $cls . '" style="cursor:pointer;border:none;" type="submit" data-label="' . esc($label) . '">'
         . ($on ? '✓ ' : '+ ') . $label . '</button></form>';
 }
 
 echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
-echo '<tr><th>Аккаунт</th><th>Игрок</th><th>Telegram</th><th>Статус</th><th>Роли</th><th>Сброс</th></tr>';
+echo '<tr><th>Аккаунт</th><th>Имя</th><th>Telegram</th><th>Статус</th><th>Роли</th><th></th></tr>';
 foreach ($list as $row) {
     $rid = (int)$row['id'];
     $isAdminRow = $row['role'] === 'owner' || $row['role'] === 'admin';
     echo '<tr><td>' . ($row['online']
         ? '<span title="в сети" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:7px;vertical-align:1px;"></span>'
         : '') . esc($row['nickname']) . '</td>';
+    $nameShown = $row['real_name'] ? esc($row['real_name']) : '<span style="color:var(--tx3);">не указано</span>';
     echo '<td>' . ($row['player_id']
-        ? '<a href="/player.php?id=' . (int)$row['player_id'] . '">' . esc($row['player_nick']) . '</a>'
+        ? '<a href="/player.php?id=' . (int)$row['player_id'] . '" style="color:var(--tx);">' . $nameShown . '</a>'
         : '<span style="color:var(--tx2);">—</span>') . '</td>';
     echo '<td>' . ($row['tg_user_id']
         ? '<span class="tag tag-ok">' . ($row['tg_username'] ? '@' . esc($row['tg_username']) : 'привязан') . '</span>'
@@ -165,8 +197,26 @@ foreach ($list as $row) {
     echo '</td>';
     echo '<td><form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Сбросить пароль ' . esc($row['nickname']) . '?\');">' . csrf_field();
     echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
-    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">Сбросить пароль</button></form></td>';
+    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">Сбросить пароль</button></form>';
+    if ($isOwner && $rid !== (int)$u['id']) {
+        echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc($row['nickname']) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
+            . '<input type="hidden" name="form" value="delete_user"><input type="hidden" name="user_id" value="' . $rid . '">'
+            . '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
+    }
+    echo '</td>';
     echo '</tr>';
 }
 echo '</table></div>';
+
+// Назначение судьи/фотографа без перезагрузки страницы
+echo '<script>(function(){'
+    . 'document.querySelectorAll(".cap-form").forEach(function(f){'
+    . 'f.addEventListener("submit",function(ev){ev.preventDefault();'
+    . 'var btn=f.querySelector("button"),valInp=f.querySelector("input[name=val]"),label=btn.getAttribute("data-label");'
+    . 'var fd=new FormData(f);fd.append("ajax","1");btn.disabled=true;'
+    . 'fetch("/admin/users.php",{method:"POST",body:fd,headers:{"X-Requested-With":"XMLHttpRequest"}})'
+    . '.then(function(r){return r.json();}).then(function(d){btn.disabled=false;if(!d.ok){return;}'
+    . 'var on=d.on;btn.classList.toggle("tag-open",on);btn.textContent=(on?"✓ ":"+ ")+label;valInp.value=on?"0":"1";})'
+    . '.catch(function(){btn.disabled=false;});});});})();</script>';
+
 page_foot();
