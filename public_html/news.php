@@ -52,4 +52,33 @@ if ($list) {
 } else {
     empty_state('Новостей пока нет', 'Анонсы вечеров, итоги турниров и объявления клуба будут появляться здесь.');
 }
+
+// ── Рекорды клуба ──
+$recs = $dbok ? club_records() : [];
+if ($recs) {
+    echo '<div class="section-head" style="margin-top:20px;"><h2 style="margin:0;">Рекорды клуба</h2>'
+        . '<a class="more" href="/records.php">все рекорды →</a></div>';
+    echo '<div class="records-grid">';
+    foreach (array_slice($recs, 0, 8) as [$ic, $title, $row, $val, $type]) {
+        echo '<a class="rec-card" href="/player.php?id=' . (int)$row['pid'] . '">';
+        echo '<div class="rec-ic">' . $ic . '</div>';
+        echo '<div class="rec-body"><div class="rec-title">' . esc($title) . '</div>';
+        echo '<div class="rec-player">' . avatar_html($row, 30) . '<span>' . player_label($row) . '</span></div></div>';
+        echo '<div class="rec-val">' . esc(records_fmt($val, $type)) . '</div>';
+        echo '</a>';
+    }
+    echo '</div>';
+}
+
+// ── Достижения ──
+echo '<div class="section-head" style="margin-top:20px;"><h2 style="margin:0;">Достижения</h2>'
+    . '<a class="more" href="/records.php">все →</a></div>';
+echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Получай их в своём профиле — стимул к гринду и прокачке скилла.</p>';
+echo '<div class="ach-grid">';
+foreach (achievements_catalog() as [$ic, $t, $d]) {
+    echo '<div class="ach ach-on"><div class="ach-ic">' . $ic . '</div>'
+        . '<div class="ach-t">' . esc($t) . '</div><div class="ach-d">' . esc($d) . '</div></div>';
+}
+echo '</div>';
+
 page_foot();

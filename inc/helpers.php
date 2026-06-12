@@ -72,6 +72,87 @@ function rank_medal(int $pos): string
     return $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : (string)$pos));
 }
 
+// Рекорды клуба: массив [иконка, название, строка-игрока, значение, тип]
+function club_records(): array
+{
+    if (!db_ready()) {
+        return [];
+    }
+    $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+    if (!$mainId) {
+        return [];
+    }
+    $rows = db()->query("SELECT rc.*, p.nickname, p.avatar, p.flair, p.elo, p.id AS pid
+        FROM rating_cache rc JOIN players p ON p.id = rc.player_id WHERE rc.rating_id = $mainId")->fetchAll();
+    if (!$rows) {
+        return [];
+    }
+    $topElo = db()->query('SELECT nickname, avatar, flair, elo, id AS pid FROM players ORDER BY elo DESC LIMIT 1')->fetch();
+    $wins = fn($r) => (int)$r['w_civ'] + (int)$r['w_maf'] + (int)$r['w_sher'] + (int)$r['w_don'];
+    $leader = function (array $rows, callable $metric, int $minGames = 0) {
+        $best = null; $bestV = -INF;
+        foreach ($rows as $r) {
+            if ((int)$r['games'] < $minGames) {
+                continue;
+            }
+            $v = $metric($r);
+            if ($v > $bestV) { $bestV = $v; $best = $r; }
+        }
+        return $best ? [$best, $bestV] : null;
+    };
+    $recs = [];
+    if ($topElo) {
+        $recs[] = ['👑', 'Высший ELO', $topElo, (float)$topElo['elo'], 'int'];
+    }
+    $add = function (string $ic, string $title, ?array $res, string $type) use (&$recs) {
+        if ($res) {
+            $recs[] = [$ic, $title, $res[0], $res[1], $type];
+        }
+    };
+    $add('💯', 'Высший клубный счёт', $leader($rows, fn($r) => (float)$r['club_score']), 'f2');
+    $add('🏆', 'Лучший винрейт (от 30 игр)', $leader($rows, fn($r) => $r['games'] ? $wins($r) / $r['games'] : 0, 30), 'pct');
+    $add('🎮', 'Больше всех игр', $leader($rows, fn($r) => (int)$r['games']), 'int');
+    $add('➕', 'Больше всех допов', $leader($rows, fn($r) => (float)$r['dop_sum']), 'f1');
+    $add('🔪', 'Больше всех ПУ', $leader($rows, fn($r) => (int)$r['pu_count']), 'int');
+    $add('🌟', 'Больше всех ЛХ', $leader($rows, fn($r) => (float)$r['lh_sum']), 'f1');
+    $add('📊', 'Высший средний (~Σ)', $leader($rows, fn($r) => (float)$r['avg_total']), 'f2');
+    return $recs;
+}
+
+function records_fmt($v, string $type): string
+{
+    return match ($type) {
+        'pct' => round($v * 100) . '%',
+        'int' => (string)(int)$v,
+        'f1' => number_format((float)$v, 1),
+        'f2' => number_format((float)$v, 2),
+        default => (string)$v,
+    };
+}
+
+// Каталог достижений: ключ => [иконка, название, описание]. Условия — в профиле.
+function achievements_catalog(): array
+{
+    return [
+        'debut'    => ['🎬', 'Дебют', 'Первая игра'],
+        'ten'      => ['🎯', 'Десятка', '10 игр сыграно'],
+        'veteran'  => ['🏛', 'Ветеран', '100 игр сыграно'],
+        'streak3'  => ['🔥', 'На кураже', '3 победы подряд'],
+        'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд'],
+        'elo1500'  => ['⭐', 'Сильный', 'ELO 1500+'],
+        'elo2000'  => ['💎', 'Эксперт', 'ELO 2000+'],
+        'elo2600'  => ['👑', 'Мастер', 'ELO 2600+'],
+        'dop30'    => ['➕', 'Щедрый на допы', '30+ допов всего'],
+        'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3'],
+        'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)'],
+        'survivor' => ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)'],
+        'black5'   => ['🌑', 'Власть тьмы', '5 чёрных ролей подряд'],
+        'red3'     => ['🚩', 'Красная машина', '3 победы красными подряд'],
+        'fatgame'  => ['💰', 'Жирная игра', '1.5+ допа за одну игру'],
+        'eloday'   => ['📈', 'Прорыв вечера', '+150 ELO за вечер'],
+    ];
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {

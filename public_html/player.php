@@ -313,24 +313,19 @@ if ($stats) {
         foreach ($ed->fetchAll() as $r) { $maxEloDay = max($maxEloDay, (float)$r['s']); }
     } catch (Throwable $e) {
     }
-    $ach = [
-        ['🎬', 'Дебют', 'Первая игра', $games >= 1],
-        ['🎯', 'Десятка', '10 игр сыграно', $games >= 10],
-        ['🏛', 'Ветеран', '100 игр сыграно', $games >= 100],
-        ['🔥', 'На кураже', '3 победы подряд', $maxW >= 3],
-        ['⚡', 'Неудержимый', '5 побед подряд', $maxW >= 5],
-        ['⭐', 'Сильный', 'ELO 1500+', $elo >= 1500],
-        ['💎', 'Эксперт', 'ELO 2000+', $elo >= 2000],
-        ['👑', 'Мастер', 'ELO 2600+', $elo >= 2600],
-        ['➕', 'Щедрый на допы', '30+ допов всего', (float)$stats['dop_sum'] >= 30],
-        ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', $triples >= 1],
-        ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', $donWr >= 60],
-        ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)', $games >= 20 && $puPct < 20],
-        ['🌑', 'Власть тьмы', '5 чёрных ролей подряд', $blackStreak >= 5],
-        ['🚩', 'Красная машина', '3 победы красными подряд', $redWinStreak >= 3],
-        ['💰', 'Жирная игра', '1.5+ допа за одну игру', $maxPlusGame >= 1.5],
-        ['📈', 'Прорыв вечера', '+150 ELO за вечер', $maxEloDay >= 150],
+    $cond = [
+        'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
+        'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5,
+        'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2600' => $elo >= 2600,
+        'dop30' => (float)$stats['dop_sum'] >= 30, 'triple' => $triples >= 1,
+        'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
+        'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
+        'fatgame' => $maxPlusGame >= 1.5, 'eloday' => $maxEloDay >= 150,
     ];
+    $ach = [];
+    foreach (achievements_catalog() as $k => [$ic, $t, $d]) {
+        $ach[] = [$ic, $t, $d, $cond[$k] ?? false];
+    }
     $earnedN = count(array_filter($ach, fn($a) => $a[3]));
     echo '<div class="card"><div class="section-head"><h2 style="margin:0;">Достижения</h2>'
         . '<span style="font-size:13px;color:var(--tx2);">' . $earnedN . ' из ' . count($ach) . '</span></div>';
