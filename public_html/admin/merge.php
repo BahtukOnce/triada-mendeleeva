@@ -102,10 +102,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'rename'
     redirect('/admin/merge.php');
 }
 
+// Не предлагать пару к слиянию (крестик)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'ignore') {
+    csrf_check();
+    $a = (int)($_POST['a'] ?? 0);
+    $b = (int)($_POST['b'] ?? 0);
+    if ($a && $b && $a !== $b) {
+        db()->prepare('INSERT IGNORE INTO merge_ignores (a_id, b_id) VALUES (?,?)')->execute([min($a, $b), max($a, $b)]);
+    }
+    redirect('/admin/merge.php');
+}
+
 $players = db()->query('SELECT id, nickname,
         (SELECT COUNT(*) FROM game_seats gs WHERE gs.player_id = players.id) AS games,
         user_id
     FROM players ORDER BY nickname')->fetchAll();
+$ignored = [];
+foreach (db()->query('SELECT a_id, b_id FROM merge_ignores')->fetchAll() as $ig) {
+    $ignored[(int)$ig['a_id'] . '-' . (int)$ig['b_id']] = true;
+}
 
 // Похожие пары (подсказки)
 $norm = function (string $n): string {
@@ -128,6 +143,11 @@ for ($i = 0; $i < $n; $i++) {
         }
         $lev = levenshtein($a, $b);
         if ($lev <= 1 || str_starts_with($a, $b) || str_starts_with($b, $a)) {
+            $ia = (int)$players[$i]['id'];
+            $ib = (int)$players[$j]['id'];
+            if (isset($ignored[min($ia, $ib) . '-' . max($ia, $ib)])) {
+                continue;
+            }
             $pairs[] = [$players[$i], $players[$j]];
         }
     }
@@ -181,7 +201,10 @@ if ($pairs) {
         [$srcP, $dstP] = ((int)$a['games'] <= (int)$b['games']) ? [$a, $b] : [$b, $a];
         echo '<td><form method="post" action="/admin/merge.php" style="display:inline;" onsubmit="return confirm(\'Слить «' . esc($srcP['nickname']) . '» в «' . esc($dstP['nickname']) . '»?\');">' . csrf_field();
         echo '<input type="hidden" name="form" value="merge"><input type="hidden" name="src" value="' . (int)$srcP['id'] . '"><input type="hidden" name="dst" value="' . (int)$dstP['id'] . '">';
-        echo '<button class="btn btn-ghost" style="padding:4px 12px;font-size:12px;" type="submit">«' . esc($srcP['nickname']) . '» → «' . esc($dstP['nickname']) . '»</button></form></td></tr>';
+        echo '<button class="btn btn-ghost" style="padding:4px 12px;font-size:12px;" type="submit">«' . esc($srcP['nickname']) . '» → «' . esc($dstP['nickname']) . '»</button></form>';
+        echo ' <form method="post" action="/admin/merge.php" style="display:inline;" title="не предлагать эту пару">' . csrf_field()
+            . '<input type="hidden" name="form" value="ignore"><input type="hidden" name="a" value="' . (int)$a['id'] . '"><input type="hidden" name="b" value="' . (int)$b['id'] . '">'
+            . '<button class="btn btn-ghost" style="padding:4px 9px;font-size:12px;color:var(--tx2);" type="submit" title="не предлагать">✕</button></form></td></tr>';
     }
     echo '</table></div>';
 } else {

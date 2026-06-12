@@ -37,6 +37,7 @@ if ($dbok) {
 
 page_head('Новости', 'news');
 echo '<h1>Новости</h1>';
+echo '<p style="margin-top:-6px;"><a class="btn btn-ghost" href="/rules.php">📖 Правила игры</a></p>';
 
 if ($list) {
     echo '<div class="card">';
@@ -56,8 +57,7 @@ if ($list) {
 // ── Рекорды клуба ──
 $recs = $dbok ? club_records() : [];
 if ($recs) {
-    echo '<div class="section-head" style="margin-top:20px;"><h2 style="margin:0;">Рекорды клуба</h2>'
-        . '<a class="more" href="/records.php">все рекорды →</a></div>';
+    echo '<h2 style="margin:20px 0 4px;">Рекорды клуба</h2>';
     echo '<div class="records-grid">';
     foreach (array_slice($recs, 0, 8) as [$ic, $title, $row, $val, $type]) {
         echo '<a class="rec-card" href="/player.php?id=' . (int)$row['pid'] . '">';
@@ -71,8 +71,7 @@ if ($recs) {
 }
 
 // ── Достижения ──
-echo '<div class="section-head" style="margin-top:20px;"><h2 style="margin:0;">Достижения</h2>'
-    . '<a class="more" href="/records.php">все →</a></div>';
+echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
 echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Получай их в своём профиле — стимул к гринду и прокачке скилла.</p>';
 echo '<div class="ach-grid">';
 foreach (achievements_catalog() as [$ic, $t, $d]) {

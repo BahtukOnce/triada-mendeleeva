@@ -12,12 +12,9 @@ function nav_items(bool $authed = true): array
         'players'     => ['players.php', 'Игроки'],
         'records'     => ['records.php', 'Рекорды'],
     ];
-    // Фото и Тесты — только для вошедших
+    // Фото и Тесты — только для вошедших; Правила переехали в Новости (кнопкой)
     if ($authed) {
         $items['photos'] = ['photos.php', 'Фото'];
-    }
-    $items['rules'] = ['rules.php', 'Правила'];
-    if ($authed) {
         $items['tests'] = ['tests.php', 'Тесты'];
     }
     return $items;
