@@ -122,13 +122,13 @@ $wr = fn($w, $g) => $g ? round($w / $g * 100) . '%' : '—';
 
 // ── Вывод ──
 $losses = $decided - $wins;
-echo '<div class="grid-stats">';
-echo '<div class="stat"><div class="lbl">всего игр</div><div class="val">' . $games . '</div></div>';
+echo '<div class="grid-stats gs-compact">';
+echo '<div class="stat"><div class="lbl">игр</div><div class="val">' . $games . '</div></div>';
 echo '<div class="stat"><div class="lbl">винрейт</div><div class="val">' . $wr($wins, $decided) . '</div></div>';
-echo '<div class="stat"><div class="lbl">лузрейт</div><div class="val">' . $wr($losses, $decided) . '</div></div>';
-echo '<div class="stat"><div class="lbl">побед / пораж / ничьих</div><div class="val" style="font-size:18px;">'
-    . $wins . ' / ' . $losses . ' / ' . $draws . '</div></div>';
-echo '<div class="stat"><div class="lbl">ПУ (первоубит)</div><div class="val">' . $puCount . '</div></div>';
+echo '<div class="stat"><div class="lbl">побед</div><div class="val" style="color:var(--ok);">' . $wins . '</div></div>';
+echo '<div class="stat"><div class="lbl">поражений</div><div class="val">' . $losses . '</div></div>';
+echo '<div class="stat"><div class="lbl">ничьих</div><div class="val">' . $draws . '</div></div>';
+echo '<div class="stat"><div class="lbl">ПУ</div><div class="val">' . $puCount . '</div></div>';
 echo '</div>';
 
 $jst = db()->prepare("SELECT COUNT(*) FROM games WHERE judge_player_id = ? AND status = 'finished'");
