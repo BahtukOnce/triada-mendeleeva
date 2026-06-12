@@ -123,14 +123,21 @@ if ($stats) {
     $roleOrder = [['civ', 'Мирный'], ['sher', 'Шериф'], ['maf', 'Мафия'], ['don', 'Дон']];
     $roleClr = ['civ' => '#3a7bd5', 'sher' => '#d5a23a', 'maf' => '#c0392b', 'don' => '#8c8c96'];
     $wn = 0; $ls = 0; $dr = 0;
+    $foulsSum = 0; $techSum = 0;
+    $seatG = array_fill(1, 10, 0); $seatW = array_fill(1, 10, 0);
+    $resDesc = []; // исходы от новых к старым: 'W' / 'L' / 'D'
     foreach ($history as $h) {
+        $foulsSum += (int)$h['fouls']; $techSum += (int)$h['tech_fouls'];
         if ($h['winner'] === 'draw') {
-            $dr++;
+            $dr++; $resDesc[] = 'D';
             continue;
         }
         $won = ($h['winner'] === 'red' && in_array($h['role'], ['civ', 'sheriff'], true))
             || ($h['winner'] === 'black' && in_array($h['role'], ['maf', 'don'], true));
         $won ? $wn++ : $ls++;
+        $resDesc[] = $won ? 'W' : 'L';
+        $seat = (int)$h['seat'];
+        if ($seat >= 1 && $seat <= 10) { $seatG[$seat]++; if ($won) { $seatW[$seat]++; } }
     }
     $eh = db()->prepare('SELECT elo_after FROM elo_history WHERE player_id = ? ORDER BY id');
     $eh->execute([$id]);
@@ -174,6 +181,101 @@ if ($stats) {
         echo '<tr><td style="color:var(--tx2);">' . $lbl . '</td><td class="num">' . $val . '</td></tr>';
     }
     echo '</table></div></div>';
+
+    // ── Раскладка по ролям (%) + Команды ──
+    $redG = (int)$stats['g_civ'] + (int)$stats['g_sher'];
+    $redW = (int)$stats['w_civ'] + (int)$stats['w_sher'];
+    $blkG = (int)$stats['g_maf'] + (int)$stats['g_don'];
+    $blkW = (int)$stats['w_maf'] + (int)$stats['w_don'];
+
+    echo '<div class="grid-2">';
+    echo '<div class="card"><h2 style="margin-top:0;">Раскладка по ролям</h2>'
+        . '<p style="color:var(--tx2);font-size:12.5px;margin:-4px 0 12px;">как часто играл за каждую роль</p><div class="role-bars">';
+    foreach ($roleOrder as [$rk, $rl2]) {
+        $g = (int)$stats['g_' . $rk];
+        $pct = $games ? round($g / $games * 100) : 0;
+        echo '<div class="role-bar"><span class="rb-name">' . $rl2 . '</span>'
+            . '<span class="rb-track"><span class="rb-fill" style="width:' . $pct . '%;background:' . $roleClr[$rk] . ';"></span></span>'
+            . '<span class="rb-val"><b>' . $pct . '%</b> ' . $g . '</span></div>';
+    }
+    echo '</div></div>';
+
+    echo '<div class="card"><h2 style="margin-top:0;">Красные и чёрные</h2>';
+    $tg = ($redG + $blkG) ?: 1;
+    $rpp = round($redG / $tg * 100);
+    echo '<div class="bal-bar"><span style="width:' . $rpp . '%;background:#c0392b;"></span><span style="width:' . (100 - $rpp) . '%;background:#33333c;"></span></div>';
+    echo '<div class="bal-legend"><span><i style="background:#c0392b;"></i>Красные ' . $rpp . '%</span><span><i style="background:#33333c;"></i>Чёрные ' . (100 - $rpp) . '%</span></div>';
+    echo '<table class="tbl" style="margin-top:10px;"><tr><th>Команда</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
+    $teamRow = function (string $lbl, int $g, int $w): string {
+        $wr = $g ? round($w / $g * 100) . '%' : '—';
+        return '<tr><td>' . $lbl . '</td><td class="num">' . $g . '</td><td class="num">' . $w . '</td><td class="num"><b>' . $wr . '</b></td></tr>';
+    };
+    echo $teamRow('🔴 Красные', $redG, $redW);
+    echo $teamRow('⚫ Чёрные', $blkG, $blkW);
+    echo '</table></div></div>';
+
+    // ── Серии и форма + Привычки ──
+    $curStreak = 0; $curType = '';
+    foreach ($resDesc as $r) {
+        if ($r === 'D') { break; }
+        if ($curType === '') { $curType = $r; $curStreak = 1; } elseif ($r === $curType) { $curStreak++; } else { break; }
+    }
+    $maxW = 0; $maxL = 0; $rw = 0; $rl = 0;
+    foreach (array_reverse($resDesc) as $r) {
+        if ($r === 'W') { $rw++; $rl = 0; } elseif ($r === 'L') { $rl++; $rw = 0; } else { $rw = 0; $rl = 0; }
+        $maxW = max($maxW, $rw); $maxL = max($maxL, $rl);
+    }
+    $form = array_slice($resDesc, 0, 14);
+
+    echo '<div class="grid-2">';
+    echo '<div class="card"><h2 style="margin-top:0;">Серии и форма</h2>';
+    $stType = $curType === 'W' ? 'побед подряд' : ($curType === 'L' ? 'поражений подряд' : 'нет серии');
+    $stColor = $curType === 'W' ? 'var(--ok)' : ($curType === 'L' ? 'var(--ac)' : 'var(--tx2)');
+    echo '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">';
+    echo '<div><div style="font-size:32px;font-weight:750;color:' . $stColor . ';line-height:1;">' . ($curStreak ?: '—') . '</div><div style="font-size:12px;color:var(--tx2);margin-top:3px;">' . $stType . '</div></div>';
+    echo '<div style="color:var(--tx2);font-size:13px;line-height:1.7;">макс. побед подряд: <b style="color:var(--tx);">' . $maxW . '</b><br>макс. поражений подряд: <b style="color:var(--tx);">' . $maxL . '</b></div>';
+    echo '</div>';
+    echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние игры (новые слева):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
+    foreach ($form as $r) {
+        $c = $r === 'W' ? 'var(--ok)' : ($r === 'L' ? 'var(--ac)' : 'var(--tx3)');
+        $sym = $r === 'W' ? '+' : ($r === 'L' ? '−' : '=');
+        echo '<span style="width:22px;height:22px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">' . $sym . '</span>';
+    }
+    echo '</div></div>';
+
+    echo '<div class="card"><h2 style="margin-top:0;">Привычки и особенности</h2><table class="tbl">';
+    $puPct = $games ? round((int)$stats['pu_count'] / $games * 100) : 0;
+    $avgScore = $games ? number_format($stats['sum_total'] / $games, 2) : '—';
+    $avgFouls = $games ? number_format($foulsSum / $games, 2) : '—';
+    $bestRole = null; $worstRole = null; $bestWr = -1; $worstWr = 101;
+    foreach ($roleOrder as [$rk, $rl2]) {
+        $g = (int)$stats['g_' . $rk];
+        if ($g < 4) { continue; }
+        $wrr = round((int)$stats['w_' . $rk] / $g * 100);
+        if ($wrr > $bestWr) { $bestWr = $wrr; $bestRole = $rl2 . ' · ' . $wrr . '%'; }
+        if ($wrr < $worstWr) { $worstWr = $wrr; $worstRole = $rl2 . ' · ' . $wrr . '%'; }
+    }
+    echo '<tr><td style="color:var(--tx2);">Среднее за игру</td><td class="num"><b>' . $avgScore . '</b></td></tr>';
+    echo '<tr><td style="color:var(--tx2);">Был первоубиенным</td><td class="num">' . (int)$stats['pu_count'] . ' <span style="color:var(--tx2);">(' . $puPct . '%)</span></td></tr>';
+    echo '<tr><td style="color:var(--tx2);">Средние фолы за игру</td><td class="num">' . $avgFouls . '</td></tr>';
+    echo '<tr><td style="color:var(--tx2);">Техфолы всего</td><td class="num">' . $techSum . '</td></tr>';
+    echo '<tr><td style="color:var(--tx2);">Коронная роль</td><td class="num"><b style="color:var(--ok);">' . ($bestRole ?: '—') . '</b></td></tr>';
+    echo '<tr><td style="color:var(--tx2);">Тяжёлая роль</td><td class="num">' . ($worstRole ?: '—') . '</td></tr>';
+    echo '</table></div></div>';
+
+    // ── Счастливое место (винрейт по местам за столом) ──
+    if (array_sum($seatG) > 0) {
+        echo '<div class="card"><h2 style="margin-top:0;">Счастливое место</h2>'
+            . '<p style="color:var(--tx2);font-size:12.5px;margin:-4px 0 14px;">винрейт в зависимости от места за столом (по решённым играм)</p>';
+        echo '<div class="seat-grid">';
+        for ($s = 1; $s <= 10; $s++) {
+            $sg = $seatG[$s]; $sw = $seatW[$s]; $spct = $sg ? round($sw / $sg * 100) : 0;
+            $col = $sg ? ($spct >= 60 ? 'var(--ok)' : ($spct < 42 ? 'var(--ac)' : 'var(--ac-h)')) : 'var(--sf2)';
+            echo '<div class="seat-col"><div class="seat-bar-wrap"><div class="seat-bar" style="height:' . ($sg ? $spct : 0) . '%;background:' . $col . ';"></div></div>'
+                . '<div class="seat-pct">' . ($sg ? $spct . '%' : '—') . '</div><div class="seat-no">' . $s . '</div></div>';
+        }
+        echo '</div></div>';
+    }
 
     // ── Chart.js ──
     echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>';

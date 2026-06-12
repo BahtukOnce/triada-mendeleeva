@@ -431,6 +431,15 @@ body::before {
   .player-card:hover { transform: translateY(-3px); }
 }
 
+/* ── Счастливое место (винрейт по местам) ──────── */
+.seat-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; align-items: end; }
+.seat-col { text-align: center; }
+.seat-bar-wrap { height: 96px; display: flex; align-items: flex-end; }
+.seat-bar { width: 100%; border-radius: 5px 5px 0 0; min-height: 6px; }
+.seat-pct { font-size: 11px; color: var(--tx2); margin-top: 5px; font-variant-numeric: tabular-nums; }
+.seat-no { font-size: 12px; font-weight: 600; }
+@media (max-width: 600px) { .seat-grid { grid-template-columns: repeat(5, 1fr); row-gap: 14px; } }
+
 /* ── Баланс игр клуба ──────────────────────────── */
 .bal-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--sf2); }
 .bal-bar > span { height: 100%; }
