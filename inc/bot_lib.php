@@ -313,13 +313,11 @@ function bot_nominations(array $players): array
     if ($sher) {
         $noms[] = ['title' => 'Лучший шериф', 'name' => $sher['name']];
     }
-    $red = $bestBy($cands, fn($r) => $r['roles']['mir']['wins'] + $r['roles']['sher']['wins'],
-        fn($r) => $r['roles']['mir']['games'] + $r['roles']['sher']['games'], 10);
+    $red = $bestBy($cands, fn($r) => $r['roles']['mir']['wins'], fn($r) => $r['roles']['mir']['games'], 10);
     if ($red) {
         $noms[] = ['title' => 'Лучший красный', 'name' => $red['name']];
     }
-    $black = $bestBy($cands, fn($r) => $r['roles']['maf']['wins'] + $r['roles']['don']['wins'],
-        fn($r) => $r['roles']['maf']['games'] + $r['roles']['don']['games'], 8);
+    $black = $bestBy($cands, fn($r) => $r['roles']['maf']['wins'], fn($r) => $r['roles']['maf']['games'], 8);
     if ($black) {
         $noms[] = ['title' => 'Лучший чёрный', 'name' => $black['name']];
     }

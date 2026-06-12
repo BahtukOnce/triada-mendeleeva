@@ -83,8 +83,8 @@ if ($rows) {
         ['MVP клуба', $mvp ? [$mvp, null] : null, 'выше всех в рейтинге'],
         ['Лучший дон', $bestBy($cands, fn($r) => (int)$r['w_don'], fn($r) => (int)$r['g_don'], 4), 'дон'],
         ['Лучший шериф', $bestBy($cands, fn($r) => (int)$r['w_sher'], fn($r) => (int)$r['g_sher'], 4), 'шериф'],
-        ['Лучший красный', $bestBy($cands, fn($r) => $r['w_civ'] + $r['w_sher'], fn($r) => $r['g_civ'] + $r['g_sher'], 10), 'мирные+шериф'],
-        ['Лучший чёрный', $bestBy($cands, fn($r) => $r['w_maf'] + $r['w_don'], fn($r) => $r['g_maf'] + $r['g_don'], 8), 'мафия+дон'],
+        ['Лучший красный', $bestBy($cands, fn($r) => (int)$r['w_civ'], fn($r) => (int)$r['g_civ'], 10), 'мирный'],
+        ['Лучший чёрный', $bestBy($cands, fn($r) => (int)$r['w_maf'], fn($r) => (int)$r['g_maf'], 8), 'мафия'],
     ];
     $hasNoms = false;
     foreach ($noms as $n) {

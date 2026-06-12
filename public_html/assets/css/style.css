@@ -401,8 +401,8 @@ body::before {
 .role-bars { display: flex; flex-direction: column; gap: 11px; }
 .role-bar { display: grid; grid-template-columns: 68px 1fr 66px; align-items: center; gap: 10px; font-size: 13px; }
 .role-bar .rb-name { color: var(--tx2); white-space: nowrap; }
-.role-bar .rb-track { height: 9px; background: var(--sf2); border-radius: 5px; overflow: hidden; }
-.role-bar .rb-fill { height: 100%; border-radius: 5px; min-width: 2px; }
+.role-bar .rb-track { display: block; height: 9px; background: var(--sf2); border-radius: 5px; overflow: hidden; }
+.role-bar .rb-fill { display: block; height: 100%; border-radius: 5px; min-width: 2px; }
 .role-bar .rb-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--tx2); }
 .role-bar .rb-val b { color: var(--tx); font-weight: 650; }
 
