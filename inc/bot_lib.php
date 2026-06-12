@@ -60,6 +60,8 @@ function bot_num($v): string
 
 function bot_norm(string $s): string
 {
+    // эмодзи в нике игнорируем при сравнении (ник всегда чистый)
+    $s = (string)preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2190}-\x{21FF}\x{FE00}-\x{FE0F}\x{200D}\x{20E3}]/u', '', $s);
     return (string)preg_replace('/\s+/', ' ', mb_strtolower(trim($s)));
 }
 

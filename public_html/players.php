@@ -6,7 +6,7 @@ $list = [];
 
 if (db_ready()) {
     $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    $sql = 'SELECT p.id, p.nickname, p.avatar, p.fav_role, rc.games
+    $sql = 'SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, rc.games
         FROM players p
         LEFT JOIN rating_cache rc ON rc.player_id = p.id AND rc.rating_id = ?
         WHERE p.banned_at IS NULL';
@@ -36,7 +36,7 @@ if ($list) {
     foreach ($list as $p) {
         echo '<tr data-href="/player.php?id=' . (int)$p['id'] . '"><td>'
             . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 26, 'margin-right:8px;')
-            . '<span style="vertical-align:middle;">' . esc($p['nickname']) . '</span></td>';
+            . '<span style="vertical-align:middle;">' . player_label($p) . '</span></td>';
         echo '<td class="num">' . ($p['games'] !== null ? (int)$p['games'] : '—') . '</td>';
         echo '<td style="color:var(--tx2);">' . ($p['fav_role'] ? esc($roleLbl[$p['fav_role']]) : '—') . '</td></tr>';
     }

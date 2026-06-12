@@ -49,9 +49,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
         $pdo->prepare('UPDATE players SET user_id = NULL WHERE id = ?')->execute([$srcId]);
         $pdo->prepare('UPDATE players SET user_id = ? WHERE id = ?')->execute([(int)$src['user_id'], $dstId]);
     }
-    foreach (['real_name', 'tg', 'vk', 'faculty', 'study_group', 'birth_date', 'avatar', 'fav_role'] as $col) {
+    foreach (['real_name', 'tg', 'vk', 'faculty', 'study_group', 'birth_date', 'avatar', 'fav_role', 'flair'] as $col) {
         if (empty($dst[$col]) && !empty($src[$col])) {
             $pdo->prepare("UPDATE players SET $col = ? WHERE id = ?")->execute([$src[$col], $dstId]);
+        }
+    }
+    // Если различие было только в эмодзи в нике (напр. «НЕ_ЛИС🦊» → «НЕ_ЛИС») —
+    // сохраняем эмодзи источника как «висюльку» цели.
+    if (empty($dst['flair']) && empty($src['flair'])) {
+        $fromNick = flair_clean((string)$src['nickname']);
+        if ($fromNick !== '') {
+            $pdo->prepare('UPDATE players SET flair = ? WHERE id = ?')->execute([$fromNick, $dstId]);
         }
     }
     $pdo->prepare('DELETE FROM players WHERE id = ?')->execute([$srcId]);

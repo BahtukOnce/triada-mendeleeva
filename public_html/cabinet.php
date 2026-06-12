@@ -32,9 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Ник уже привязан');
             redirect('/cabinet.php');
         }
-        $nick = trim((string)($_POST['nick'] ?? ''));
+        $raw = trim((string)($_POST['nick'] ?? ''));
+        $flair = flair_clean($raw);       // эмодзи уходят в «висюльку»
+        $nick = nickname_clean($raw);     // сам ник — без эмодзи
         if ($nick === '') {
-            flash_set('err', 'Укажите ник');
+            flash_set('err', 'Укажите ник (буквами, без эмодзи)');
             redirect('/cabinet.php');
         }
         $st = db()->prepare('SELECT * FROM players WHERE LOWER(nickname) = LOWER(?)');
@@ -54,8 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash_set('ok', 'Заявка на привязку к игроку «' . $found['nickname'] . '» отправлена — подтвердит админ');
             }
         } else {
-            db()->prepare('INSERT INTO players (nickname, user_id) VALUES (?,?)')
-                ->execute([$nick, (int)$u['id']]);
+            db()->prepare('INSERT INTO players (nickname, user_id, flair) VALUES (?,?,?)')
+                ->execute([$nick, (int)$u['id'], $flair ?: null]);
             log_action((int)$u['id'], 'player_created_self', ['nickname' => $nick]);
             flash_set('ok', 'Профиль игрока создан и привязан');
         }
@@ -68,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fav = (string)($_POST['fav_role'] ?? '');
         $favVal = in_array($fav, ['civ', 'maf', 'sheriff', 'don'], true) ? $fav : null;
         $rhtu = !empty($_POST['is_rhtu']) ? 1 : 0;
-        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, is_rhtu = ?
+        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, is_rhtu = ?, flair = ?
             WHERE id = ?')->execute([
             trim((string)($_POST['real_name'] ?? '')) ?: null,
             trim((string)($_POST['tg'] ?? '')) ?: null,
@@ -78,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $birthVal,
             $favVal,
             $rhtu,
+            flair_clean((string)($_POST['flair'] ?? '')) ?: null,
             (int)$player['id'],
         ]);
         if (!empty($_FILES['avatar']['name'])) {
@@ -366,7 +369,7 @@ echo '<div class="grid-2">';
 echo '<div class="card"><h2 style="margin-top:0;">Профиль</h2>';
 if ($player) {
     echo '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' . avatar_html($player, 56);
-    echo '<div><b>' . esc($player['nickname']) . '</b><div style="font-size:12px;color:var(--tx2);">'
+    echo '<div><b>' . player_label($player) . '</b><div style="font-size:12px;color:var(--tx2);">'
         . esc(role_label($u['role'])) . ' · <a href="/player.php?id=' . (int)$player['id'] . '">публичный профиль</a></div></div></div>';
     echo '<form method="post" action="/cabinet.php">' . csrf_field();
     echo '<input type="hidden" name="form" value="profile">';
@@ -390,6 +393,8 @@ if ($player) {
         echo '<option value="' . $fk . '" ' . (($player['fav_role'] ?? '') === $fk ? 'selected' : '') . '>' . $fl . '</option>';
     }
     echo '</select></div></div>';
+    echo '<div class="field"><label>Эмодзи-«висюлька» (необязательно — показывается рядом с ником; в играх и рейтинге ник остаётся чистым)</label>'
+        . '<input type="text" name="flair" maxlength="32" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;"></div>';
     echo '<button class="btn" type="submit">Сохранить профиль</button></form>';
     echo '<script>(function(){var c=document.getElementById("rhtu-check"),f=document.getElementById("rhtu-fields");'
         . 'if(c&&f)c.addEventListener("change",function(){f.style.display=c.checked?"grid":"none";});})();</script>';

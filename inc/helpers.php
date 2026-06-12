@@ -11,6 +11,33 @@ function esc(?string $s): string
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
+// Диапазоны эмодзи/пиктограмм/модификаторов (для очистки ников и «висюлек»)
+const EMOJI_RANGES = '\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2190}-\x{21FF}'
+    . '\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{2122}\x{2139}\x{24C2}\x{3030}\x{303D}\x{3297}\x{3299}';
+
+// Ник без эмодзи (игровая идентичность всегда чистая, напр. «НЕ_ЛИС»)
+function nickname_clean(string $s): string
+{
+    $s = (string)preg_replace('/[' . EMOJI_RANGES . ']/u', '', $s);
+    return trim((string)preg_replace('/\s+/u', ' ', $s));
+}
+
+// Извлечь эмодзи из строки (для авто-«висюльки» при вводе ника со смайлом)
+function flair_clean(string $s): string
+{
+    preg_match_all('/[' . EMOJI_RANGES . ']/u', $s, $m);
+    $e = implode('', $m[0] ?? []);
+    return mb_substr($e, 0, 16);
+}
+
+// Имя игрока для публичного показа: чистый ник + опциональная эмодзи-«висюлька»
+function player_label(?array $p): string
+{
+    $n = esc($p['nickname'] ?? '');
+    $f = trim((string)($p['flair'] ?? ''));
+    return $f !== '' ? $n . ' <span class="flair">' . esc($f) . '</span>' : $n;
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {

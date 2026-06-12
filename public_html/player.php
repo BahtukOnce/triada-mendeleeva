@@ -58,7 +58,7 @@ $letter = mb_strtoupper(mb_substr($player['nickname'], 0, 1));
 $roleLbl = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
 echo '<div style="display:flex;align-items:center;gap:14px;margin:20px 0 4px;">';
 echo avatar_html($player, 54, 'background:var(--acsf);color:var(--ac);font-size:22px;');
-echo '<div><h1 style="margin:0;">' . esc($player['nickname']) . '</h1>';
+echo '<div><h1 style="margin:0;">' . player_label($player) . '</h1>';
 $sub = [];
 if ($player['user_role']) {
     $sub[] = role_label($player['user_role']);

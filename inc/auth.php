@@ -126,7 +126,7 @@ function user_role_badges(array $u): array
 
 function valid_nickname(string $nick): ?string
 {
-    $nick = trim((string)preg_replace('/\s+/u', ' ', $nick));
+    $nick = nickname_clean($nick); // эмодзи в нике запрещены — вырезаем
     $len = mb_strlen($nick);
     if ($len < 2 || $len > 30) {
         return null;
