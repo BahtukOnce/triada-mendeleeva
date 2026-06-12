@@ -7,7 +7,10 @@ declare(strict_types=1);
 // всем завершённым играм в хронологическом порядке.
 
 const ELO_START = 1000.0;
-const ELO_K = 24.0;
+const ELO_K = 90.0;          // размах: сильные игроки дотягивают примерно до 3000
+const ELO_DIV = 1000.0;      // ширина логистики (было 400): разрыв не «насыщается», топ продолжает расти
+const ELO_LOSS_MULT = 0.5;   // понижение мягче: проигрыш отнимает вдвое меньше, чем даёт победа
+const ELO_FLOOR = 600.0;     // ниже не опускаемся
 
 function elo_recompute(): void
 {
@@ -66,11 +69,11 @@ function elo_recompute(): void
         $scoreRed = $g['winner'] === 'red' ? 1.0 : ($g['winner'] === 'black' ? 0.0 : 0.5);
         $meanScore = fn($t) => array_sum(array_column($t, 'score')) / count($t);
 
-        // Командная дельта (zero-sum): красные получают +X, чёрные −X
-        $expRed = 1.0 / (1.0 + pow(10, ($avgBlack - $avgRed) / 400.0));
+        // Командная дельта: красные получают +X, чёрные −X
+        $expRed = 1.0 / (1.0 + pow(10, ($avgBlack - $avgRed) / ELO_DIV));
         $deltaRedTeam = ELO_K * ($scoreRed - $expRed);
 
-        // Распределение внутри команды с учётом вклада (сумма долей = командной дельте)
+        // Распределение внутри команды с учётом вклада; понижение мягче побед, пол снизу
         $distribute = function (array $team, float $teamDelta, float $teamMean) use (&$elo, $get, $hist, $g) {
             $sgn = $teamDelta >= 0 ? 1.0 : -1.0;
             $factors = [];
@@ -80,9 +83,13 @@ function elo_recompute(): void
             $fsum = array_sum($factors) ?: count($team);
             foreach ($team as $i => $p) {
                 $delta = $teamDelta * $factors[$i] / $fsum;
-                $newElo = $get($p['pid']) + $delta;
+                if ($delta < 0) {
+                    $delta *= ELO_LOSS_MULT; // падения мягче
+                }
+                $cur = $get($p['pid']);
+                $newElo = max(ELO_FLOOR, $cur + $delta);
                 $elo[$p['pid']] = $newElo;
-                $hist->execute([$p['pid'], (int)$g['id'], $g['gdate'], round($newElo, 1), round($delta, 1)]);
+                $hist->execute([$p['pid'], (int)$g['id'], $g['gdate'], round($newElo, 1), round($newElo - $cur, 1)]);
             }
         };
         $distribute($red, $deltaRedTeam, $meanScore($red));
