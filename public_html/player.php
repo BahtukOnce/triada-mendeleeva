@@ -378,11 +378,12 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-var TIERS=[{v:1000,n:'Новичок',col:'120,132,124',a:0.10},
-  {v:1500,n:'Сильный',col:'52,168,99',a:0.13},
-  {v:2000,n:'Эксперт',col:'64,132,224',a:0.15},
-  {v:2500,n:'Мастер',col:'160,96,224',a:0.19},
-  {v:3500,n:'Легенда',col:'232,184,48',a:0.26}];
+var TIERS=[{v:600,n:'Новичок',col:'120,132,124',a:0.10},
+  {v:1100,n:'Любитель',col:'52,168,99',a:0.12},
+  {v:1500,n:'Боец',col:'40,165,170',a:0.13},
+  {v:1900,n:'Эксперт',col:'64,120,224',a:0.15},
+  {v:2200,n:'Мастер',col:'160,96,224',a:0.18},
+  {v:2500,n:'Легенда',col:'232,184,48',a:0.26}];
 function tierColor(v){ var T=TIERS[0]; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) T=TIERS[i]; } return 'rgba('+T.col+','+T.a+')'; }
 function tierName(v){ var n=TIERS[0].n; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) n=TIERS[i].n; } return n; }
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
@@ -418,7 +419,7 @@ new Chart(document.getElementById('ch-elo'),{type:'line',
     plugins:{legend:{display:false},tooltip:{animation:false,callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
     label:function(c){var i=c.dataIndex,L=['ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y)];
       if(i>0){var dl=Math.round(c.parsed.y-D.elo[i-1]);L.push((dl>0?'▲ +':(dl<0?'▼ ':'')) + dl + ' с прошлой игры');}else{L.push('старт');}return L;}}}},
-    scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{suggestedMin:1000,suggestedMax:eloSMax,grid:{color:grid}}},maintainAspectRatio:false},
+    scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{suggestedMin:1000,suggestedMax:eloSMax,grid:{display:false}}},maintainAspectRatio:false},
   plugins:[tierBands]});
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
