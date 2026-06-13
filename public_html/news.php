@@ -74,7 +74,7 @@ if ($recs) {
 
 // ── Достижения ──
 echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
-echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Красная карточка — ачивку уже кто-то получил, серая — пока никто. Нажми на ачивку, чтобы увидеть всех, кто её получил.</p>';
+echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Нажми на ачивку, чтобы увидеть всех, кто её получил.</p>';
 $earners = $dbok ? achievement_earners() : [];
 $byGroup = [];
 foreach (achievements_catalog() as $k => [$ic, $t, $d, $grp]) {
