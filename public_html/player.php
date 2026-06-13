@@ -327,7 +327,7 @@ if ($stats) {
         'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
         'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
         'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
-        'elo1100' => $elo >= 1100, 'elo1500' => $elo >= 1500, 'elo1900' => $elo >= 1900, 'elo2200' => $elo >= 2200, 'elo2500' => $elo >= 2500,
+        'elo1000' => $elo >= 1000, 'elo1250' => $elo >= 1250, 'elo1450' => $elo >= 1450, 'elo1650' => $elo >= 1650, 'elo1850' => $elo >= 1850,
         'eloday' => $maxEloDay >= 150,
         'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.5,
         'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$stats['pu_count'] >= 5,
@@ -379,11 +379,11 @@ var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
 var TIERS=[{v:600,n:'Новичок',col:'120,132,124',a:0.10},
-  {v:1100,n:'Любитель',col:'52,168,99',a:0.12},
-  {v:1500,n:'Боец',col:'40,165,170',a:0.13},
-  {v:1900,n:'Эксперт',col:'64,120,224',a:0.15},
-  {v:2200,n:'Мастер',col:'160,96,224',a:0.18},
-  {v:2500,n:'Легенда',col:'232,184,48',a:0.26}];
+  {v:1000,n:'Любитель',col:'52,168,99',a:0.12},
+  {v:1250,n:'Боец',col:'40,165,170',a:0.13},
+  {v:1450,n:'Эксперт',col:'64,120,224',a:0.15},
+  {v:1650,n:'Мастер',col:'160,96,224',a:0.18},
+  {v:1850,n:'Легенда',col:'232,184,48',a:0.26}];
 function tierColor(v){ var T=TIERS[0]; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) T=TIERS[i]; } return 'rgba('+T.col+','+T.a+')'; }
 function tierName(v){ var n=TIERS[0].n; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) n=TIERS[i].n; } return n; }
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
