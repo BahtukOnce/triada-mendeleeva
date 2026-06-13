@@ -159,7 +159,7 @@
       } else {
         listEl.innerHTML = who.map(function (e) {
           return '<a class="ach-earner" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
-            + escapeHtml(e[1]) + '</a>';
+            + escapeHtml(e[1]) + (e[3] ? ' ' + escapeHtml(e[3]) : '') + '</a>';
         }).join('');
       }
       ov.classList.add('open');
@@ -179,7 +179,7 @@
       } else {
         html += '<div class="ach-side-list">' + who.map(function (e) {
           return '<a class="ach-side-row" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
-            + avaHtml(e[1], e[2]) + '<span class="nm">' + escapeHtml(e[1]) + '</span></a>';
+            + avaHtml(e[1], e[2]) + '<span class="nm">' + escapeHtml(e[1]) + (e[3] ? ' ' + escapeHtml(e[3]) : '') + '</span></a>';
         }).join('') + '</div>';
       }
       sideInner.innerHTML = html;

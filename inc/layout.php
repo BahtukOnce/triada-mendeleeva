@@ -140,7 +140,7 @@ function page_foot(): void
        . '<a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=9"></script>';
+    echo '<script src="/assets/js/app.js?v=10"></script>';
     echo '</body></html>';
 }
 

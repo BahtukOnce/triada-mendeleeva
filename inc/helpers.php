@@ -139,6 +139,8 @@ function achievements_catalog(): array
         'veteran'  => ['🏛', 'Ветеран', '100 игр сыграно', 'Игры'],
         'streak3'  => ['🔥', 'На кураже', '3 победы подряд', 'Серии'],
         'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд', 'Серии'],
+        'streak8'  => ['💥', 'Беспощадный', '8 побед подряд', 'Серии'],
+        'streak10' => ['🌟', 'Непобедимый', '10 побед подряд', 'Серии'],
         'black5'   => ['🌑', 'Власть тьмы', '5 чёрных ролей подряд', 'Серии'],
         'red3'     => ['🚩', 'Красная машина', '3 победы красными подряд', 'Серии'],
         'elo1100'  => ['✨', 'Любитель', 'ELO 1100+', 'ELO'],
@@ -151,7 +153,7 @@ function achievements_catalog(): array
         'fatgame'  => ['💰', 'Жирная игра', '1.5+ допа за одну игру', 'Мастерство'],
         'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Мастерство'],
         'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Мастерство'],
-        'survivor' => ['🩸', 'Живучий', 'ПУ менее 20% игр (от 20)', 'Мастерство'],
+        'danger'   => ['🎯', 'Самый опасный', '5+ раз первоубиенный (вас вычисляют первым)', 'Мастерство'],
     ];
 }
 
@@ -197,10 +199,12 @@ function achievement_earners(): array
         // Ники и аватары для всех игроков (не только из кэша рейтинга), иначе попадает «#id»
         $nickOf = [];
         $avaOf = [];
-        foreach (db()->query('SELECT id, nickname, avatar FROM players') as $p) {
+        $flairOf = [];
+        foreach (db()->query('SELECT id, nickname, avatar, flair FROM players') as $p) {
             $pid0 = (int)$p['id'];
             $nickOf[$pid0] = $p['nickname'];
             $avaOf[$pid0] = (!empty($p['avatar']) && is_file(ROOT . '/public_html' . $p['avatar'])) ? $p['avatar'] : '';
+            $flairOf[$pid0] = (string)($p['flair'] ?? '');
         }
         $allPids = array_unique(array_merge(array_keys($rc), array_keys($byPlayer)));
 
@@ -223,17 +227,18 @@ function achievement_earners(): array
             $donWr = ($r && (int)$r['g_don'] >= 4) ? (int)$r['w_don'] / (int)$r['g_don'] * 100 : 0;
             $cond = [
                 'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
-                'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'black5' => $blk >= 5, 'red3' => $redW >= 3,
+                'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
+                'black5' => $blk >= 5, 'red3' => $redW >= 3,
                 'elo1100' => $elo >= 1100, 'elo1500' => $elo >= 1500, 'elo1900' => $elo >= 1900,
                 'elo2200' => $elo >= 2200, 'elo2500' => $elo >= 2500,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
                 'dop30' => $r && (float)$r['dop_sum'] >= 30, 'fatgame' => $maxPlus >= 1.5,
                 'triple' => isset($triples[$pid]),
-                'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
+                'don' => $donWr >= 60, 'danger' => ((int)($r['pu_count'] ?? 0)) >= 5,
             ];
             foreach ($cond as $k => $ok) {
                 if ($ok) {
-                    $out[$k][] = [$pid, $nick, $avaOf[$pid] ?? ''];
+                    $out[$k][] = [$pid, $nick, $avaOf[$pid] ?? '', $flairOf[$pid] ?? ''];
                 }
             }
         }
