@@ -204,6 +204,39 @@ echo '</div>';
   var red = '#e8332a', roleColors = ['#e8332a', '#e6b13a', '#50505a', '#0e0e12'];
   var roleLabels = ['Мирный', 'Шериф', 'Мафия', 'Дон'];
 
+  // Зоны уровней по ELO (градиент)
+  var TIERS = [{ v: 0, n: 'Новичок', col: '120,124,140', a: 0.06 },
+    { v: 1100, n: 'Игрок', col: '70,120,210', a: 0.08 },
+    { v: 1500, n: 'Сильный', col: '220,170,60', a: 0.10 },
+    { v: 2000, n: 'Эксперт', col: '235,120,40', a: 0.13 },
+    { v: 2500, n: 'Мастер', col: '232,51,42', a: 0.19 },
+    { v: 3500, n: 'Легенда', col: '232,51,42', a: 0.34 }];
+  function tierColor(v) { var T = TIERS[0]; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].v) T = TIERS[i]; } return 'rgba(' + T.col + ',' + T.a + ')'; }
+  function tierName(v) { var n = TIERS[0].n; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].v) n = TIERS[i].n; } return n; }
+  var tierBands = { id: 'tierBands', beforeDatasetsDraw: function (ch) {
+    var ya = ch.scales.y, ar = ch.chartArea; if (!ya || !ar) return;
+    var c = ch.ctx, h = ar.bottom - ar.top; if (h <= 0) return;
+    var g = c.createLinearGradient(0, ar.top, 0, ar.bottom), added = {};
+    function stop(off, col) { off = Math.max(0, Math.min(1, off)); var k = off.toFixed(4); if (added[k]) return; added[k] = 1; g.addColorStop(off, col); }
+    stop(0, tierColor(ya.max));
+    TIERS.forEach(function (T) { if (T.v > ya.min && T.v < ya.max) stop((ya.getPixelForValue(T.v) - ar.top) / h, tierColor(T.v)); });
+    stop(1, tierColor(ya.min));
+    c.save();
+    c.fillStyle = g; c.fillRect(ar.left, ar.top, ar.right - ar.left, h);
+    c.textAlign = 'right'; c.font = '600 10px system-ui';
+    for (var i = 0; i < TIERS.length; i++) {
+      var T = TIERS[i], nextV = (i + 1 < TIERS.length) ? TIERS[i + 1].v : ya.max;
+      var bTop = ya.getPixelForValue(Math.min(nextV, ya.max)), bBot = ya.getPixelForValue(Math.max(T.v, ya.min));
+      if (bBot <= ar.top || bTop >= ar.bottom) continue;
+      var py = ya.getPixelForValue(T.v);
+      if (T.v > ya.min && py > ar.top && py < ar.bottom) { c.strokeStyle = 'rgba(255,255,255,0.08)'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(ar.left, Math.round(py) + 0.5); c.lineTo(ar.right, Math.round(py) + 0.5); c.stroke(); }
+      var top = Math.max(bTop, ar.top);
+      if (Math.min(bBot, ar.bottom) - top > 15) { c.fillStyle = 'rgba(255,255,255,0.55)'; c.fillText(T.n, ar.right - 6, top + 12); }
+    }
+    c.restore();
+  } };
+
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',
     data: { labels: D.eloDates,
@@ -212,9 +245,10 @@ echo '</div>';
     options: { interaction: { intersect: false, mode: 'index', axis: 'x' },
       plugins: { legend: { display: false },
         tooltip: { animation: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
-          label: function (c) { return 'ELO ' + Math.round(c.parsed.y); } } } },
+          label: function (c) { return 'ELO ' + Math.round(c.parsed.y) + ' · ' + tierName(c.parsed.y); } } } },
       scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { grid: { color: grid } } },
-      maintainAspectRatio: false }
+      maintainAspectRatio: false },
+    plugins: [tierBands]
   });
 
   new Chart(document.getElementById('ch-rolewr'), {

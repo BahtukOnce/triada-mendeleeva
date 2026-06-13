@@ -379,25 +379,35 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-function tierName(v){ return v>=3500?'Легенда':(v>=2500?'Мастер':(v>=2000?'Эксперт':(v>=1500?'Сильный':(v>=1100?'Игрок':'Новичок')))); }
-var TIERS=[{f:0,t:1100,n:'Новичок',c:'rgba(140,140,150,0.05)'},
-  {f:1100,t:1500,n:'Игрок',c:'rgba(58,123,213,0.07)'},
-  {f:1500,t:2000,n:'Сильный',c:'rgba(213,162,58,0.07)'},
-  {f:2000,t:2500,n:'Эксперт',c:'rgba(232,51,42,0.08)'},
-  {f:2500,t:3500,n:'Мастер',c:'rgba(232,51,42,0.14)'},
-  {f:3500,t:99999,n:'Легенда',c:'rgba(232,51,42,0.22)'}];
+var TIERS=[{v:0,n:'Новичок',col:'120,124,140',a:0.06},
+  {v:1100,n:'Игрок',col:'70,120,210',a:0.08},
+  {v:1500,n:'Сильный',col:'220,170,60',a:0.10},
+  {v:2000,n:'Эксперт',col:'235,120,40',a:0.13},
+  {v:2500,n:'Мастер',col:'232,51,42',a:0.19},
+  {v:3500,n:'Легенда',col:'232,51,42',a:0.34}];
+function tierColor(v){ var T=TIERS[0]; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) T=TIERS[i]; } return 'rgba('+T.col+','+T.a+')'; }
+function tierName(v){ var n=TIERS[0].n; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) n=TIERS[i].n; } return n; }
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
   var ya=ch.scales.y, ar=ch.chartArea; if(!ya||!ar) return;
-  var c=ch.ctx; c.save();
-  TIERS.forEach(function(T){
-    var y1=ya.getPixelForValue(Math.min(T.t,ya.max));
-    var y2=ya.getPixelForValue(Math.max(T.f,ya.min));
-    if(y2<=ar.top||y1>=ar.bottom) return;
-    var top=Math.max(y1,ar.top), bot=Math.min(y2,ar.bottom);
-    c.fillStyle=T.c; c.fillRect(ar.left,top,ar.right-ar.left,bot-top);
-    if(bot-top>15){ c.fillStyle='rgba(255,255,255,0.5)'; c.font='600 10px system-ui'; c.textAlign='right';
-      c.fillText(T.n, ar.right-6, top+12); }
-  });
+  var c=ch.ctx, h=ar.bottom-ar.top; if(h<=0) return;
+  var g=c.createLinearGradient(0,ar.top,0,ar.bottom), added={};
+  function stop(off,col){ off=Math.max(0,Math.min(1,off)); var k=off.toFixed(4); if(added[k])return; added[k]=1; g.addColorStop(off,col); }
+  stop(0, tierColor(ya.max));
+  TIERS.forEach(function(T){ if(T.v>ya.min&&T.v<ya.max) stop((ya.getPixelForValue(T.v)-ar.top)/h, tierColor(T.v)); });
+  stop(1, tierColor(ya.min));
+  c.save();
+  c.fillStyle=g; c.fillRect(ar.left,ar.top,ar.right-ar.left,h);
+  c.textAlign='right'; c.font='600 10px system-ui';
+  for(var i=0;i<TIERS.length;i++){
+    var T=TIERS[i], nextV=(i+1<TIERS.length)?TIERS[i+1].v:ya.max;
+    var bTop=ya.getPixelForValue(Math.min(nextV,ya.max)), bBot=ya.getPixelForValue(Math.max(T.v,ya.min));
+    if(bBot<=ar.top||bTop>=ar.bottom) continue;
+    var py=ya.getPixelForValue(T.v);
+    if(T.v>ya.min&&py>ar.top&&py<ar.bottom){ c.strokeStyle='rgba(255,255,255,0.08)'; c.lineWidth=1;
+      c.beginPath(); c.moveTo(ar.left,Math.round(py)+0.5); c.lineTo(ar.right,Math.round(py)+0.5); c.stroke(); }
+    var top=Math.max(bTop,ar.top);
+    if(Math.min(bBot,ar.bottom)-top>15){ c.fillStyle='rgba(255,255,255,0.55)'; c.fillText(T.n, ar.right-6, top+12); }
+  }
   c.restore();
 }};
 new Chart(document.getElementById('ch-elo'),{type:'line',
