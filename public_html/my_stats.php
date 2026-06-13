@@ -208,9 +208,11 @@ echo '</div>';
     type: 'line',
     data: { labels: D.eloDates,
       datasets: [{ data: D.elo, borderColor: red, backgroundColor: 'rgba(232,51,42,0.12)',
-        fill: true, tension: 0.25, pointRadius: 0, borderWidth: 2 }] },
-    options: { plugins: { legend: { display: false },
-        tooltip: { callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; } } } },
+        fill: true, tension: 0.25, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: red, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, borderWidth: 2 }] },
+    options: { interaction: { intersect: false, mode: 'index', axis: 'x' },
+      plugins: { legend: { display: false },
+        tooltip: { animation: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
+          label: function (c) { return 'ELO ' + Math.round(c.parsed.y); } } } },
       scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { grid: { color: grid } } },
       maintainAspectRatio: false }
   });
@@ -348,10 +350,11 @@ echo '<div class="grid-2">';
 echo '<div class="card"><h2 style="margin-top:0;">Кого чаще всего обыгрывали</h2>';
 $top = array_slice(array_filter($beat, fn($m) => $m['beat'] > 0), 0, 12, true);
 if ($top) {
-    echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Обыграли</th><th class="num">Игр против</th></tr>';
+    echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Обыграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
     foreach ($top as $opid => $m) {
         echo '<tr><td><a href="/player.php?id=' . $opid . '" style="color:var(--tx);">' . esc($m['nick']) . '</a></td>'
-            . '<td class="num"><b>' . $m['beat'] . '</b></td><td class="num">' . $m['games'] . '</td></tr>';
+            . '<td class="num"><b>' . $m['beat'] . '</b></td><td class="num">' . $m['games'] . '</td>'
+            . '<td class="num" style="color:var(--ok);">' . $wr($m['beat'], $m['games']) . '</td></tr>';
     }
     echo '</table>';
 } else {
@@ -362,10 +365,11 @@ echo '</div>';
 echo '<div class="card"><h2 style="margin-top:0;">Кому чаще всего проигрывали</h2>';
 $topL = array_slice(array_filter($lostTo, fn($m) => $m['lost'] > 0), 0, 12, true);
 if ($topL) {
-    echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Проиграли</th><th class="num">Игр против</th></tr>';
+    echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Проиграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
     foreach ($topL as $opid => $m) {
         echo '<tr><td><a href="/player.php?id=' . $opid . '" style="color:var(--tx);">' . esc($m['nick']) . '</a></td>'
-            . '<td class="num"><b style="color:var(--ac);">' . $m['lost'] . '</b></td><td class="num">' . $m['games'] . '</td></tr>';
+            . '<td class="num"><b style="color:var(--ac);">' . $m['lost'] . '</b></td><td class="num">' . $m['games'] . '</td>'
+            . '<td class="num" style="color:var(--ac);">' . $wr($m['lost'], $m['games']) . '</td></tr>';
     }
     echo '</table>';
 } else {

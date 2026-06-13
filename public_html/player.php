@@ -402,8 +402,9 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
 }};
 new Chart(document.getElementById('ch-elo'),{type:'line',
   data:{labels:D.eloDates,
-    datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,borderWidth:2}]},
-  options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
+    datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:red,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2}]},
+  options:{interaction:{intersect:false,mode:'index',axis:'x'},
+    plugins:{legend:{display:false},tooltip:{animation:false,callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
     label:function(c){return 'ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y);}}}},
     scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{grid:{color:grid}}},maintainAspectRatio:false},
   plugins:[tierBands]});
