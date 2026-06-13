@@ -58,21 +58,21 @@ if ($canEdit) {
 }
 
 if ($list) {
-    echo '<div class="card"><table class="tbl row-link">';
-    echo '<tr><th>Дата</th><th>Вечер</th><th>Локация</th><th class="num">Игр</th></tr>';
+    echo '<div class="days-grid">';
     foreach ($list as $d) {
-        echo '<tr data-href="/day.php?id=' . (int)$d['id'] . '">';
-        echo '<td>' . esc(date('d.m.Y', strtotime($d['date']))) . '</td>';
-        echo '<td style="font-weight:550;">' . esc($d['title']);
+        echo '<a class="day-card" href="/day.php?id=' . (int)$d['id'] . '">';
+        echo '<div class="day-card-top"><span class="day-title">' . esc($d['title']) . '</span>';
         if ($d['status'] === 'reg_open') {
-            echo ' <span class="tag tag-open" style="font-weight:400;">запись открыта</span>';
+            echo '<span class="tag tag-open">запись</span>';
         }
-        echo '</td>';
-        echo '<td style="color:var(--tx2);">' . esc($d['location'] ?: '—') . '</td>';
-        echo '<td class="num">' . (int)$d['games_cnt'] . '</td>';
-        echo '</tr>';
+        echo '</div>';
+        echo '<div class="day-date">' . esc(date('d.m.Y', strtotime($d['date']))) . '</div>';
+        echo '<div class="day-meta">';
+        echo '<span>' . ($d['location'] ? esc($d['location']) : '<span style="color:var(--tx3);">без локации</span>') . '</span>';
+        echo '<span class="day-games"><b>' . (int)$d['games_cnt'] . '</b> игр</span>';
+        echo '</div></a>';
     }
-    echo '</table></div>';
+    echo '</div>';
 } else {
     empty_state('Архив вечеров пока пуст', 'Здесь будут все игровые вечера клуба с протоколами игр.');
 }
