@@ -180,15 +180,17 @@ if ($games) {
 
 // ── Игры вечера (сеткой) ──
 if ($games) {
-    // ELO-дельты по играм
+    // ELO-дельты по играм (+ ELO до игры для среднего по столу)
     $eloDelta = [];
+    $eloBefore = [];
     try {
         $gids = array_column($games, 'id');
         $in = implode(',', array_fill(0, count($gids), '?'));
-        $st = db()->prepare("SELECT game_id, player_id, delta FROM elo_history WHERE game_id IN ($in)");
+        $st = db()->prepare("SELECT game_id, player_id, delta, elo_after FROM elo_history WHERE game_id IN ($in)");
         $st->execute($gids);
         foreach ($st->fetchAll() as $row) {
             $eloDelta[(int)$row['game_id']][(int)$row['player_id']] = (float)$row['delta'];
+            $eloBefore[(int)$row['game_id']][(int)$row['player_id']] = (float)$row['elo_after'] - (float)$row['delta'];
         }
     } catch (Throwable $e) {
     }
@@ -212,6 +214,17 @@ if ($games) {
         if ($g['judge_nick']) {
             echo '<p style="color:var(--tx2);font-size:12px;margin:2px 0 6px;">судья: '
                 . '<a href="/player.php?id=' . (int)$g['judge_id'] . '">' . esc($g['judge_nick']) . '</a></p>';
+        }
+        $tblElos = [];
+        foreach ($seats as $s) {
+            $eb = $eloBefore[(int)$g['id']][(int)$s['player_id']] ?? null;
+            if ($eb !== null) {
+                $tblElos[] = $eb;
+            }
+        }
+        if ($tblElos) {
+            echo '<p style="color:var(--tx2);font-size:12px;margin:2px 0 6px;">средний ELO стола: '
+                . '<b style="color:var(--tx);">' . number_format(array_sum($tblElos) / count($tblElos), 0, '.', '') . '</b></p>';
         }
         echo '<table class="tbl" style="font-size:12.5px;">';
         echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">Итог</th><th class="num">ELO</th></tr>';

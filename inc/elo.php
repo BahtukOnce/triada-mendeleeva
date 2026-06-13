@@ -78,11 +78,12 @@ function elo_recompute(): void
         // Деление дельты внутри команды: по ЛИЧНОЙ неожиданности (личный ELO vs соперники, узкая логистика)
         // × вклад за игру. Андердог-победа / фаворит-проигрыш → больше; сумма по команде = teamDelta.
         $distribute = function (array $team, float $teamDelta, float $oppAvg, float $teamResult, float $teamMean) use (&$elo, $get, $hist, $g) {
+            $sgn = $teamDelta >= 0 ? 1.0 : -1.0; // победа: хорошая игра → больше; поражение: плохая игра → теряешь больше
             $weights = [];
             foreach ($team as $p) {
                 $exp = 1.0 / (1.0 + pow(10, ($oppAvg - $p['elo']) / ELO_DIV_INDIV));
                 $surprise = ELO_SURPRISE_BASE + abs($teamResult - $exp);
-                $contrib = max(0.4, 1.0 + 0.25 * ($p['score'] - $teamMean));
+                $contrib = max(0.4, 1.0 + 0.25 * $sgn * ($p['score'] - $teamMean));
                 $weights[] = $surprise * $contrib;
             }
             $wsum = array_sum($weights) ?: count($team);
