@@ -327,7 +327,7 @@ if ($stats) {
         'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
         'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5,
         'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
-        'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2500' => $elo >= 2500, 'elo3500' => $elo >= 3500,
+        'elo1100' => $elo >= 1100, 'elo1500' => $elo >= 1500, 'elo1900' => $elo >= 1900, 'elo2200' => $elo >= 2200, 'elo2500' => $elo >= 2500,
         'eloday' => $maxEloDay >= 150,
         'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.5,
         'triple' => $triples >= 1, 'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
