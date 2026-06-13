@@ -8,9 +8,10 @@ declare(strict_types=1);
 
 const ELO_START = 1000.0;
 const ELO_K = 310.0;         // размах ходов
-const ELO_DIV = 2500.0;      // ширина логистики
-const ELO_LOSS_MULT = 1.0;   // ZERO-SUM: проигрыш отнимает ровно столько, сколько даёт победа.
-                             // Сумма ELO по клубу сохраняется, средний закреплён на 1000, инфляции нет.
+const ELO_DIV = 2500.0;      // ширина логистики (команда против команды)
+// ZERO-SUM сохраняется: дельта команды делится внутри неё, сумма по столу = 0, средний клуба = 1000.
+const ELO_INDIV_W = 0.4;     // вес личного ELO: кто ниже среднего ELO стола — больше получает за победу и меньше теряет
+const ELO_REL_SCALE = 500.0; // на сколько ELO от среднего стола даёт полную поправку
 const ELO_FLOOR = 100.0;     // пол почти не срабатывает, чтобы не ломать сохранение суммы
 
 function elo_recompute(): void
@@ -74,19 +75,25 @@ function elo_recompute(): void
         $expRed = 1.0 / (1.0 + pow(10, ($avgBlack - $avgRed) / ELO_DIV));
         $deltaRedTeam = ELO_K * ($scoreRed - $expRed);
 
-        // Распределение внутри команды с учётом вклада; понижение мягче побед, пол снизу
-        $distribute = function (array $team, float $teamDelta, float $teamMean) use (&$elo, $get, $hist, $g) {
+        // Средний ELO стола — точка отсчёта для индивидуальной поправки
+        $allSeats = array_merge($red, $black);
+        $tableEloMean = array_sum(array_column($allSeats, 'elo')) / count($allSeats);
+
+        // Распределение дельты команды: вклад за игру × индивидуальный ELO (сумма по команде = teamDelta → zero-sum)
+        $distribute = function (array $team, float $teamDelta, float $teamMean) use (&$elo, $get, $hist, $g, $tableEloMean) {
             $sgn = $teamDelta >= 0 ? 1.0 : -1.0;
             $factors = [];
             foreach ($team as $p) {
-                $factors[] = max(0.25, 1.0 + 0.4 * $sgn * max(-1.0, min(1.0, $p['score'] - $teamMean)));
+                // вклад за игру (допы/минусы относительно команды)
+                $contrib = max(0.25, 1.0 + 0.4 * $sgn * max(-1.0, min(1.0, $p['score'] - $teamMean)));
+                // личный ELO относительно среднего ELO стола: ниже среднего → победа ценнее, поражение мягче
+                $rel = max(-1.0, min(1.0, ($p['elo'] - $tableEloMean) / ELO_REL_SCALE));
+                $eloF = max(0.3, 1.0 - $sgn * ELO_INDIV_W * $rel);
+                $factors[] = $contrib * $eloF;
             }
             $fsum = array_sum($factors) ?: count($team);
             foreach ($team as $i => $p) {
                 $delta = $teamDelta * $factors[$i] / $fsum;
-                if ($delta < 0) {
-                    $delta *= ELO_LOSS_MULT; // падения мягче
-                }
                 $cur = $get($p['pid']);
                 $newElo = max(ELO_FLOOR, $cur + $delta);
                 $elo[$p['pid']] = $newElo;
