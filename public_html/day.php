@@ -244,7 +244,7 @@ if ($games) {
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')
                 . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
-                . '<td>' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
+                . '<td style="white-space:nowrap;">' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
                 . '<td class="num" style="font-size:11.5px;">' . $edHtml . '</td></tr>';
         }
