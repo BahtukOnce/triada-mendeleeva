@@ -169,10 +169,19 @@ $chartData = json_encode([
 
 echo '<h2 style="margin-top:14px;">Графики</h2>';
 echo '<div class="grid-2">';
-echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . number_format((float)$myElo, 0, '.', '') . '</h2>'
-    . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div></div>';
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . number_format((float)$myElo, 0, '.', '')
+    . ' <span style="color:var(--ac);font-size:13px;">· ' . esc(elo_tier_name((float)$myElo)) . '</span></h2>'
+    . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div>'
+    . elo_tier_ladder((float)$myElo) . '</div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Винрейт по ролям</h2>'
-    . '<div style="position:relative;height:220px;"><canvas id="ch-rolewr"></canvas></div></div>';
+    . '<div style="position:relative;height:200px;"><canvas id="ch-rolewr"></canvas></div>';
+$roleLblWr = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
+echo '<table class="tbl" style="margin-top:10px;font-size:13px;"><tr><th>Роль</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
+foreach ($roleLblWr as $rk => $rl) {
+    [$gg, $ww] = $byRole[$rk];
+    echo '<tr><td>' . $rl . '</td><td class="num">' . $gg . '</td><td class="num">' . $ww . '</td><td class="num">' . $wr($ww, $gg) . '</td></tr>';
+}
+echo '</table></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Сколько играли за роль</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-roledist"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
@@ -230,17 +239,8 @@ echo '</div>';
 </script>
 <?php
 
-// По ролям
-echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">Винрейт по ролям</h2>';
-echo '<table class="tbl"><tr><th>Роль</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
-$roleLbl = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
-foreach ($roleLbl as $rk => $rl) {
-    [$gg, $ww] = $byRole[$rk];
-    echo '<tr><td>' . $rl . '</td><td class="num">' . $gg . '</td><td class="num">' . $ww . '</td><td class="num">' . $wr($ww, $gg) . '</td></tr>';
-}
-echo '</table></div>';
-
-// По цвету
+// По команде (цвету) + Первоубиенный/ЛХ — в две колонки
+echo '<div class="grid-2">';
 echo '<div class="card"><h2 style="margin-top:0;">По команде (цвету)</h2>';
 echo '<table class="tbl"><tr><th>Команда</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
 echo '<tr><td>🔴 Красные (мир+шериф)</td><td class="num">' . $byColor['red'][0] . '</td><td class="num">' . $byColor['red'][1] . '</td><td class="num">' . $wr($byColor['red'][1], $byColor['red'][0]) . '</td></tr>';
@@ -248,19 +248,8 @@ echo '<tr><td>⚫ Чёрные (мафия+дон)</td><td class="num">' . $byCo
 echo '</table>';
 echo '<p style="font-size:12.5px;color:var(--tx2);margin:10px 0 0;">Чёрных игр у вас ' . $byColor['black'][0]
     . ' из ' . $games . ' (' . ($games ? round($byColor['black'][0] / $games * 100) : 0) . '%).</p>';
-echo '</div></div>';
+echo '</div>';
 
-// Лучший напарник: больше всего совместных побед в одном цвете (считаем заранее)
-$bestMate = null;
-foreach ($teammates as $opid => $m) {
-    if ($bestMate === null || $m['wins'] > $bestMate['wins']
-        || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
-        $bestMate = $m + ['id' => $opid];
-    }
-}
-
-echo '<div class="grid-2eq">';
-// ПУ и лучший ход
 echo '<div class="card"><h2 style="margin-top:0;">Первоубиенный и лучший ход</h2>';
 echo '<table class="tbl">';
 echo '<tr><td style="color:var(--tx2);">Раз был первоубиенным (ПУ)</td><td class="num">' . $puCount
@@ -271,20 +260,46 @@ echo '<tr><td style="color:var(--tx2);">Σ бонусов за ЛХ</td><td clas
 echo '<tr><td style="color:var(--tx2);">Допов всего / минусов</td><td class="num">' . number_format($plusSum, 1) . ' / ' . number_format($minusSum, 1) . '</td></tr>';
 echo '<tr><td style="color:var(--tx2);">Фолов / техфолов</td><td class="num">' . $foulsSum . ' / ' . $techSum . '</td></tr>';
 echo '</table></div>';
+echo '</div>';
 
-// Лучший напарник
-if ($bestMate && $bestMate['wins'] > 0) {
-    echo '<div class="card card-accent" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">';
-    echo avatar_html(['nickname' => $bestMate['nick']], 44, 'background:var(--acsf);color:var(--ac);');
-    echo '<div><div style="font-size:13px;color:var(--tx2);">Лучший напарник в одном цвете</div>'
-        . '<div style="font-size:17px;font-weight:600;"><a href="/player.php?id=' . (int)$bestMate['id'] . '" style="color:var(--tx);">'
-        . esc($bestMate['nick']) . '</a></div>'
-        . '<div style="font-size:13px;color:var(--tx2);">' . $bestMate['wins'] . ' совместных побед в '
-        . $bestMate['games'] . ' играх вместе · винрейт ' . $wr($bestMate['wins'], $bestMate['games']) . '</div></div>';
-    echo '</div>';
-} else {
-    echo '<div class="card"><h2 style="margin-top:0;">Лучший напарник</h2><p style="color:var(--tx2);margin:0;">Пока мало совместных побед для расчёта.</p></div>';
+// Напарники в одном цвете: лучший (больше всего совместных побед) и неудачный (низкий винрейт от 5 игр)
+$bestMate = null;
+foreach ($teammates as $opid => $m) {
+    if ($bestMate === null || $m['wins'] > $bestMate['wins']
+        || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
+        $bestMate = $m + ['id' => $opid];
+    }
 }
+$worstMate = null;
+$minTogether = 5;
+foreach ($teammates as $opid => $m) {
+    if ($m['games'] < $minTogether || ($bestMate && $opid === $bestMate['id'])) {
+        continue;
+    }
+    $wrM = $m['wins'] / $m['games'];
+    if ($worstMate === null || $wrM < $worstMate['wr']
+        || (abs($wrM - $worstMate['wr']) < 1e-9 && $m['games'] > $worstMate['games'])) {
+        $worstMate = $m + ['id' => $opid, 'wr' => $wrM];
+    }
+}
+
+$mateCard = function (?array $m, string $title, string $cardCls, string $avaStyle) use ($wr) {
+    if (!$m || ($m['games'] ?? 0) < 1) {
+        return '<div class="card"><h2 style="margin-top:0;">' . $title . '</h2>'
+            . '<p style="color:var(--tx2);margin:0;">Пока мало совместных игр для расчёта.</p></div>';
+    }
+    return '<div class="card ' . $cardCls . '" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">'
+        . avatar_html(['nickname' => $m['nick']], 44, $avaStyle)
+        . '<div><div style="font-size:13px;color:var(--tx2);">' . $title . '</div>'
+        . '<div style="font-size:17px;font-weight:600;"><a href="/player.php?id=' . (int)$m['id'] . '" style="color:var(--tx);">'
+        . esc($m['nick']) . '</a></div>'
+        . '<div style="font-size:13px;color:var(--tx2);">' . $m['wins'] . ' побед в ' . $m['games']
+        . ' играх вместе · винрейт ' . $wr($m['wins'], $m['games']) . '</div></div></div>';
+};
+
+echo '<div class="grid-2eq">';
+echo $mateCard(($bestMate && $bestMate['wins'] > 0) ? $bestMate : null, 'Лучший напарник в одном цвете', 'card-accent', 'background:var(--acsf);color:var(--ac);');
+echo $mateCard($worstMate, 'Неудачный напарник в одном цвете', '', 'background:var(--sf2);color:var(--tx2);');
 echo '</div>';
 
 // Химия с партнёрами по цвету — по числу совместных побед

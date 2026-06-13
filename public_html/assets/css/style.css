@@ -479,6 +479,17 @@ body::before {
 .ach-side-row .nm { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .ach-wrap { display: block; } .ach-side { display: none; } }
 
+/* Лесенка уровней по ELO */
+.tier-ladder { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.tier-step { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 9px; border-radius: 9px; border: 1px solid var(--bd); background: var(--sf2); min-width: 56px; }
+.tier-step b { font-size: 12px; font-weight: 600; color: var(--tx2); }
+.tier-step i { font-size: 10px; color: var(--tx3); font-style: normal; }
+.tier-step.passed b { color: var(--tx); }
+.tier-step.current { border-color: var(--ac); background: var(--acsf); }
+.tier-step.current b { color: var(--ac); }
+.tier-step.current i { color: var(--ac); }
+.tier-step.future { opacity: 0.5; }
+
 .rating-tbl .c-club { background: rgba(232,51,42,0.07); }
 .rating-tbl .c-elo { background: rgba(232,51,42,0.06); border-left: 2px solid var(--ac); border-right: 2px solid var(--ac); }
 .rating-tbl .rt-groups th { font-size: 11px; font-weight: 600; color: var(--tx2); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; padding: 7px 8px 5px; border-bottom: none; }

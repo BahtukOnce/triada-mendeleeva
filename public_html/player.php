@@ -165,8 +165,10 @@ if ($stats) {
 
     // ── Графики ──
     echo '<div class="grid-2eq">';
-    echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . $elo . '</h2>'
-        . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div></div>';
+    echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . $elo
+        . ' <span style="color:var(--ac);font-size:13px;">· ' . esc(elo_tier_name((float)$elo)) . '</span></h2>'
+        . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div>'
+        . elo_tier_ladder((float)$elo) . '</div>';
     echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
         . '<div style="position:relative;height:210px;"><canvas id="ch-results"></canvas></div></div>';
     echo '</div>';
@@ -326,7 +328,7 @@ if ($stats) {
         'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
         'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5,
         'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
-        'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2500' => $elo >= 2500,
+        'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2500' => $elo >= 2500, 'elo3500' => $elo >= 3500,
         'eloday' => $maxEloDay >= 150,
         'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.5,
         'triple' => $triples >= 1, 'don' => $donWr >= 60, 'survivor' => $games >= 20 && $puPct < 20,
@@ -377,12 +379,13 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-function tierName(v){ return v>=2500?'Мастер':(v>=2000?'Сильный':(v>=1500?'Уверенный':(v>=1100?'Игрок':'Новичок'))); }
+function tierName(v){ return v>=3500?'Легенда':(v>=2500?'Мастер':(v>=2000?'Эксперт':(v>=1500?'Сильный':(v>=1100?'Игрок':'Новичок')))); }
 var TIERS=[{f:0,t:1100,n:'Новичок',c:'rgba(140,140,150,0.05)'},
   {f:1100,t:1500,n:'Игрок',c:'rgba(58,123,213,0.07)'},
-  {f:1500,t:2000,n:'Уверенный',c:'rgba(213,162,58,0.07)'},
-  {f:2000,t:2500,n:'Сильный',c:'rgba(232,51,42,0.08)'},
-  {f:2500,t:99999,n:'Мастер',c:'rgba(232,51,42,0.14)'}];
+  {f:1500,t:2000,n:'Сильный',c:'rgba(213,162,58,0.07)'},
+  {f:2000,t:2500,n:'Эксперт',c:'rgba(232,51,42,0.08)'},
+  {f:2500,t:3500,n:'Мастер',c:'rgba(232,51,42,0.14)'},
+  {f:3500,t:99999,n:'Легенда',c:'rgba(232,51,42,0.22)'}];
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
   var ya=ch.scales.y, ar=ch.chartArea; if(!ya||!ar) return;
   var c=ch.ctx; c.save();
@@ -392,7 +395,7 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
     if(y2<=ar.top||y1>=ar.bottom) return;
     var top=Math.max(y1,ar.top), bot=Math.min(y2,ar.bottom);
     c.fillStyle=T.c; c.fillRect(ar.left,top,ar.right-ar.left,bot-top);
-    if(bot-top>15){ c.fillStyle='rgba(255,255,255,0.32)'; c.font='10px system-ui'; c.textAlign='right';
+    if(bot-top>15){ c.fillStyle='rgba(255,255,255,0.5)'; c.font='600 10px system-ui'; c.textAlign='right';
       c.fillText(T.n, ar.right-6, top+12); }
   });
   c.restore();

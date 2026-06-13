@@ -144,6 +144,7 @@ function achievements_catalog(): array
         'elo1500'  => ['⭐', 'Сильный', 'ELO 1500+', 'ELO'],
         'elo2000'  => ['💎', 'Эксперт', 'ELO 2000+', 'ELO'],
         'elo2500'  => ['👑', 'Мастер', 'ELO 2500+', 'ELO'],
+        'elo3500'  => ['🏆', 'Легенда', 'ELO 3500+', 'ELO'],
         'eloday'   => ['📈', 'Прорыв вечера', '+150 ELO за вечер', 'ELO'],
         'dop30'    => ['➕', 'Щедрый на допы', '30+ допов всего', 'Мастерство'],
         'fatgame'  => ['💰', 'Жирная игра', '1.5+ допа за одну игру', 'Мастерство'],
@@ -223,6 +224,7 @@ function achievement_earners(): array
                 'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'black5' => $blk >= 5, 'red3' => $redW >= 3,
                 'elo1500' => $elo >= 1500, 'elo2000' => $elo >= 2000, 'elo2500' => $elo >= 2500,
+                'elo3500' => $elo >= 3500,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
                 'dop30' => $r && (float)$r['dop_sum'] >= 30, 'fatgame' => $maxPlus >= 1.5,
                 'triple' => isset($triples[$pid]),
@@ -237,6 +239,48 @@ function achievement_earners(): array
     } catch (Throwable $e) {
     }
     return $out;
+}
+
+// Лесенка уровней по ELO (единый источник для профиля и графиков)
+function elo_tiers(): array
+{
+    return [
+        [0, 'Новичок'],
+        [1100, 'Игрок'],
+        [1500, 'Сильный'],
+        [2000, 'Эксперт'],
+        [2500, 'Мастер'],
+        [3500, 'Легенда'],
+    ];
+}
+
+function elo_tier_name(float $elo): string
+{
+    $name = 'Новичок';
+    foreach (elo_tiers() as [$th, $n]) {
+        if ($elo >= $th) {
+            $name = $n;
+        }
+    }
+    return $name;
+}
+
+function elo_tier_ladder(float $elo): string
+{
+    $tiers = elo_tiers();
+    $curIdx = 0;
+    foreach ($tiers as $i => [$th]) {
+        if ($elo >= $th) {
+            $curIdx = $i;
+        }
+    }
+    $h = '<div class="tier-ladder">';
+    foreach ($tiers as $i => [$th, $n]) {
+        $cls = $i < $curIdx ? 'passed' : ($i === $curIdx ? 'current' : 'future');
+        $h .= '<span class="tier-step ' . $cls . '"><b>' . esc($n) . '</b><i>'
+            . ($th > 0 ? $th . '+' : '0') . '</i></span>';
+    }
+    return $h . '</div>';
 }
 
 function csrf_token(): string
