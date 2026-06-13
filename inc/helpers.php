@@ -231,7 +231,7 @@ function achievement_earners(): array
             ];
             foreach ($cond as $k => $ok) {
                 if ($ok) {
-                    $out[$k][] = $nick;
+                    $out[$k][] = [$pid, $nick];
                 }
             }
         }

@@ -74,7 +74,7 @@ if ($recs) {
 
 // ── Достижения ──
 echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
-echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Получай их в своём профиле. Наведи курсор на ачивку — увидишь, кто её уже получил.</p>';
+echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Красная карточка — ачивку уже кто-то получил, серая — пока никто. Нажми на ачивку, чтобы увидеть всех, кто её получил.</p>';
 $earners = $dbok ? achievement_earners() : [];
 $byGroup = [];
 foreach (achievements_catalog() as $k => [$ic, $t, $d, $grp]) {
@@ -86,8 +86,10 @@ foreach ($byGroup as $grp => $items) {
     foreach ($items as $k => [$ic, $t, $d]) {
         $who = $earners[$k] ?? [];
         $cnt = count($who);
-        $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($who, 0, 40)) : 'Пока ни у кого';
-        echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" title="' . esc($tip) . '">'
+        $names = array_map(fn($e) => $e[1], $who);
+        $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($names, 0, 40)) : 'Пока ни у кого';
+        $whoJson = esc(json_encode(array_slice($who, 0, 200), JSON_UNESCAPED_UNICODE));
+        echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" data-who="' . $whoJson . '" title="' . esc($tip) . '">'
             . '<div class="ach-ic">' . $ic . '</div><div class="ach-t">' . esc($t) . '</div>'
             . '<div class="ach-d">' . esc($d) . '</div><div class="ach-cnt">' . $cnt . ' получ.</div></div>';
     }

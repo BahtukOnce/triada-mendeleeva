@@ -352,8 +352,10 @@ if ($stats) {
             $ok = !empty($cond[$k]);
             $who = $earners[$k] ?? [];
             $cnt = count($who);
-            $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($who, 0, 40)) : 'Пока ни у кого';
-            echo '<div class="ach' . ($ok ? ' ach-on' : '') . '" title="' . esc($tip) . '">'
+            $names = array_map(fn($e) => $e[1], $who);
+            $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($names, 0, 40)) : 'Пока ни у кого';
+            $whoJson = esc(json_encode(array_slice($who, 0, 200), JSON_UNESCAPED_UNICODE));
+            echo '<div class="ach' . ($ok ? ' ach-on' : '') . '" data-who="' . $whoJson . '" title="' . esc($tip) . '">'
                 . '<div class="ach-ic">' . $ic . '</div>'
                 . '<div class="ach-t">' . esc($t) . '</div><div class="ach-d">' . esc($d) . '</div>'
                 . '<div class="ach-cnt">' . ($ok ? '✓ ' : '') . $cnt . ' получ.</div></div>';

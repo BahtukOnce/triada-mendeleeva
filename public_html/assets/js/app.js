@@ -110,3 +110,48 @@
     cio.observe(el);
   });
 })();
+
+// Достижения: клик по карточке -> список получивших со ссылками на профили
+(function () {
+  var cards = document.querySelectorAll('.ach[data-who]');
+  if (!cards.length) return;
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  var ov = document.createElement('div');
+  ov.className = 'ach-modal';
+  ov.innerHTML = '<div class="ach-modal-box" role="dialog" aria-modal="true">'
+    + '<button class="ach-modal-x" aria-label="Закрыть">✕</button>'
+    + '<h3 class="ach-modal-h"></h3><div class="ach-modal-list"></div></div>';
+  document.body.appendChild(ov);
+  var titleEl = ov.querySelector('.ach-modal-h');
+  var listEl = ov.querySelector('.ach-modal-list');
+
+  function close() { ov.classList.remove('open'); }
+  ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+  ov.querySelector('.ach-modal-x').addEventListener('click', close);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+
+  cards.forEach(function (c) {
+    c.style.cursor = 'pointer';
+    c.addEventListener('click', function () {
+      var who = [];
+      try { who = JSON.parse(c.getAttribute('data-who') || '[]'); } catch (e) {}
+      var t = (c.querySelector('.ach-t') || {}).textContent || 'Достижение';
+      titleEl.textContent = t + ' — получили: ' + who.length;
+      if (!who.length) {
+        listEl.innerHTML = '<p style="color:var(--tx2);margin:0;">Пока ни у кого</p>';
+      } else {
+        listEl.innerHTML = who.map(function (e) {
+          return '<a class="ach-earner" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
+            + escapeHtml(e[1]) + '</a>';
+        }).join('');
+      }
+      ov.classList.add('open');
+    });
+  });
+})();
