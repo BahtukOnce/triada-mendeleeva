@@ -177,17 +177,9 @@ echo '<h2 style="margin-top:14px;">Графики</h2>';
 echo '<div class="grid-2">';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . number_format((float)$myElo, 0, '.', '')
     . ' <span style="color:var(--ac);font-size:13px;">· ' . esc(elo_tier_name((float)$myElo)) . '</span></h2>'
-    . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div>'
-    . elo_tier_ladder((float)$myElo) . '</div>';
+    . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Винрейт по ролям</h2>'
-    . '<div style="position:relative;height:200px;"><canvas id="ch-rolewr"></canvas></div>';
-$roleLblWr = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
-echo '<table class="tbl" style="margin-top:10px;font-size:13px;"><tr><th>Роль</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
-foreach ($roleLblWr as $rk => $rl) {
-    [$gg, $ww] = $byRole[$rk];
-    echo '<tr><td>' . $rl . '</td><td class="num">' . $gg . '</td><td class="num">' . $ww . '</td><td class="num">' . $wr($ww, $gg) . '</td></tr>';
-}
-echo '</table></div>';
+    . '<div style="position:relative;height:220px;"><canvas id="ch-rolewr"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Сколько играли за роль</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-roledist"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
@@ -211,7 +203,7 @@ echo '</div>';
   var roleLabels = ['Мирный', 'Шериф', 'Мафия', 'Дон'];
 
   // Зоны уровней по ELO (градиент)
-  var TIERS = [{ v: 0, n: 'Новичок', col: '120,124,140', a: 0.06 },
+  var TIERS = [{ v: 1000, n: 'Новичок', col: '120,124,140', a: 0.06 },
     { v: 1100, n: 'Игрок', col: '70,120,210', a: 0.08 },
     { v: 1500, n: 'Сильный', col: '220,170,60', a: 0.10 },
     { v: 2000, n: 'Эксперт', col: '235,120,40', a: 0.13 },
@@ -243,6 +235,10 @@ echo '</div>';
     c.restore();
   } };
 
+  var eloMax = Math.max.apply(null, D.elo), eloNextTier = null;
+  for (var ti = 0; ti < TIERS.length; ti++) { if (TIERS[ti].v > eloMax) { eloNextTier = TIERS[ti].v; break; } }
+  var eloSMax = (eloNextTier || eloMax) + 150;
+
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',
     data: { labels: D.eloDates,
@@ -252,7 +248,7 @@ echo '</div>';
       plugins: { legend: { display: false },
         tooltip: { animation: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
           label: function (c) { return 'ELO ' + Math.round(c.parsed.y) + ' · ' + tierName(c.parsed.y); } } } },
-      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { grid: { color: grid } } },
+      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { suggestedMin: 1000, suggestedMax: eloSMax, grid: { color: grid } } },
       maintainAspectRatio: false },
     plugins: [tierBands]
   });

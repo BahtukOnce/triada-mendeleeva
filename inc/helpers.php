@@ -245,7 +245,7 @@ function achievement_earners(): array
 function elo_tiers(): array
 {
     return [
-        [0, 'Новичок'],
+        [1000, 'Новичок'],
         [1100, 'Игрок'],
         [1500, 'Сильный'],
         [2000, 'Эксперт'],

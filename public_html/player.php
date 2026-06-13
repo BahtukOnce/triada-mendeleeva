@@ -167,8 +167,7 @@ if ($stats) {
     echo '<div class="grid-2eq">';
     echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . $elo
         . ' <span style="color:var(--ac);font-size:13px;">· ' . esc(elo_tier_name((float)$elo)) . '</span></h2>'
-        . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div>'
-        . elo_tier_ladder((float)$elo) . '</div>';
+        . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div></div>';
     echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
         . '<div style="position:relative;height:210px;"><canvas id="ch-results"></canvas></div></div>';
     echo '</div>';
@@ -379,7 +378,7 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-var TIERS=[{v:0,n:'Новичок',col:'120,124,140',a:0.06},
+var TIERS=[{v:1000,n:'Новичок',col:'120,124,140',a:0.06},
   {v:1100,n:'Игрок',col:'70,120,210',a:0.08},
   {v:1500,n:'Сильный',col:'220,170,60',a:0.10},
   {v:2000,n:'Эксперт',col:'235,120,40',a:0.13},
@@ -410,13 +409,16 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
   }
   c.restore();
 }};
+var eloMax=Math.max.apply(null,D.elo), eloNextTier=null;
+for(var ti=0;ti<TIERS.length;ti++){ if(TIERS[ti].v>eloMax){ eloNextTier=TIERS[ti].v; break; } }
+var eloSMax=(eloNextTier||eloMax)+150;
 new Chart(document.getElementById('ch-elo'),{type:'line',
   data:{labels:D.eloDates,
     datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:red,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2}]},
   options:{interaction:{intersect:false,mode:'index',axis:'x'},
     plugins:{legend:{display:false},tooltip:{animation:false,callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
     label:function(c){return 'ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y);}}}},
-    scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{grid:{color:grid}}},maintainAspectRatio:false},
+    scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{suggestedMin:1000,suggestedMax:eloSMax,grid:{color:grid}}},maintainAspectRatio:false},
   plugins:[tierBands]});
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
