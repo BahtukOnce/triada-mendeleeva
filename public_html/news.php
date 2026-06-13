@@ -74,26 +74,30 @@ if ($recs) {
 
 // ── Достижения ──
 echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
-echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Нажми на ачивку, чтобы увидеть всех, кто её получил.</p>';
+echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Наведи курсор на ачивку — справа появятся все, кто её получил (или нажми, чтобы открыть списком).</p>';
 $earners = $dbok ? achievement_earners() : [];
 $byGroup = [];
 foreach (achievements_catalog() as $k => [$ic, $t, $d, $grp]) {
     $byGroup[$grp][$k] = [$ic, $t, $d];
 }
+echo '<div class="ach-wrap"><div class="ach-main">';
 foreach ($byGroup as $grp => $items) {
     echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
     echo '<div class="ach-grid">';
     foreach ($items as $k => [$ic, $t, $d]) {
         $who = $earners[$k] ?? [];
         $cnt = count($who);
-        $names = array_map(fn($e) => $e[1], $who);
-        $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($names, 0, 40)) : 'Пока ни у кого';
         $whoJson = esc(json_encode(array_slice($who, 0, 200), JSON_UNESCAPED_UNICODE));
-        echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" data-who="' . $whoJson . '" title="' . esc($tip) . '">'
+        echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" data-who="' . $whoJson . '" data-title="' . esc($t) . '">'
             . '<div class="ach-ic">' . $ic . '</div><div class="ach-t">' . esc($t) . '</div>'
             . '<div class="ach-d">' . esc($d) . '</div><div class="ach-cnt">' . $cnt . ' получ.</div></div>';
     }
     echo '</div>';
 }
+echo '</div>'; // .ach-main
+echo '<aside class="ach-side" id="ach-side"><div class="ach-side-inner">'
+    . '<div class="ach-side-empty">Наведи на ачивку — здесь появятся те, кто её получил</div>'
+    . '</div></aside>';
+echo '</div>'; // .ach-wrap
 
 page_foot();

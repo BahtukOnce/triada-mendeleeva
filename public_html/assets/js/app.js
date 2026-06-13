@@ -136,13 +136,24 @@
   ov.querySelector('.ach-modal-x').addEventListener('click', close);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
 
+  function whoOf(c) {
+    try { return JSON.parse(c.getAttribute('data-who') || '[]'); } catch (e) { return []; }
+  }
+  function titleOf(c) {
+    return c.getAttribute('data-title') || (c.querySelector('.ach-t') || {}).textContent || 'Достижение';
+  }
+  function avaHtml(nick, ava) {
+    if (ava) return '<img src="' + escapeHtml(ava) + '" alt="">';
+    var letter = escapeHtml(String(nick || '?').trim().charAt(0).toUpperCase());
+    return '<span class="avatar-circle">' + letter + '</span>';
+  }
+
+  // Клик -> модалка (работает и на телефоне)
   cards.forEach(function (c) {
     c.style.cursor = 'pointer';
     c.addEventListener('click', function () {
-      var who = [];
-      try { who = JSON.parse(c.getAttribute('data-who') || '[]'); } catch (e) {}
-      var t = (c.querySelector('.ach-t') || {}).textContent || 'Достижение';
-      titleEl.textContent = t + ' — получили: ' + who.length;
+      var who = whoOf(c);
+      titleEl.textContent = titleOf(c) + ' — получили: ' + who.length;
       if (!who.length) {
         listEl.innerHTML = '<p style="color:var(--tx2);margin:0;">Пока ни у кого</p>';
       } else {
@@ -154,4 +165,27 @@
       ov.classList.add('open');
     });
   });
+
+  // Наведение -> боковая панель с плашками игроков
+  var side = document.getElementById('ach-side');
+  if (side) {
+    var sideInner = side.querySelector('.ach-side-inner');
+    function renderSide(c) {
+      var who = whoOf(c);
+      var html = '<div class="ach-side-ttl">' + escapeHtml(titleOf(c)) + '</div>'
+        + '<div class="ach-side-sub">получили: ' + who.length + '</div>';
+      if (!who.length) {
+        html += '<div class="ach-side-empty">Пока ни у кого</div>';
+      } else {
+        html += '<div class="ach-side-list">' + who.map(function (e) {
+          return '<a class="ach-side-row" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
+            + avaHtml(e[1], e[2]) + '<span class="nm">' + escapeHtml(e[1]) + '</span></a>';
+        }).join('') + '</div>';
+      }
+      sideInner.innerHTML = html;
+    }
+    cards.forEach(function (c) {
+      c.addEventListener('mouseenter', function () { renderSide(c); });
+    });
+  }
 })();

@@ -464,6 +464,21 @@ body::before {
 .ach-earner { display: inline-block; background: var(--sf2); border: 1px solid var(--bd); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--tx); text-decoration: none; }
 .ach-earner:hover { border-color: var(--ac); color: var(--ac); }
 
+/* Достижения: боковая панель получивших (наведение) */
+.ach-wrap { display: flex; gap: 16px; align-items: flex-start; }
+.ach-main { flex: 1 1 auto; min-width: 0; }
+.ach-side { flex: 0 0 262px; width: 262px; position: sticky; top: 70px; align-self: flex-start; }
+.ach-side-inner { background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 14px; min-height: 200px; max-height: 72vh; overflow-y: auto; }
+.ach-side-ttl { font-weight: 700; font-size: 14px; margin: 0; }
+.ach-side-sub { font-size: 12px; color: var(--ok); margin: 2px 0 10px; }
+.ach-side-empty { color: var(--tx3); font-size: 13px; line-height: 1.45; }
+.ach-side-list { display: flex; flex-direction: column; gap: 6px; }
+.ach-side-row { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 9px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx); text-decoration: none; }
+.ach-side-row:hover { border-color: var(--ok); }
+.ach-side-row img, .ach-side-row .avatar-circle { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; font-size: 11px; }
+.ach-side-row .nm { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) { .ach-wrap { display: block; } .ach-side { display: none; } }
+
 .rating-tbl .c-club { background: rgba(232,51,42,0.07); }
 .rating-tbl .c-elo { background: rgba(232,51,42,0.06); border-left: 2px solid var(--ac); border-right: 2px solid var(--ac); }
 .rating-tbl .rt-groups th { font-size: 11px; font-weight: 600; color: var(--tx2); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; padding: 7px 8px 5px; border-bottom: none; }

@@ -192,10 +192,13 @@ function achievement_earners(): array
             $triples[(int)$r['player_id']] = true;
         }
 
-        // Ники для всех игроков (не только из кэша рейтинга), иначе попадает «#id»
+        // Ники и аватары для всех игроков (не только из кэша рейтинга), иначе попадает «#id»
         $nickOf = [];
-        foreach (db()->query('SELECT id, nickname FROM players') as $p) {
-            $nickOf[(int)$p['id']] = $p['nickname'];
+        $avaOf = [];
+        foreach (db()->query('SELECT id, nickname, avatar FROM players') as $p) {
+            $pid0 = (int)$p['id'];
+            $nickOf[$pid0] = $p['nickname'];
+            $avaOf[$pid0] = (!empty($p['avatar']) && is_file(ROOT . '/public_html' . $p['avatar'])) ? $p['avatar'] : '';
         }
         $allPids = array_unique(array_merge(array_keys($rc), array_keys($byPlayer)));
 
@@ -227,7 +230,7 @@ function achievement_earners(): array
             ];
             foreach ($cond as $k => $ok) {
                 if ($ok) {
-                    $out[$k][] = [$pid, $nick];
+                    $out[$k][] = [$pid, $nick, $avaOf[$pid] ?? ''];
                 }
             }
         }
