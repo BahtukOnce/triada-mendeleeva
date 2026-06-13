@@ -174,9 +174,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .rating-tbl .c-cards-first { border-left: 2px solid var(--ac); }
 .rating-tbl thead .c-cards { text-align: center; }
 .rt-player { display: inline-flex; align-items: center; }
-/* Рейтинг: все ячейки по центру */
-.rating-tbl th, .rating-tbl td, .rating-tbl .num { text-align: center; }
-.rating-tbl .rt-player { justify-content: center; }
 
 /* Номинации */
 .noms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 4px 0 14px; }

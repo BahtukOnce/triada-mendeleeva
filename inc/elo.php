@@ -9,10 +9,10 @@ declare(strict_types=1);
 const ELO_START = 1000.0;
 const ELO_K = 310.0;         // размах ходов
 const ELO_DIV = 2500.0;      // ширина логистики (команда против команды)
-// ZERO-SUM сохраняется: дельта команды делится внутри неё, сумма по столу = 0, средний клуба = 1000.
-const ELO_INDIV_W = 0.12;    // вес личного ELO: кто ниже среднего ELO стола — больше получает за победу и меньше теряет
+const ELO_LOSS_MULT = 0.65;  // проигрыш мягче победы: меньше боли за игру + шкала растёт (больше игроков с высоким ELO)
+const ELO_INDIV_W = 0.07;    // вес личного ELO (мягкий): кто ниже среднего стола — больше за победу и меньше теряет
 const ELO_REL_SCALE = 600.0; // на сколько ELO от среднего стола даёт полную поправку
-const ELO_FLOOR = 100.0;     // пол почти не срабатывает, чтобы не ломать сохранение суммы
+const ELO_FLOOR = 100.0;     // нижний предел
 
 function elo_recompute(): void
 {
@@ -94,6 +94,9 @@ function elo_recompute(): void
             $fsum = array_sum($factors) ?: count($team);
             foreach ($team as $i => $p) {
                 $delta = $teamDelta * $factors[$i] / $fsum;
+                if ($delta < 0) {
+                    $delta *= ELO_LOSS_MULT; // проигрыш мягче
+                }
                 $cur = $get($p['pid']);
                 $newElo = max(ELO_FLOOR, $cur + $delta);
                 $elo[$p['pid']] = $newElo;
