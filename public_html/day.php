@@ -54,7 +54,7 @@ if ($id && db_ready()) {
         if ($games) {
             $ids = array_column($games, 'id');
             $in = implode(',', array_fill(0, count($ids), '?'));
-            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs
+            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.flair, p.elo FROM game_seats gs
                 JOIN players p ON p.id = gs.player_id
                 WHERE gs.game_id IN ($in) ORDER BY gs.game_id, gs.seat");
             $st->execute($ids);
@@ -87,7 +87,7 @@ if ($canEdit) {
 }
 
 if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
-    $st = db()->prepare('SELECT r.*, p.nickname, p.avatar, p.id AS pid FROM day_registrations r
+    $st = db()->prepare('SELECT r.*, p.nickname, p.avatar, p.flair, p.id AS pid FROM day_registrations r
         JOIN players p ON p.id = r.player_id
         WHERE r.day_id = ? AND r.cancelled_at IS NULL ORDER BY r.created_at');
     $st->execute([$id]);
@@ -102,7 +102,8 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
             $time = $r['time_from'] ? substr($r['time_from'], 0, 5) . '–' . substr((string)$r['time_to'], 0, 5) : '';
             echo '<div class="admin-item">' . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 28);
             echo '<div><div class="nm"><a href="/player.php?id=' . (int)$r['pid'] . '" style="color:var(--tx);">'
-                . esc($r['nickname']) . '</a></div>'
+                . esc($r['nickname']) . '</a>'
+                . (!empty($r['flair']) ? ' <span class="flair">' . esc($r['flair']) . '</span>' : '') . '</div>'
                 . ($time ? '<div class="rl">' . $time . '</div>' : '') . '</div></div>';
         }
         echo '</div>';
@@ -153,7 +154,7 @@ if ($games) {
         $tt = game_display_totals($g, $seats);
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
-            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0];
+            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'flair' => $s['flair'] ?? '', 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0];
             $standing[$pid]['games']++;
             $standing[$pid]['sum'] += $tt[(int)$s['seat']]['total'] ?? 0;
         }
@@ -170,7 +171,8 @@ if ($games) {
             . '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>'
             . '<td><a href="/player.php?id=' . $pid . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 24, 'margin-right:7px;')
-            . '<span style="vertical-align:middle;">' . esc($row['nick']) . '</span></a></td>'
+            . '<span style="vertical-align:middle;">' . esc($row['nick'])
+            . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a></td>'
             . '<td class="num" data-sort="' . $row['games'] . '">' . $row['games'] . '</td>'
             . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td>'
             . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td></tr>';
@@ -240,6 +242,7 @@ if ($games) {
             }
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
+                . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')
                 . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
                 . '<td>' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
