@@ -143,9 +143,13 @@ if ($judged > 0) {
 
 // ── Данные для графиков ──
 $roleWrData = [];
+$roleGamesData = [];
+$roleWinsData = [];
 foreach (['civ', 'sheriff', 'maf', 'don'] as $rk) {
     [$gg, $ww] = $byRole[$rk];
     $roleWrData[] = $gg ? round($ww / $gg * 100) : 0;
+    $roleGamesData[] = $gg;
+    $roleWinsData[] = $ww;
 }
 $roleDist = [$byRole['civ'][0], $byRole['sheriff'][0], $byRole['maf'][0], $byRole['don'][0]];
 $resultsData = [$wins, $losses, $draws];
@@ -161,6 +165,8 @@ $myElo = end($eloSeries) ?: 1000;
 
 $chartData = json_encode([
     'roleWr' => $roleWrData,
+    'roleGames' => $roleGamesData,
+    'roleWins' => $roleWinsData,
     'roleDist' => $roleDist,
     'results' => $resultsData,
     'elo' => $eloSeries,
@@ -254,7 +260,10 @@ echo '</div>';
   new Chart(document.getElementById('ch-rolewr'), {
     type: 'bar',
     data: { labels: roleLabels, datasets: [{ data: D.roleWr, backgroundColor: roleColors, borderRadius: 6 }] },
-    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return c.parsed.y + '%'; } } } },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) {
+            var i = c.dataIndex;
+            return ['Винрейт: ' + c.parsed.y + '%', 'Побед: ' + D.roleWins[i] + ' из ' + D.roleGames[i]];
+          } } } },
       scales: { y: { beginAtZero: true, max: 100, grid: { color: grid }, ticks: { callback: function (v) { return v + '%'; } } }, x: { grid: { display: false } } },
       maintainAspectRatio: false }
   });
