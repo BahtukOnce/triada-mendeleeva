@@ -378,12 +378,11 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-var TIERS=[{v:1000,n:'Новичок',col:'120,124,140',a:0.06},
-  {v:1100,n:'Игрок',col:'70,120,210',a:0.08},
-  {v:1500,n:'Сильный',col:'220,170,60',a:0.10},
-  {v:2000,n:'Эксперт',col:'235,120,40',a:0.13},
-  {v:2500,n:'Мастер',col:'232,51,42',a:0.19},
-  {v:3500,n:'Легенда',col:'232,51,42',a:0.34}];
+var TIERS=[{v:1000,n:'Новичок',col:'120,132,124',a:0.10},
+  {v:1500,n:'Сильный',col:'52,168,99',a:0.13},
+  {v:2000,n:'Эксперт',col:'64,132,224',a:0.15},
+  {v:2500,n:'Мастер',col:'160,96,224',a:0.19},
+  {v:3500,n:'Легенда',col:'232,184,48',a:0.26}];
 function tierColor(v){ var T=TIERS[0]; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) T=TIERS[i]; } return 'rgba('+T.col+','+T.a+')'; }
 function tierName(v){ var n=TIERS[0].n; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) n=TIERS[i].n; } return n; }
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
@@ -402,7 +401,7 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
     var bTop=ya.getPixelForValue(Math.min(nextV,ya.max)), bBot=ya.getPixelForValue(Math.max(T.v,ya.min));
     if(bBot<=ar.top||bTop>=ar.bottom) continue;
     var py=ya.getPixelForValue(T.v);
-    if(T.v>ya.min&&py>ar.top&&py<ar.bottom){ c.strokeStyle='rgba(255,255,255,0.08)'; c.lineWidth=1;
+    if(T.v>ya.min&&py>ar.top&&py<ar.bottom){ c.strokeStyle='rgba(255,255,255,0.22)'; c.lineWidth=1;
       c.beginPath(); c.moveTo(ar.left,Math.round(py)+0.5); c.lineTo(ar.right,Math.round(py)+0.5); c.stroke(); }
     var top=Math.max(bTop,ar.top);
     if(Math.min(bBot,ar.bottom)-top>15){ c.fillStyle='rgba(255,255,255,0.55)'; c.fillText(T.n, ar.right-6, top+12); }
@@ -417,7 +416,8 @@ new Chart(document.getElementById('ch-elo'),{type:'line',
     datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:red,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2}]},
   options:{interaction:{intersect:false,mode:'index',axis:'x'},
     plugins:{legend:{display:false},tooltip:{animation:false,callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
-    label:function(c){return 'ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y);}}}},
+    label:function(c){var i=c.dataIndex,L=['ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y)];
+      if(i>0){var dl=Math.round(c.parsed.y-D.elo[i-1]);L.push((dl>0?'▲ +':(dl<0?'▼ ':'')) + dl + ' с прошлой игры');}else{L.push('старт');}return L;}}}},
     scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{suggestedMin:1000,suggestedMax:eloSMax,grid:{color:grid}}},maintainAspectRatio:false},
   plugins:[tierBands]});
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
