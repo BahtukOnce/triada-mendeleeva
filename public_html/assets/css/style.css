@@ -197,26 +197,61 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .form-card { background: var(--sf); border: 1px solid var(--bd); border-radius: 12px; padding: 22px; }
 .form-foot { text-align: center; font-size: 13.5px; color: var(--tx2); margin-top: 14px; }
 
-.flash { border-radius: 10px; padding: 11px 14px; margin: 12px 0; font-size: 14px; }
-.flash-ok { background: var(--oksf); color: var(--ok); border: 1px solid var(--ok); }
-.flash-err { background: var(--acsf); color: var(--ac); border: 1px solid var(--ac); }
+.flash {
+  position: relative; display: flex; align-items: center; gap: 11px;
+  border-radius: 12px; padding: 13px 16px; margin: 14px 0;
+  font-size: 14px; font-weight: 500; color: var(--tx);
+  border: 1px solid var(--bd); overflow: hidden;
+}
+.flash::before {
+  content: ""; flex: none; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff;
+  font-size: 13px; font-weight: 700; line-height: 1;
+}
+.flash-ok {
+  background: linear-gradient(135deg, rgba(47,164,92,0.18), var(--oksf) 65%);
+  border-color: rgba(47,164,92,0.45); box-shadow: 0 6px 22px rgba(47,164,92,0.15);
+}
+.flash-ok::before { content: "\2713"; background: var(--ok); }
+.flash-err {
+  background: linear-gradient(135deg, rgba(232,51,42,0.18), var(--acsf) 65%);
+  border-color: rgba(232,51,42,0.45); box-shadow: 0 6px 22px rgba(232,51,42,0.15);
+}
+.flash-err::before { content: "!"; background: var(--ac); }
 
 .empty-state { text-align: center; padding: 56px 16px; color: var(--tx2); }
 .empty-state .empty-icon { opacity: .45; margin-bottom: 10px; }
 .empty-state h2 { color: var(--tx); margin: 8px 0 6px; }
 .empty-state p { max-width: 420px; margin: 0 auto; font-size: 14px; }
 
-.admin-list { display: flex; gap: 16px; flex-wrap: wrap; }
-.admin-item { display: flex; align-items: center; gap: 8px; }
+.admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.admin-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--sf2);
+  border: 1px solid var(--bd); border-radius: 12px;
+}
+.admin-item.lead {
+  border-color: rgba(232,51,42,0.45);
+  background: linear-gradient(135deg, rgba(232,51,42,0.07), var(--sf2) 60%);
+}
+.admin-item > img, .admin-item > .avatar-circle { box-shadow: 0 0 0 2px var(--bd); }
+.admin-item.lead > img, .admin-item.lead > .avatar-circle { box-shadow: 0 0 0 2px rgba(232,51,42,0.5); }
+.admin-item > div { min-width: 0; }
 .avatar-circle {
   width: 30px; height: 30px; border-radius: 50%; background: var(--sf2);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600; flex: none;
 }
 .avatar-circle.accent { background: var(--acsf); color: var(--ac); }
-.admin-item .nm { font-size: 13.5px; }
-.admin-item .rl { font-size: 11px; color: var(--tx2); }
-.admin-item .rl.accent { color: var(--ac); }
+.admin-item .nm {
+  font-size: 14.5px; font-weight: 600; color: var(--tx);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-item .rl {
+  display: inline-block; margin-top: 5px; font-size: 11px; font-weight: 500;
+  padding: 2px 9px; border-radius: 999px; background: var(--bd); color: var(--tx2);
+}
+.admin-item .rl.accent { background: var(--acsf); color: var(--ac); }
 
 .news-item { border-left: 2px solid var(--bd); padding: 2px 0 2px 11px; margin: 10px 0; }
 .news-item.first { border-left-color: var(--ac); }
@@ -368,8 +403,12 @@ body::before {
   .tbl tbody tr, .tbl tr { transition: background 0.15s ease; }
   .tbl tr:hover td { background: var(--sf2); }
 
-  .flash { animation: flashIn 0.4s ease; }
-  @keyframes flashIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  .admin-item { transition: transform 0.18s ease, border-color 0.18s ease; }
+  .admin-item:hover { transform: translateY(-2px); border-color: var(--tx3); }
+  .admin-item.lead:hover { border-color: var(--ac); }
+
+  .flash { animation: flashIn 0.45s cubic-bezier(0.2,0.7,0.2,1); }
+  @keyframes flashIn { from { opacity: 0; transform: translateY(-10px) scale(0.98); } to { opacity: 1; transform: none; } }
 }
 
 /* ── Профиль игрока: визуальная статистика ──────── */

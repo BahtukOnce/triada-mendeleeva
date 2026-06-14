@@ -190,8 +190,8 @@ page_head('Главная', 'index');
             $nameHtml = $a['player_id']
                 ? '<a href="/player.php?id=' . (int)$a['player_id'] . '" style="color:var(--tx);">' . esc($a['nickname']) . '</a>'
                 : esc($a['nickname']); ?>
-          <div class="admin-item">
-            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 30, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
+          <div class="admin-item<?= $isLead ? ' lead' : '' ?>">
+            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 46, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
               <div class="nm"><?= $nameHtml ?></div>
               <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>
