@@ -42,7 +42,7 @@ if ($dbok) {
                 $balance[$b['winner']] = (int)$b['c'];
             }
         }
-        $admins = db()->query("SELECT u.nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar
+        $admins = db()->query("SELECT COALESCE(p.nickname, u.nickname) AS nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar
             FROM users u LEFT JOIN players p ON p.user_id = u.id
             WHERE u.role IN ('owner','admin') OR u.is_judge = 1 OR u.is_photographer = 1
             ORDER BY FIELD(u.role,'owner','admin','player'), u.is_judge DESC, u.nickname LIMIT 30")->fetchAll();

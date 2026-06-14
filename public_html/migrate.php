@@ -59,6 +59,34 @@ try {
         if ($skipped) {
             echo 'пропущены (коллизия — слейте вручную в Админка→Слияние): ' . implode(', ', $skipped) . "\n";
         }
+
+        // Ник аккаунта (users) — показывается в шапке и блоке «Администрация»,
+        // и по нему идёт вход. Чистим теми же правилами, коллизии пропускаем.
+        $users = db()->query('SELECT id, nickname FROM users')->fetchAll();
+        $uByNick = [];
+        foreach ($users as $usr) {
+            $uByNick[mb_strtolower($usr['nickname'])][] = (int)$usr['id'];
+        }
+        $uChanged = 0; $uSkipped = [];
+        foreach ($users as $usr) {
+            $clean = nickname_clean((string)$usr['nickname']);
+            if ($clean === '' || $clean === $usr['nickname']) {
+                continue;
+            }
+            $low = mb_strtolower($clean);
+            $collide = false;
+            foreach ($uByNick[$low] ?? [] as $oid) {
+                if ($oid !== (int)$usr['id']) { $collide = true; break; }
+            }
+            if ($collide) { $uSkipped[] = $usr['nickname']; continue; }
+            db()->prepare('UPDATE users SET nickname = ? WHERE id = ?')->execute([$clean, (int)$usr['id']]);
+            $uByNick[$low][] = (int)$usr['id'];
+            $uChanged++;
+        }
+        echo 'ники аккаунтов очищены: ' . $uChanged . "\n";
+        if ($uSkipped) {
+            echo 'аккаунты пропущены (коллизия): ' . implode(', ', $uSkipped) . "\n";
+        }
     }
 
     // Расчёт ELO: при первом запуске или принудительно ?elo=1
