@@ -298,7 +298,23 @@ function player_mention_index(): array
     return $cache;
 }
 
-// Рендер текста поста: экранирование + кликабельные ссылки + ссылки на игроков + переносы строк.
+// Встроенный плеер из ссылки (VK Video / YouTube) или null, если не видео.
+function media_embed(string $url): ?string
+{
+    if (preg_match('~(?:vkvideo\.ru|vk\.com)/video(-?\d+)_(\d+)~', $url, $m)) {
+        $src = 'https://vk.com/video_ext.php?oid=' . $m[1] . '&id=' . $m[2] . '&hd=2';
+        return '<span class="post-video"><iframe src="' . esc($src)
+            . '" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;" allowfullscreen loading="lazy"></iframe></span>';
+    }
+    if (preg_match('~(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/|live/))([A-Za-z0-9_-]{6,})~', $url, $m)) {
+        $src = 'https://www.youtube.com/embed/' . $m[1];
+        return '<span class="post-video"><iframe src="' . esc($src)
+            . '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></span>';
+    }
+    return null;
+}
+
+// Рендер текста поста: экранирование + кликабельные ссылки/видео + ссылки на игроков + переносы строк.
 function render_post_body(?string $raw): string
 {
     $raw = (string)$raw;
@@ -310,10 +326,15 @@ function render_post_body(?string $raw): string
     $out = '';
     foreach ($parts as $i => $part) {
         if ($i % 2 === 1) {
-            $u = rtrim($part, '.,;:!?）)]」»');
-            $tail = substr($part, strlen($u));
-            $disp = mb_strimwidth($u, 0, 56, '…');
-            $out .= '<a href="' . esc($u) . '" target="_blank" rel="noopener nofollow">' . esc($disp) . '</a>' . esc($tail);
+            $embed = media_embed($part);
+            if ($embed !== null) {
+                $out .= $embed;
+            } else {
+                $u = rtrim($part, '.,;:!?）)]」»');
+                $tail = substr($part, strlen($u));
+                $disp = mb_strimwidth($u, 0, 56, '…');
+                $out .= '<a href="' . esc($u) . '" target="_blank" rel="noopener nofollow">' . esc($disp) . '</a>' . esc($tail);
+            }
         } else {
             $esc = esc($part);
             if ($regex !== '') {
