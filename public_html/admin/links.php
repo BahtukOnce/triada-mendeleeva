@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('/admin/links.php');
 }
 
-$list = db_ready() ? db()->query("SELECT lr.*, us.nickname AS user_nick, p.nickname AS player_nick,
+$list = db_ready() ? db()->query("SELECT lr.*, us.nickname AS user_nick, p.nickname AS player_nick, p.avatar,
         (SELECT COUNT(*) FROM game_seats gs WHERE gs.player_id = p.id) AS games
     FROM link_requests lr
     JOIN users us ON us.id = lr.user_id
@@ -40,7 +40,10 @@ if ($list) {
     echo '<div class="card"><table class="tbl">';
     echo '<tr><th>Аккаунт</th><th>→ Игрок</th><th class="num">Игр в истории</th><th>Когда</th><th></th></tr>';
     foreach ($list as $r) {
-        echo '<tr><td>' . esc($r['user_nick']) . '</td><td><b>' . esc($r['player_nick']) . '</b></td>';
+        echo '<tr><td>' . esc($r['user_nick']) . '</td>'
+            . '<td><span style="display:inline-flex;align-items:center;gap:8px;">'
+            . avatar_html(['nickname' => $r['player_nick'], 'avatar' => $r['avatar']], 26)
+            . '<b>' . esc($r['player_nick']) . '</b></span></td>';
         echo '<td class="num">' . (int)$r['games'] . '</td>';
         echo '<td>' . date('d.m.Y H:i', strtotime($r['created_at'])) . '</td><td>';
         foreach ([['approve', 'Подтвердить', 'btn'], ['reject', 'Отклонить', 'btn btn-ghost']] as [$do, $lbl, $cls]) {

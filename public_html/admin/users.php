@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $q = trim((string)($_GET['q'] ?? ''));
 $onlyTg = !empty($_GET['tg']);
-$sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick, p.real_name,
+$sql = 'SELECT us.*, p.id AS player_id, p.nickname AS player_nick, p.real_name, p.avatar,
         (us.last_seen IS NOT NULL AND us.last_seen > NOW() - INTERVAL 5 MINUTE) AS online
     FROM users us
     LEFT JOIN players p ON p.user_id = us.id';
@@ -164,9 +164,11 @@ echo '<tr><th>Аккаунт</th><th>Имя</th><th>Telegram</th><th>Стату�
 foreach ($list as $row) {
     $rid = (int)$row['id'];
     $isAdminRow = $row['role'] === 'owner' || $row['role'] === 'admin';
-    echo '<tr><td>' . ($row['online']
-        ? '<span title="в сети" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:7px;vertical-align:1px;"></span>'
-        : '') . esc($row['nickname']) . '</td>';
+    echo '<tr><td><div style="display:flex;align-items:center;gap:8px;">' . ($row['online']
+        ? '<span title="в сети" style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);"></span>'
+        : '')
+        . avatar_html(['nickname' => $row['player_nick'] ?: $row['nickname'], 'avatar' => $row['avatar']], 28)
+        . '<span>' . esc($row['nickname']) . '</span></div></td>';
     $nameShown = $row['real_name'] ? esc($row['real_name']) : '<span style="color:var(--tx3);">не указано</span>';
     echo '<td>' . ($row['player_id']
         ? '<a href="/player.php?id=' . (int)$row['player_id'] . '" style="color:var(--tx);">' . $nameShown . '</a>'

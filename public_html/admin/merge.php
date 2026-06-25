@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'ignore'
     redirect('/admin/merge.php');
 }
 
-$players = db()->query('SELECT id, nickname,
+$players = db()->query('SELECT id, nickname, avatar,
         (SELECT COUNT(*) FROM game_seats gs WHERE gs.player_id = players.id) AS games,
         user_id
     FROM players ORDER BY nickname')->fetchAll();
@@ -195,8 +195,8 @@ if ($pairs) {
     echo '<div class="card"><h2 style="margin-top:0;">Похожие ники (' . count($pairs) . ')</h2>';
     echo '<table class="tbl"><tr><th>Ник А</th><th>Ник Б</th><th></th></tr>';
     foreach (array_slice($pairs, 0, 40) as [$a, $b]) {
-        echo '<tr><td>' . esc($a['nickname']) . ' <span style="color:var(--tx3);font-size:12px;">(' . (int)$a['games'] . ' игр' . ($a['user_id'] ? ', аккаунт' : '') . ')</span></td>';
-        echo '<td>' . esc($b['nickname']) . ' <span style="color:var(--tx3);font-size:12px;">(' . (int)$b['games'] . ' игр' . ($b['user_id'] ? ', аккаунт' : '') . ')</span></td>';
+        echo '<tr><td><span style="display:inline-flex;align-items:center;gap:8px;">' . avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 24) . '<span>' . esc($a['nickname']) . ' <span style="color:var(--tx3);font-size:12px;">(' . (int)$a['games'] . ' игр' . ($a['user_id'] ? ', аккаунт' : '') . ')</span></span></span></td>';
+        echo '<td><span style="display:inline-flex;align-items:center;gap:8px;">' . avatar_html(['nickname' => $b['nickname'], 'avatar' => $b['avatar']], 24) . '<span>' . esc($b['nickname']) . ' <span style="color:var(--tx3);font-size:12px;">(' . (int)$b['games'] . ' игр' . ($b['user_id'] ? ', аккаунт' : '') . ')</span></span></span></td>';
         // Меньший по играм — источник по умолчанию
         [$srcP, $dstP] = ((int)$a['games'] <= (int)$b['games']) ? [$a, $b] : [$b, $a];
         echo '<td><form method="post" action="/admin/merge.php" style="display:inline;" onsubmit="return confirm(\'Слить «' . esc($srcP['nickname']) . '» в «' . esc($dstP['nickname']) . '»?\');">' . csrf_field();
