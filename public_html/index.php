@@ -197,7 +197,7 @@ page_head('Главная', 'index');
                 ? '<a href="/player.php?id=' . (int)$a['player_id'] . '" style="color:var(--tx);">' . esc($a['nickname']) . '</a>'
                 : esc($a['nickname']); ?>
           <div class="admin-item<?= $isLead ? ' lead' : '' ?>">
-            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 64, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
+            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 92, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
               <div class="nm"><?= $nameHtml ?></div>
               <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>
