@@ -111,6 +111,26 @@ if ($canSeePrivate) {
     }
 }
 
+// ── Достижения игрока ──
+$earnedAch = [];
+$earners = achievement_earners();
+foreach (achievements_catalog() as $k => $a) {
+    foreach (($earners[$k] ?? []) as $e) {
+        if ((int)$e[0] === $id) { $earnedAch[] = $a; break; }
+    }
+}
+if ($earnedAch) {
+    echo '<div class="card"><h2 style="margin-top:0;">Достижения '
+        . '<span style="color:var(--tx2);font-size:13px;font-weight:400;">(' . count($earnedAch) . ')</span></h2>';
+    echo '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+    foreach ($earnedAch as $a) {
+        echo '<span class="tag" title="' . esc($a[2]) . '" style="font-size:13px;padding:5px 11px;">'
+            . $a[0] . ' ' . esc($a[1]) . '</span>';
+    }
+    echo '<a class="tag" href="/records.php" style="font-size:13px;padding:5px 11px;color:var(--tx2);">все ачивки →</a>';
+    echo '</div></div>';
+}
+
 if ($stats) {
     $games = (int)$stats['games'];
     $totW = (int)$stats['w_civ'] + (int)$stats['w_maf'] + (int)$stats['w_sher'] + (int)$stats['w_don'];
