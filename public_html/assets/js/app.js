@@ -170,6 +170,7 @@
   var side = document.getElementById('ach-side');
   if (side) {
     var sideInner = side.querySelector('.ach-side-inner');
+    var sideEmpty = sideInner.innerHTML;
     function renderSide(c) {
       var who = whoOf(c);
       var html = '<div class="ach-side-ttl">' + escapeHtml(titleOf(c)) + '</div>'
@@ -187,6 +188,11 @@
     cards.forEach(function (c) {
       c.addEventListener('mouseenter', function () { renderSide(c); });
     });
+    // Курсор ушёл из сетки достижений — вернуть пустую подсказку (иначе панель остаётся раскрытой)
+    var achMain = document.querySelector('.ach-main');
+    if (achMain) {
+      achMain.addEventListener('mouseleave', function () { sideInner.innerHTML = sideEmpty; });
+    }
   }
 })();
 

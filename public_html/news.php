@@ -46,7 +46,12 @@ $renderPost = function (array $n) use ($imgsOf, $newsChan): string {
         $tgUrl = 'https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id'];
         $h .= '<a class="post-tgvideo" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">▶ Смотреть видео в Telegram</a>';
     }
-    $h .= '<div class="post-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</div>';
+    $h .= '<div class="post-foot"><span class="post-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span>';
+    if (!empty($n['tg_msg_id'])) {
+        $tgUrl = 'https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id'];
+        $h .= '<a class="post-tglink" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">Открыть в Telegram →</a>';
+    }
+    $h .= '</div>';
     $h .= '</div></article>';
     return $h;
 };
