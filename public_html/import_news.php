@@ -34,16 +34,18 @@ if ($cli) {
     $cfgChannel   = (string)cfg('news_channel_id', '');
 }
 
-// Доступ: администратор сайта (по сессии) ИЛИ ключ deploy_secret (для крона / прямой ссылки).
-$key   = $cli ? (string)($argv[1] ?? '') : (string)($_REQUEST['key'] ?? '');
-$keyOk = ($key !== '' && $deploySecret !== '' && hash_equals($deploySecret, $key));
-$u     = $cli ? null : current_user();
-$isAdmin = $u && role_level($u['role']) >= 3;
-if (!$keyOk && !$isAdmin) {
-    http_response_code(403);
-    exit($cli
-        ? "forbidden: укажи deploy_secret первым аргументом\n"
-        : "Доступ запрещён. Залогинься администратором на сайте — либо добавь ?key=<deploy_secret>.\n");
+// Доступ:
+//   CLI/крон на сервере — доверенный контекст, ключ не нужен (запустить может лишь тот, у кого SSH/cron).
+//   Веб — только администратор сайта (по сессии) ИЛИ ключ deploy_secret.
+if (!$cli) {
+    $key   = (string)($_REQUEST['key'] ?? '');
+    $keyOk = ($key !== '' && $deploySecret !== '' && hash_equals($deploySecret, $key));
+    $u     = current_user();
+    $isAdmin = $u && role_level($u['role']) >= 3;
+    if (!$keyOk && !$isAdmin) {
+        http_response_code(403);
+        exit("Доступ запрещён. Залогинься администратором на сайте — либо добавь ?key=<deploy_secret>.\n");
+    }
 }
 
 if ($cfgChannel === '') {
@@ -53,7 +55,8 @@ $channel = ltrim((string)($_GET['channel'] ?? $cfgChannel), '@');
 if ($channel === '') {
     $channel = 'triada_mendeleeva';
 }
-$pages = $cli ? (int)($argv[2] ?? 1) : (int)($_GET['pages'] ?? 20);
+// CLI: число страниц — первым аргументом (по умолчанию 1). Веб: ?pages= (по умолчанию 20).
+$pages = $cli ? (int)($argv[1] ?? 1) : (int)($_GET['pages'] ?? 20);
 $pages = max(1, min(60, $pages));
 
 function tg_fetch(string $url): string
