@@ -434,7 +434,7 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
 var eloMax=Math.max.apply(null,D.elo), eloNextTier=null;
 for(var ti=0;ti<TIERS.length;ti++){ if(TIERS[ti].v>eloMax){ eloNextTier=TIERS[ti].v; break; } }
 var topTierV=TIERS[TIERS.length-1].v;
-var eloSMax=eloNextTier?(eloNextTier+50):Math.max(eloMax+60,topTierV+140);
+var eloSMax=eloNextTier?(eloNextTier+110):Math.max(eloMax+60,topTierV+140);
 new Chart(document.getElementById('ch-elo'),{type:'line',
   data:{labels:D.eloDates,
     datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:red,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2}]},
