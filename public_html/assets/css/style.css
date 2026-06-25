@@ -576,7 +576,8 @@ body::before {
 .rating-tbl tr.rt-3 td { background: rgba(227,168,120,0.11); }
 .rating-tbl tr.rt-1:hover td, .rating-tbl tr.rt-2:hover td, .rating-tbl tr.rt-3:hover td { background: var(--sf2); }
 .tbl.rating-tbl th, .tbl.rating-tbl td { text-align: center; }
-.tbl.rating-tbl .rt-player { justify-content: center; }
+.tbl.rating-tbl th:nth-child(2), .tbl.rating-tbl td:nth-child(2) { text-align: left; }
+.tbl.rating-tbl .rt-player { justify-content: flex-start; }
 
 /* ── Список игроков: карточки ──────────────────── */
 .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 12px; }

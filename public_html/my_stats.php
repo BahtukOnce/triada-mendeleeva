@@ -239,7 +239,7 @@ echo '</div>';
   var eloMax = Math.max.apply(null, D.elo), eloNextTier = null;
   for (var ti = 0; ti < TIERS.length; ti++) { if (TIERS[ti].v > eloMax) { eloNextTier = TIERS[ti].v; break; } }
   var topTierV = TIERS[TIERS.length - 1].v;
-  var eloSMax = eloNextTier ? (eloNextTier + 110) : Math.max(eloMax + 60, topTierV + 140);
+  var eloSMax = eloNextTier ? (eloNextTier + 180) : Math.max(eloMax + 120, topTierV + 260);
 
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',
