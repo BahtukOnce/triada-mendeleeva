@@ -60,6 +60,46 @@ echo '<p style="color:var(--tx2);margin-top:6px;">Столов: ' . (int)$t['tab
     . ' · участников: ' . count($participants)
     . ($t['date_from'] ? ' · ' . esc(date('d.m.Y', strtotime($t['date_from']))) : '')
     . ($t['location'] ? ' · ' . esc($t['location']) : '') . '</p>';
+
+// Судьи турнира: главный (по умолчанию за столом 1) + по столам
+$mainJudgeId = (int)($t['main_judge_player_id'] ?? 0);
+$tableJudges = [];
+if (!empty($t['table_judges'])) {
+    $decj = json_decode((string)$t['table_judges'], true);
+    if (is_array($decj)) {
+        $tableJudges = $decj;
+    }
+}
+$judgeMap = [];
+$judgeIds = array_values(array_filter(array_map('intval', array_merge([$mainJudgeId], $tableJudges))));
+if ($judgeIds) {
+    $in = implode(',', array_fill(0, count($judgeIds), '?'));
+    $jq = db()->prepare("SELECT id, nickname, avatar FROM players WHERE id IN ($in)");
+    $jq->execute($judgeIds);
+    foreach ($jq->fetchAll() as $jr) {
+        $judgeMap[(int)$jr['id']] = $jr;
+    }
+}
+$judgeCell = function (int $pid) use ($judgeMap): string {
+    $j = $judgeMap[$pid] ?? null;
+    if (!$j) {
+        return '';
+    }
+    return '<a href="/player.php?id=' . $pid . '" style="display:inline-flex;align-items:center;gap:6px;color:var(--tx);">'
+        . avatar_html(['nickname' => $j['nickname'], 'avatar' => $j['avatar']], 22) . '<span>' . esc($j['nickname']) . '</span></a>';
+};
+$tableJudgeId = function (int $tableNo) use ($tableJudges, $mainJudgeId): int {
+    $jid = (int)($tableJudges[$tableNo - 1] ?? 0);
+    if ($jid === 0 && $tableNo === 1) {
+        $jid = $mainJudgeId; // главный судья по умолчанию за первым столом
+    }
+    return $jid;
+};
+if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
+    echo '<p style="margin:2px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+        . '<span class="tag tag-open">главный судья</span>' . $judgeCell($mainJudgeId) . '</p>';
+}
+
 if (!empty($t['description'])) {
     echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
 }
@@ -199,8 +239,11 @@ foreach ($byTable as $tableNo => $tGames) {
     echo $multi ? '<div class="table-col">' : '';
     if ($multi) {
         $plc = trim((string)($tablePlaces[$tableNo - 1] ?? ''));
+        $jid = $tableJudgeId($tableNo);
+        $jname = ($jid && isset($judgeMap[$jid])) ? $judgeMap[$jid]['nickname'] : '';
         echo '<h2 style="margin:4px 0 8px;">Стол ' . $tableNo
-            . ($plc !== '' ? ' <span style="color:var(--tx2);font-size:14px;font-weight:400;">· ' . esc($plc) . '</span>' : '') . '</h2>';
+            . ($plc !== '' ? ' <span style="color:var(--tx2);font-size:14px;font-weight:400;">· ' . esc($plc) . '</span>' : '')
+            . ($jname !== '' ? ' <span style="color:var(--tx2);font-size:13px;font-weight:400;">· судья: ' . esc($jname) . '</span>' : '') . '</h2>';
     }
     foreach ($tGames as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];

@@ -28,12 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $placesJson = array_filter($places) ? json_encode($places, JSON_UNESCAPED_UNICODE) : null;
 
+        // Судьи: главный + по столам (позиционный массив id, индекс = стол − 1)
+        $mainJudge = (int)($_POST['main_judge'] ?? 0) ?: null;
+        $tj = (array)($_POST['table_judges'] ?? []);
+        $judges = [];
+        for ($i = 0; $i < $tables; $i++) {
+            $judges[] = (int)($tj[$i] ?? 0) ?: null;
+        }
+        $judgesJson = array_filter($judges) ? json_encode($judges) : null;
+
         if ($id) {
-            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=? WHERE id=?')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $id]);
+            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=? WHERE id=?')
+                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $id]);
         } else {
-            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count, table_places) VALUES (?,?,?,?,?,?,?,?)')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson]);
+            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count, table_places, main_judge_player_id, table_judges) VALUES (?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson]);
             $id = (int)db()->lastInsertId();
         }
         $cropped = (string)($_POST['logo_cropped'] ?? '');
@@ -124,6 +133,33 @@ for ($i = 0; $i < $tcount; $i++) {
 }
 echo '</div>';
 echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Полей столько же, сколько «Столов». Изменишь число — сохрани и снова открой турнир, поля обновятся.</p></div>';
+
+// Судьи турнира: главный + по столам
+$tjudges = [];
+if (!empty($edit['table_judges'])) {
+    $decj = json_decode((string)$edit['table_judges'], true);
+    if (is_array($decj)) {
+        $tjudges = $decj;
+    }
+}
+$allPlayers = db_ready() ? db()->query('SELECT id, nickname FROM players ORDER BY nickname')->fetchAll() : [];
+$judgeSelect = function (string $name, int $sel) use ($allPlayers): string {
+    $h = '<select name="' . $name . '"><option value="0">— не назначен —</option>';
+    foreach ($allPlayers as $p) {
+        $h .= '<option value="' . (int)$p['id'] . '"' . ((int)$p['id'] === $sel ? ' selected' : '') . '>' . esc($p['nickname']) . '</option>';
+    }
+    return $h . '</select>';
+};
+echo '<div class="field"><label>Главный судья <span style="color:var(--tx3);font-weight:400;">(по умолчанию судит стол 1)</span></label>'
+    . $judgeSelect('main_judge', (int)($edit['main_judge_player_id'] ?? 0)) . '</div>';
+echo '<div class="field"><label>Судьи столов</label>';
+echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
+for ($i = 0; $i < $tcount; $i++) {
+    echo '<div><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . ($i === 0 ? ' (главный)' : '') . '</div>'
+        . $judgeSelect('table_judges[]', (int)($tjudges[$i] ?? 0)) . '</div>';
+}
+echo '</div>';
+echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Стол 1 по умолчанию судит главный судья — можно оставить «не назначен».</p></div>';
 
 echo '<div class="field"><label>Статус</label><select name="status">';
 foreach ($statusLabel as $sk => $sl) {
