@@ -73,9 +73,10 @@ echo 'ok';
 // Импорт поста новостного канала в раздел «Новости» (по @username или id из config)
 function bot_news_from_channel(array $post): void
 {
-    $want = ltrim((string)($GLOBALS['cfg']['news_channel_id'] ?? ''), '@');
+    // Канал берётся из config (news_channel_id), по умолчанию — публичный @triada_mendeleeva
+    $want = ltrim((string)($GLOBALS['cfg']['news_channel_id'] ?? 'triada_mendeleeva'), '@');
     if ($want === '') {
-        return; // автоимпорт выключен
+        return; // автоимпорт выключен (явно пустой в конфиге)
     }
     $chatId   = (string)($post['chat']['id'] ?? '');
     $chatUser = ltrim((string)($post['chat']['username'] ?? ''), '@');

@@ -18,6 +18,13 @@ h1 { font-size: 24px; font-weight: 650; margin: 22px 0 14px; }
 h2 { font-size: 18px; font-weight: 600; margin: 18px 0 10px; }
 code { background: var(--sf2); padding: 2px 6px; border-radius: 5px; font-size: 13px; }
 
+/* Кастомный скроллбар (в стиле тёмной темы) */
+* { scrollbar-width: thin; scrollbar-color: var(--bd) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tx3); }
+
 .container { width: 100%; max-width: none; margin: 0; padding: 0 24px; }
 main.container { flex: 1; padding-bottom: 40px; }
 
@@ -548,6 +555,8 @@ body::before {
 .rating-tbl tr.rt-2 td { background: rgba(212,216,223,0.11); }
 .rating-tbl tr.rt-3 td { background: rgba(227,168,120,0.11); }
 .rating-tbl tr.rt-1:hover td, .rating-tbl tr.rt-2:hover td, .rating-tbl tr.rt-3:hover td { background: var(--sf2); }
+.tbl.rating-tbl th, .tbl.rating-tbl td { text-align: center; }
+.tbl.rating-tbl .rt-player { justify-content: center; }
 
 /* ── Список игроков: карточки ──────────────────── */
 .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 12px; }
