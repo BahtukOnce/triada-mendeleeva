@@ -23,9 +23,12 @@ $newsChan = (string)cfg('news_channel_id', 'triada_mendeleeva');
 if ($newsChan === '') {
     $newsChan = 'triada_mendeleeva';
 }
+$me = current_user();
+$meId = $me ? (int)$me['id'] : null;
+$csrf = csrf_token();
 
-// Карточка поста: галерея + текст (ссылки/упоминания кликабельны) + видео + дата.
-$renderPost = function (array $n) use ($imgsOf, $newsChan): string {
+// Карточка поста: галерея + текст + видео + реакции + просмотры/дата.
+$renderPost = function (array $n) use ($imgsOf, $newsChan, $meId, $csrf): string {
     $imgs = $imgsOf($n);
     $h = '<article class="post-card">';
     if ($imgs) {
@@ -46,7 +49,17 @@ $renderPost = function (array $n) use ($imgsOf, $newsChan): string {
         $tgUrl = 'https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id'];
         $h .= '<a class="post-tgvideo" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">▶ Смотреть видео в Telegram</a>';
     }
-    $h .= '<div class="post-foot"><span class="post-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span>';
+    // Реакции (эмодзи)
+    [$rcounts, $rmine] = news_reaction_data((int)$n['id'], $meId);
+    $h .= '<div class="post-reactions" data-id="' . (int)$n['id'] . '" data-csrf="' . esc($csrf) . '"' . ($meId ? '' : ' data-guest="1"') . '>';
+    foreach (news_react_emojis() as $em) {
+        $c = $rcounts[$em] ?? 0;
+        $h .= '<button type="button" class="react-btn' . ($rmine === $em ? ' active' : '') . '" data-emoji="' . esc($em) . '">'
+            . '<span class="re">' . $em . '</span><span class="rc">' . ($c ? $c : '') . '</span></button>';
+    }
+    $h .= '</div>';
+    $h .= '<div class="post-foot"><span class="post-meta"><span class="post-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span>'
+        . '<span class="post-views">👁 ' . (int)($n['views'] ?? 0) . '</span></span>';
     if (!empty($n['tg_msg_id'])) {
         $tgUrl = 'https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id'];
         $h .= '<a class="post-tglink" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">Открыть в Telegram →</a>';
@@ -64,6 +77,12 @@ if ($id && $dbok) {
     $item = $st->fetch();
     if (!$item) {
         http_response_code(404);
+    } else {
+        try {
+            db()->prepare('UPDATE news SET views = views + 1 WHERE id = ?')->execute([$id]);
+        } catch (Throwable $e) {
+        }
+        $item['views'] = (int)($item['views'] ?? 0) + 1;
     }
     // Частичный рендер для модалки «Показать полностью» (без шапки/подвала).
     if (isset($_GET['partial'])) {

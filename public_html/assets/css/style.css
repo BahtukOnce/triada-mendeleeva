@@ -310,6 +310,16 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .post-card .post-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 11px; }
 .post-card .post-tglink { font-size: 12.5px; color: var(--ac); text-decoration: none; white-space: nowrap; }
 .post-card .post-tglink:hover { text-decoration: underline; }
+.post-card .post-meta { display: flex; align-items: center; gap: 10px; }
+.post-views { color: var(--tx2); font-size: 12px; white-space: nowrap; }
+.post-reactions { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0 2px; }
+.react-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 11px; border-radius: 16px; border: 1px solid var(--bd); background: var(--sf2); color: var(--tx); font-size: 15px; line-height: 1; cursor: pointer; transition: border-color .12s ease, background .12s ease; }
+.react-btn:hover { border-color: var(--ac); }
+.react-btn:disabled { opacity: .55; }
+.react-btn.active { border-color: var(--ac); background: var(--acsf); }
+.react-btn .rc { font-size: 12.5px; font-weight: 600; color: var(--tx2); }
+.react-btn .rc:empty { display: none; }
+.react-btn.active .rc { color: var(--ac); }
 .post-video { display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 9px 0; border-radius: 10px; overflow: hidden; background: #000; }
 .post-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 

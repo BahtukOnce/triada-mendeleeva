@@ -264,6 +264,35 @@
     lb.hidden = false;
   });
 
+  // ── реакции (эмодзи) ──
+  function paintReactions(bar, counts, mine) {
+    bar.querySelectorAll('.react-btn').forEach(function (b) {
+      var em = b.getAttribute('data-emoji');
+      var c = counts[em] || 0;
+      b.classList.toggle('active', mine === em);
+      var rc = b.querySelector('.rc');
+      if (rc) rc.textContent = c ? c : '';
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.react-btn');
+    if (!btn) return;
+    e.preventDefault();
+    var bar = btn.closest('.post-reactions');
+    if (!bar) return;
+    if (bar.getAttribute('data-guest')) { location.href = '/login.php'; return; }
+    var fd = new FormData();
+    fd.append('news_id', bar.getAttribute('data-id'));
+    fd.append('emoji', btn.getAttribute('data-emoji'));
+    fd.append('csrf', bar.getAttribute('data-csrf'));
+    btn.disabled = true;
+    fetch('/news_react.php', { method: 'POST', body: fd })
+      .then(function (r) { if (r.status === 403) { location.href = '/login.php'; throw 0; } return r.json(); })
+      .then(function (d) { if (d && d.counts) paintReactions(bar, d.counts, d.mine); })
+      .catch(function () {})
+      .finally(function () { btn.disabled = false; });
+  });
+
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     if (lb && !lb.hidden) { lb.hidden = true; return; }

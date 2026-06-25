@@ -349,6 +349,36 @@ function render_post_body(?string $raw): string
     return nl2br($out);
 }
 
+// Доступные реакции на новости (фиксированный набор — валидируется на сервере).
+function news_react_emojis(): array
+{
+    return ['👍', '🔥', '❤️', '😁', '🎉', '👏'];
+}
+
+// Счётчики реакций поста и текущая реакция пользователя: [ [emoji=>count], myEmoji|null ].
+function news_reaction_data(int $newsId, ?int $userId): array
+{
+    $counts = [];
+    $mine = null;
+    if (!db_ready() || $newsId <= 0) {
+        return [$counts, $mine];
+    }
+    try {
+        $st = db()->prepare('SELECT emoji, COUNT(*) c FROM news_reactions WHERE news_id = ? GROUP BY emoji');
+        $st->execute([$newsId]);
+        foreach ($st->fetchAll() as $r) {
+            $counts[$r['emoji']] = (int)$r['c'];
+        }
+        if ($userId) {
+            $st = db()->prepare('SELECT emoji FROM news_reactions WHERE news_id = ? AND user_id = ?');
+            $st->execute([$newsId, $userId]);
+            $mine = $st->fetchColumn() ?: null;
+        }
+    } catch (Throwable $e) {
+    }
+    return [$counts, $mine];
+}
+
 function elo_tier_name(float $elo): string
 {
     $name = 'Новичок';
