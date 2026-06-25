@@ -347,8 +347,9 @@ foreach (array_reverse($resDesc) as $r) {
     if ($r === 'W') { $rw++; $rl = 0; } elseif ($r === 'L') { $rl++; $rw = 0; } else { $rw = 0; $rl = 0; }
     $maxWst = max($maxWst, $rw); $maxLst = max($maxLst, $rl);
 }
-$form = array_reverse(array_slice($formRows, 0, 14)); // новые справа
+$form = array_reverse(array_slice($formRows, 0, 10)); // последние 10, новые справа
 $roleAb = ['civ' => 'мир', 'sheriff' => 'шер', 'maf' => 'маф', 'don' => 'дон'];
+echo '<div class="grid-2eq">';
 echo '<div class="card"><h2 style="margin-top:0;">Серии и форма</h2>';
 $stType = $curType === 'W' ? 'побед подряд' : ($curType === 'L' ? 'поражений подряд' : 'нет серии');
 $stColor = $curType === 'W' ? 'var(--ok)' : ($curType === 'L' ? 'var(--ac)' : 'var(--tx2)');
@@ -356,7 +357,7 @@ echo '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">';
 echo '<div><div style="font-size:32px;font-weight:750;color:' . $stColor . ';line-height:1;">' . ($curStreak ?: '—') . '</div><div style="font-size:12px;color:var(--tx2);margin-top:3px;">' . $stType . '</div></div>';
 echo '<div style="color:var(--tx2);font-size:13px;line-height:1.7;">макс. побед подряд: <b style="color:var(--tx);">' . $maxWst . '</b><br>макс. поражений подряд: <b style="color:var(--tx);">' . $maxLst . '</b></div>';
 echo '</div>';
-echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние игры (новые справа):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
+echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние 10 игр (новые справа):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
 foreach ($form as $fr) {
     $c = $fr['res'] === 'W' ? 'var(--ok)' : ($fr['res'] === 'L' ? 'var(--ac)' : 'var(--tx3)');
     echo '<span style="padding:3px 8px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;color:#fff;font-weight:600;">' . ($roleAb[$fr['role']] ?? '?') . '</span>';
@@ -376,6 +377,7 @@ if (array_sum($seatG) > 0) {
     }
     echo '</div></div>';
 }
+echo '</div>'; // grid-2eq: серии + счастливое место
 
 // Аватары и эмодзи-висюльки для плашек/таблиц напарников
 $pmeta = [];

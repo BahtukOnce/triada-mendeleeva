@@ -244,7 +244,7 @@ if ($stats) {
         if ($r === 'W') { $rw++; $rl = 0; } elseif ($r === 'L') { $rl++; $rw = 0; } else { $rw = 0; $rl = 0; }
         $maxW = max($maxW, $rw); $maxL = max($maxL, $rl);
     }
-    $form = array_reverse(array_slice($formRows, 0, 14)); // новые справа
+    $form = array_reverse(array_slice($formRows, 0, 10)); // последние 10, новые справа
     $roleAb = ['civ' => 'мир', 'sheriff' => 'шер', 'maf' => 'маф', 'don' => 'дон'];
 
     echo '<div class="grid-2eq">';
@@ -255,7 +255,7 @@ if ($stats) {
     echo '<div><div style="font-size:32px;font-weight:750;color:' . $stColor . ';line-height:1;">' . ($curStreak ?: '—') . '</div><div style="font-size:12px;color:var(--tx2);margin-top:3px;">' . $stType . '</div></div>';
     echo '<div style="color:var(--tx2);font-size:13px;line-height:1.7;">макс. побед подряд: <b style="color:var(--tx);">' . $maxW . '</b><br>макс. поражений подряд: <b style="color:var(--tx);">' . $maxL . '</b></div>';
     echo '</div>';
-    echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние игры (новые справа):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
+    echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние 10 игр (новые справа):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
     foreach ($form as $fr) {
         $c = $fr['res'] === 'W' ? 'var(--ok)' : ($fr['res'] === 'L' ? 'var(--ac)' : 'var(--tx3)');
         echo '<span style="padding:3px 8px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;color:#fff;font-weight:600;">' . ($roleAb[$fr['role']] ?? '?') . '</span>';
@@ -570,9 +570,15 @@ JS;
 }
 
 if ($history) {
-    echo '<div class="card"><h2 style="margin-top:0;">История игр (' . count($history) . ')</h2>';
-    echo '<div style="overflow-x:auto;"><table class="tbl">';
-    echo '<tr><th>Дата</th><th>Где</th><th>Роль</th><th>Результат</th></tr>';
+    // дельта ELO по каждой игре
+    $eloByGame = [];
+    $edq = db()->prepare('SELECT game_id, delta FROM elo_history WHERE player_id = ? AND game_id IS NOT NULL');
+    $edq->execute([$id]);
+    foreach ($edq->fetchAll() as $r) { $eloByGame[(int)$r['game_id']] = (float)$r['delta']; }
+
+    echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">История игр (' . count($history) . ')</h2>';
+    echo '<table class="tbl">';
+    echo '<tr><th>Дата</th><th>Где</th><th>Роль</th><th class="num">Допы</th><th class="num">Минусы</th><th class="num">Δ ELO</th><th>Результат</th></tr>';
     foreach ($history as $h) {
         $isDay = $h['context'] === 'day';
         $where = $isDay
@@ -583,12 +589,20 @@ if ($history) {
         $res = $h['winner'] === 'draw' ? '<span class="tag">ничья</span>'
             : ($won ? '<span class="tag tag-ok">победа</span>' : '<span class="tag">поражение</span>');
         $date = $h['day_date'] ? date('d.m.Y', strtotime($h['day_date'])) : '';
+        $plus = (float)$h['plus'];
+        $minus = (float)$h['minus'] + ((int)$h['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$h['tech_fouls'];
+        $dl = $eloByGame[(int)$h['game_id']] ?? null;
+        $dlHtml = $dl === null ? '<span style="color:var(--tx3);">—</span>'
+            : '<span style="color:' . ($dl > 0 ? 'var(--ok)' : ($dl < 0 ? 'var(--ac)' : 'var(--tx2)')) . ';">' . ($dl > 0 ? '+' : '') . number_format($dl, 1) . '</span>';
         echo '<tr><td>' . $date . '</td><td>' . $where . ' · игра ' . (int)$h['game_no'] . '</td>'
             . '<td>' . role_dot($h['role'])
             . $roleLabel[$h['role']] . ((int)$h['first_killed_seat'] === (int)$h['seat'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
+            . '<td class="num">' . ($plus > 0 ? '+' . number_format($plus, 1) : '—') . '</td>'
+            . '<td class="num">' . ($minus > 0 ? '−' . number_format($minus, 1) : '—') . '</td>'
+            . '<td class="num">' . $dlHtml . '</td>'
             . '<td>' . $res . '</td></tr>';
     }
-    echo '</table></div></div>';
+    echo '</table></div>';
 }
 
 // Живые стикеры-висюльки: анимация эмодзи (Google Noto), если доступна; иначе статичный эмодзи

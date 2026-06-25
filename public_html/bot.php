@@ -310,6 +310,11 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
         return;
     }
     bot_link($userId, $from, (int)$matched['player_id']);
+    try {
+        db()->prepare('INSERT INTO logs (user_id, action, details, ip) VALUES (NULL, ?, ?, NULL)')
+            ->execute(['tg_link', json_encode(['player' => $matched['name'], 'tg_user_id' => $userId, 'via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
+    } catch (Throwable $e) {
+    }
     send_menu($chatId, $userId, "✅ Готово! Ты привязан к игроку <b>" . bot_esc($matched['name']) . "</b>.\nВыбирай кнопкой 👇");
 }
 
