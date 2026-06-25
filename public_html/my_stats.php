@@ -57,6 +57,7 @@ $teammates = []; // pid => [nick, games, wins]
 $opponents = []; // pid => [nick, games, beat]
 $seatG = array_fill(1, 10, 0); $seatW = array_fill(1, 10, 0);
 $resDesc = []; // 'W'/'L'/'D', новые первыми
+$winRed = 0; $winBlk = 0; $lossRed = 0; $lossBlk = 0; // исходы по цветам
 
 foreach ($mine as $g) {
     $games++;
@@ -66,7 +67,9 @@ foreach ($mine as $g) {
     if ($g['winner'] === 'draw') {
         $draws++;
     } elseif ($won) {
-        $wins++;
+        $wins++; if ($col === 'red') { $winRed++; } else { $winBlk++; }
+    } else {
+        if ($col === 'red') { $lossRed++; } else { $lossBlk++; }
     }
     $byRole[$role][0]++;
     if ($won) { $byRole[$role][1]++; }
@@ -162,13 +165,23 @@ foreach (['civ', 'sheriff', 'maf', 'don'] as $rk) {
 }
 $roleDist = [$byRole['civ'][0], $byRole['sheriff'][0], $byRole['maf'][0], $byRole['don'][0]];
 $resultsData = [$wins, $losses, $draws];
-$eh = db()->prepare('SELECT elo_after, gdate FROM elo_history WHERE player_id = ? ORDER BY id');
+$eh = db()->prepare('SELECT eh.elo_after, eh.gdate, g.context, g.day_id, g.tournament_id
+    FROM elo_history eh LEFT JOIN games g ON g.id = eh.game_id
+    WHERE eh.player_id = ? ORDER BY eh.id');
 $eh->execute([$pid]);
 $eloSeries = [1000.0];
 $eloDates = ['старт'];
+$eloLinks = ['']; // старт — без ссылки
 foreach ($eh->fetchAll() as $r) {
     $eloSeries[] = round((float)$r['elo_after'], 1);
     $eloDates[] = $r['gdate'] ? date('d.m.y', strtotime($r['gdate'])) : '';
+    if ($r['context'] === 'day' && $r['day_id']) {
+        $eloLinks[] = '/day.php?id=' . (int)$r['day_id'];
+    } elseif ($r['context'] === 'tournament' && $r['tournament_id']) {
+        $eloLinks[] = '/tournament.php?id=' . (int)$r['tournament_id'];
+    } else {
+        $eloLinks[] = '';
+    }
 }
 $myElo = end($eloSeries) ?: 1000;
 
@@ -178,8 +191,10 @@ $chartData = json_encode([
     'roleWins' => $roleWinsData,
     'roleDist' => $roleDist,
     'results' => $resultsData,
+    'outcomes' => [$winRed, $winBlk, $lossRed, $lossBlk, $draws],
     'elo' => $eloSeries,
     'eloDates' => $eloDates,
+    'eloLinks' => $eloLinks,
 ], JSON_UNESCAPED_UNICODE);
 
 echo '<h2 style="margin-top:14px;">Графики</h2>';
@@ -256,6 +271,8 @@ echo '</div>';
       datasets: [{ data: D.elo, borderColor: red, backgroundColor: 'rgba(232,51,42,0.12)',
         fill: true, tension: 0.25, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: red, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, borderWidth: 2 }] },
     options: { interaction: { intersect: false, mode: 'index', axis: 'x' },
+      onClick: function (e, els) { if (els && els.length) { var u = D.eloLinks[els[0].index]; if (u) { location.href = u; } } },
+      onHover: function (e, els) { if (e.native && e.native.target) { e.native.target.style.cursor = (els && els.length && D.eloLinks[els[0].index]) ? 'pointer' : 'default'; } },
       plugins: { legend: { display: false },
         tooltip: { animation: false, displayColors: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
           label: function (c) { var i = c.dataIndex, L = ['ELO ' + Math.round(c.parsed.y) + ' · ' + tierName(c.parsed.y)];
@@ -285,8 +302,8 @@ echo '</div>';
 
   new Chart(document.getElementById('ch-results'), {
     type: 'doughnut',
-    data: { labels: ['Победы', 'Поражения', 'Ничьи'],
-      datasets: [{ data: D.results, backgroundColor: ['#2fa45c', red, '#888'], borderWidth: 0 }] },
+    data: { labels: ['Победа красным', 'Победа чёрным', 'Поражение красным', 'Поражение чёрным', 'Ничья'],
+      datasets: [{ data: D.outcomes, backgroundColor: ['#2fa45c', '#1f7a45', '#e8332a', '#8c2420', '#888'], borderWidth: 0 }] },
     options: { plugins: { legend: { position: 'bottom' }, datalabels: pctLabel }, maintainAspectRatio: false }
   });
 })();
