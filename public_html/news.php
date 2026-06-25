@@ -30,23 +30,37 @@ $csrf = csrf_token();
 // Карточка поста: галерея + текст + видео + реакции + просмотры/дата.
 $renderPost = function (array $n) use ($imgsOf, $newsChan, $meId, $csrf): string {
     $imgs = $imgsOf($n);
+    $isVideo = !empty($n['has_video']) && !empty($n['tg_msg_id']);
+    $tgUrl = $isVideo ? ('https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id']) : '';
+    $videoCoverShown = false;
     $h = '<article class="post-card">';
     if ($imgs) {
-        $cnt = count($imgs);
-        $cls = $cnt === 1 ? 'n1' : ($cnt === 2 ? 'n2' : ($cnt === 3 ? 'n3' : 'nmore'));
-        $h .= '<div class="post-imgs ' . $cls . '">';
-        foreach ($imgs as $src) {
-            $h .= '<img src="' . esc($src) . '" alt="" loading="lazy">';
+        $gallery = $imgs;
+        if ($isVideo) {
+            // первый кадр-постер показываем как видео с кнопкой поверх
+            $cover = array_shift($gallery);
+            $h .= '<a class="post-video-cover" href="' . esc($tgUrl) . '" target="_blank" rel="noopener" title="Смотреть видео в Telegram">'
+                . '<img src="' . esc($cover) . '" alt="" loading="lazy">'
+                . '<span class="post-video-play">▶ Смотреть видео в Telegram</span></a>';
+            $videoCoverShown = true;
         }
-        $h .= '</div>';
+        if ($gallery) {
+            $cnt = count($gallery);
+            $cls = $cnt === 1 ? 'n1' : ($cnt === 2 ? 'n2' : ($cnt === 3 ? 'n3' : 'nmore'));
+            $h .= '<div class="post-imgs ' . $cls . '">';
+            foreach ($gallery as $src) {
+                $h .= '<img src="' . esc($src) . '" alt="" loading="lazy">';
+            }
+            $h .= '</div>';
+        }
     }
     $h .= '<div class="post-main">';
     $body = render_post_body($n['body'] ?? '');
     if ($body !== '') {
         $h .= '<div class="post-body">' . $body . '</div>';
     }
-    if (!empty($n['has_video']) && !empty($n['tg_msg_id'])) {
-        $tgUrl = 'https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id'];
+    if ($isVideo && !$videoCoverShown) {
+        // видео без скачанного постера — кнопка отдельной строкой (запасной вариант)
         $h .= '<a class="post-tgvideo" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">▶ Смотреть видео в Telegram</a>';
     }
     // Реакции (эмодзи)

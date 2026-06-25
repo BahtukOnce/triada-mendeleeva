@@ -341,6 +341,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .post-tgvideo { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 2px; padding: 9px 15px; border-radius: 10px; background: var(--acsf); color: var(--ac); font-weight: 600; text-decoration: none; }
 .post-tgvideo:hover { background: var(--ac); color: #fff; }
 
+/* Кнопка «смотреть видео» прямо на постере */
+.post-video-cover { position: relative; display: block; }
+.post-video-cover img { width: 100%; height: auto; max-height: 460px; object-fit: cover; display: block; }
+.post-video-cover::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.30); transition: background .15s ease; }
+.post-video-cover:hover::after { background: rgba(0,0,0,.42); }
+.post-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; display: inline-flex; align-items: center; gap: 7px; padding: 11px 20px; border-radius: 26px; background: var(--ac); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+.post-video-cover:hover .post-video-play { background: var(--ac-h); }
+
 /* Модалка «Показать полностью» */
 .post-modal { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; }
 .post-modal[hidden] { display: none; }
