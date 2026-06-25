@@ -203,12 +203,12 @@ echo '</div>';
   var roleLabels = ['Мирный', 'Шериф', 'Мафия', 'Дон'];
 
   // Зоны уровней по ELO (градиент)
-  var TIERS = [{ v: 600, n: 'Новичок', col: '120,132,124', a: 0.10 },
-    { v: 1000, n: 'Любитель', col: '52,168,99', a: 0.12 },
-    { v: 1250, n: 'Боец', col: '40,165,170', a: 0.13 },
-    { v: 1450, n: 'Эксперт', col: '64,120,224', a: 0.15 },
-    { v: 1650, n: 'Мастер', col: '160,96,224', a: 0.18 },
-    { v: 1850, n: 'Легенда', col: '232,184,48', a: 0.26 }];
+  var TIERS = [{ v: 600, n: 'Новичок', col: '120,132,124', a: 0.07 },
+    { v: 1000, n: 'Любитель', col: '52,168,99', a: 0.09 },
+    { v: 1250, n: 'Боец', col: '40,165,170', a: 0.10 },
+    { v: 1450, n: 'Эксперт', col: '64,120,224', a: 0.11 },
+    { v: 1650, n: 'Мастер', col: '160,96,224', a: 0.13 },
+    { v: 2000, n: 'Легенда', col: '88,176,244', a: 0.16 }];
   function tierColor(v) { var T = TIERS[0]; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].v) T = TIERS[i]; } return 'rgba(' + T.col + ',' + T.a + ')'; }
   function tierName(v) { var n = TIERS[0].n; for (var i = 0; i < TIERS.length; i++) { if (v >= TIERS[i].v) n = TIERS[i].n; } return n; }
   var tierBands = { id: 'tierBands', beforeDatasetsDraw: function (ch) {
@@ -237,7 +237,7 @@ echo '</div>';
 
   var eloMax = Math.max.apply(null, D.elo), eloNextTier = null;
   for (var ti = 0; ti < TIERS.length; ti++) { if (TIERS[ti].v > eloMax) { eloNextTier = TIERS[ti].v; break; } }
-  var eloSMax = (eloNextTier || eloMax) + 150;
+  var eloSMax = (eloNextTier || eloMax) + 60;
 
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',

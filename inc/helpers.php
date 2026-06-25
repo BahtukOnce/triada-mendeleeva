@@ -147,7 +147,7 @@ function achievements_catalog(): array
         'elo1250'  => ['⚔️', 'Боец', 'ELO 1250+', 'ELO'],
         'elo1450'  => ['💎', 'Эксперт', 'ELO 1450+', 'ELO'],
         'elo1650'  => ['👑', 'Мастер', 'ELO 1650+', 'ELO'],
-        'elo1850'  => ['🏆', 'Легенда', 'ELO 1850+', 'ELO'],
+        'elo2000'  => ['🏆', 'Легенда', 'ELO 2000+', 'ELO'],
         'eloday'   => ['📈', 'Прорыв вечера', '+150 ELO за вечер', 'ELO'],
         'dop30'    => ['➕', 'Щедрый на допы', '30+ допов всего', 'Мастерство'],
         'fatgame'  => ['💰', 'Жирная игра', '1.5+ допа за одну игру', 'Мастерство'],
@@ -230,7 +230,7 @@ function achievement_earners(): array
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
                 'black5' => $blk >= 5, 'red3' => $redW >= 3,
                 'elo1000' => $elo >= 1000, 'elo1250' => $elo >= 1250, 'elo1450' => $elo >= 1450,
-                'elo1650' => $elo >= 1650, 'elo1850' => $elo >= 1850,
+                'elo1650' => $elo >= 1650, 'elo2000' => $elo >= 2000,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
                 'dop30' => $r && (float)$r['dop_sum'] >= 30, 'fatgame' => $maxPlus >= 1.5,
                 'triple' => isset($triples[$pid]),
@@ -256,7 +256,7 @@ function elo_tiers(): array
         [1250, 'Боец'],
         [1450, 'Эксперт'],
         [1650, 'Мастер'],
-        [1850, 'Легенда'],
+        [2000, 'Легенда'],
     ];
 }
 
