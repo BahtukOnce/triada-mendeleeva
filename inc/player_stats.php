@@ -366,7 +366,7 @@ function render_player_stats(int $id, bool $own = false): void
         if ($teammates || $opponents) {
             $bestMate = null;
             foreach ($teammates as $opid => $m) {
-                if ($bestMate === null || $m['wins'] > $bestMate['wins'] || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
+                if ($bestMate === null || $m['wins'] > $bestMate['wins'] || ($m['wins'] === $bestMate['wins'] && $m['games'] < $bestMate['games'])) {
                     $bestMate = $m + ['id' => $opid];
                 }
             }
@@ -415,7 +415,7 @@ function render_player_stats(int $id, bool $own = false): void
             echo '</div>';
             $chem = array_filter($teammates, fn($m) => $m['games'] >= 4);
             uasort($chem, fn($a, $b) => ($b['wins'] / $b['games']) <=> ($a['wins'] / $a['games']));
-            $bestChem = array_slice($chem, 0, 8, true);
+            $bestChem = array_slice($chem, 0, 12, true);
             echo '<div class="card"><h2 style="margin-top:0;">Лучшая «химия» <span style="font-size:12px;color:var(--tx2);">(от 4 игр вместе)</span></h2>';
             if ($bestChem) {
                 echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Вместе</th><th class="num">Винрейт</th></tr>';
@@ -426,6 +426,29 @@ function render_player_stats(int $id, bool $own = false): void
             } else { echo '<p style="color:var(--tx2);">Пока мало совместных игр для расчёта.</p>'; }
             echo '</div></div>';
 
+            $beat = $opponents; uasort($beat, fn($a, $b) => [$b['beat'], $b['games']] <=> [$a['beat'], $a['games']]);
+            $lostTo = $opponents; uasort($lostTo, fn($a, $b) => [$b['lost'], $b['games']] <=> [$a['lost'], $a['games']]);
+            echo '<h2 style="margin-top:8px;">Разноцветы — против кого играли</h2><div class="grid-2">';
+            echo '<div class="card"><h2 style="margin-top:0;">Кого чаще всего обыгрывали</h2>';
+            $topb = array_slice(array_filter($beat, fn($m) => $m['beat'] > 0), 0, 12, true);
+            if ($topb) {
+                echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Обыграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
+                foreach ($topb as $opid => $m) {
+                    echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num"><b>' . $m['beat'] . '</b></td><td class="num">' . $m['games'] . '</td><td class="num" style="color:var(--ok);">' . $wr($m['beat'], $m['games']) . '</td></tr>';
+                }
+                echo '</table>';
+            } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+            echo '</div>';
+            echo '<div class="card"><h2 style="margin-top:0;">Кому чаще всего проигрывали</h2>';
+            $topl = array_slice(array_filter($lostTo, fn($m) => $m['lost'] > 0), 0, 12, true);
+            if ($topl) {
+                echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Проиграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
+                foreach ($topl as $opid => $m) {
+                    echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num"><b style="color:var(--ac);">' . $m['lost'] . '</b></td><td class="num">' . $m['games'] . '</td><td class="num" style="color:var(--ac);">' . $wr($m['lost'], $m['games']) . '</td></tr>';
+                }
+                echo '</table>';
+            } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+            echo '</div></div>';
         }
 
         // ── Достижения (ачивки) ──
@@ -462,7 +485,7 @@ function render_player_stats(int $id, bool $own = false): void
             'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
             'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
             'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
-            'elo1000' => $elo >= 1000, 'elo1250' => $elo >= 1250, 'elo1450' => $elo >= 1450, 'elo1650' => $elo >= 1650, 'elo1850' => $elo >= 1850,
+            'elo1100' => $elo >= 1100, 'elo1300' => $elo >= 1300, 'elo1500' => $elo >= 1500, 'elo1700' => $elo >= 1700, 'elo1900' => $elo >= 1900, 'elo2100' => $elo >= 2100,
             'eloday' => $maxEloDay >= 150,
             'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.5,
             'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$stats['pu_count'] >= 5,
