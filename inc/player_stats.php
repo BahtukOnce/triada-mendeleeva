@@ -216,7 +216,7 @@ function render_player_stats(int $id, bool $own = false): void
 
         // ── Винрейт по ролям (бары) + Показатели ──
         echo '<div class="grid-2eq">';
-        echo '<div class="card"><h2 style="margin-top:0;">Винрейт по ролям</h2><div class="role-bars">';
+        echo '<div class="card card-flexcol"><h2 style="margin-top:0;">Винрейт по ролям</h2><div class="role-bars">';
         foreach ($roleOrder as [$rk, $rl]) {
             $g = (int)$stats['g_' . $rk];
             $w = (int)$stats['w_' . $rk];

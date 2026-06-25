@@ -480,6 +480,10 @@ body::before {
 .role-bar .rb-fill { display: block; height: 100%; border-radius: 5px; min-width: 2px; }
 .role-bar .rb-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--tx2); }
 .role-bar .rb-val b { color: var(--tx); font-weight: 650; }
+/* «Винрейт по ролям»: растянуть полоски на всю высоту карточки */
+.card-flexcol { display: flex; flex-direction: column; }
+.card-flexcol .role-bars { flex: 1; justify-content: space-evenly; gap: 14px; }
+.card-flexcol .role-bar .rb-track { height: 13px; }
 
 .hist-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
 
