@@ -187,7 +187,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   text-align: left; color: var(--tx2); font-size: 12px; font-weight: 550;
   padding: 8px 10px; border-bottom: 1px solid var(--bd);
 }
-.tbl td { padding: 8px 10px; border-bottom: 1px solid var(--bd); }
+.tbl td { padding: 8px 10px; border-bottom: 1px solid var(--bd); vertical-align: middle; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
 

@@ -399,12 +399,13 @@ var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:fu
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
 Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
-var TIERS=[{v:600,n:'Новичок',col:'120,132,124',a:0.07},
-  {v:1000,n:'Любитель',col:'52,168,99',a:0.09},
-  {v:1250,n:'Боец',col:'40,165,170',a:0.10},
-  {v:1450,n:'Эксперт',col:'64,120,224',a:0.11},
-  {v:1650,n:'Мастер',col:'160,96,224',a:0.13},
-  {v:2000,n:'Легенда',col:'88,176,244',a:0.16}];
+var TIERS=[{v:600,n:'Новичок',col:'120,132,124',a:0.10},
+  {v:1000,n:'Любитель',col:'52,168,99',a:0.12},
+  {v:1250,n:'Боец',col:'40,165,170',a:0.13},
+  {v:1450,n:'Эксперт',col:'64,120,224',a:0.15},
+  {v:1650,n:'Мастер',col:'160,96,224',a:0.18},
+  {v:1850,n:'Чемпион',col:'230,126,34',a:0.22},
+  {v:2000,n:'Легенда',col:'232,184,48',a:0.26}];
 function tierColor(v){ var T=TIERS[0]; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) T=TIERS[i]; } return 'rgba('+T.col+','+T.a+')'; }
 function tierName(v){ var n=TIERS[0].n; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) n=TIERS[i].n; } return n; }
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
