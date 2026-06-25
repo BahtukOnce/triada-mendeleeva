@@ -27,7 +27,7 @@ if ($list) {
         echo '<a class="card card-link" href="/tournament.php?id=' . (int)$t['id'] . '">';
         echo '<div class="section-head"><div style="display:flex;align-items:center;gap:12px;min-width:0;">';
         if (!empty($t['logo'])) {
-            echo '<img src="' . esc($t['logo']) . '" alt="" style="width:42px;height:42px;object-fit:contain;border-radius:8px;flex:none;">';
+            echo '<img src="' . esc($t['logo']) . '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid var(--bd);flex:none;">';
         }
         echo '<h2 style="margin:0;color:var(--tx);">' . esc($t['title']) . '</h2></div>';
         echo '<span class="tag ' . $tag . '">' . esc($statusLabel[$t['status']] ?? $t['status']) . '</span></div>';

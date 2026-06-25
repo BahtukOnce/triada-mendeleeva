@@ -36,7 +36,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson]);
             $id = (int)db()->lastInsertId();
         }
-        if (!empty($_FILES['logo']['name'])) {
+        $cropped = (string)($_POST['logo_cropped'] ?? '');
+        if (preg_match('#^data:image/(jpeg|png);base64,#', $cropped)) {
+            // Логотип из мини-редактора (обрезка под круг)
+            $bin = base64_decode(substr($cropped, strpos($cropped, ',') + 1), true);
+            if ($bin !== false && strlen($bin) > 100 && strlen($bin) < 8 * 1024 * 1024) {
+                $dir = ROOT . '/public_html/uploads/tournaments';
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0775, true);
+                }
+                $base = 't' . $id . '_' . time();
+                $rel = '/uploads/tournaments/' . $base . '.jpg';
+                if (@file_put_contents($dir . '/' . $base . '.jpg', $bin) !== false) {
+                    db()->prepare('UPDATE tournaments SET logo = ? WHERE id = ?')->execute([$rel, $id]);
+                } else {
+                    flash_set('err', 'Лого: не удалось сохранить');
+                }
+            } else {
+                flash_set('err', 'Лого: картинка не распозналась');
+            }
+        } elseif (!empty($_FILES['logo']['name'])) {
             $res = save_image_upload($_FILES['logo'], 'tournaments', 't' . $id, 400);
             if (is_string($res) && str_starts_with($res, '/uploads/')) {
                 db()->prepare('UPDATE tournaments SET logo = ? WHERE id = ?')->execute([$res, $id]);
@@ -112,11 +131,15 @@ foreach ($statusLabel as $sk => $sl) {
 }
 echo '</select></div>';
 echo '<div class="field"><label>Описание</label><textarea name="description" rows="3">' . esc($edit['description'] ?? '') . '</textarea></div>';
-echo '<div class="field"><label>Логотип турнира (PNG/JPG)</label>';
-if (!empty($edit['logo'])) {
-    echo '<div style="margin-bottom:6px;"><img src="' . esc($edit['logo']) . '" style="width:56px;height:56px;object-fit:contain;border-radius:8px;border:1px solid var(--bd);"></div>';
-}
-echo '<input type="file" name="logo" accept="image/*"></div>';
+echo '<div class="field"><label>Логотип турнира (PNG/JPG) — откроется мини-редактор, кадрируй под круг</label>';
+$curLogo = !empty($edit['logo']) ? esc($edit['logo']) : '';
+echo '<div style="display:flex;align-items:center;gap:14px;">';
+echo '<img id="logo-preview" src="' . $curLogo . '" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--bd);background:var(--sf2);' . ($curLogo === '' ? 'display:none;' : '') . '">';
+echo '<div style="flex:1;min-width:0;">';
+echo '<input type="file" name="logo" id="logo-file" accept="image/*">';
+echo '<input type="hidden" name="logo_cropped" id="logo-cropped">';
+echo '<div id="logo-hint" style="color:var(--tx3);font-size:12px;margin-top:6px;">Выбери файл — откроется обрезка, увидишь, что именно загрузилось.</div>';
+echo '</div></div></div>';
 echo '<div style="display:flex;gap:10px;"><button class="btn" type="submit">Сохранить</button>';
 if ($edit) {
     echo '<a class="btn btn-ghost" href="/admin/tournaments.php">Отмена</a>';
@@ -138,4 +161,48 @@ if ($list) {
     }
     echo '</table></div>';
 }
+?>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+<div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:18px;max-width:520px;width:100%;">
+    <h3 style="margin:0 0 12px;">Логотип турнира — кадрируй под круг</h3>
+    <div style="max-height:60vh;overflow:hidden;"><img id="crop-img" style="max-width:100%;display:block;"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;">
+      <button type="button" class="btn btn-ghost" id="crop-cancel">Отмена</button>
+      <button type="button" class="btn" id="crop-ok">Применить</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script>
+(function () {
+  var fileInput = document.getElementById('logo-file'),
+      modal = document.getElementById('crop-modal'),
+      img = document.getElementById('crop-img'), cropper = null;
+  if (!fileInput || !modal) return;
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function (e) {
+      img.src = e.target.result; modal.style.display = 'flex';
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(img, { aspectRatio: 1, viewMode: 1, autoCropArea: 1, background: false });
+    };
+    rd.readAsDataURL(f);
+  });
+  document.getElementById('crop-cancel').addEventListener('click', function () {
+    modal.style.display = 'none'; if (cropper) { cropper.destroy(); cropper = null; } fileInput.value = '';
+  });
+  document.getElementById('crop-ok').addEventListener('click', function () {
+    if (!cropper) return;
+    var canvas = cropper.getCroppedCanvas({ width: 512, height: 512, imageSmoothingQuality: 'high' });
+    var data = canvas.toDataURL('image/jpeg', 0.9);
+    document.getElementById('logo-cropped').value = data;
+    var pv = document.getElementById('logo-preview'); if (pv) { pv.src = data; pv.style.display = ''; }
+    var h = document.getElementById('logo-hint'); if (h) { h.textContent = 'Обрезано ✓ — нажми «Сохранить».'; }
+    modal.style.display = 'none'; if (cropper) { cropper.destroy(); cropper = null; }
+  });
+})();
+</script>
+<?php
 page_foot();

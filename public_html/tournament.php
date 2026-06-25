@@ -44,7 +44,7 @@ if (!$t) {
 
 if (!empty($t['logo'])) {
     echo '<div style="display:flex;align-items:center;gap:16px;">'
-        . '<img src="' . esc($t['logo']) . '" alt="" style="width:64px;height:64px;object-fit:contain;border-radius:12px;flex:none;">'
+        . '<img src="' . esc($t['logo']) . '" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:50%;border:2px solid var(--bd);flex:none;">'
         . '<h1 style="margin:0;">' . esc($t['title']) . '</h1></div>';
 } else {
     echo '<h1>' . esc($t['title']) . '</h1>';
