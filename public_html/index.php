@@ -130,7 +130,7 @@ page_head('Главная', 'index');
           $g = (int)$t5['games'];
           $w = (int)$t5['w_civ'] + (int)$t5['w_maf'] + (int)$t5['w_sher'] + (int)$t5['w_don'];
           $wpct = $g ? (int)round($w / $g * 100) : null;
-          $wcol = $wpct === null ? 'var(--tx3)' : ($wpct >= 60 ? 'var(--ok)' : ($wpct < 42 ? 'var(--ac)' : 'var(--tx)')); ?>
+          $wcol = $wpct === null ? 'var(--tx3)' : ($wpct >= 55 ? 'var(--ok)' : ($wpct <= 45 ? 'var(--ac)' : 'var(--tx)')); ?>
       <tr data-href="/player.php?id=<?= (int)$t5['player_id'] ?>"<?= $medal !== '' ? ' class="rt-top"' : '' ?>>
         <td><?= $medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos ?></td>
         <td><?= avatar_html(['nickname' => $t5['nickname'], 'avatar' => $t5['avatar']], 26, 'margin-right:8px;') ?><span style="vertical-align:middle;"><?= player_label($t5) ?></span></td>
@@ -197,7 +197,7 @@ page_head('Главная', 'index');
                 ? '<a href="/player.php?id=' . (int)$a['player_id'] . '" style="color:var(--tx);">' . esc($a['nickname']) . '</a>'
                 : esc($a['nickname']); ?>
           <div class="admin-item<?= $isLead ? ' lead' : '' ?>">
-            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 46, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
+            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 64, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
               <div class="nm"><?= $nameHtml ?></div>
               <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>

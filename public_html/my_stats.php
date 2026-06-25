@@ -239,7 +239,9 @@ echo '</div>';
 
   var eloMax = Math.max.apply(null, D.elo), eloNextTier = null;
   for (var ti = 0; ti < TIERS.length; ti++) { if (TIERS[ti].v > eloMax) { eloNextTier = TIERS[ti].v; break; } }
-  var eloSMax = (eloNextTier || eloMax) + 60;
+  var topTierV = TIERS[TIERS.length - 1].v;
+  // верхняя полоса должна быть видна с подписью: даём место над текущим тиром
+  var eloSMax = eloNextTier ? (eloNextTier + 50) : Math.max(eloMax + 60, topTierV + 140);
 
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',
@@ -251,7 +253,8 @@ echo '</div>';
         tooltip: { animation: false, displayColors: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
           label: function (c) { var i = c.dataIndex, L = ['ELO ' + Math.round(c.parsed.y) + ' · ' + tierName(c.parsed.y)];
             if (i > 0) { var dl = Math.round(c.parsed.y - D.elo[i - 1]); L.push((dl > 0 ? '▲ +' : (dl < 0 ? '▼ ' : '')) + dl + ' с прошлой игры'); } else { L.push('старт'); } return L; } } } },
-      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { suggestedMin: 1000, suggestedMax: eloSMax, grid: { display: false } } },
+      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { min: 800, max: eloSMax, grid: { display: false },
+            afterBuildTicks: function (s) { s.ticks = TIERS.filter(function (t) { return t.v >= s.min && t.v <= s.max; }).map(function (t) { return { value: t.v }; }); } } },
       maintainAspectRatio: false },
     plugins: [tierBands]
   });

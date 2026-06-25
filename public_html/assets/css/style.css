@@ -250,19 +250,19 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .empty-state h2 { color: var(--tx); margin: 8px 0 6px; }
 .empty-state p { max-width: 420px; margin: 0 auto; font-size: 14px; }
 
-.admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 14px; }
 .admin-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; background: var(--sf2);
-  border: 1px solid var(--bd); border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px;
+  padding: 20px 12px 16px; background: var(--sf2);
+  border: 1px solid var(--bd); border-radius: 16px;
 }
 .admin-item.lead {
-  border-color: rgba(232,51,42,0.45);
-  background: linear-gradient(135deg, rgba(232,51,42,0.07), var(--sf2) 60%);
+  border-color: rgba(232,51,42,0.5);
+  background: linear-gradient(180deg, rgba(232,51,42,0.10), var(--sf2) 72%);
 }
-.admin-item > img, .admin-item > .avatar-circle { box-shadow: 0 0 0 2px var(--bd); }
-.admin-item.lead > img, .admin-item.lead > .avatar-circle { box-shadow: 0 0 0 2px rgba(232,51,42,0.5); }
-.admin-item > div { min-width: 0; }
+.admin-item > img, .admin-item > .avatar-circle { box-shadow: 0 0 0 3px var(--bd); }
+.admin-item.lead > img, .admin-item.lead > .avatar-circle { box-shadow: 0 0 0 3px rgba(232,51,42,0.55); }
+.admin-item > div { min-width: 0; max-width: 100%; }
 .avatar-circle {
   width: 30px; height: 30px; border-radius: 50%; background: var(--sf2);
   display: inline-flex; align-items: center; justify-content: center;
@@ -270,12 +270,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 }
 .avatar-circle.accent { background: var(--acsf); color: var(--ac); }
 .admin-item .nm {
-  font-size: 14.5px; font-weight: 600; color: var(--tx);
+  font-size: 15px; font-weight: 600; color: var(--tx); max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .admin-item .rl {
-  display: inline-block; margin-top: 5px; font-size: 11px; font-weight: 500;
-  padding: 2px 9px; border-radius: 999px; background: var(--bd); color: var(--tx2);
+  display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 600;
+  letter-spacing: .03em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px; background: var(--bd); color: var(--tx2);
 }
 .admin-item .rl.accent { background: var(--acsf); color: var(--ac); }
 
