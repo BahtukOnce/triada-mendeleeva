@@ -66,7 +66,7 @@ $list = [];
 if ($dbok) {
     $list = db()->query('SELECT id, title, body, published_at, image, images FROM news
         WHERE published_at IS NOT NULL
-        ORDER BY pinned DESC, published_at DESC LIMIT 60')->fetchAll();
+        ORDER BY pinned DESC, published_at DESC LIMIT 24')->fetchAll();
 }
 
 page_head('Новости', 'news');

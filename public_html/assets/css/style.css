@@ -292,10 +292,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .news-cover { padding: 0; overflow: hidden; }
 .news-cover img { width: 100%; display: block; }
 
-/* Лента постов: карточки-прямоугольники друг за другом */
-.post-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; margin-top: 8px; }
+/* Лента постов: карточки-прямоугольники друг за другом (одна колонка, по центру) */
+.post-feed { max-width: 640px; margin: 8px auto 0; }
 .post-single { max-width: 680px; }
-.post-card { background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; overflow: hidden; }
+.post-card { background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
 .post-card .post-imgs { display: grid; gap: 3px; }
 .post-card .post-imgs.n2 { grid-template-columns: 1fr 1fr; }
 .post-card .post-imgs.n3, .post-card .post-imgs.nmore { grid-template-columns: 1fr 1fr 1fr; }
@@ -307,7 +307,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .post-card .post-body a.pl-mention { font-weight: 600; text-decoration: none; }
 .post-card .post-body a.pl-mention:hover { text-decoration: underline; }
 .post-card .post-date { color: var(--tx2); font-size: 12px; margin-top: 11px; }
-@media (max-width: 720px) { .post-feed { grid-template-columns: 1fr; } }
 
 .progress { height: 6px; background: var(--sf2); border-radius: 3px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--ac); border-radius: 3px; }
