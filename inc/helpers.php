@@ -302,9 +302,9 @@ function player_mention_index(): array
 function media_embed(string $url): ?string
 {
     if (preg_match('~(?:vkvideo\.ru|vk\.com)/video(-?\d+)_(\d+)~', $url, $m)) {
-        $src = 'https://vk.com/video_ext.php?oid=' . $m[1] . '&id=' . $m[2] . '&hd=2';
-        return '<span class="post-video"><iframe src="' . esc($src)
-            . '" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;" allowfullscreen loading="lazy"></iframe></span>';
+        // Встраивание VK-плеера часто даёт чёрный экран — даём надёжную ссылку-кнопку.
+        $watch = 'https://vk.com/video' . $m[1] . '_' . $m[2];
+        return '<a class="post-video-link" href="' . esc($watch) . '" target="_blank" rel="noopener">▶ Смотреть видео во ВКонтакте</a>';
     }
     if (preg_match('~(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/|live/))([A-Za-z0-9_-]{6,})~', $url, $m)) {
         $src = 'https://www.youtube.com/embed/' . $m[1];

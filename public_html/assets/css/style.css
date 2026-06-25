@@ -322,6 +322,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .react-btn.active .rc { color: var(--ac); }
 .post-video { display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 9px 0; border-radius: 10px; overflow: hidden; background: #000; }
 .post-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.post-video-link { display: inline-flex; align-items: center; gap: 7px; margin: 8px 0; padding: 10px 16px; border-radius: 10px; background: var(--ac); color: #fff; font-weight: 600; text-decoration: none; }
+.post-video-link:hover { background: var(--ac-h); }
 
 /* Лента-превью: карточки картинка+заголовок, полный текст по кнопке */
 .news-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 18px; margin-top: 6px; }
