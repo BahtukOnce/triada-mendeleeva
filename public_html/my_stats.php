@@ -180,7 +180,8 @@ echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамик�
     . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Винрейт по ролям</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-rolewr"></canvas></div></div>';
-echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Сколько играли за роль</h2>'
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Роли: сыграно и побед '
+    . '<span style="font-size:12px;color:var(--tx2);font-weight:400;">(ярко — победы, тускло — поражения)</span></h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-roledist"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-results"></canvas></div></div>';
@@ -266,11 +267,36 @@ echo '</div>';
       maintainAspectRatio: false }
   });
 
-  new Chart(document.getElementById('ch-roledist'), {
-    type: 'doughnut',
-    data: { labels: roleLabels, datasets: [{ data: D.roleDist, backgroundColor: roleColors, borderColor: '#17171c', borderWidth: 2 }] },
-    options: { plugins: { legend: { position: 'bottom' }, datalabels: pctLabel }, maintainAspectRatio: false }
-  });
+  try {
+    var fadeC = function (hex) { var n = parseInt(hex.slice(1), 16); return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',0.30)'; };
+    var rdData = [], rdBg = [];
+    for (var ri = 0; ri < 4; ri++) {
+      var rg = D.roleDist[ri] || 0, rw = D.roleWins[ri] || 0;
+      rdData.push(rw, Math.max(0, rg - rw));
+      rdBg.push(roleColors[ri], fadeC(roleColors[ri]));
+    }
+    new Chart(document.getElementById('ch-roledist'), {
+      type: 'doughnut',
+      data: { datasets: [{ data: rdData, backgroundColor: rdBg, borderColor: '#17171c', borderWidth: 2 }] },
+      options: { maintainAspectRatio: false, plugins: {
+        legend: { position: 'bottom',
+          labels: { generateLabels: function () { return roleLabels.map(function (n, i) { return { text: n, fillStyle: roleColors[i], strokeStyle: roleColors[i] }; }); } },
+          onClick: function () {} },
+        datalabels: {
+          display: function (ctx) { return ctx.dataIndex % 2 === 0 && (D.roleDist[ctx.dataIndex / 2] || 0) > 0; },
+          color: '#fff', font: { weight: '600', size: 11 },
+          formatter: function (v, ctx) { var ri = ctx.dataIndex / 2, g = D.roleDist[ri] || 0; return g ? Math.round((D.roleWins[ri] || 0) / g * 100) + '%' : ''; } },
+        tooltip: { callbacks: {
+          title: function (items) { return items.length ? roleLabels[Math.floor(items[0].dataIndex / 2)] : ''; },
+          label: function (c) {
+            var ri = Math.floor(c.dataIndex / 2), g = D.roleDist[ri] || 0, w = D.roleWins[ri] || 0;
+            return (c.dataIndex % 2 === 0)
+              ? 'Побед: ' + c.parsed + ' из ' + g + ' (' + (g ? Math.round(w / g * 100) : 0) + '%)'
+              : 'Поражений: ' + c.parsed;
+          } } }
+      } }
+    });
+  } catch (e) {}
 
   new Chart(document.getElementById('ch-results'), {
     type: 'doughnut',
