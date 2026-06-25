@@ -22,7 +22,10 @@ $team = fn(string $role): string => in_array($role, ['civ', 'sheriff'], true) ? 
 $st = db()->prepare("SELECT gs.seat, gs.role, gs.fouls, gs.tech_fouls, gs.plus, gs.minus,
         g.id AS game_id, g.winner, g.first_killed_seat, g.bm_seat1, g.bm_seat2, g.bm_seat3
     FROM game_seats gs JOIN games g ON g.id = gs.game_id
-    WHERE gs.player_id = ? AND g.status = 'finished'");
+    LEFT JOIN game_days d ON d.id = g.day_id
+    LEFT JOIN tournaments t ON t.id = g.tournament_id
+    WHERE gs.player_id = ? AND g.status = 'finished'
+    ORDER BY COALESCE(d.date, t.date_from) DESC, g.id DESC");
 $st->execute([$pid]);
 $mine = $st->fetchAll();
 
@@ -52,6 +55,8 @@ $puCount = 0; $puAsRed = 0; $lhEarned = 0; $lhSum = 0.0;
 $foulsSum = 0; $techSum = 0; $plusSum = 0.0; $minusSum = 0.0;
 $teammates = []; // pid => [nick, games, wins]
 $opponents = []; // pid => [nick, games, beat]
+$seatG = array_fill(1, 10, 0); $seatW = array_fill(1, 10, 0);
+$resDesc = []; // 'W'/'L'/'D', новые первыми
 
 foreach ($mine as $g) {
     $games++;
@@ -67,6 +72,10 @@ foreach ($mine as $g) {
     if ($won) { $byRole[$role][1]++; }
     $byColor[$col][0]++;
     if ($won) { $byColor[$col][1]++; }
+
+    $mseat = (int)$g['seat'];
+    if ($mseat >= 1 && $mseat <= 10) { $seatG[$mseat]++; if ($won) { $seatW[$mseat]++; } }
+    $resDesc[] = $g['winner'] === 'draw' ? 'D' : ($won ? 'W' : 'L');
 
     $foulsSum += (int)$g['fouls'];
     $techSum += (int)$g['tech_fouls'];
@@ -306,6 +315,47 @@ echo '<tr><td style="color:var(--tx2);">Допов всего / минусов</
 echo '<tr><td style="color:var(--tx2);">Фолов / техфолов</td><td class="num">' . $foulsSum . ' / ' . $techSum . '</td></tr>';
 echo '</table></div>';
 echo '</div>';
+
+// ── Серии и форма ──
+$curStreak = 0; $curType = '';
+foreach ($resDesc as $r) {
+    if ($r === 'D') { break; }
+    if ($curType === '') { $curType = $r; $curStreak = 1; } elseif ($r === $curType) { $curStreak++; } else { break; }
+}
+$maxWst = 0; $maxLst = 0; $rw = 0; $rl = 0;
+foreach (array_reverse($resDesc) as $r) {
+    if ($r === 'W') { $rw++; $rl = 0; } elseif ($r === 'L') { $rl++; $rw = 0; } else { $rw = 0; $rl = 0; }
+    $maxWst = max($maxWst, $rw); $maxLst = max($maxLst, $rl);
+}
+$form = array_slice($resDesc, 0, 14);
+echo '<div class="card"><h2 style="margin-top:0;">Серии и форма</h2>';
+$stType = $curType === 'W' ? 'побед подряд' : ($curType === 'L' ? 'поражений подряд' : 'нет серии');
+$stColor = $curType === 'W' ? 'var(--ok)' : ($curType === 'L' ? 'var(--ac)' : 'var(--tx2)');
+echo '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">';
+echo '<div><div style="font-size:32px;font-weight:750;color:' . $stColor . ';line-height:1;">' . ($curStreak ?: '—') . '</div><div style="font-size:12px;color:var(--tx2);margin-top:3px;">' . $stType . '</div></div>';
+echo '<div style="color:var(--tx2);font-size:13px;line-height:1.7;">макс. побед подряд: <b style="color:var(--tx);">' . $maxWst . '</b><br>макс. поражений подряд: <b style="color:var(--tx);">' . $maxLst . '</b></div>';
+echo '</div>';
+echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние игры (новые слева):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
+foreach ($form as $r) {
+    $c = $r === 'W' ? 'var(--ok)' : ($r === 'L' ? 'var(--ac)' : 'var(--tx3)');
+    $sym = $r === 'W' ? '+' : ($r === 'L' ? '−' : '=');
+    echo '<span style="width:22px;height:22px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">' . $sym . '</span>';
+}
+echo '</div></div>';
+
+// ── Счастливое место ──
+if (array_sum($seatG) > 0) {
+    echo '<div class="card"><h2 style="margin-top:0;">Счастливое место</h2>'
+        . '<p style="color:var(--tx2);font-size:12.5px;margin:-4px 0 14px;">винрейт в зависимости от места за столом (по решённым играм)</p>';
+    echo '<div class="seat-grid">';
+    for ($s = 1; $s <= 10; $s++) {
+        $sg = $seatG[$s]; $sw = $seatW[$s]; $spct = $sg ? round($sw / $sg * 100) : 0;
+        $col2 = $sg ? ($spct >= 60 ? 'var(--ok)' : ($spct < 42 ? 'var(--ac)' : 'var(--ac-h)')) : 'var(--sf2)';
+        echo '<div class="seat-col"><div class="seat-bar-wrap"><div class="seat-bar" style="height:' . ($sg ? $spct : 0) . '%;background:' . $col2 . ';"></div></div>'
+            . '<div class="seat-pct">' . ($sg ? $spct . '%' : '—') . '</div><div class="seat-no">' . $s . '</div></div>';
+    }
+    echo '</div></div>';
+}
 
 // Аватары и эмодзи-висюльки для плашек/таблиц напарников
 $pmeta = [];
