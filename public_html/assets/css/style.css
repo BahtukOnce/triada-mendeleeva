@@ -121,6 +121,15 @@ main.container { flex: 1; padding-bottom: 40px; }
 .t-card .t-head h2 { margin: 0; font-size: 16.5px; line-height: 1.2; color: var(--tx); }
 .t-card .t-meta { margin: 0; color: var(--tx2); font-size: 13px; }
 
+.mate-card .mate-ttl { font-size: 12px; color: var(--tx2); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 10px; }
+.mate-card .mate-body { display: flex; align-items: center; gap: 14px; }
+.mate-card .mate-info { flex: 1; min-width: 0; }
+.mate-card .mate-name { font-size: 17px; font-weight: 600; color: var(--tx); }
+.mate-card .mate-name:hover { color: var(--tx); }
+.mate-card .mate-sub { font-size: 13px; color: var(--tx2); margin-top: 2px; }
+.mate-card .mate-wr { flex: none; font-size: 24px; font-weight: 700; line-height: 1; text-align: right; }
+.mate-card .mate-wr span { display: block; font-size: 10.5px; font-weight: 500; color: var(--tx2); margin-top: 3px; text-transform: uppercase; letter-spacing: .03em; }
+
 .tables-grid { display: grid; gap: 14px; align-items: start; }
 .table-col { min-width: 0; }
 .table-col > .card:first-of-type { margin-top: 0; }
