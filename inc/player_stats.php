@@ -487,7 +487,7 @@ function render_player_stats(int $id, bool $own = false): void
             'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
             'elo1100' => $elo >= 1100, 'elo1300' => $elo >= 1300, 'elo1500' => $elo >= 1500, 'elo1700' => $elo >= 1700, 'elo1900' => $elo >= 1900, 'elo2100' => $elo >= 2100,
             'eloday' => $maxEloDay >= 150,
-            'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.5,
+            'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.0,
             'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$stats['pu_count'] >= 5,
         ];
         $cat = achievements_catalog();
