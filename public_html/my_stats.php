@@ -346,7 +346,8 @@ $mateCard = function (?array $m, string $title, string $icon, bool $good) use ($
     $a = $pmeta[$pid] ?? ['avatar' => '', 'flair' => ''];
     $pct = $m['games'] ? round($m['wins'] / $m['games'] * 100) : 0;
     $avaStyle = $good ? 'background:var(--acsf);color:var(--ac);' : 'background:var(--sf2);color:var(--tx2);';
-    return '<div class="card mate-card' . ($good ? ' card-accent' : '') . '">'
+    $brd = $good ? 'rgba(47,164,92,0.45)' : 'rgba(232,51,42,0.45)';
+    return '<div class="card mate-card" style="border-color:' . $brd . ';">'
         . '<div class="mate-ttl">' . $icon . ' ' . $title . '</div>'
         . '<div class="mate-body">'
         . avatar_html(['nickname' => $m['nick'], 'avatar' => $a['avatar']], 52, $avaStyle)
