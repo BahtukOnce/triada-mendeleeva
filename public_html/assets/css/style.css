@@ -292,6 +292,23 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .news-cover { padding: 0; overflow: hidden; }
 .news-cover img { width: 100%; display: block; }
 
+/* Лента постов: карточки-прямоугольники друг за другом */
+.post-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; margin-top: 8px; }
+.post-single { max-width: 680px; }
+.post-card { background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; overflow: hidden; }
+.post-card .post-imgs { display: grid; gap: 3px; }
+.post-card .post-imgs.n2 { grid-template-columns: 1fr 1fr; }
+.post-card .post-imgs.n3, .post-card .post-imgs.nmore { grid-template-columns: 1fr 1fr 1fr; }
+.post-card .post-imgs.n1 img { width: 100%; height: auto; max-height: 460px; object-fit: cover; display: block; }
+.post-card .post-imgs:not(.n1) img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.post-card .post-main { padding: 13px 16px 14px; }
+.post-card .post-body { line-height: 1.6; color: var(--tx); font-size: 14px; overflow-wrap: anywhere; }
+.post-card .post-body a { color: var(--ac); }
+.post-card .post-body a.pl-mention { font-weight: 600; text-decoration: none; }
+.post-card .post-body a.pl-mention:hover { text-decoration: underline; }
+.post-card .post-date { color: var(--tx2); font-size: 12px; margin-top: 11px; }
+@media (max-width: 720px) { .post-feed { grid-template-columns: 1fr; } }
+
 .progress { height: 6px; background: var(--sf2); border-radius: 3px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--ac); border-radius: 3px; }
 

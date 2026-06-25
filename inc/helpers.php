@@ -262,6 +262,72 @@ function elo_tiers(): array
     ];
 }
 
+// Индекс для подсветки упоминаний игроков в тексте: [regex, map(нижний_ник => id)].
+function player_mention_index(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $map = [];
+    $names = [];
+    if (db_ready()) {
+        try {
+            foreach (db()->query('SELECT id, nickname FROM players') as $p) {
+                $nick = trim((string)$p['nickname']);
+                if (mb_strlen($nick) < 4) {
+                    continue; // слишком короткие ники не трогаем (шум)
+                }
+                $low = mb_strtolower($nick);
+                if (isset($map[$low])) {
+                    continue;
+                }
+                $map[$low] = (int)$p['id'];
+                $names[] = $nick;
+            }
+        } catch (Throwable $e) {
+        }
+    }
+    usort($names, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a)); // длинные ники — раньше
+    $regex = '';
+    if ($names) {
+        $alt = implode('|', array_map(fn($n) => preg_quote($n, '~'), $names));
+        $regex = '~(?<![\p{L}\p{N}_])(' . $alt . ')(?![\p{L}\p{N}_])~u';
+    }
+    $cache = [$regex, $map];
+    return $cache;
+}
+
+// Рендер текста поста: экранирование + кликабельные ссылки + ссылки на игроков + переносы строк.
+function render_post_body(?string $raw): string
+{
+    $raw = (string)$raw;
+    if ($raw === '') {
+        return '';
+    }
+    [$regex, $map] = player_mention_index();
+    $parts = preg_split('~(https?://[^\s<]+)~u', $raw, -1, PREG_SPLIT_DELIM_CAPTURE);
+    $out = '';
+    foreach ($parts as $i => $part) {
+        if ($i % 2 === 1) {
+            $u = rtrim($part, '.,;:!?）)]」»');
+            $tail = substr($part, strlen($u));
+            $disp = mb_strimwidth($u, 0, 56, '…');
+            $out .= '<a href="' . esc($u) . '" target="_blank" rel="noopener nofollow">' . esc($disp) . '</a>' . esc($tail);
+        } else {
+            $esc = esc($part);
+            if ($regex !== '') {
+                $esc = preg_replace_callback($regex, function ($m) use ($map) {
+                    $id = $map[mb_strtolower($m[1])] ?? 0;
+                    return $id ? '<a class="pl-mention" href="/player.php?id=' . $id . '">' . $m[1] . '</a>' : $m[1];
+                }, $esc);
+            }
+            $out .= $esc;
+        }
+    }
+    return nl2br($out);
+}
+
 function elo_tier_name(float $elo): string
 {
     $name = 'Новичок';

@@ -4,6 +4,44 @@ require dirname(__DIR__) . '/inc/bootstrap.php';
 $dbok = db_ready();
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+// Картинки поста: массив путей (из images JSON, иначе одиночное image).
+$imgsOf = function (array $n): array {
+    $arr = [];
+    if (!empty($n['images'])) {
+        $d = json_decode((string)$n['images'], true);
+        if (is_array($d)) {
+            $arr = $d;
+        }
+    }
+    if (!$arr && !empty($n['image'])) {
+        $arr = [$n['image']];
+    }
+    return array_values(array_filter($arr));
+};
+
+// Карточка поста: галерея + текст (ссылки/упоминания кликабельны) + дата.
+$renderPost = function (array $n) use ($imgsOf): string {
+    $imgs = $imgsOf($n);
+    $h = '<article class="post-card">';
+    if ($imgs) {
+        $cnt = count($imgs);
+        $cls = $cnt === 1 ? 'n1' : ($cnt === 2 ? 'n2' : ($cnt === 3 ? 'n3' : 'nmore'));
+        $h .= '<div class="post-imgs ' . $cls . '">';
+        foreach ($imgs as $src) {
+            $h .= '<img src="' . esc($src) . '" alt="" loading="lazy">';
+        }
+        $h .= '</div>';
+    }
+    $h .= '<div class="post-main">';
+    $body = render_post_body($n['body'] ?? '');
+    if ($body !== '') {
+        $h .= '<div class="post-body">' . $body . '</div>';
+    }
+    $h .= '<div class="post-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</div>';
+    $h .= '</div></article>';
+    return $h;
+};
+
 if ($id && $dbok) {
     $st = db()->prepare('SELECT n.*, u.nickname AS author FROM news n
         LEFT JOIN users u ON u.id = n.author_id
@@ -15,15 +53,8 @@ if ($id && $dbok) {
     }
     page_head($item ? $item['title'] : 'Новость не найдена', 'news');
     if ($item) {
-        echo '<h1>' . esc($item['title']) . '</h1>';
-        echo '<p style="color:var(--tx2);font-size:13px;">'
-            . esc(date('d.m.Y', strtotime($item['published_at'])))
-            . ($item['author'] ? ' · ' . esc($item['author']) : '') . '</p>';
-        if (!empty($item['image'])) {
-            echo '<div class="card news-cover"><img src="' . esc($item['image']) . '" alt="" loading="lazy"></div>';
-        }
-        echo '<div class="card" style="line-height:1.7;">' . nl2br(esc($item['body'] ?? '')) . '</div>';
-        echo '<p><a href="/news.php">← Все новости</a></p>';
+        echo '<p style="margin:0 0 12px;"><a href="/news.php">← Все новости</a></p>';
+        echo '<div class="post-single">' . $renderPost($item) . '</div>';
     } else {
         empty_state('Новость не найдена', 'Возможно, она была удалена.');
     }
@@ -33,9 +64,9 @@ if ($id && $dbok) {
 
 $list = [];
 if ($dbok) {
-    $list = db()->query('SELECT id, title, published_at, image FROM news
+    $list = db()->query('SELECT id, title, body, published_at, image, images FROM news
         WHERE published_at IS NOT NULL
-        ORDER BY pinned DESC, published_at DESC LIMIT 50')->fetchAll();
+        ORDER BY pinned DESC, published_at DESC LIMIT 60')->fetchAll();
 }
 
 page_head('Новости', 'news');
@@ -43,24 +74,6 @@ echo '<h1>Новости</h1>';
 echo '<p style="margin-top:-6px;display:flex;gap:8px;flex-wrap:wrap;">'
     . '<a class="btn btn-ghost" href="/rules.php">📖 Правила игры</a>'
     . '<a class="btn btn-ghost" href="/suggest.php">💡 Предложить идею</a></p>';
-
-if ($list) {
-    echo '<div class="card">';
-    $first = true;
-    foreach ($list as $n) {
-        echo '<a class="news-item' . ($first ? ' first' : '') . '" href="/news.php?id=' . (int)$n['id'] . '">';
-        if (!empty($n['image'])) {
-            echo '<span class="news-thumb" style="background-image:url(\'' . esc($n['image']) . '\');"></span>';
-        }
-        echo '<span class="news-text"><span class="ttl">' . esc($n['title']) . '</span>'
-            . '<span class="dt">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span></span>';
-        echo '</a>';
-        $first = false;
-    }
-    echo '</div>';
-} else {
-    empty_state('Новостей пока нет', 'Анонсы вечеров, итоги турниров и объявления клуба будут появляться здесь.');
-}
 
 // ── Рекорды клуба ──
 $recs = $dbok ? club_records() : [];
@@ -105,5 +118,17 @@ echo '<aside class="ach-side" id="ach-side"><div class="ach-side-inner">'
     . '<div class="ach-side-empty">Наведи на ачивку — здесь появятся те, кто её получил</div>'
     . '</div></aside>';
 echo '</div>'; // .ach-wrap
+
+// ── Лента новостей (внизу страницы) ──
+echo '<h2 style="margin:26px 0 12px;">Лента новостей</h2>';
+if ($list) {
+    echo '<div class="post-feed">';
+    foreach ($list as $n) {
+        echo $renderPost($n);
+    }
+    echo '</div>';
+} else {
+    empty_state('Новостей пока нет', 'Анонсы вечеров, итоги турниров и объявления клуба будут появляться здесь.');
+}
 
 page_foot();
