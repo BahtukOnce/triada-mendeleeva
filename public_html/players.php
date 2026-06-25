@@ -42,6 +42,16 @@ if (db_ready()) {
             $rankMap[(int)$pid] = ++$pos;
         }
     }
+
+    // MVP вечеров (для золотого бейджа на карточке)
+    $mvpMap = [];
+    if ($mainId) {
+        $mv = db()->prepare('SELECT player_id, mvp_evenings FROM rating_cache WHERE rating_id = ? AND mvp_evenings > 0');
+        $mv->execute([$mainId]);
+        foreach ($mv->fetchAll() as $r) {
+            $mvpMap[(int)$r['player_id']] = (int)$r['mvp_evenings'];
+        }
+    }
 }
 
 page_head('Игроки', 'players');
@@ -68,9 +78,11 @@ if ($list) {
         $rankHtml = $rank
             ? '<span class="pc-rank' . ($rank <= 3 ? ' top' . $rank : '') . '" title="место в рейтинге Триады">#' . $rank . '</span>'
             : '';
+        $mvp = $mvpMap[(int)$p['id']] ?? 0;
+        $mvpChip = $mvp ? ' <span title="MVP вечеров" style="color:#ffc400;font-weight:600;">🥇' . $mvp . '</span>' : '';
         echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
             . '<div class="pc-name">' . player_label($p)
-            . '<div class="pc-fav">' . $favHtml . '</div></div>'
+            . '<div class="pc-fav">' . $favHtml . $mvpChip . '</div></div>'
             . $rankHtml . '</div>';
         echo '<div class="pc-stats">'
             . '<div><b>' . $g . '</b><span>игр</span></div>'

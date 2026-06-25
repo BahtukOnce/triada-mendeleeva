@@ -213,6 +213,7 @@ if ($stats) {
         ['Допы', number_format((float)$stats['dop_sum'], 1)],
         ['Минусы и штрафы', number_format((float)$stats['minus_sum'], 1)],
         ['Ci (компенсации)', number_format((float)$stats['ci_sum'], 2)],
+        ['🥇 MVP вечеров', (int)($stats['mvp_evenings'] ?? 0)],
     ] as [$lbl, $val]) {
         echo '<tr><td style="color:var(--tx2);">' . $lbl . '</td><td class="num">' . $val . '</td></tr>';
     }

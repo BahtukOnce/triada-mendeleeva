@@ -127,6 +127,7 @@ function rating_recompute(int $ratingId): void
 
     // Проход 2: суммы
     $agg = [];
+    $eveSum = []; // day_id => pid => сумма итогов за вечер (для MVP вечера)
     $blank = [
         'games' => 0, 'sum_total' => 0.0, 'sum_plus' => 0.0, 'pu_count' => 0,
         'lh_sum' => 0.0, 'dop_sum' => 0.0, 'minus_sum' => 0.0, 'ci_sum' => 0.0,
@@ -149,6 +150,8 @@ function rating_recompute(int $ratingId): void
                 ? ci_value($s['role'], $winner, $puTotal[$pid] ?? 0, $gamesTotal[$pid] ?? 0, $bmBonus)
                 : 0.0;
             $total = seat_total($s, $winner, $isPu, $bmBonus, $ci);
+            $dayId = (int)$g['day_id'];
+            $eveSum[$dayId][$pid] = ($eveSum[$dayId][$pid] ?? 0.0) + $total;
 
             $a['games']++;
             $a['sum_total'] += $total;
@@ -177,6 +180,20 @@ function rating_recompute(int $ratingId): void
         }
     }
 
+    // MVP вечера: в каждом игровом вечере — игрок(и) с максимальной суммой итогов
+    $mvp = [];
+    foreach ($eveSum as $players) {
+        if (!$players) {
+            continue;
+        }
+        $max = max($players);
+        foreach ($players as $pid => $sum) {
+            if ($sum >= $max - 1e-9) {
+                $mvp[$pid] = ($mvp[$pid] ?? 0) + 1;
+            }
+        }
+    }
+
     $minGames = 0;
     try {
         $st = db()->prepare('SELECT v FROM settings WHERE k = ?');
@@ -194,8 +211,8 @@ function rating_recompute(int $ratingId): void
     $ins = $pdo->prepare('INSERT INTO rating_cache
         (rating_id, player_id, games, sum_total, sum_plus, avg_total, club_score, pu_count,
          lh_sum, dop_sum, minus_sum, ci_sum,
-         w_civ, g_civ, w_maf, g_maf, w_sher, g_sher, w_don, g_don)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+         w_civ, g_civ, w_maf, g_maf, w_sher, g_sher, w_don, g_don, mvp_evenings)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     foreach ($agg as $pid => $a) {
         $a['sum_plus'] = $a['dop_sum'] + $a['lh_sum'] + $a['ci_sum'];
         $avg = ($a['games'] > 0 && $a['games'] >= $minGames) ? $a['sum_total'] / $a['games'] : null;
@@ -209,6 +226,7 @@ function rating_recompute(int $ratingId): void
             round($a['minus_sum'], 1), round($a['ci_sum'], 2),
             $a['w_civ'], $a['g_civ'], $a['w_maf'], $a['g_maf'],
             $a['w_sher'], $a['g_sher'], $a['w_don'], $a['g_don'],
+            $mvp[$pid] ?? 0,
         ]);
     }
     if ($ownTx) {

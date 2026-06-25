@@ -99,6 +99,13 @@ try {
             echo 'ELO рассчитан для ' . $hasGames . " игр\n";
         }
     }
+
+    // Пересчёт кэша рейтинга: ?rating=1 (например, чтобы заполнить mvp_evenings)
+    if (!empty($_GET['rating']) && is_file(ROOT . '/inc/rating.php')) {
+        require_once ROOT . '/inc/rating.php';
+        rating_recompute_all();
+        echo "рейтинг пересчитан\n";
+    }
 } catch (Throwable $e) {
     http_response_code(500);
     echo 'error: ' . $e->getMessage() . "\n";
