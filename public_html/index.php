@@ -143,6 +143,8 @@ page_head('Главная', 'index');
     </table>
   </div>
   <?php endif; ?>
+  </div>
+  <div>
   <?php $balTot = $balance['red'] + $balance['black'] + $balance['draw'];
   if ($balTot > 0):
       $rp = round($balance['red'] / $balTot * 100);
@@ -177,6 +179,7 @@ page_head('Главная', 'index');
     <?php endif; ?>
   </div>
   </div>
+</div>
 
   <?php $about = db_ready() ? trim(setting('about_text')) : ''; ?>
   <?php if ($about !== ''): ?>
@@ -209,6 +212,5 @@ page_head('Главная', 'index');
       <p style="color:var(--tx2);font-size:14px;">Состав появится после назначения ролей.</p>
     <?php endif; ?>
   </div>
-</div>
 
 <?php page_foot(); ?>
