@@ -296,6 +296,133 @@ if ($stats) {
         echo '</div></div>';
     }
 
+    // ── Напарники и соперники ──
+    $wr = fn(int $w, int $g): string => $g ? round($w / $g * 100) . '%' : '—';
+    $teamOf = fn(string $r): string => in_array($r, ['civ', 'sheriff'], true) ? 'red' : 'black';
+    $sbg = [];
+    $gids = array_column($history, 'game_id');
+    if ($gids) {
+        $in = implode(',', array_fill(0, count($gids), '?'));
+        $sq = db()->prepare("SELECT gs.game_id, gs.player_id, gs.role, p.nickname FROM game_seats gs JOIN players p ON p.id = gs.player_id WHERE gs.game_id IN ($in)");
+        $sq->execute($gids);
+        foreach ($sq->fetchAll() as $row) { $sbg[(int)$row['game_id']][] = $row; }
+    }
+    $teammates = []; $opponents = [];
+    foreach ($history as $h) {
+        $col = $teamOf($h['role']);
+        $won = ($h['winner'] === 'red' && $col === 'red') || ($h['winner'] === 'black' && $col === 'black');
+        $draw = $h['winner'] === 'draw';
+        foreach ($sbg[(int)$h['game_id']] ?? [] as $o) {
+            $opid = (int)$o['player_id']; if ($opid === $id) { continue; }
+            $oc = $teamOf($o['role']);
+            if ($oc === $col) {
+                $teammates[$opid] = $teammates[$opid] ?? ['nick' => $o['nickname'], 'games' => 0, 'wins' => 0];
+                $teammates[$opid]['games']++; if ($won) { $teammates[$opid]['wins']++; }
+            } else {
+                $opponents[$opid] = $opponents[$opid] ?? ['nick' => $o['nickname'], 'games' => 0, 'beat' => 0, 'lost' => 0];
+                $opponents[$opid]['games']++;
+                if ($won) { $opponents[$opid]['beat']++; } elseif (!$draw) { $opponents[$opid]['lost']++; }
+            }
+        }
+    }
+    $pmeta = [];
+    foreach (db()->query('SELECT id, avatar, flair FROM players') as $pm) {
+        $pmeta[(int)$pm['id']] = ['avatar' => $pm['avatar'] ?? '', 'flair' => (string)($pm['flair'] ?? '')];
+    }
+    $pcell = function (int $opid, string $nick) use ($pmeta) {
+        $a = $pmeta[$opid] ?? ['avatar' => '', 'flair' => ''];
+        return '<a href="/player.php?id=' . $opid . '" style="display:inline-flex;align-items:center;gap:8px;color:var(--tx);">'
+            . avatar_html(['nickname' => $nick, 'avatar' => $a['avatar']], 24)
+            . '<span>' . esc($nick) . ($a['flair'] !== '' ? ' <span class="flair">' . esc($a['flair']) . '</span>' : '') . '</span></a>';
+    };
+    if ($teammates || $opponents) {
+        $bestMate = null;
+        foreach ($teammates as $opid => $m) {
+            if ($bestMate === null || $m['wins'] > $bestMate['wins'] || ($m['wins'] === $bestMate['wins'] && $m['games'] > $bestMate['games'])) {
+                $bestMate = $m + ['id' => $opid];
+            }
+        }
+        $worstMate = null;
+        foreach ($teammates as $opid => $m) {
+            if ($m['games'] < 5 || ($bestMate && $opid === $bestMate['id'])) { continue; }
+            $wrM = $m['wins'] / $m['games'];
+            if ($worstMate === null || $wrM < $worstMate['wr'] || (abs($wrM - $worstMate['wr']) < 1e-9 && $m['games'] > $worstMate['games'])) {
+                $worstMate = $m + ['id' => $opid, 'wr' => $wrM];
+            }
+        }
+        $mateCard = function (?array $m, string $title, string $icon, bool $good) use ($pmeta) {
+            if (!$m || ($m['games'] ?? 0) < 1) {
+                return '<div class="card mate-card"><div class="mate-ttl">' . $icon . ' ' . $title . '</div>'
+                    . '<p style="color:var(--tx2);margin:0;">Пока мало совместных игр для расчёта.</p></div>';
+            }
+            $pid2 = (int)$m['id'];
+            $a = $pmeta[$pid2] ?? ['avatar' => '', 'flair' => ''];
+            $pct = $m['games'] ? round($m['wins'] / $m['games'] * 100) : 0;
+            $avaStyle = $good ? 'background:var(--acsf);color:var(--ac);' : 'background:var(--sf2);color:var(--tx2);';
+            $brd = $good ? 'rgba(47,164,92,0.45)' : 'rgba(232,51,42,0.45)';
+            return '<div class="card mate-card" style="border-color:' . $brd . ';">'
+                . '<div class="mate-ttl">' . $icon . ' ' . $title . '</div><div class="mate-body">'
+                . avatar_html(['nickname' => $m['nick'], 'avatar' => $a['avatar']], 52, $avaStyle)
+                . '<div class="mate-info"><a class="mate-name" href="/player.php?id=' . $pid2 . '">' . esc($m['nick'])
+                . ($a['flair'] !== '' ? ' <span class="flair">' . esc($a['flair']) . '</span>' : '') . '</a>'
+                . '<div class="mate-sub">' . $m['wins'] . ' побед в ' . $m['games'] . ' играх вместе</div></div>'
+                . '<div class="mate-wr" style="color:' . ($good ? 'var(--ok)' : 'var(--ac)') . ';">' . $pct . '%<span>винрейт</span></div>'
+                . '</div></div>';
+        };
+        echo '<div class="grid-2eq">';
+        echo $mateCard(($bestMate && $bestMate['wins'] > 0) ? $bestMate : null, 'Лучший напарник в одном цвете', '🤝', true);
+        echo $mateCard($worstMate, 'Неудачный напарник в одном цвете', '🥶', false);
+        echo '</div>';
+
+        uasort($teammates, fn($a, $b) => [$b['wins'], $b['games']] <=> [$a['wins'], $a['games']]);
+        echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">В одном цвете: больше всего побед</h2>';
+        $topMates = array_slice($teammates, 0, 12, true);
+        if ($topMates) {
+            echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Вместе</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
+            foreach ($topMates as $opid => $m) {
+                echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num">' . $m['games'] . '</td><td class="num">' . $m['wins'] . '</td><td class="num">' . $wr($m['wins'], $m['games']) . '</td></tr>';
+            }
+            echo '</table>';
+        } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+        echo '</div>';
+        $chem = array_filter($teammates, fn($m) => $m['games'] >= 4);
+        uasort($chem, fn($a, $b) => ($b['wins'] / $b['games']) <=> ($a['wins'] / $a['games']));
+        $bestChem = array_slice($chem, 0, 8, true);
+        echo '<div class="card"><h2 style="margin-top:0;">Лучшая «химия» <span style="font-size:12px;color:var(--tx2);">(от 4 игр вместе)</span></h2>';
+        if ($bestChem) {
+            echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Вместе</th><th class="num">Винрейт</th></tr>';
+            foreach ($bestChem as $opid => $m) {
+                echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num">' . $m['games'] . '</td><td class="num">' . $wr($m['wins'], $m['games']) . '</td></tr>';
+            }
+            echo '</table>';
+        } else { echo '<p style="color:var(--tx2);">Пока мало совместных игр для расчёта.</p>'; }
+        echo '</div></div>';
+
+        $beat = $opponents; uasort($beat, fn($a, $b) => [$b['beat'], $b['games']] <=> [$a['beat'], $a['games']]);
+        $lostTo = $opponents; uasort($lostTo, fn($a, $b) => [$b['lost'], $b['games']] <=> [$a['lost'], $a['games']]);
+        echo '<h2 style="margin-top:8px;">Разноцветы — против кого играли</h2><div class="grid-2">';
+        echo '<div class="card"><h2 style="margin-top:0;">Кого чаще всего обыгрывали</h2>';
+        $topb = array_slice(array_filter($beat, fn($m) => $m['beat'] > 0), 0, 12, true);
+        if ($topb) {
+            echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Обыграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
+            foreach ($topb as $opid => $m) {
+                echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num"><b>' . $m['beat'] . '</b></td><td class="num">' . $m['games'] . '</td><td class="num" style="color:var(--ok);">' . $wr($m['beat'], $m['games']) . '</td></tr>';
+            }
+            echo '</table>';
+        } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+        echo '</div>';
+        echo '<div class="card"><h2 style="margin-top:0;">Кому чаще всего проигрывали</h2>';
+        $topl = array_slice(array_filter($lostTo, fn($m) => $m['lost'] > 0), 0, 12, true);
+        if ($topl) {
+            echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Проиграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
+            foreach ($topl as $opid => $m) {
+                echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num"><b style="color:var(--ac);">' . $m['lost'] . '</b></td><td class="num">' . $m['games'] . '</td><td class="num" style="color:var(--ac);">' . $wr($m['lost'], $m['games']) . '</td></tr>';
+            }
+            echo '</table>';
+        } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+        echo '</div></div>';
+    }
+
     // ── Достижения (ачивки) ──
     $triples = 0;
     try {
