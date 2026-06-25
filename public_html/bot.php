@@ -40,6 +40,16 @@ if (isset($update['callback_query'])) {
     exit('ok');
 }
 
+// Пост новостного канала → раздел «Новости»
+if (isset($update['channel_post']) || isset($update['edited_channel_post'])) {
+    try {
+        bot_news_from_channel($update['channel_post'] ?? $update['edited_channel_post']);
+    } catch (Throwable $e) {
+    }
+    http_response_code(200);
+    exit('ok');
+}
+
 $msg = $update['message'] ?? $update['edited_message'] ?? null;
 if (!$msg || !isset($msg['chat']['id'])) {
     http_response_code(200);
@@ -59,6 +69,32 @@ try {
 
 http_response_code(200);
 echo 'ok';
+
+// Импорт поста новостного канала в раздел «Новости» (по @username или id из config)
+function bot_news_from_channel(array $post): void
+{
+    $want = ltrim((string)($GLOBALS['cfg']['news_channel_id'] ?? ''), '@');
+    if ($want === '') {
+        return; // автоимпорт выключен
+    }
+    $chatId   = (string)($post['chat']['id'] ?? '');
+    $chatUser = ltrim((string)($post['chat']['username'] ?? ''), '@');
+    if ($want !== $chatId && strcasecmp($want, $chatUser) !== 0) {
+        return; // пост из другого чата
+    }
+    $text  = trim((string)($post['text'] ?? ($post['caption'] ?? '')));
+    $msgId = (int)($post['message_id'] ?? 0);
+    if ($text === '' || !$msgId) {
+        return; // нет текста или id — пропускаем
+    }
+    $firstLine = trim((string)strtok($text, "\n"));
+    $title = mb_substr($firstLine !== '' ? $firstLine : $text, 0, 200);
+    $ts = isset($post['date']) ? date('Y-m-d H:i:s', (int)$post['date']) : date('Y-m-d H:i:s');
+    db()->prepare('INSERT INTO news (title, body, published_at, tg_msg_id)
+            VALUES (?,?,?,?)
+            ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body)')
+        ->execute([$title, $text, $ts, $msgId]);
+}
 
 // ============================================================
 //                      СООБЩЕНИЯ

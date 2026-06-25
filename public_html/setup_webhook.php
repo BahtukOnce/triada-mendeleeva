@@ -42,7 +42,7 @@ if (isset($_GET['delete'])) {
 if (isset($_GET['go'])) {
     $params = [
         'url'             => $botUrl,
-        'allowed_updates' => json_encode(['message', 'callback_query']),
+        'allowed_updates' => json_encode(['message', 'callback_query', 'channel_post', 'edited_channel_post']),
         'drop_pending_updates' => 'true',
     ];
     if ($secret !== '') {
