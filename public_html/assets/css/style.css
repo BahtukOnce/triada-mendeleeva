@@ -611,10 +611,11 @@ body::before {
 .ach-earner:hover { border-color: var(--ac); color: var(--ac); }
 
 /* Достижения: боковая панель получивших (наведение) */
-.ach-wrap { display: flex; gap: 16px; align-items: flex-start; }
-.ach-main { flex: 1 1 auto; min-width: 0; }
-.ach-side { flex: 0 0 300px; width: 300px; position: sticky; top: 70px; align-self: flex-start; }
-.ach-side-inner { background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 14px; min-height: 120px; max-height: 54vh; overflow-y: auto; }
+/* Панель «кто получил» — оверлей справа (вне потока), не двигает контент ниже */
+.ach-wrap { position: relative; }
+.ach-main { margin-right: 316px; min-width: 0; }
+.ach-side { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; }
+.ach-side-inner { position: sticky; top: 70px; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 14px; min-height: 120px; max-height: min(54vh, 100%); overflow-y: auto; }
 .ach-side-ttl { font-weight: 700; font-size: 14px; margin: 0; }
 .ach-side-sub { font-size: 12px; color: var(--ok); margin: 2px 0 10px; }
 .ach-side-empty { color: var(--tx3); font-size: 13px; line-height: 1.45; }
@@ -623,7 +624,7 @@ body::before {
 .ach-side-row:hover { border-color: var(--ok); }
 .ach-side-row img, .ach-side-row .avatar-circle { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; font-size: 11px; }
 .ach-side-row .nm { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 760px) { .ach-wrap { display: block; } .ach-side { display: none; } }
+@media (max-width: 760px) { .ach-side { display: none; } .ach-main { margin-right: 0; } }
 
 /* Лесенка уровней по ELO */
 .tier-ladder { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
