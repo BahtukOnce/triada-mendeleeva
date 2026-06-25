@@ -160,8 +160,8 @@ for ($p = 0; $p < $pages; $p++) {
         };
         foreach ($xp->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_photo_wrap ')]", $node) as $pw) {
             if (preg_match("/background-image:url\\('([^']+)'\\)/", (string)$pw->getAttribute('style'), $mm)) {
-                $p = $grab($mm[1]);
-                if ($p !== null) { $imgs[] = $p; }
+                $ip = $grab($mm[1]);
+                if ($ip !== null) { $imgs[] = $ip; }
             }
         }
         // Нативное видео Telegram: файл в превью недоступен — берём кадр-постер и помечаем has_video.
@@ -169,8 +169,8 @@ for ($p = 0; $p < $pages; $p++) {
         foreach ($xp->query(".//i[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_video_thumb ')]", $node) as $vt) {
             $hasVideo = 1;
             if (preg_match("/background-image:url\\('([^']+)'\\)/", (string)$vt->getAttribute('style'), $mm)) {
-                $p = $grab($mm[1]);
-                if ($p !== null) { $imgs[] = $p; }
+                $ip = $grab($mm[1]);
+                if ($ip !== null) { $imgs[] = $ip; }
             }
         }
         if (!$hasVideo) {
