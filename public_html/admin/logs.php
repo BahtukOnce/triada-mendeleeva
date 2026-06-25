@@ -36,6 +36,7 @@ if ($list) {
     foreach ($list as $l) {
         $act = $actionLabel[$l['action']] ?? mb_strtoupper(mb_substr($l['action'], 0, 1)) . str_replace('_', ' ', mb_substr($l['action'], 1));
         $det = '';
+        $arr = null;
         $raw = (string)$l['details'];
         if ($raw !== '' && $raw !== '[]' && $raw !== 'null') {
             $arr = json_decode($raw, true);
@@ -49,8 +50,18 @@ if ($list) {
                 $det = $raw;
             }
         }
+        // «Кто»: если пользователь сайта не привязан (напр. привязка через Telegram-бота),
+        // но в деталях есть игрок — показываем его.
+        if (!empty($l['nickname'])) {
+            $whoHtml = esc($l['nickname']);
+        } elseif (is_array($arr) && !empty($arr['player'])) {
+            $hint = (($arr['via'] ?? '') === 'bot') ? ' · через бота' : '';
+            $whoHtml = esc($arr['player']) . '<span style="color:var(--tx3);font-size:11px;">' . esc($hint) . '</span>';
+        } else {
+            $whoHtml = '<span style="color:var(--tx3);">—</span>';
+        }
         echo '<tr><td style="white-space:nowrap;">' . date('d.m H:i:s', strtotime($l['created_at'])) . '</td>';
-        echo '<td>' . esc($l['nickname'] ?? '—') . '</td>';
+        echo '<td>' . $whoHtml . '</td>';
         echo '<td><b>' . esc($act) . '</b></td>';
         echo '<td style="color:var(--tx2);max-width:340px;overflow-wrap:anywhere;">' . ($det !== '' ? esc($det) : '<span style="color:var(--tx3);">—</span>') . '</td>';
         echo '<td style="color:var(--tx2);">' . esc((string)$l['ip']) . '</td></tr>';
