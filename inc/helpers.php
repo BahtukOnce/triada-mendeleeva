@@ -115,7 +115,7 @@ function club_records(): array
     $add('➕', 'Больше всех допов', $leader($rows, fn($r) => (float)$r['dop_sum']), 'f1');
     $add('🔪', 'Больше всех ПУ', $leader($rows, fn($r) => (int)$r['pu_count']), 'int');
     $add('🌟', 'Больше всех ЛХ', $leader($rows, fn($r) => (float)$r['lh_sum']), 'f1');
-    $add('📊', 'Высший средний (~Σ)', $leader($rows, fn($r) => (float)$r['avg_total']), 'f2');
+    $add('📊', 'Высший средний (~Σ) — от 10 игр', $leader($rows, fn($r) => (float)$r['avg_total'], 10), 'f2');
     return $recs;
 }
 

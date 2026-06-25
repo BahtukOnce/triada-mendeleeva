@@ -246,7 +246,7 @@ echo '</div>';
         fill: true, tension: 0.25, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: red, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, borderWidth: 2 }] },
     options: { interaction: { intersect: false, mode: 'index', axis: 'x' },
       plugins: { legend: { display: false },
-        tooltip: { animation: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
+        tooltip: { animation: false, displayColors: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
           label: function (c) { var i = c.dataIndex, L = ['ELO ' + Math.round(c.parsed.y) + ' · ' + tierName(c.parsed.y)];
             if (i > 0) { var dl = Math.round(c.parsed.y - D.elo[i - 1]); L.push((dl > 0 ? '▲ +' : (dl < 0 ? '▼ ' : '')) + dl + ' с прошлой игры'); } else { L.push('старт'); } return L; } } } },
       scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { suggestedMin: 1000, suggestedMax: eloSMax, grid: { display: false } } },
