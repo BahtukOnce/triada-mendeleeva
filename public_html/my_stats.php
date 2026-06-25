@@ -57,6 +57,7 @@ $teammates = []; // pid => [nick, games, wins]
 $opponents = []; // pid => [nick, games, beat]
 $seatG = array_fill(1, 10, 0); $seatW = array_fill(1, 10, 0);
 $resDesc = []; // 'W'/'L'/'D', новые первыми
+$formRows = []; // [роль, исход] от новых к старым
 $winRed = 0; $winBlk = 0; $lossRed = 0; $lossBlk = 0; // исходы по цветам
 
 foreach ($mine as $g) {
@@ -78,7 +79,9 @@ foreach ($mine as $g) {
 
     $mseat = (int)$g['seat'];
     if ($mseat >= 1 && $mseat <= 10) { $seatG[$mseat]++; if ($won) { $seatW[$mseat]++; } }
-    $resDesc[] = $g['winner'] === 'draw' ? 'D' : ($won ? 'W' : 'L');
+    $resOne = $g['winner'] === 'draw' ? 'D' : ($won ? 'W' : 'L');
+    $resDesc[] = $resOne;
+    $formRows[] = ['role' => $role, 'res' => $resOne];
 
     $foulsSum += (int)$g['fouls'];
     $techSum += (int)$g['tech_fouls'];
@@ -344,7 +347,8 @@ foreach (array_reverse($resDesc) as $r) {
     if ($r === 'W') { $rw++; $rl = 0; } elseif ($r === 'L') { $rl++; $rw = 0; } else { $rw = 0; $rl = 0; }
     $maxWst = max($maxWst, $rw); $maxLst = max($maxLst, $rl);
 }
-$form = array_slice($resDesc, 0, 14);
+$form = array_reverse(array_slice($formRows, 0, 14)); // новые справа
+$roleAb = ['civ' => 'мир', 'sheriff' => 'шер', 'maf' => 'маф', 'don' => 'дон'];
 echo '<div class="card"><h2 style="margin-top:0;">Серии и форма</h2>';
 $stType = $curType === 'W' ? 'побед подряд' : ($curType === 'L' ? 'поражений подряд' : 'нет серии');
 $stColor = $curType === 'W' ? 'var(--ok)' : ($curType === 'L' ? 'var(--ac)' : 'var(--tx2)');
@@ -352,11 +356,10 @@ echo '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">';
 echo '<div><div style="font-size:32px;font-weight:750;color:' . $stColor . ';line-height:1;">' . ($curStreak ?: '—') . '</div><div style="font-size:12px;color:var(--tx2);margin-top:3px;">' . $stType . '</div></div>';
 echo '<div style="color:var(--tx2);font-size:13px;line-height:1.7;">макс. побед подряд: <b style="color:var(--tx);">' . $maxWst . '</b><br>макс. поражений подряд: <b style="color:var(--tx);">' . $maxLst . '</b></div>';
 echo '</div>';
-echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние игры (новые слева):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
-foreach ($form as $r) {
-    $c = $r === 'W' ? 'var(--ok)' : ($r === 'L' ? 'var(--ac)' : 'var(--tx3)');
-    $sym = $r === 'W' ? '+' : ($r === 'L' ? '−' : '=');
-    echo '<span style="width:22px;height:22px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">' . $sym . '</span>';
+echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние игры (новые справа):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
+foreach ($form as $fr) {
+    $c = $fr['res'] === 'W' ? 'var(--ok)' : ($fr['res'] === 'L' ? 'var(--ac)' : 'var(--tx3)');
+    echo '<span style="padding:3px 8px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;color:#fff;font-weight:600;">' . ($roleAb[$fr['role']] ?? '?') . '</span>';
 }
 echo '</div></div>';
 
