@@ -86,11 +86,14 @@ function node_inner_html(DOMNode $node): string
     return $html;
 }
 
-$stmt = db()->prepare('INSERT INTO news (title, body, published_at, tg_msg_id)
-        VALUES (?,?,?,?)
-        ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body), published_at = VALUES(published_at)');
+$stmt = db()->prepare('INSERT INTO news (title, body, published_at, image, tg_msg_id)
+        VALUES (?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body),
+            published_at = VALUES(published_at), image = COALESCE(VALUES(image), image)');
 
-$seen = 0; $withText = 0; $before = 0;
+$imgDir = ROOT . '/public_html/uploads/news';
+
+$seen = 0; $withText = 0; $withImg = 0; $before = 0;
 echo "Канал: @$channel · страниц к разбору: $pages\n";
 
 for ($p = 0; $p < $pages; $p++) {
@@ -141,7 +144,24 @@ for ($p = 0; $p < $pages; $p++) {
         $firstLine = trim((string)strtok($text, "\n"));
         $title = mb_substr($firstLine !== '' ? $firstLine : $text, 0, 200);
 
-        $stmt->execute([$title, $text, $ts, $msgId]);
+        // Обложка поста: первая фотография (скачиваем на сервер один раз).
+        $imgPath = null;
+        $pw = $xp->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_photo_wrap ')]", $node)->item(0);
+        if ($pw && preg_match("/background-image:url\\('([^']+)'\\)/", (string)$pw->getAttribute('style'), $mm)) {
+            $file = $imgDir . '/tg_' . $msgId . '.jpg';
+            if (is_file($file) && filesize($file) > 500) {
+                $imgPath = '/uploads/news/tg_' . $msgId . '.jpg';
+            } else {
+                if (!is_dir($imgDir)) { @mkdir($imgDir, 0775, true); }
+                $bin = tg_fetch($mm[1]);
+                if ($bin !== '' && strlen($bin) > 800 && @file_put_contents($file, $bin)) {
+                    $imgPath = '/uploads/news/tg_' . $msgId . '.jpg';
+                }
+            }
+            if ($imgPath !== null) { $withImg++; }
+        }
+
+        $stmt->execute([$title, $text, $ts, $imgPath, $msgId]);
         $withText++;
         $pageText++;
     }
@@ -153,5 +173,5 @@ for ($p = 0; $p < $pages; $p++) {
     $before = $minId;
 }
 
-echo "\nГотово. Обработано постов: $seen · импортировано/обновлено с текстом: $withText\n";
+echo "\nГотово. Обработано постов: $seen · с текстом: $withText · с фото: $withImg\n";
 echo "Открой /news.php — записи должны появиться (сортировка по дате поста).\n";

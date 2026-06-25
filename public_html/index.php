@@ -25,8 +25,8 @@ if ($dbok) {
         $stats['games']       = (int)db()->query("SELECT COUNT(*) FROM games WHERE status = 'finished'")->fetchColumn();
         $stats['days']        = (int)db()->query('SELECT COUNT(*) FROM game_days')->fetchColumn();
         $stats['tournaments'] = (int)db()->query('SELECT COUNT(*) FROM tournaments')->fetchColumn();
-        $news = db()->query('SELECT id, title, published_at FROM news
-            WHERE published_at IS NOT NULL ORDER BY pinned DESC, published_at DESC LIMIT 3')->fetchAll();
+        $news = db()->query('SELECT id, title, published_at, image FROM news
+            WHERE published_at IS NOT NULL ORDER BY pinned DESC, published_at DESC LIMIT 6')->fetchAll();
         $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
         $top5 = [];
         if ($mainId) {
@@ -162,20 +162,6 @@ page_head('Главная', 'index');
     </div>
   </div>
   <?php endif; ?>
-  <div class="card">
-    <div class="section-head">
-      <h2 style="margin-top:0;">Новости</h2>
-      <a class="more" href="/news.php">все новости →</a>
-    </div>
-    <?php if ($news): $first = true; foreach ($news as $n): ?>
-      <a class="news-item<?= $first ? ' first' : '' ?>" href="/news.php?id=<?= (int)$n['id'] ?>" style="display:block;text-decoration:none;">
-        <div class="ttl" style="color:var(--tx);"><?= esc($n['title']) ?></div>
-        <div class="dt"><?= esc(date('d.m.Y', strtotime($n['published_at']))) ?></div>
-      </a>
-    <?php $first = false; endforeach; else: ?>
-      <p style="color:var(--tx2);font-size:14px;">Новостей пока нет — скоро появятся.</p>
-    <?php endif; ?>
-  </div>
   </div>
 
   <?php $about = db_ready() ? trim(setting('about_text')) : ''; ?>
@@ -210,5 +196,24 @@ page_head('Главная', 'index');
     <?php endif; ?>
   </div>
 </div>
+
+<?php if ($news): ?>
+<div class="card" style="margin-top:14px;">
+  <div class="section-head">
+    <h2 style="margin-top:0;">Новости</h2>
+    <a class="more" href="/news.php">все новости →</a>
+  </div>
+  <div class="news-grid">
+    <?php $first = true; foreach ($news as $n): ?>
+      <a class="news-item<?= $first ? ' first' : '' ?>" href="/news.php?id=<?= (int)$n['id'] ?>">
+        <?php if (!empty($n['image'])): ?><span class="news-thumb" style="background-image:url('<?= esc($n['image']) ?>');"></span><?php endif; ?>
+        <span class="news-text"><span class="ttl"><?= esc($n['title']) ?></span><span class="dt"><?= esc(date('d.m.Y', strtotime($n['published_at']))) ?></span></span>
+      </a>
+    <?php $first = false; endforeach; ?>
+  </div>
+</div>
+<?php else: ?>
+<p style="color:var(--tx2);font-size:14px;margin-top:14px;">Новостей пока нет — скоро появятся.</p>
+<?php endif; ?>
 
 <?php page_foot(); ?>

@@ -19,6 +19,9 @@ if ($id && $dbok) {
         echo '<p style="color:var(--tx2);font-size:13px;">'
             . esc(date('d.m.Y', strtotime($item['published_at'])))
             . ($item['author'] ? ' · ' . esc($item['author']) : '') . '</p>';
+        if (!empty($item['image'])) {
+            echo '<div class="card news-cover"><img src="' . esc($item['image']) . '" alt="" loading="lazy"></div>';
+        }
         echo '<div class="card" style="line-height:1.7;">' . nl2br(esc($item['body'] ?? '')) . '</div>';
         echo '<p><a href="/news.php">← Все новости</a></p>';
     } else {
@@ -30,7 +33,7 @@ if ($id && $dbok) {
 
 $list = [];
 if ($dbok) {
-    $list = db()->query('SELECT id, title, published_at FROM news
+    $list = db()->query('SELECT id, title, published_at, image FROM news
         WHERE published_at IS NOT NULL
         ORDER BY pinned DESC, published_at DESC LIMIT 50')->fetchAll();
 }
@@ -45,10 +48,13 @@ if ($list) {
     echo '<div class="card">';
     $first = true;
     foreach ($list as $n) {
-        echo '<div class="news-item' . ($first ? ' first' : '') . '">';
-        echo '<div class="ttl"><a href="/news.php?id=' . (int)$n['id'] . '" style="color:var(--tx);">' . esc($n['title']) . '</a></div>';
-        echo '<div class="dt">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</div>';
-        echo '</div>';
+        echo '<a class="news-item' . ($first ? ' first' : '') . '" href="/news.php?id=' . (int)$n['id'] . '">';
+        if (!empty($n['image'])) {
+            echo '<span class="news-thumb" style="background-image:url(\'' . esc($n['image']) . '\');"></span>';
+        }
+        echo '<span class="news-text"><span class="ttl">' . esc($n['title']) . '</span>'
+            . '<span class="dt">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span></span>';
+        echo '</a>';
         $first = false;
     }
     echo '</div>';
