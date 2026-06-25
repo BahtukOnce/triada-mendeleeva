@@ -50,6 +50,11 @@ $list = db_ready() ? db()->query('SELECT * FROM news ORDER BY created_at DESC LI
 page_head('Админка — новости', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Новости</h1>';
 
+$newsChan = (string)cfg('news_channel_id', 'triada_mendeleeva');
+if ($newsChan === '') { $newsChan = 'triada_mendeleeva'; }
+echo '<p style="margin:-6px 0 14px;"><a class="btn" href="/import_news.php?pages=30" target="_blank" rel="noopener">⬇ Импортировать из Telegram</a> '
+    . '<span style="color:var(--tx2);font-size:13px;">читает посты канала @' . esc($newsChan) . ' и добавляет их сюда (можно запускать повторно — дубликатов не будет)</span></p>';
+
 echo '<div class="card"><h2 style="margin-top:0;">' . ($edit ? 'Редактировать' : 'Новая новость') . '</h2>';
 echo '<form method="post" action="/admin/news.php">' . csrf_field();
 echo '<input type="hidden" name="form" value="save"><input type="hidden" name="id" value="' . (int)($edit['id'] ?? 0) . '">';
