@@ -304,7 +304,7 @@ function media_embed(string $url): ?string
     if (preg_match('~(?:vkvideo\.ru|vk\.com)/video(-?\d+)_(\d+)~', $url, $m)) {
         // Встраивание VK-плеера часто даёт чёрный экран — даём надёжную ссылку-кнопку.
         $watch = 'https://vk.com/video' . $m[1] . '_' . $m[2];
-        return '<a class="post-video-link" href="' . esc($watch) . '" target="_blank" rel="noopener">▶ Смотреть видео во ВКонтакте</a>';
+        return '<a class="post-video-link" href="' . esc($watch) . '" target="_blank" rel="noopener">Смотреть видео во ВКонтакте</a>';
     }
     if (preg_match('~(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/|live/))([A-Za-z0-9_-]{6,})~', $url, $m)) {
         $src = 'https://www.youtube.com/embed/' . $m[1];

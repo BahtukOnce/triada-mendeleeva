@@ -324,6 +324,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .post-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .post-video-link { display: inline-flex; align-items: center; gap: 7px; margin: 8px 0; padding: 10px 16px; border-radius: 10px; background: var(--ac); color: #fff; font-weight: 600; text-decoration: none; }
 .post-video-link:hover { background: var(--ac-h); }
+/* play-треугольник вместо эмодзи ▶ (чтобы не превращался в картинку) */
+.post-tgvideo::before, .post-video-link::before, .post-video-play::before { content: ""; display: inline-block; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid currentColor; margin-right: 6px; }
 
 /* Лента-превью: карточки картинка+заголовок, полный текст по кнопке */
 .news-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 18px; margin-top: 6px; }
@@ -339,7 +341,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ncard .ncard-more { font-size: 13px; color: var(--ac); white-space: nowrap; }
 @media (max-width: 680px) { .news-cards { grid-template-columns: 1fr; } }
 .ncard-cover { position: relative; display: block; }
-.ncard-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; padding-left: 3px; pointer-events: none; }
+.ncard-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.ncard-play::before { content: ""; width: 0; height: 0; border-top: 9px solid transparent; border-bottom: 9px solid transparent; border-left: 14px solid #fff; margin-left: 3px; }
 .post-tgvideo { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 2px; padding: 9px 15px; border-radius: 10px; background: var(--acsf); color: var(--ac); font-weight: 600; text-decoration: none; }
 .post-tgvideo:hover { background: var(--ac); color: #fff; }
 

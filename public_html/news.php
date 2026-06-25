@@ -41,7 +41,7 @@ $renderPost = function (array $n) use ($imgsOf, $newsChan, $meId, $csrf): string
             $cover = array_shift($gallery);
             $h .= '<a class="post-video-cover" href="' . esc($tgUrl) . '" target="_blank" rel="noopener" title="Смотреть видео в Telegram">'
                 . '<img src="' . esc($cover) . '" alt="" loading="lazy">'
-                . '<span class="post-video-play">▶ Смотреть видео в Telegram</span></a>';
+                . '<span class="post-video-play">Смотреть видео в Telegram</span></a>';
             $videoCoverShown = true;
         }
         if ($gallery) {
@@ -61,7 +61,7 @@ $renderPost = function (array $n) use ($imgsOf, $newsChan, $meId, $csrf): string
     }
     if ($isVideo && !$videoCoverShown) {
         // видео без скачанного постера — кнопка отдельной строкой (запасной вариант)
-        $h .= '<a class="post-tgvideo" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">▶ Смотреть видео в Telegram</a>';
+        $h .= '<a class="post-tgvideo" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">Смотреть видео в Telegram</a>';
     }
     // Реакции (эмодзи)
     [$rcounts, $rmine] = news_reaction_data((int)$n['id'], $meId);
@@ -187,7 +187,7 @@ if ($list) {
             echo '<span class="ncard-noimg">' . logo_svg(34) . '</span>';
         }
         if (!empty($n['has_video'])) {
-            echo '<span class="ncard-play" aria-hidden="true">▶</span>';
+            echo '<span class="ncard-play" aria-hidden="true"></span>';
         }
         echo '</span>';
         echo '<span class="ncard-body"><span class="ncard-ttl">' . esc($n['title']) . '</span>'
