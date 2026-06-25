@@ -64,9 +64,9 @@ if ($id && $dbok) {
 
 $list = [];
 if ($dbok) {
-    $list = db()->query('SELECT id, title, body, published_at, image, images FROM news
+    $list = db()->query('SELECT id, title, published_at, image, images FROM news
         WHERE published_at IS NOT NULL
-        ORDER BY pinned DESC, published_at DESC LIMIT 24')->fetchAll();
+        ORDER BY pinned DESC, published_at DESC LIMIT 48')->fetchAll();
 }
 
 page_head('Новости', 'news');
@@ -119,12 +119,23 @@ echo '<aside class="ach-side" id="ach-side"><div class="ach-side-inner">'
     . '</div></aside>';
 echo '</div>'; // .ach-wrap
 
-// ── Лента новостей (внизу страницы) ──
+// ── Лента новостей (внизу страницы): превью-карточки, полный текст по кнопке ──
 echo '<h2 style="margin:26px 0 12px;">Лента новостей</h2>';
 if ($list) {
-    echo '<div class="post-feed">';
+    echo '<div class="news-cards">';
     foreach ($list as $n) {
-        echo $renderPost($n);
+        $imgs = $imgsOf($n);
+        $cover = $imgs[0] ?? '';
+        echo '<a class="ncard" href="/news.php?id=' . (int)$n['id'] . '">';
+        if ($cover !== '') {
+            echo '<img class="ncard-img" src="' . esc($cover) . '" alt="" loading="lazy">';
+        } else {
+            echo '<span class="ncard-noimg">' . logo_svg(34) . '</span>';
+        }
+        echo '<span class="ncard-body"><span class="ncard-ttl">' . esc($n['title']) . '</span>'
+            . '<span class="ncard-meta"><span class="ncard-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span>'
+            . '<span class="ncard-more">Показать полностью →</span></span></span>';
+        echo '</a>';
     }
     echo '</div>';
 } else {
