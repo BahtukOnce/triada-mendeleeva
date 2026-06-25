@@ -20,12 +20,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'finished'], true) ? $_POST['status'] : 'draft';
         $tables = max(1, min(6, (int)($_POST['tables_count'] ?? 1)));
 
+        // Места столов: позиционный массив длиной tables_count (индекс = стол − 1)
+        $tp = (array)($_POST['table_places'] ?? []);
+        $places = [];
+        for ($i = 0; $i < $tables; $i++) {
+            $places[] = trim((string)($tp[$i] ?? ''));
+        }
+        $placesJson = array_filter($places) ? json_encode($places, JSON_UNESCAPED_UNICODE) : null;
+
         if ($id) {
-            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=? WHERE id=?')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $id]);
+            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=? WHERE id=?')
+                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $id]);
         } else {
-            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count) VALUES (?,?,?,?,?,?,?)')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables]);
+            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count, table_places) VALUES (?,?,?,?,?,?,?,?)')
+                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson]);
             $id = (int)db()->lastInsertId();
         }
         if (!empty($_FILES['logo']['name'])) {
@@ -80,6 +88,24 @@ echo '<div class="field"><label>Дата по</label><input type="date" name="da
 echo '<div class="field"><label>Место</label><input type="text" name="location" value="' . esc($edit['location'] ?? '') . '"></div>';
 echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"></div>';
 echo '</div>';
+
+// Места столов: по одному полю на стол (по числу «Столов»)
+$tplaces = [];
+if (!empty($edit['table_places'])) {
+    $dec = json_decode((string)$edit['table_places'], true);
+    if (is_array($dec)) {
+        $tplaces = $dec;
+    }
+}
+$tcount = max(1, (int)($edit['tables_count'] ?? 1));
+echo '<div class="field"><label>Места столов</label>';
+echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+for ($i = 0; $i < $tcount; $i++) {
+    echo '<input type="text" name="table_places[]" placeholder="Стол ' . ($i + 1) . ' — место" value="' . esc($tplaces[$i] ?? '') . '">';
+}
+echo '</div>';
+echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Полей столько же, сколько «Столов». Изменишь число — сохрани и снова открой турнир, поля обновятся.</p></div>';
+
 echo '<div class="field"><label>Статус</label><select name="status">';
 foreach ($statusLabel as $sk => $sl) {
     echo '<option value="' . $sk . '" ' . (($edit['status'] ?? 'draft') === $sk ? 'selected' : '') . '>' . $sl . '</option>';

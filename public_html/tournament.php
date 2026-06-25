@@ -120,6 +120,14 @@ if ($standing) {
     echo '</table></div>';
 }
 
+$tablePlaces = [];
+if (!empty($t['table_places'])) {
+    $decTP = json_decode((string)$t['table_places'], true);
+    if (is_array($decTP)) {
+        $tablePlaces = $decTP;
+    }
+}
+
 $byTable = [];
 foreach ($games as $g) {
     $byTable[(int)$g['table_no']][] = $g;
@@ -133,7 +141,9 @@ if ($multi) {
 foreach ($byTable as $tableNo => $tGames) {
     echo $multi ? '<div class="table-col">' : '';
     if ($multi) {
-        echo '<h2 style="margin:4px 0 8px;">Стол ' . $tableNo . '</h2>';
+        $plc = trim((string)($tablePlaces[$tableNo - 1] ?? ''));
+        echo '<h2 style="margin:4px 0 8px;">Стол ' . $tableNo
+            . ($plc !== '' ? ' <span style="color:var(--tx2);font-size:14px;font-weight:400;">· ' . esc($plc) . '</span>' : '') . '</h2>';
     }
     foreach ($tGames as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
