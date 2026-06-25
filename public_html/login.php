@@ -9,7 +9,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $res = auth_login((string)($_POST['nickname'] ?? ''), (string)($_POST['password'] ?? ''));
     if (is_array($res)) {
-        flash_set('ok', 'С возвращением, ' . $res['nickname'] . '!');
+        $nick = $res['nickname'];
+        $greetings = [
+            'Тихо! Мафия проснулась… а, это просто ' . $nick . '.',
+            'Город просыпается. С возвращением, ' . $nick . '!',
+            'Ночь была долгой. Рад видеть, ' . $nick . '.',
+            $nick . ', твой выход — город ждёт.',
+            'Добро пожаловать за стол, ' . $nick . '.',
+            'Маска надета, ' . $nick . '. Поехали.',
+            'Раздаём роли, ' . $nick . '. Ты в игре.',
+        ];
+        flash_set('ok', $greetings[array_rand($greetings)]);
         redirect('/index.php');
     }
     flash_set('err', $res);
