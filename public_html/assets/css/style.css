@@ -559,6 +559,15 @@ body::before {
 .pc-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pc-name { font-weight: 600; line-height: 1.2; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .pc-fav { font-size: 11.5px; color: var(--tx2); font-weight: 400; margin-top: 2px; }
+.pc-rank {
+  flex: none; margin-left: auto; align-self: flex-start;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--sf2); color: var(--tx2); border: 1px solid var(--bd);
+}
+.pc-rank.top1 { background: rgba(255,196,0,0.14); color: #ffc400; border-color: rgba(255,196,0,0.5); }
+.pc-rank.top2 { background: rgba(200,205,217,0.12); color: #cfd2d9; border-color: rgba(200,205,217,0.45); }
+.pc-rank.top3 { background: rgba(205,127,50,0.16); color: #d6924f; border-color: rgba(205,127,50,0.5); }
 .pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; text-align: center; }
 .pc-stats > div { background: var(--sf2); border-radius: 8px; padding: 7px 4px; }
 .pc-stats b { display: block; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }

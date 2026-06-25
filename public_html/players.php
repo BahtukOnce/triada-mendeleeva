@@ -30,6 +30,18 @@ if (db_ready()) {
     $st = db()->prepare($sql);
     $st->execute($params);
     $list = $st->fetchAll();
+
+    // Ранг в основном рейтинге Триады (позиция по club_score)
+    $rankMap = [];
+    if ($mainId) {
+        $rk = db()->prepare('SELECT player_id FROM rating_cache
+            WHERE rating_id = ? AND club_score IS NOT NULL ORDER BY club_score DESC');
+        $rk->execute([$mainId]);
+        $pos = 0;
+        foreach ($rk->fetchAll(PDO::FETCH_COLUMN) as $pid) {
+            $rankMap[(int)$pid] = ++$pos;
+        }
+    }
 }
 
 page_head('Игроки', 'players');
@@ -52,9 +64,14 @@ if ($list) {
         $favHtml = $p['fav_role']
             ? '<span class="fav-chip"><span class="fdot" style="background:' . role_color($p['fav_role'] === 'sheriff' ? 'sheriff' : $p['fav_role']) . ';"></span>' . esc($roleLbl[$p['fav_role']]) . '</span>'
             : '<span style="color:var(--tx3);font-size:11.5px;">роль не выбрана</span>';
+        $rank = $rankMap[(int)$p['id']] ?? null;
+        $rankHtml = $rank
+            ? '<span class="pc-rank' . ($rank <= 3 ? ' top' . $rank : '') . '" title="место в рейтинге Триады">#' . $rank . '</span>'
+            : '';
         echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
             . '<div class="pc-name">' . player_label($p)
-            . '<div class="pc-fav">' . $favHtml . '</div></div></div>';
+            . '<div class="pc-fav">' . $favHtml . '</div></div>'
+            . $rankHtml . '</div>';
         echo '<div class="pc-stats">'
             . '<div><b>' . $g . '</b><span>игр</span></div>'
             . '<div><b>' . ($wr !== null ? $wr . '%' : '—') . '</b><span>винрейт</span></div>'
