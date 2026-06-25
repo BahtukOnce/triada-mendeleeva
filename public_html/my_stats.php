@@ -180,8 +180,7 @@ echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамик�
     . '<div style="position:relative;height:220px;"><canvas id="ch-elo"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Винрейт по ролям</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-rolewr"></canvas></div></div>';
-echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Роли: сыграно и побед '
-    . '<span style="font-size:12px;color:var(--tx2);font-weight:400;">(ярко — победы, тускло — поражения)</span></h2>'
+echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Сколько играли за роль</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-roledist"></canvas></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
     . '<div style="position:relative;height:220px;"><canvas id="ch-results"></canvas></div></div>';
@@ -239,7 +238,8 @@ echo '</div>';
 
   var eloMax = Math.max.apply(null, D.elo), eloNextTier = null;
   for (var ti = 0; ti < TIERS.length; ti++) { if (TIERS[ti].v > eloMax) { eloNextTier = TIERS[ti].v; break; } }
-  var eloSMax = (eloNextTier || eloMax) + 60;
+  var topTierV = TIERS[TIERS.length - 1].v;
+  var eloSMax = eloNextTier ? (eloNextTier + 110) : Math.max(eloMax + 60, topTierV + 140);
 
   new Chart(document.getElementById('ch-elo'), {
     type: 'line',
@@ -251,7 +251,8 @@ echo '</div>';
         tooltip: { animation: false, displayColors: false, callbacks: { title: function (items) { return items && items[0] ? items[0].label : ''; },
           label: function (c) { var i = c.dataIndex, L = ['ELO ' + Math.round(c.parsed.y) + ' · ' + tierName(c.parsed.y)];
             if (i > 0) { var dl = Math.round(c.parsed.y - D.elo[i - 1]); L.push((dl > 0 ? '▲ +' : (dl < 0 ? '▼ ' : '')) + dl + ' с прошлой игры'); } else { L.push('старт'); } return L; } } } },
-      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { suggestedMin: 1000, suggestedMax: eloSMax, grid: { display: false } } },
+      scales: { x: { display: true, grid: { display: false }, ticks: { color: tx, font: { size: 10 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 } }, y: { min: 800, max: eloSMax, grid: { display: false },
+            afterBuildTicks: function (s) { s.ticks = TIERS.filter(function (t) { return t.v >= s.min && t.v <= s.max; }).map(function (t) { return { value: t.v }; }); } } },
       maintainAspectRatio: false },
     plugins: [tierBands]
   });
@@ -267,36 +268,11 @@ echo '</div>';
       maintainAspectRatio: false }
   });
 
-  try {
-    var fadeC = function (hex) { var n = parseInt(hex.slice(1), 16); return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',0.30)'; };
-    var rdData = [], rdBg = [];
-    for (var ri = 0; ri < 4; ri++) {
-      var rg = D.roleDist[ri] || 0, rw = D.roleWins[ri] || 0;
-      rdData.push(rw, Math.max(0, rg - rw));
-      rdBg.push(roleColors[ri], fadeC(roleColors[ri]));
-    }
-    new Chart(document.getElementById('ch-roledist'), {
-      type: 'doughnut',
-      data: { datasets: [{ data: rdData, backgroundColor: rdBg, borderColor: '#17171c', borderWidth: 2 }] },
-      options: { maintainAspectRatio: false, plugins: {
-        legend: { position: 'bottom',
-          labels: { generateLabels: function () { return roleLabels.map(function (n, i) { return { text: n, fillStyle: roleColors[i], strokeStyle: roleColors[i] }; }); } },
-          onClick: function () {} },
-        datalabels: {
-          display: function (ctx) { return ctx.dataIndex % 2 === 0 && (D.roleDist[ctx.dataIndex / 2] || 0) > 0; },
-          color: '#fff', font: { weight: '600', size: 11 },
-          formatter: function (v, ctx) { var ri = ctx.dataIndex / 2, g = D.roleDist[ri] || 0; return g ? Math.round((D.roleWins[ri] || 0) / g * 100) + '%' : ''; } },
-        tooltip: { callbacks: {
-          title: function (items) { return items.length ? roleLabels[Math.floor(items[0].dataIndex / 2)] : ''; },
-          label: function (c) {
-            var ri = Math.floor(c.dataIndex / 2), g = D.roleDist[ri] || 0, w = D.roleWins[ri] || 0;
-            return (c.dataIndex % 2 === 0)
-              ? 'Побед: ' + c.parsed + ' из ' + g + ' (' + (g ? Math.round(w / g * 100) : 0) + '%)'
-              : 'Поражений: ' + c.parsed;
-          } } }
-      } }
-    });
-  } catch (e) {}
+  new Chart(document.getElementById('ch-roledist'), {
+    type: 'doughnut',
+    data: { labels: roleLabels, datasets: [{ data: D.roleDist, backgroundColor: roleColors, borderColor: '#17171c', borderWidth: 2 }] },
+    options: { plugins: { legend: { position: 'bottom' }, datalabels: pctLabel }, maintainAspectRatio: false }
+  });
 
   new Chart(document.getElementById('ch-results'), {
     type: 'doughnut',
