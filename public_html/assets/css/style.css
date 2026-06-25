@@ -457,6 +457,10 @@ body::before {
 .pf-elo .v { font-size: 36px; font-weight: 750; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; line-height: 1; }
 .pf-elo .l { font-size: 10.5px; color: var(--tx2); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
 .pf-ava .avatar-circle, .pf-ava img { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--ac); }
+.pf-hero-link { text-decoration: none; color: inherit; cursor: pointer; transition: border-color .15s ease, transform .12s ease; }
+.pf-hero-link:hover { border-color: var(--ac); }
+.pf-hero-link:active { transform: scale(0.997); }
+.tag-edit { background: var(--acsf); color: var(--ac); border-color: rgba(232,51,42,0.35); }
 
 .rank-badge {
   display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650;
