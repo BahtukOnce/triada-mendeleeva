@@ -278,3 +278,76 @@ function game_display_totals(array $game, array $seats): array
     }
     return $out;
 }
+
+// Ячейка винрейта (процент + w/g, цвет по проценту). Общая для рейтинга и турниров.
+function wr_cell(int $w, int $g): string
+{
+    if (!$g) {
+        return '<td class="num c-cards" data-sort="-1"><div style="text-align:center;color:var(--tx3);">—</div></td>';
+    }
+    $pct = round($w / $g * 100);
+    $col = $pct >= 60 ? 'var(--ok)' : ($pct < 42 ? 'var(--ac)' : 'var(--tx)');
+    return '<td class="num c-cards" data-sort="' . $pct . '"><div style="white-space:nowrap;line-height:1.15;text-align:center;">'
+        . '<span style="color:' . $col . ';font-weight:600;">' . $pct . '%</span>'
+        . '<div style="font-size:11px;color:var(--tx2);">' . $w . '/' . $g . '</div></div></td>';
+}
+
+// Полный агрегат по произвольному набору игр (итоговая таблица турнира и т.п.).
+// Итог/Ci берутся через game_display_totals (как в протоколе и основном рейтинге).
+// Порог минимума игр НЕ применяется — ~Σ/~Σ×Σ считаются всем (у турниров мало игр).
+function standings_from_games(array $games, array $seatsByGame): array
+{
+    $roleKey = ['civ' => 'civ', 'maf' => 'maf', 'sheriff' => 'sher', 'don' => 'don'];
+    $rows = [];
+    foreach ($games as $g) {
+        $seats = $seatsByGame[(int)$g['id']] ?? [];
+        $totals = game_display_totals($g, $seats);
+        $bmBonus = max(0.0, bm_bonus_for_game($seats, $g));
+        $winner = $g['winner'];
+        foreach ($seats as $s) {
+            $pid = (int)$s['player_id'];
+            if (!isset($rows[$pid])) {
+                $rows[$pid] = [
+                    'pid' => $pid, 'nick' => $s['nickname'], 'avatar' => $s['avatar'],
+                    'elo' => $s['elo'] ?? 1000,
+                    'games' => 0, 'sum' => 0.0, 'sum_plus' => 0.0, 'plus' => 0.0,
+                    'pu_count' => 0, 'lh_sum' => 0.0, 'dop_sum' => 0.0, 'minus_sum' => 0.0, 'ci_sum' => 0.0,
+                    'w_civ' => 0, 'g_civ' => 0, 'w_maf' => 0, 'g_maf' => 0,
+                    'w_sher' => 0, 'g_sher' => 0, 'w_don' => 0, 'g_don' => 0,
+                ];
+            }
+            $r = &$rows[$pid];
+            $tt = $totals[(int)$s['seat']] ?? ['total' => 0.0, 'ci' => 0.0, 'is_pu' => false];
+            $r['games']++;
+            $r['sum'] += (float)$tt['total'];
+            $r['dop_sum'] += (float)$s['plus'];
+            $r['plus'] += (float)$s['plus'];
+            $r['minus_sum'] += (float)$s['minus'] + ((int)$s['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$s['tech_fouls'];
+            $r['ci_sum'] += (float)$tt['ci'];
+            if (!empty($tt['is_pu'])) {
+                $r['pu_count']++;
+                $gotLh = $winner === 'draw' ? $bmBonus > 0 : ($bmBonus > 0 && in_array($s['role'], ROLE_RED, true));
+                if ($gotLh) {
+                    $r['lh_sum'] += $bmBonus;
+                }
+            }
+            $rk = $roleKey[$s['role']] ?? null;
+            if ($rk) {
+                $r['g_' . $rk]++;
+                if (($winner === 'red' && in_array($s['role'], ROLE_RED, true))
+                    || ($winner === 'black' && in_array($s['role'], ROLE_BLACK, true))) {
+                    $r['w_' . $rk]++;
+                }
+            }
+            unset($r);
+        }
+    }
+    foreach ($rows as &$r) {
+        $r['sum_plus'] = $r['dop_sum'] + $r['lh_sum'] + $r['ci_sum'];
+        $r['avg_total'] = $r['games'] > 0 ? $r['sum'] / $r['games'] : 0.0;
+        $r['club_score'] = $r['avg_total'] * $r['sum'];
+    }
+    unset($r);
+    uasort($rows, fn($a, $b) => $b['club_score'] <=> $a['club_score']);
+    return $rows;
+}

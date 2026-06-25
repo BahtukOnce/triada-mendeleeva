@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/rating.php'; // общий wr_cell()
 
 $ratings = [];
 $current = null;
@@ -25,19 +26,6 @@ if (db_ready()) {
         $st->execute([$current['id']]);
         $rows = $st->fetchAll();
     }
-}
-
-// Винрейт: процент (для сортировки) + дробь
-function wr_cell(int $w, int $g): string
-{
-    if (!$g) {
-        return '<td class="num c-cards" data-sort="-1"><div style="text-align:center;color:var(--tx3);">—</div></td>';
-    }
-    $pct = round($w / $g * 100);
-    $col = $pct >= 60 ? 'var(--ok)' : ($pct < 42 ? 'var(--ac)' : 'var(--tx)');
-    return '<td class="num c-cards" data-sort="' . $pct . '"><div style="white-space:nowrap;line-height:1.15;text-align:center;">'
-        . '<span style="color:' . $col . ';font-weight:600;">' . $pct . '%</span>'
-        . '<div style="font-size:11px;color:var(--tx2);">' . $w . '/' . $g . '</div></div></td>';
 }
 
 page_head('Рейтинг', 'rating');
