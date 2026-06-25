@@ -4,7 +4,10 @@ require dirname(__DIR__) . '/inc/bootstrap.php';
 $list = [];
 if (db_ready()) {
     $list = db()->query('SELECT t.*,
-            (SELECT COUNT(*) FROM tournament_regs r WHERE r.tournament_id = t.id) AS regs_cnt
+            (SELECT COUNT(*) FROM tournament_regs r WHERE r.tournament_id = t.id) AS regs_cnt,
+            (SELECT COUNT(DISTINCT gs.player_id) FROM games g
+                JOIN game_seats gs ON gs.game_id = g.id
+                WHERE g.tournament_id = t.id) AS players_cnt
         FROM tournaments t
         ORDER BY t.date_from DESC, t.id DESC LIMIT 50')->fetchAll();
 }
@@ -35,11 +38,12 @@ if ($list) {
         if ($t['date_to'] && $t['date_to'] !== $t['date_from']) {
             $dates .= ' — ' . date('d.m.Y', strtotime($t['date_to']));
         }
+        $participants = (int)$t['players_cnt'] > 0 ? (int)$t['players_cnt'] : (int)$t['regs_cnt'];
         echo '<p class="t-meta">'
             . esc($dates)
             . ($t['location'] ? ' · ' . esc($t['location']) : '')
             . ' · столов: ' . (int)$t['tables_count']
-            . ' · участников: ' . (int)$t['regs_cnt'] . '</p>';
+            . ' · участников: ' . $participants . '</p>';
         echo '</div></a>';
     }
 } else {

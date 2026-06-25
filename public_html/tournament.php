@@ -49,8 +49,15 @@ if (!empty($t['logo'])) {
 } else {
     echo '<h1>' . esc($t['title']) . '</h1>';
 }
+$participants = [];
+foreach ($seatsByGame as $seats) {
+    foreach ($seats as $s) {
+        $participants[(int)$s['player_id']] = 1;
+    }
+}
 echo '<p style="color:var(--tx2);margin-top:6px;">Столов: ' . (int)$t['tables_count']
     . ' · игр: ' . count($games)
+    . ' · участников: ' . count($participants)
     . ($t['date_from'] ? ' · ' . esc(date('d.m.Y', strtotime($t['date_from']))) : '')
     . ($t['location'] ? ' · ' . esc($t['location']) : '') . '</p>';
 if (!empty($t['description'])) {
@@ -65,41 +72,75 @@ if (user_can_judge(current_user())) {
 $standing = standings_from_games($games, $seatsByGame);
 
 if ($standing) {
-    // ── Номинации турнира: считаются по допам за карту ──
-    $mvp = reset($standing); // $standing уже отсортирован по Σ
-    $byPlus = $standing;
-    uasort($byPlus, fn($a, $b) => $b['plus'] <=> $a['plus']);
-    $topPlus = reset($byPlus);
-    $byAvg = array_filter($standing, fn($r) => $r['games'] >= 3);
-    uasort($byAvg, fn($a, $b) => ($b['plus'] / max(1, $b['games'])) <=> ($a['plus'] / max(1, $a['games'])));
-    $topAvg = reset($byAvg);
-    $nomCard = function (string $title, array $r, string $meta): string {
-        return '<div class="nom-card"><div class="nom-title">' . $title . '</div>'
-            . '<a class="nom-player" href="/player.php?id=' . (int)$r['pid'] . '">'
-            . avatar_html(['nickname' => $r['nick'], 'avatar' => $r['avatar']], 34)
-            . '<span>' . esc($r['nick']) . '</span></a>'
-            . '<div class="nom-meta">' . $meta . '</div></div>';
+    // ── Номинации турнира: всё по сумме допов (плюсы − минусы) ──
+    $roleNet = [];
+    foreach ($seatsByGame as $seats) {
+        foreach ($seats as $s) {
+            $pid = (int)$s['player_id'];
+            if (!isset($roleNet[$pid])) {
+                $roleNet[$pid] = ['pid' => $pid, 'nick' => $s['nickname'], 'avatar' => $s['avatar'],
+                    'all' => 0.0, 'civ' => 0.0, 'sheriff' => 0.0, 'maf' => 0.0, 'don' => 0.0,
+                    'gall' => 0, 'gciv' => 0, 'gsheriff' => 0, 'gmaf' => 0, 'gdon' => 0];
+            }
+            $net = (float)$s['plus'] - (float)$s['minus'];
+            $roleNet[$pid]['all'] += $net;
+            $roleNet[$pid]['gall']++;
+            $rl = $s['role'];
+            if (isset($roleNet[$pid][$rl])) {
+                $roleNet[$pid][$rl] += $net;
+                $roleNet[$pid]['g' . $rl]++;
+            }
+        }
+    }
+    $topBy = function (string $key, string $gkey) use ($roleNet) {
+        $best = null;
+        foreach ($roleNet as $r) {
+            if ($r[$gkey] < 1) { continue; }
+            if ($best === null || $r[$key] > $best[$key]
+                || ($r[$key] === $best[$key] && $r[$gkey] > $best[$gkey])) {
+                $best = $r;
+            }
+        }
+        return $best;
     };
+    $plg = function (int $n): string {
+        $w = ($n % 10 === 1 && $n % 100 !== 11) ? 'игра'
+            : ((in_array($n % 10, [2, 3, 4], true) && !in_array($n % 100, [12, 13, 14], true)) ? 'игры' : 'игр');
+        return $n . ' ' . $w;
+    };
+    $nomCard = function (string $title, ?array $r, string $key, string $gkey, string $sub, string $brd) use ($plg): string {
+        if (!$r) {
+            return '<div class="card mate-card"><div class="mate-ttl">' . $title . '</div>'
+                . '<p style="color:var(--tx2);margin:0;">Нет данных.</p></div>';
+        }
+        $val = (float)$r[$key];
+        $col = $val > 0 ? 'var(--ok)' : ($val < 0 ? 'var(--ac)' : 'var(--tx2)');
+        return '<div class="card mate-card" style="border-color:' . $brd . ';">'
+            . '<div class="mate-ttl">' . $title . '</div><div class="mate-body">'
+            . avatar_html(['nickname' => $r['nick'], 'avatar' => $r['avatar']], 52, 'background:var(--acsf);color:var(--ac);')
+            . '<div class="mate-info"><a class="mate-name" href="/player.php?id=' . (int)$r['pid'] . '">' . esc($r['nick']) . '</a>'
+            . '<div class="mate-sub">' . $sub . ' · ' . $plg((int)$r[$gkey]) . '</div></div>'
+            . '<div class="mate-wr" style="color:' . $col . ';">' . ($val > 0 ? '+' : '') . number_format($val, 1) . '<span>допов</span></div>'
+            . '</div></div>';
+    };
+    echo '<h2 style="margin:16px 0 4px;">Номинации турнира</h2>';
+    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">всё по сумме допов за турнир (плюсы − минусы)</p>';
     echo '<div class="noms-grid">';
-    if ($mvp) {
-        echo $nomCard('🏆 MVP турнира', $mvp, 'Σ ' . number_format($mvp['sum'], 2) . ' · ' . (int)$mvp['games'] . ' игр');
-    }
-    if ($topPlus && $topPlus['plus'] > 0) {
-        echo $nomCard('➕ Король допов', $topPlus, number_format($topPlus['plus'], 1) . ' допов за турнир');
-    }
-    if ($topAvg && $topAvg['plus'] > 0) {
-        echo $nomCard('🎯 Допы за карту', $topAvg, number_format($topAvg['plus'] / $topAvg['games'], 2) . ' доп/игра');
-    }
+    echo $nomCard('🏆 МВП турнира', $topBy('all', 'gall'), 'all', 'gall', 'весь турнир', 'rgba(232,184,48,0.5)');
+    echo $nomCard('🔴 Лучший красный', $topBy('civ', 'gciv'), 'civ', 'gciv', 'мирным', 'rgba(232,51,42,0.45)');
+    echo $nomCard('⭐ Лучший шериф', $topBy('sheriff', 'gsheriff'), 'sheriff', 'gsheriff', 'шерифом', 'rgba(230,177,58,0.45)');
+    echo $nomCard('⚫ Лучший чёрный', $topBy('maf', 'gmaf'), 'maf', 'gmaf', 'мафией', 'rgba(140,140,150,0.5)');
+    echo $nomCard('🎩 Лучший дон', $topBy('don', 'gdon'), 'don', 'gdon', 'доном', 'rgba(90,90,100,0.6)');
     echo '</div>';
 
     echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2>';
     echo '<table class="tbl rating-tbl" style="font-size:13px;">';
     echo '<thead>'
         . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
-        . '<th colspan="11">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
+        . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
         . '<th>#</th><th>Игрок</th><th class="num c-elo">ELO</th>'
-        . '<th class="num c-club">~Σ×Σ</th><th class="num">~Σ</th><th class="num">Σ</th>'
+        . '<th class="num">~Σ</th><th class="num">Σ</th>'
         . '<th class="num">Σ+</th><th class="num">Игр</th><th class="num">ПУ</th><th class="num">ЛХ</th>'
         . '<th class="num">Допы</th><th class="num c-club">ср.доп</th><th class="num">−</th><th class="num">Ci</th>'
         . '<th class="c-cards c-cards-first">Общ</th><th class="c-cards">Мир</th>'
@@ -116,7 +157,6 @@ if ($standing) {
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
             . '<span>' . esc($row['nick']) . '</span></a></td>';
         echo '<td class="num c-elo"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
-        echo '<td class="num c-club"><b>' . number_format((float)$row['club_score'], 2) . '</b></td>';
         echo '<td class="num">' . number_format((float)$row['avg_total'], 2) . '</td>';
         echo '<td class="num">' . number_format((float)$row['sum'], 2) . '</td>';
         echo '<td class="num">' . number_format((float)$row['sum_plus'], 2) . '</td>';
