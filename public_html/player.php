@@ -111,26 +111,6 @@ if ($canSeePrivate) {
     }
 }
 
-// ── Достижения игрока ──
-$earnedAch = [];
-$earners = achievement_earners();
-foreach (achievements_catalog() as $k => $a) {
-    foreach (($earners[$k] ?? []) as $e) {
-        if ((int)$e[0] === $id) { $earnedAch[] = $a; break; }
-    }
-}
-if ($earnedAch) {
-    echo '<div class="card"><h2 style="margin-top:0;">Достижения '
-        . '<span style="color:var(--tx2);font-size:13px;font-weight:400;">(' . count($earnedAch) . ')</span></h2>';
-    echo '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-    foreach ($earnedAch as $a) {
-        echo '<span class="tag" title="' . esc($a[2]) . '" style="font-size:13px;padding:5px 11px;">'
-            . $a[0] . ' ' . esc($a[1]) . '</span>';
-    }
-    echo '<a class="tag" href="/records.php" style="font-size:13px;padding:5px 11px;color:var(--tx2);">все ачивки →</a>';
-    echo '</div></div>';
-}
-
 if ($stats) {
     $games = (int)$stats['games'];
     $totW = (int)$stats['w_civ'] + (int)$stats['w_maf'] + (int)$stats['w_sher'] + (int)$stats['w_don'];
@@ -191,6 +171,7 @@ if ($stats) {
     }
     $chartData = json_encode([
         'outcomes' => [$winRed, $winBlk, $lossRed, $lossBlk, $dr],
+        'roleDist' => [(int)$stats['g_civ'], (int)$stats['g_sher'], (int)$stats['g_maf'], (int)$stats['g_don']],
         'elo' => $eloSeries,
         'eloDates' => $eloDates,
         'eloLinks' => $eloLinks,
@@ -239,29 +220,17 @@ if ($stats) {
     $blkW = (int)$stats['w_maf'] + (int)$stats['w_don'];
 
     echo '<div class="grid-2eq">';
-    echo '<div class="card"><h2 style="margin-top:0;">Раскладка по ролям</h2>'
-        . '<p style="color:var(--tx2);font-size:12.5px;margin:-4px 0 12px;">как часто играл за каждую роль</p><div class="role-bars">';
-    foreach ($roleOrder as [$rk, $rl2]) {
-        $g = (int)$stats['g_' . $rk];
-        $pct = $games ? round($g / $games * 100) : 0;
-        echo '<div class="role-bar"><span class="rb-name">' . $rl2 . '</span>'
-            . '<span class="rb-track"><span class="rb-fill" style="width:' . $pct . '%;background:' . $roleClr[$rk] . ';"></span></span>'
-            . '<span class="rb-val"><b>' . $pct . '%</b> ' . $g . '</span></div>';
-    }
-    echo '</div></div>';
+    echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Сколько играли за роль</h2>'
+        . '<div style="position:relative;height:210px;"><canvas id="ch-roledist"></canvas></div></div>';
 
-    echo '<div class="card"><h2 style="margin-top:0;">Красные и чёрные</h2>';
-    $tg = ($redG + $blkG) ?: 1;
-    $rpp = round($redG / $tg * 100);
-    echo '<div class="bal-bar"><span style="width:' . $rpp . '%;background:#c0392b;"></span><span style="width:' . (100 - $rpp) . '%;background:#33333c;"></span></div>';
-    echo '<div class="bal-legend"><span><i style="background:#c0392b;"></i>Красные ' . $rpp . '%</span><span><i style="background:#33333c;"></i>Чёрные ' . (100 - $rpp) . '%</span></div>';
-    echo '<table class="tbl" style="margin-top:10px;"><tr><th>Команда</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
+    echo '<div class="card"><h2 style="margin-top:0;">По команде (цвету)</h2>';
+    echo '<table class="tbl"><tr><th>Команда</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
     $teamRow = function (string $lbl, int $g, int $w): string {
         $wr = $g ? round($w / $g * 100) . '%' : '—';
         return '<tr><td>' . $lbl . '</td><td class="num">' . $g . '</td><td class="num">' . $w . '</td><td class="num"><b>' . $wr . '</b></td></tr>';
     };
-    echo $teamRow('🔴 Красные', $redG, $redW);
-    echo $teamRow('⚫ Чёрные', $blkG, $blkW);
+    echo $teamRow('🔴 Красные (мир+шериф)', $redG, $redW);
+    echo $teamRow('⚫ Чёрные (мафия+дон)', $blkG, $blkW);
     echo '</table></div></div>';
 
     // ── Серии и форма + Привычки ──
@@ -462,6 +431,9 @@ new Chart(document.getElementById('ch-elo'),{type:'line',
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
     datasets:[{data:D.outcomes,backgroundColor:['#2fa45c','#1f7a45','#e8332a','#8c2420','#888'],borderWidth:0}]},
+  options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},datalabels:pctLabel},maintainAspectRatio:false}});
+new Chart(document.getElementById('ch-roledist'),{type:'doughnut',
+  data:{labels:['Мирный','Шериф','Мафия','Дон'],datasets:[{data:D.roleDist,backgroundColor:['#e8332a','#e6b13a','#50505a','#0e0e12'],borderColor:'#17171c',borderWidth:2}]},
   options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},datalabels:pctLabel},maintainAspectRatio:false}});
 })();</script>
 JS;
