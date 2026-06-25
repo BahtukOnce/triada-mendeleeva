@@ -86,11 +86,11 @@ function node_inner_html(DOMNode $node): string
     return $html;
 }
 
-$stmt = db()->prepare('INSERT INTO news (title, body, published_at, image, images, tg_msg_id)
-        VALUES (?,?,?,?,?,?)
+$stmt = db()->prepare('INSERT INTO news (title, body, published_at, image, images, has_video, tg_msg_id)
+        VALUES (?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body),
             published_at = VALUES(published_at), image = COALESCE(VALUES(image), image),
-            images = COALESCE(VALUES(images), images)');
+            images = COALESCE(VALUES(images), images), has_video = VALUES(has_video)');
 
 $imgDir = ROOT . '/public_html/uploads/news';
 
@@ -145,31 +145,43 @@ for ($p = 0; $p < $pages; $p++) {
         $firstLine = trim((string)strtok($text, "\n"));
         $title = mb_substr($firstLine !== '' ? $firstLine : $text, 0, 200);
 
-        // Картинки поста (альбом): скачиваем каждую на сервер один раз.
+        // Картинки поста (альбом) + кадры-постеры видео: скачиваем каждую на сервер один раз.
         $imgs = [];
         $k = 0;
-        foreach ($xp->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_photo_wrap ')]", $node) as $pw) {
-            if (!preg_match("/background-image:url\\('([^']+)'\\)/", (string)$pw->getAttribute('style'), $mm)) {
-                continue;
-            }
+        $grab = function (string $url) use ($imgDir, &$k, $msgId): ?string {
             $name = 'tg_' . $msgId . ($k === 0 ? '' : '_' . $k) . '.jpg';
             $file = $imgDir . '/' . $name;
-            if (is_file($file) && filesize($file) > 500) {
-                $imgs[] = '/uploads/news/' . $name;
-            } else {
-                if (!is_dir($imgDir)) { @mkdir($imgDir, 0775, true); }
-                $bin = tg_fetch($mm[1]);
-                if ($bin !== '' && strlen($bin) > 800 && @file_put_contents($file, $bin)) {
-                    $imgs[] = '/uploads/news/' . $name;
-                }
+            $path = '/uploads/news/' . $name;
+            if (is_file($file) && filesize($file) > 500) { $k++; return $path; }
+            if (!is_dir($imgDir)) { @mkdir($imgDir, 0775, true); }
+            $bin = tg_fetch($url);
+            if ($bin !== '' && strlen($bin) > 800 && @file_put_contents($file, $bin)) { $k++; return $path; }
+            return null;
+        };
+        foreach ($xp->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_photo_wrap ')]", $node) as $pw) {
+            if (preg_match("/background-image:url\\('([^']+)'\\)/", (string)$pw->getAttribute('style'), $mm)) {
+                $p = $grab($mm[1]);
+                if ($p !== null) { $imgs[] = $p; }
             }
-            $k++;
+        }
+        // Нативное видео Telegram: файл в превью недоступен — берём кадр-постер и помечаем has_video.
+        $hasVideo = 0;
+        foreach ($xp->query(".//i[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_video_thumb ')]", $node) as $vt) {
+            $hasVideo = 1;
+            if (preg_match("/background-image:url\\('([^']+)'\\)/", (string)$vt->getAttribute('style'), $mm)) {
+                $p = $grab($mm[1]);
+                if ($p !== null) { $imgs[] = $p; }
+            }
+        }
+        if (!$hasVideo) {
+            $vp = $xp->query(".//*[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_video_player ') or contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_roundvideo ')]", $node)->item(0);
+            if ($vp) { $hasVideo = 1; }
         }
         $imgPath = $imgs[0] ?? null;
         $imgsJson = $imgs ? json_encode($imgs, JSON_UNESCAPED_SLASHES) : null;
         if ($imgPath !== null) { $withImg++; }
 
-        $stmt->execute([$title, $text, $ts, $imgPath, $imgsJson, $msgId]);
+        $stmt->execute([$title, $text, $ts, $imgPath, $imgsJson, $hasVideo, $msgId]);
         $withText++;
         $pageText++;
     }

@@ -19,8 +19,13 @@ $imgsOf = function (array $n): array {
     return array_values(array_filter($arr));
 };
 
-// Карточка поста: галерея + текст (ссылки/упоминания кликабельны) + дата.
-$renderPost = function (array $n) use ($imgsOf): string {
+$newsChan = (string)cfg('news_channel_id', 'triada_mendeleeva');
+if ($newsChan === '') {
+    $newsChan = 'triada_mendeleeva';
+}
+
+// Карточка поста: галерея + текст (ссылки/упоминания кликабельны) + видео + дата.
+$renderPost = function (array $n) use ($imgsOf, $newsChan): string {
     $imgs = $imgsOf($n);
     $h = '<article class="post-card">';
     if ($imgs) {
@@ -37,6 +42,10 @@ $renderPost = function (array $n) use ($imgsOf): string {
     if ($body !== '') {
         $h .= '<div class="post-body">' . $body . '</div>';
     }
+    if (!empty($n['has_video']) && !empty($n['tg_msg_id'])) {
+        $tgUrl = 'https://t.me/' . $newsChan . '/' . (int)$n['tg_msg_id'];
+        $h .= '<a class="post-tgvideo" href="' . esc($tgUrl) . '" target="_blank" rel="noopener">▶ Смотреть видео в Telegram</a>';
+    }
     $h .= '<div class="post-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</div>';
     $h .= '</div></article>';
     return $h;
@@ -51,6 +60,12 @@ if ($id && $dbok) {
     if (!$item) {
         http_response_code(404);
     }
+    // Частичный рендер для модалки «Показать полностью» (без шапки/подвала).
+    if (isset($_GET['partial'])) {
+        header('Content-Type: text/html; charset=utf-8');
+        echo $item ? $renderPost($item) : '<p style="padding:18px;color:var(--tx2);">Новость не найдена.</p>';
+        exit;
+    }
     page_head($item ? $item['title'] : 'Новость не найдена', 'news');
     if ($item) {
         echo '<p style="margin:0 0 12px;"><a href="/news.php">← Все новости</a></p>';
@@ -64,7 +79,7 @@ if ($id && $dbok) {
 
 $list = [];
 if ($dbok) {
-    $list = db()->query('SELECT id, title, published_at, image, images FROM news
+    $list = db()->query('SELECT id, title, published_at, image, images, has_video FROM news
         WHERE published_at IS NOT NULL
         ORDER BY pinned DESC, published_at DESC LIMIT 48')->fetchAll();
 }
@@ -126,12 +141,17 @@ if ($list) {
     foreach ($list as $n) {
         $imgs = $imgsOf($n);
         $cover = $imgs[0] ?? '';
-        echo '<a class="ncard" href="/news.php?id=' . (int)$n['id'] . '">';
+        echo '<a class="ncard" href="/news.php?id=' . (int)$n['id'] . '" data-id="' . (int)$n['id'] . '">';
+        echo '<span class="ncard-cover">';
         if ($cover !== '') {
             echo '<img class="ncard-img" src="' . esc($cover) . '" alt="" loading="lazy">';
         } else {
             echo '<span class="ncard-noimg">' . logo_svg(34) . '</span>';
         }
+        if (!empty($n['has_video'])) {
+            echo '<span class="ncard-play" aria-hidden="true">▶</span>';
+        }
+        echo '</span>';
         echo '<span class="ncard-body"><span class="ncard-ttl">' . esc($n['title']) . '</span>'
             . '<span class="ncard-meta"><span class="ncard-date">' . esc(date('d.m.Y', strtotime($n['published_at']))) . '</span>'
             . '<span class="ncard-more">Показать полностью →</span></span></span>';

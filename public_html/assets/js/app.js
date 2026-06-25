@@ -189,3 +189,78 @@
     });
   }
 })();
+
+// Новости: «Показать полностью» -> модалка поверх страницы; фото -> лайтбокс
+(function () {
+  var feed = document.querySelector('.news-cards');
+  var onPost = document.querySelector('.post-single, .post-card');
+  if (!feed && !onPost) return;
+
+  // ── модалка с полным постом ──
+  var modal = null, content = null;
+  function ensureModal() {
+    if (modal) return;
+    modal = document.createElement('div');
+    modal.className = 'post-modal';
+    modal.hidden = true;
+    modal.innerHTML = '<div class="post-modal-backdrop"></div>'
+      + '<button class="post-modal-x" aria-label="Закрыть">✕</button>'
+      + '<div class="post-modal-panel"><div class="post-modal-content"></div></div>';
+    document.body.appendChild(modal);
+    content = modal.querySelector('.post-modal-content');
+    modal.querySelector('.post-modal-backdrop').addEventListener('click', closeModal);
+    modal.querySelector('.post-modal-x').addEventListener('click', closeModal);
+  }
+  function openModal(id, fallback) {
+    ensureModal();
+    content.innerHTML = '<div class="post-modal-loading">Загрузка…</div>';
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    fetch('/news.php?id=' + encodeURIComponent(id) + '&partial=1')
+      .then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .then(function (html) { content.innerHTML = html; })
+      .catch(function () { closeModal(); if (fallback) location.href = fallback; });
+  }
+  function closeModal() {
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    content.innerHTML = '';
+    document.body.style.overflow = '';
+  }
+  if (feed) {
+    feed.addEventListener('click', function (e) {
+      var card = e.target.closest('.ncard');
+      if (!card) return;
+      e.preventDefault();
+      openModal(card.getAttribute('data-id'), card.getAttribute('href'));
+    });
+  }
+
+  // ── лайтбокс: фото поста открывается в полный размер ──
+  var lb = null, lbImg = null;
+  function ensureLb() {
+    if (lb) return;
+    lb = document.createElement('div');
+    lb.className = 'img-lightbox';
+    lb.hidden = true;
+    lb.innerHTML = '<img alt="">';
+    document.body.appendChild(lb);
+    lbImg = lb.querySelector('img');
+    lb.addEventListener('click', function () { lb.hidden = true; });
+  }
+  document.addEventListener('click', function (e) {
+    var im = e.target.closest('.post-imgs img');
+    if (!im) return;
+    e.preventDefault();
+    e.stopPropagation();
+    ensureLb();
+    lbImg.src = im.currentSrc || im.src;
+    lb.hidden = false;
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (lb && !lb.hidden) { lb.hidden = true; return; }
+    closeModal();
+  });
+})();
