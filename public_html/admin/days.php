@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/bot_lib.php';
 $u = require_judge();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,9 +31,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['day_id'] ?? 0);
         $to = (string)($_POST['to'] ?? '');
         if (in_array($to, ['draft', 'reg_open', 'reg_closed', 'live', 'finished'], true)) {
+            $cs = db()->prepare('SELECT status FROM game_days WHERE id = ?');
+            $cs->execute([$id]);
+            $prev = (string)($cs->fetchColumn() ?: '');
             db()->prepare('UPDATE game_days SET status = ? WHERE id = ?')->execute([$to, $id]);
             log_action((int)$u['id'], 'day_status', ['day_id' => $id, 'to' => $to]);
-            flash_set('ok', 'Статус обновлён');
+            // авто-уведомления в Telegram только при реальной смене статуса
+            $note = '';
+            if ($prev !== $to) {
+                try {
+                    if ($to === 'reg_open') {
+                        $n = bot_notify_day_open($id);
+                        $note = $n ? " · анонс отправлен ($n)" : '';
+                    } elseif ($to === 'finished') {
+                        $n = bot_notify_day_results($id);
+                        $note = $n ? " · итоги отправлены ($n)" : '';
+                    }
+                } catch (Throwable $e) {
+                }
+            }
+            flash_set('ok', 'Статус обновлён' . $note);
         }
         redirect('/admin/days.php');
     }

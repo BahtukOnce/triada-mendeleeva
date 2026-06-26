@@ -417,3 +417,70 @@ function bot_broadcast(string $text): array
     }
     return ['recipients' => $sent + $failed, 'sent' => $sent, 'failed' => $failed];
 }
+
+// ── Авто-уведомления о вечерах и результатах ──────────────
+// Открылась запись на вечер → анонс всем подписанным игрокам (с кнопкой записи).
+function bot_notify_day_open(int $dayId): int
+{
+    $st = db()->prepare('SELECT * FROM game_days WHERE id = ?');
+    $st->execute([$dayId]);
+    $day = $st->fetch();
+    if (!$day || $day['status'] !== 'reg_open') {
+        return 0;
+    }
+    $text = "📅 <b>Открыта запись на игровой вечер!</b>\n\n"
+        . "<b>" . bot_esc((string)$day['title']) . "</b>\n"
+        . "🗓 " . bot_date((string)$day['date']) . "\n"
+        . ($day['location'] ? "📍 " . bot_esc((string)$day['location']) . "\n" : "")
+        . "\nЖми «Записаться» 👇 или открой /day.";
+    $markup = json_encode(['inline_keyboard' => [
+        [['text' => '✅ Записаться', 'callback_data' => 'day_reg:' . (int)$day['id']]],
+    ]], JSON_UNESCAPED_UNICODE);
+    $sent = 0;
+    foreach (bot_recipients() as $tg) {
+        $r = bot_send($tg, $text, $markup);
+        if ($r && !empty($r['ok'])) {
+            $sent++;
+        }
+        usleep(40000);
+    }
+    return $sent;
+}
+
+// Вечер завершён → каждому участнику личный итог: сыграно игр + изменение ELO (+ рекорд).
+function bot_notify_day_results(int $dayId): int
+{
+    $st = db()->prepare('SELECT * FROM game_days WHERE id = ?');
+    $st->execute([$dayId]);
+    $day = $st->fetch();
+    if (!$day) {
+        return 0;
+    }
+    $q = db()->prepare('SELECT eh.player_id, COUNT(*) AS games, SUM(eh.delta) AS net,
+            p.elo AS cur, MAX(eh.elo_after) AS day_peak,
+            (SELECT MAX(e2.elo_after) FROM elo_history e2 WHERE e2.player_id = eh.player_id) AS all_peak
+        FROM elo_history eh
+        JOIN games g ON g.id = eh.game_id
+        JOIN players p ON p.id = eh.player_id
+        WHERE g.day_id = ?
+        GROUP BY eh.player_id, p.elo');
+    $q->execute([$dayId]);
+    $sent = 0;
+    foreach ($q->fetchAll() as $r) {
+        $net = (float)$r['net'];
+        $netStr = ($net > 0 ? '+' : ($net < 0 ? '−' : '±')) . bot_num(abs($net));
+        $emoji = $net > 0 ? '📈' : ($net < 0 ? '📉' : '➖');
+        $record = ((float)$r['day_peak'] >= (float)$r['all_peak'] - 0.05) && $net > 0;
+        $text = "🎲 <b>Итоги вечера</b>\n"
+            . "<b>" . bot_esc((string)$day['title']) . "</b> · " . bot_date((string)$day['date']) . "\n\n"
+            . "Сыграно игр: <b>" . (int)$r['games'] . "</b>\n"
+            . "$emoji ELO: <b>" . bot_num((float)$r['cur']) . "</b> (за вечер $netStr)\n"
+            . ($record ? "🏆 Новый личный рекорд ELO!\n" : "")
+            . "\nПодробная статистика — /me";
+        if (bot_notify_player((int)$r['player_id'], $text)) {
+            $sent++;
+        }
+        usleep(40000);
+    }
+    return $sent;
+}
