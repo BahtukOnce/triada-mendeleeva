@@ -205,6 +205,21 @@ usort($rConfirmed, fn($a, $b) => (float)$b['elo'] <=> (float)$a['elo']); // си
 usort($rInvited, fn($a, $b) => strcmp((string)$a['nickname'], (string)$b['nickname']));
 $avgElo = $rConfirmed ? (int)round(array_sum(array_map(fn($r) => (float)$r['elo'], $rConfirmed)) / count($rConfirmed)) : 0;
 
+// средний доп по ролям (из game_seats) для подтверждённых участников
+$dopByRole = [];
+if ($rConfirmed) {
+    $pids = array_map(fn($r) => (int)$r['player_id'], $rConfirmed);
+    $in2 = implode(',', array_fill(0, count($pids), '?'));
+    $dq = db()->prepare("SELECT gs.player_id, gs.role, AVG(gs.plus) AS avg_dop, COUNT(*) AS g
+        FROM game_seats gs JOIN games g ON g.id = gs.game_id
+        WHERE gs.player_id IN ($in2) AND g.status = 'finished'
+        GROUP BY gs.player_id, gs.role");
+    $dq->execute($pids);
+    foreach ($dq->fetchAll() as $row) {
+        $dopByRole[(int)$row['player_id']][$row['role']] = ['avg' => (float)$row['avg_dop'], 'g' => (int)$row['g']];
+    }
+}
+
 $cu = current_user();
 $myPid = 0;
 if ($cu) {
@@ -234,10 +249,19 @@ if ($rosterRows || $regOpen) {
     }
     if ($rConfirmed) {
         $fmt1 = fn($v) => rtrim(rtrim(number_format((float)$v, 1, '.', ''), '0'), '.');
-        $avg = fn($sum, $g) => $g > 0 ? number_format((float)$sum / $g, 2, '.', '') : '—';
+        $roleDopCell = function (int $pid) use ($dopByRole, $roleLabel) {
+            $out = [];
+            foreach (['civ', 'maf', 'sheriff', 'don'] as $rk) {
+                $d = $dopByRole[$pid][$rk] ?? null;
+                $out[] = ($d && $d['g'] > 0)
+                    ? '<span title="' . esc($roleLabel[$rk]) . '" style="color:' . role_color($rk) . ';font-weight:600;">' . number_format($d['avg'], 2, '.', '') . '</span>'
+                    : '<span title="' . esc($roleLabel[$rk]) . '" style="color:var(--tx3);">·</span>';
+            }
+            return implode(' ', $out);
+        };
         echo '<div style="overflow-x:auto;"><table class="tbl"><tr>'
             . '<th class="num">#</th><th>Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
-            . '<th>Любимая карта</th><th class="num">Ср. доп</th><th class="num">Ср. минус</th><th class="num">Клубный счёт</th></tr>';
+            . '<th>Любимая карта</th><th>Ср. доп по ролям <span style="color:var(--tx3);font-weight:400;font-size:11px;">мир/маф/шер/дон</span></th><th class="num">Клубный счёт</th></tr>';
         $pos = 0;
         foreach ($rConfirmed as $r) {
             $pos++;
@@ -256,8 +280,7 @@ if ($rosterRows || $regOpen) {
                 . '<td class="num">' . ($g ?: '—') . '</td>'
                 . '<td class="num">' . $wr . '</td>'
                 . '<td>' . $favCell . '</td>'
-                . '<td class="num" style="color:var(--ok);">' . $avg($r['dop_sum'], $g) . '</td>'
-                . '<td class="num" style="color:var(--ac);">' . $avg($r['minus_sum'], $g) . '</td>'
+                . '<td style="white-space:nowrap;">' . $roleDopCell((int)$r['player_id']) . '</td>'
                 . '<td class="num">' . $score . '</td></tr>';
         }
         echo '</table></div>';
