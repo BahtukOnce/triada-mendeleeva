@@ -121,7 +121,9 @@ $judgeMap = [];
 $judgeIds = array_values(array_filter(array_map('intval', array_merge([$mainJudgeId], $tableJudges))));
 if ($judgeIds) {
     $in = implode(',', array_fill(0, count($judgeIds), '?'));
-    $jq = db()->prepare("SELECT id, nickname, avatar, elo FROM players WHERE id IN ($in)");
+    $jq = db()->prepare("SELECT id, nickname, avatar, elo,
+        (SELECT COUNT(*) FROM games g WHERE g.judge_player_id = players.id) AS judged
+        FROM players WHERE id IN ($in)");
     $jq->execute($judgeIds);
     foreach ($jq->fetchAll() as $jr) {
         $judgeMap[(int)$jr['id']] = $jr;
@@ -144,11 +146,18 @@ $tableJudgeId = function (int $tableNo) use ($tableJudges, $mainJudgeId): int {
 };
 if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
     $mj = $judgeMap[$mainJudgeId];
+    $jhSub = [];
+    if ($mj['elo'] !== null) {
+        $jhSub[] = 'ELO ' . (int)round((float)$mj['elo']);
+    }
+    if ((int)($mj['judged'] ?? 0) > 0) {
+        $jhSub[] = 'судил игр: ' . (int)$mj['judged'];
+    }
     echo '<div class="judge-hero">'
         . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
         . '<div><div class="jh-label">⚖ Главный судья</div>'
         . '<a class="jh-name" href="/player.php?id=' . $mainJudgeId . '">' . esc($mj['nickname']) . '</a>'
-        . ($mj['elo'] !== null ? '<div class="jh-sub">ELO ' . (int)round((float)$mj['elo']) . '</div>' : '')
+        . ($jhSub ? '<div class="jh-sub">' . implode(' · ', $jhSub) . '</div>' : '')
         . '</div></div>';
     $otherJ = [];
     for ($tn = 2; $tn <= (int)$t['tables_count']; $tn++) {
