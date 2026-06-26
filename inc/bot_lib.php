@@ -514,3 +514,28 @@ function bot_tournament_invite(int $tid, int $playerId): bool
     $r = bot_send((int)$tg, $text, $markup);
     return $r && !empty($r['ok']);
 }
+
+// Уведомить судью о назначении на турнир (это назначение, без кнопок)
+function bot_tournament_judge_notify(int $tid, int $playerId, int $tableNo): bool
+{
+    $st = db()->prepare('SELECT tg_user_id FROM players WHERE id = ? AND tg_user_id IS NOT NULL');
+    $st->execute([$playerId]);
+    $tg = $st->fetchColumn();
+    if (!$tg) {
+        return false;
+    }
+    $t = db()->prepare('SELECT title, date_from, location FROM tournaments WHERE id = ?');
+    $t->execute([$tid]);
+    $tr = $t->fetch();
+    if (!$tr) {
+        return false;
+    }
+    $role = $tableNo === 1 ? 'главный судья (стол 1)' : ('судья стола ' . $tableNo);
+    $text = "⚖ <b>Тебя назначили судьёй на турнир</b>\n\n"
+        . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
+        . "Роль: <b>" . $role . "</b>\n"
+        . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
+        . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "");
+    $r = bot_send((int)$tg, $text);
+    return $r && !empty($r['ok']);
+}

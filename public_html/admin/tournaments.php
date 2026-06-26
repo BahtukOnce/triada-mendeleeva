@@ -71,6 +71,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mainJudge = $judges[0] ?? null;
         $judgesJson = array_filter($judges) ? json_encode($judges) : null;
 
+        // судьи, назначенные ДО сохранения — чтобы уведомить только новоназначенных
+        $oldJudgeSet = [];
+        if ($id) {
+            $oj = db()->prepare('SELECT table_judges FROM tournaments WHERE id = ?');
+            $oj->execute([$id]);
+            $ojv = $oj->fetchColumn();
+            if ($ojv) {
+                $dec = json_decode((string)$ojv, true);
+                if (is_array($dec)) {
+                    $oldJudgeSet = array_map('intval', array_filter($dec));
+                }
+            }
+        }
+
         if ($id) {
             db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=?, reg_mode=? WHERE id=?')
                 ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode, $id]);
@@ -104,6 +118,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db()->prepare('UPDATE tournaments SET logo = ? WHERE id = ?')->execute([$res, $id]);
             } else {
                 flash_set('err', 'Лого: ' . $res);
+            }
+        }
+        // Уведомить новоназначенных судей (бот + сайт) — раньше не были в судейской панели
+        foreach ($judges as $ji => $jid) {
+            if (!$jid || in_array((int)$jid, $oldJudgeSet, true)) {
+                continue;
+            }
+            try {
+                bot_tournament_judge_notify($id, (int)$jid, $ji + 1);
+                app_notify_player((int)$jid, '⚖ Тебя назначили судьёй на турнир «' . $title . '» — ' . ($ji === 0 ? 'главный судья' : 'стол ' . ($ji + 1)), '/tournament.php?id=' . $id);
+            } catch (Throwable $e) {
             }
         }
         log_action((int)$u['id'], 'tournament_save', ['id' => $id]);
@@ -274,9 +299,9 @@ if ($edit) {
     $stLabel = ['confirmed' => 'в составе', 'invited' => 'приглашён', 'declined' => 'отказался'];
     $stColor = ['confirmed' => 'var(--ok)', 'invited' => 'var(--tx2)', 'declined' => 'var(--ac)'];
 
-    echo '<div class="card"><h2 style="margin-top:0;">Состав участников '
-        . '<span style="color:' . ($filled >= $cap ? 'var(--ok)' : 'var(--ac)') . ';font-weight:700;font-size:16px;">' . $filled . '/' . $cap . '</span> '
-        . '<span style="color:var(--tx3);font-weight:400;font-size:13px;">· подтвердили: ' . $confirmedN . '</span></h2>';
+    echo '<div class="card"><h2 style="margin-top:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Состав участников '
+        . '<span style="color:' . ($filled >= $cap ? 'var(--ok)' : 'var(--ac)') . ';font-weight:700;font-size:16px;">' . $filled . '/' . $cap . '</span>'
+        . '<span style="display:inline-block;background:var(--oksf);color:var(--ok);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;">✓ подтвердили: ' . $confirmedN . '</span></h2>';
     echo '<form method="post" action="/admin/tournaments.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">' . csrf_field();
     echo '<input type="hidden" name="id" value="' . $tid . '">';
     echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
