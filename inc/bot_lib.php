@@ -434,7 +434,7 @@ function bot_notify_day_open(int $dayId): int
         . "<b>" . bot_esc((string)$day['title']) . "</b>\n"
         . "🗓 " . bot_date((string)$day['date']) . "\n"
         . ($day['location'] ? "📍 " . bot_esc((string)$day['location']) . "\n" : "")
-        . "\nЖми «Записаться» 👇 или открой /day.";
+        . "\nНажмите «Записаться» 👇 или откройте /day.";
     $markup = json_encode(['inline_keyboard' => [
         [['text' => '✅ Записаться', 'callback_data' => 'day_reg:' . (int)$day['id']]],
     ]], JSON_UNESCAPED_UNICODE);
@@ -506,7 +506,7 @@ function bot_tournament_invite(int $tid, int $playerId): bool
         . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
         . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "")
-        . "\nСможешь прийти?";
+        . "\nСможете прийти?";
     $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
     $markup = json_encode(['inline_keyboard' => [
         [
@@ -555,7 +555,7 @@ function bot_tournament_judge_notify(int $tid, int $playerId, int $tableNo): boo
         return false;
     }
     $role = $tableNo === 1 ? 'главный судья (стол 1)' : ('судья стола ' . $tableNo);
-    $text = "⚖ <b>Тебя назначили судьёй на турнир</b>\n\n"
+    $text = "⚖ <b>Вас назначили судьёй на турнир</b>\n\n"
         . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
         . "Роль: <b>" . $role . "</b>\n"
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")

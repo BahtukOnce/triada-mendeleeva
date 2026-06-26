@@ -426,29 +426,6 @@ function render_player_stats(int $id, bool $own = false): void
             } else { echo '<p style="color:var(--tx2);">Пока мало совместных игр для расчёта.</p>'; }
             echo '</div></div>';
 
-            $beat = $opponents; uasort($beat, fn($a, $b) => [$b['beat'], $b['games']] <=> [$a['beat'], $a['games']]);
-            $lostTo = $opponents; uasort($lostTo, fn($a, $b) => [$b['lost'], $b['games']] <=> [$a['lost'], $a['games']]);
-            echo '<h2 style="margin-top:8px;">Разноцветы — против кого играли</h2><div class="grid-2">';
-            echo '<div class="card"><h2 style="margin-top:0;">Кого чаще всего обыгрывали</h2>';
-            $topb = array_slice(array_filter($beat, fn($m) => $m['beat'] > 0), 0, 12, true);
-            if ($topb) {
-                echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Обыграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
-                foreach ($topb as $opid => $m) {
-                    echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num"><b>' . $m['beat'] . '</b></td><td class="num">' . $m['games'] . '</td><td class="num" style="color:var(--ok);">' . $wr($m['beat'], $m['games']) . '</td></tr>';
-                }
-                echo '</table>';
-            } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
-            echo '</div>';
-            echo '<div class="card"><h2 style="margin-top:0;">Кому чаще всего проигрывали</h2>';
-            $topl = array_slice(array_filter($lostTo, fn($m) => $m['lost'] > 0), 0, 12, true);
-            if ($topl) {
-                echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Проиграли</th><th class="num">Игр против</th><th class="num">%</th></tr>';
-                foreach ($topl as $opid => $m) {
-                    echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num"><b style="color:var(--ac);">' . $m['lost'] . '</b></td><td class="num">' . $m['games'] . '</td><td class="num" style="color:var(--ac);">' . $wr($m['lost'], $m['games']) . '</td></tr>';
-                }
-                echo '</table>';
-            } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
-            echo '</div></div>';
         }
 
         // ── Достижения (ачивки) ──

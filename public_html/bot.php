@@ -120,7 +120,7 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             return;
         }
         if ($isCmd && $cmd !== '/reg' && $cmd !== '/register') {
-            reply($chatId, "🔒 Чтобы пользоваться ботом, сначала привяжись.\nВведи свой ник, как он записан в таблице рейтинга — просто отправь его сообщением.");
+            reply($chatId, "🔒 Чтобы пользоваться ботом, сначала привяжитесь.\nВведите свой ник, как он записан в таблице рейтинга — просто отправьте его сообщением.");
             return;
         }
         $nick = ($cmd === '/reg' || $cmd === '/register') ? $arg : $text;
@@ -156,7 +156,7 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             return;
         case '/stats':
         case '/stat':
-            send_menu($chatId, $userId, $arg === '' ? 'Укажи имя: <code>/stats Бант.</code>' : stats_text($arg));
+            send_menu($chatId, $userId, $arg === '' ? 'Укажите имя: <code>/stats Бант.</code>' : stats_text($arg));
             return;
         case '/reg':
         case '/register':
@@ -164,7 +164,7 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             return;
         case '/unreg':
             bot_unlink($userId);
-            reply($chatId, "Привязка снята. Введи свой ник (как в таблице), чтобы снова пользоваться ботом.");
+            reply($chatId, "Привязка снята. Введите свой ник (как в таблице), чтобы снова пользоваться ботом.");
             return;
         case '/mute':
             bot_set_notify($userId, false);
@@ -203,7 +203,7 @@ function handle_callback(array $cb): void
 
     $cbPlayer = bot_player_by_tg($userId);
     if (!$cbPlayer) {
-        edit_msg($chatId, $msgId, "Сначала привяжи свой ник — введи его, как в таблице рейтинга, одним сообщением.");
+        edit_msg($chatId, $msgId, "Сначала привяжите свой ник — введите его, как в таблице рейтинга, одним сообщением.");
         return;
     }
     bot_deliver_pending_invites((int)$cbPlayer['id']); // дослать неотправленные приглашения на турниры
@@ -257,15 +257,22 @@ function handle_callback(array $cb): void
             $state = str_starts_with($data, 'tinv_yes:') ? 'confirmed' : 'declined';
             db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,?,'bot')
                 ON DUPLICATE KEY UPDATE state = VALUES(state)")->execute([$tid, (int)$p['id'], $state]);
-            $tt = db()->prepare('SELECT title FROM tournaments WHERE id = ?');
+            $tt = db()->prepare('SELECT title, date_from, location FROM tournaments WHERE id = ?');
             $tt->execute([$tid]);
-            $title = (string)($tt->fetchColumn() ?: 'турнир');
-            $msg = $state === 'confirmed'
-                ? "✅ Отлично! Ты в составе турнира «" . bot_esc($title) . "». До встречи за столом!"
-                : "Понятно — отметил, что не сможешь быть на «" . bot_esc($title) . "». Спасибо, что ответил!";
-            edit_msg($chatId, $msgId, $msg);
+            $tr = $tt->fetch() ?: [];
+            $title = (string)(($tr['title'] ?? '') ?: 'турнир');
+            $head = $state === 'confirmed' ? "✅ <b>Вы в составе турнира</b>" : "❌ <b>Вы отметили, что не сможете быть</b>";
+            $msg = $head . "\n\n<b>" . bot_esc($title) . "</b>\n"
+                . (!empty($tr['date_from']) ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
+                . (!empty($tr['location']) ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "")
+                . "\n" . ($state === 'confirmed' ? "До встречи за столом!" : "Спасибо, что ответили!");
+            $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+            $markup = json_encode(['inline_keyboard' => [
+                [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],
+            ]], JSON_UNESCAPED_UNICODE);
+            edit_text($chatId, $msgId, $msg, $markup);
         } else {
-            edit_msg($chatId, $msgId, "Сначала привяжи свой ник — отправь его одним сообщением.");
+            edit_msg($chatId, $msgId, "Сначала привяжите свой ник — отправьте его одним сообщением.");
         }
         return;
     }
@@ -294,7 +301,7 @@ function handle_callback(array $cb): void
             edit_menu($chatId, $msgId, $userId, nominations_text());
             break;
         case 'find':
-            edit_menu($chatId, $msgId, $userId, "🔍 Пришли имя игрока одним сообщением — верну его карточку.");
+            edit_menu($chatId, $msgId, $userId, "🔍 Пришлите имя игрока одним сообщением — верну его карточку.");
             break;
         case 'judges':
             [$jt, $jm] = judges_view();
@@ -346,7 +353,7 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
 {
     $nick = trim($nick);
     if ($nick === '') {
-        reply($chatId, "Введи свой ник, как он записан в таблице рейтинга — просто отправь его сообщением (например: <code>Бант.</code>).");
+        reply($chatId, "Введите свой ник, как он записан в таблице рейтинга — просто отправьте его сообщением (например: <code>Бант.</code>).");
         return;
     }
     $all = bot_all_players();
@@ -355,7 +362,7 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
         $sug = bot_suggest_names($all, $nick);
         reply($chatId, "🔍 Ник «" . bot_esc($nick) . "» не найден в базе клуба."
             . ($sug ? "\nМожет быть: " . $sug : "")
-            . "\n\nПроверь написание или попроси администратора добавить тебя в клуб.");
+            . "\n\nПроверьте написание или попросите администратора добавить вас в клуб.");
         return;
     }
     bot_link($userId, $from, (int)$matched['player_id']);
@@ -364,7 +371,7 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
             ->execute(['tg_link', json_encode(['player' => $matched['name'], 'tg_user_id' => $userId, 'via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
     } catch (Throwable $e) {
     }
-    send_menu($chatId, $userId, "✅ Готово! Ты привязан к игроку <b>" . bot_esc($matched['name']) . "</b>.\nВыбирай кнопкой 👇");
+    send_menu($chatId, $userId, "✅ Готово! Вы привязаны к игроку <b>" . bot_esc($matched['name']) . "</b>.\nВыбирайте кнопкой 👇");
     bot_deliver_pending_invites((int)$matched['player_id']); // дослать приглашения, отправленные до привязки
 }
 
@@ -403,20 +410,20 @@ function admin_users_view(): array
 function welcome_text(): string
 {
     return "🎭 <b>Триада Менделеева</b>\n\n"
-        . "Чтобы пользоваться ботом, привяжи свой <b>ник</b> — так, как он записан в таблице рейтинга.\n"
-        . "Просто отправь его одним сообщением (например: <code>Бант.</code>).";
+        . "Чтобы пользоваться ботом, привяжите свой <b>ник</b> — так, как он записан в таблице рейтинга.\n"
+        . "Просто отправьте его одним сообщением (например: <code>Бант.</code>).";
 }
 
 function help_text(): string
 {
     return "🎭 <b>Триада Менделеева</b>\n\n"
-        . "Выбирай кнопкой ниже 👇\n"
-        . "• <b>📊 Моя статистика</b> — твоя карточка\n"
+        . "Выбирайте кнопкой ниже 👇\n"
+        . "• <b>📊 Моя статистика</b> — ваша карточка\n"
         . "• <b>📅 Запись на игру</b> — записаться на ближайший вечер\n"
-        . "• <b>🏆 Топ</b> — рейтинг (листай кнопками)\n"
+        . "• <b>🏆 Топ</b> — рейтинг (листайте кнопками)\n"
         . "• <b>🎖 Номинации</b> — текущие номинации\n"
-        . "• <b>⚖ Судьи</b> — судьи клуба (нажми — увидишь статистику)\n"
-        . "• <b>🔍 Найти игрока</b> — затем пришли имя\n"
+        . "• <b>⚖ Судьи</b> — судьи клуба (нажмите — увидите статистику)\n"
+        . "• <b>🔍 Найти игрока</b> — затем пришлите имя\n"
         . "• <b>🔔 Уведомления</b> — вкл/выкл оповещения о вечерах и результатах";
 }
 
@@ -439,12 +446,12 @@ function me_text(int $userId): string
 {
     $player = bot_player_by_tg($userId);
     if (!$player) {
-        return "Ты ещё не привязан.\nВведи свой ник, как в таблице рейтинга — просто отправь его сообщением.";
+        return "Вы ещё не привязаны.\nВведите свой ник, как в таблице рейтинга — просто отправьте его сообщением.";
     }
     $data = bot_stats_data();
     $p = bot_find_player($data['players'] ?? [], (string)$player['nickname']);
     if (!$p) {
-        return "Твой ник: <b>" . bot_esc((string)$player['nickname']) . "</b>.\nВ рейтинге его пока нет — статистика появится после сыгранных игр.";
+        return "Ваш ник: <b>" . bot_esc((string)$player['nickname']) . "</b>.\nВ рейтинге его пока нет — статистика появится после сыгранных игр.";
     }
     return render_card($p, $data);
 }
@@ -456,7 +463,7 @@ function judges_view(): array
         return ["⚖ <b>Судьи клуба</b>\n\nСписок пока пуст.",
             json_encode(['inline_keyboard' => [[['text' => '◀ Меню', 'callback_data' => 'menu']]]], JSON_UNESCAPED_UNICODE)];
     }
-    $t = "⚖ <b>Судьи клуба</b>\n\nНажми на судью — покажу его статистику:";
+    $t = "⚖ <b>Судьи клуба</b>\n\nНажмите на судью — покажу его статистику:";
     $rows = [];
     $i = 0;
     foreach ($j as $name) {
@@ -632,7 +639,7 @@ function day_view(int $userId): array
         . "🗓 " . bot_date((string)$day['date']) . "\n"
         . ($day['location'] ? "📍 " . bot_esc((string)$day['location']) . "\n" : "")
         . "👥 Записалось: <b>$cnt</b>\n\n"
-        . ($reg ? "✅ Ты записан." : "Ты ещё не записан на этот вечер.");
+        . ($reg ? "✅ Вы записаны." : "Вы ещё не записаны на этот вечер.");
     $btn = $reg
         ? ['text' => '❌ Отписаться', 'callback_data' => 'day_cancel:' . (int)$day['id']]
         : ['text' => '✅ Записаться', 'callback_data' => 'day_reg:' . (int)$day['id']];
