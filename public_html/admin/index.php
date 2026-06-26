@@ -42,6 +42,7 @@ $groups = [
     ],
     'Система' => [
         ['/admin/logs.php', 'Логи', 'действия пользователей', false],
+        ['/admin/errors.php', 'Ошибки', 'технический лог ошибок', false],
     ],
 ];
 foreach ($groups as $gname => $gitems) {
