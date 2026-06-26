@@ -181,8 +181,9 @@ if (user_can_judge(current_user())) {
 
 // ── Состав участников (заявка/приглашения) ──
 $mainRid = (int)(db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn() ?: 0);
-$rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.elo,
-        rc.games, (COALESCE(rc.w_civ,0)+COALESCE(rc.w_maf,0)+COALESCE(rc.w_sher,0)+COALESCE(rc.w_don,0)) AS wins
+$rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.elo, p.fav_role,
+        rc.games, (COALESCE(rc.w_civ,0)+COALESCE(rc.w_maf,0)+COALESCE(rc.w_sher,0)+COALESCE(rc.w_don,0)) AS wins,
+        rc.dop_sum, rc.minus_sum, rc.club_score
     FROM tournament_participants tp
     JOIN players p ON p.id = tp.player_id
     LEFT JOIN rating_cache rc ON rc.player_id = tp.player_id AND rc.rating_id = ?
@@ -223,19 +224,32 @@ if ($rosterRows || $regOpen) {
         echo '<p style="color:var(--tx3);"><a href="/login.php">Войди</a>, чтобы записаться на турнир.</p>';
     }
     if ($rConfirmed) {
+        $fmt1 = fn($v) => rtrim(rtrim(number_format((float)$v, 1, '.', ''), '0'), '.');
         echo '<div style="overflow-x:auto;"><table class="tbl"><tr>'
-            . '<th class="num">#</th><th>Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th></tr>';
+            . '<th class="num">#</th><th>Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
+            . '<th>Любимая карта</th><th class="num">Допы</th><th class="num">Клубный счёт</th></tr>';
         $pos = 0;
         foreach ($rConfirmed as $r) {
             $pos++;
             $g = (int)$r['games'];
             $wr = $g > 0 ? (round((int)$r['wins'] / $g * 100) . '%') : '—';
+            $fav = (string)($r['fav_role'] ?? '');
+            $favCell = $fav !== ''
+                ? '<span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><span style="width:9px;height:9px;border-radius:50%;background:' . role_color($fav) . ';flex:none;"></span>' . esc($roleLabel[$fav] ?? $fav) . '</span>'
+                : '<span style="color:var(--tx3);">—</span>';
+            $net = (float)$r['dop_sum'] - (float)$r['minus_sum'];
+            $netStr = $g > 0 ? (($net > 0 ? '+' : '') . $fmt1($net)) : '—';
+            $netColor = $net > 0.001 ? 'var(--ok)' : ($net < -0.001 ? 'var(--ac)' : 'var(--tx2)');
+            $score = $r['club_score'] !== null ? $fmt1($r['club_score']) : '—';
             echo '<tr><td class="num" style="color:var(--tx3);">' . $pos . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$r['player_id'] . '" style="display:inline-flex;align-items:center;gap:9px;color:var(--tx);">'
                 . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 30) . '<b>' . esc($r['nickname']) . '</b></a></td>'
                 . '<td class="num" style="color:var(--ac);font-weight:700;">' . (int)round((float)$r['elo']) . '</td>'
                 . '<td class="num">' . ($g ?: '—') . '</td>'
-                . '<td class="num">' . $wr . '</td></tr>';
+                . '<td class="num">' . $wr . '</td>'
+                . '<td>' . $favCell . '</td>'
+                . '<td class="num" style="color:' . $netColor . ';">' . $netStr . '</td>'
+                . '<td class="num">' . $score . '</td></tr>';
         }
         echo '</table></div>';
     }
