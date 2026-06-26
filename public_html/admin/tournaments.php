@@ -360,7 +360,7 @@ if ($edit) {
     echo '</div>';
 }
 
-if ($list) {
+if ($list && !$edit) {
     echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
     echo '<tr><th>Лого</th><th>Турнир</th><th>Статус</th><th class="num">Столов</th><th></th></tr>';
     foreach ($list as $t) {
