@@ -5,13 +5,29 @@ require_once dirname(__DIR__) . '/inc/player_stats.php';
 $id = (int)($_GET['id'] ?? 0);
 
 $nick = null;
+$meta = [];
 if ($id && db_ready()) {
-    $st = db()->prepare('SELECT nickname FROM players WHERE id = ?');
+    $st = db()->prepare('SELECT nickname, avatar, elo FROM players WHERE id = ?');
     $st->execute([$id]);
-    $nick = $st->fetchColumn() ?: null;
+    $row = $st->fetch();
+    if ($row) {
+        $nick = (string)$row['nickname'];
+        $desc = 'Профиль игрока клуба «Триада Менделеева»';
+        if ($row['elo'] !== null) {
+            $desc .= ' · ELO ' . (int)$row['elo'];
+        }
+        $meta = [
+            'og_type'     => 'profile',
+            'url'         => 'player.php?id=' . $id,
+            'description' => $desc,
+        ];
+        if (!empty($row['avatar'])) {
+            $meta['image'] = (string)$row['avatar'];
+        }
+    }
 }
 
-page_head($nick !== null ? (string)$nick : 'Игрок не найден', 'players');
+page_head($nick !== null ? $nick : 'Игрок не найден', 'players', $meta);
 
 if ($nick === null) {
     empty_state('Игрок не найден', 'Возможно, ссылка устарела.');

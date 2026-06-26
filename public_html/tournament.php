@@ -34,7 +34,25 @@ if ($id && db_ready()) {
 $roleLabel = ['civ' => 'Мирный', 'maf' => 'Мафия', 'sheriff' => 'Шериф', 'don' => 'Дон'];
 $winLabel = ['red' => 'красные', 'black' => 'чёрные', 'draw' => 'ничья'];
 
-page_head($t ? $t['title'] : 'Турнир не найден', 'tournaments');
+$meta = [];
+if ($t) {
+    $parts = [];
+    if (!empty($t['date_from'])) {
+        $parts[] = date('d.m.Y', strtotime((string)$t['date_from']));
+    }
+    if (!empty($t['location'])) {
+        $parts[] = (string)$t['location'];
+    }
+    $meta = [
+        'url'         => 'tournament.php?id=' . $id,
+        'description' => 'Турнир клуба «Триада Менделеева»' . ($parts ? ' · ' . implode(' · ', $parts) : ''),
+    ];
+    if (!empty($t['logo'])) {
+        $meta['image'] = (string)$t['logo'];
+    }
+}
+
+page_head($t ? $t['title'] : 'Турнир не найден', 'tournaments', $meta);
 
 if (!$t) {
     empty_state('Турнир не найден', 'Возможно, ссылка устарела.');

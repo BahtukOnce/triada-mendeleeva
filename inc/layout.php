@@ -44,22 +44,42 @@ function logo_svg(int $width = 34): string
         . '<rect x="56" y="111" width="8" height="16" rx="2.5" fill="#e8332a"/></svg>';
 }
 
-function page_head(string $title, string $active = ''): void
+function page_head(string $title, string $active = '', array $meta = []): void
 {
     $u = current_user();
     $env = cfg('env', 'test');
     $robots = $env === 'prod' ? '' : '<meta name="robots" content="noindex, nofollow">' . "\n";
+    $base = rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/');
+
+    // Мета для превью ссылок (Telegram/VK): по умолчанию — общая инфа о клубе,
+    // отдельные страницы (игрок, турнир) передают свой image/description через $meta.
+    $desc    = trim((string)($meta['description'] ?? 'Клуб спортивной мафии «Триада Менделеева» (РХТУ): игровые вечера, турниры, клубный рейтинг и статистика игроков.'));
+    $ogTitle = (string)($meta['og_title'] ?? ($title . ' — Триада Менделеева'));
+    $ogType  = (string)($meta['og_type'] ?? 'website');
+    $card    = (string)($meta['twitter_card'] ?? 'summary');
+    $img     = trim((string)($meta['image'] ?? '')) ?: '/assets/img/favicon.png';
+    if (!preg_match('#^https?://#', $img)) {
+        $img = $base . '/' . ltrim($img, '/');
+    }
+    $ogUrl = trim((string)($meta['url'] ?? ''));
+    if ($ogUrl !== '' && !preg_match('#^https?://#', $ogUrl)) {
+        $ogUrl = $base . '/' . ltrim($ogUrl, '/');
+    }
+
     echo '<!doctype html><html lang="ru" data-theme="dark"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     echo $robots;
     echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
-    $base = rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/');
-    echo '<meta name="description" content="Клуб спортивной мафии «Триада Менделеева» (РХТУ): игровые вечера, турниры, клубный рейтинг и статистика игроков.">';
-    echo '<meta property="og:title" content="' . esc($title) . ' — Триада Менделеева">';
+    echo '<meta name="description" content="' . esc($desc) . '">';
+    echo '<meta property="og:title" content="' . esc($ogTitle) . '">';
     echo '<meta property="og:site_name" content="Триада Менделеева">';
-    echo '<meta property="og:type" content="website">';
-    echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
-    echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
+    echo '<meta property="og:type" content="' . esc($ogType) . '">';
+    echo '<meta property="og:description" content="' . esc($desc) . '">';
+    echo '<meta property="og:image" content="' . esc($img) . '">';
+    if ($ogUrl !== '') {
+        echo '<meta property="og:url" content="' . esc($ogUrl) . '">';
+    }
+    echo '<meta name="twitter:card" content="' . esc($card) . '">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
     echo '<link rel="stylesheet" href="/assets/css/style.css?v=64">';
     echo '</head><body>';
