@@ -162,6 +162,14 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             bot_unlink($userId);
             reply($chatId, "Привязка снята. Введи свой ник (как в таблице), чтобы снова пользоваться ботом.");
             return;
+        case '/mute':
+            bot_set_notify($userId, false);
+            send_menu($chatId, $userId, "🔕 Уведомления отключены. Включить обратно — /unmute или кнопкой «🔔 Уведомления».");
+            return;
+        case '/unmute':
+            bot_set_notify($userId, true);
+            send_menu($chatId, $userId, "🔔 Уведомления включены.");
+            return;
     }
 
     if ($isCmd) {
@@ -284,6 +292,20 @@ function handle_callback(array $cb): void
                 edit_menu($chatId, $msgId, $userId, help_text());
             }
             break;
+        case 'notify':
+            [$nt, $nm] = notify_view($userId);
+            edit_text($chatId, $msgId, $nt, $nm);
+            break;
+        case 'notify_on':
+            bot_set_notify($userId, true);
+            [$nt, $nm] = notify_view($userId);
+            edit_text($chatId, $msgId, "🔔 Уведомления включены.\n\n" . $nt, $nm);
+            break;
+        case 'notify_off':
+            bot_set_notify($userId, false);
+            [$nt, $nm] = notify_view($userId);
+            edit_text($chatId, $msgId, "🔕 Уведомления отключены.\n\n" . $nt, $nm);
+            break;
         case 'menu':
         default:
             edit_menu($chatId, $msgId, $userId, help_text());
@@ -366,7 +388,8 @@ function help_text(): string
         . "• <b>🏆 Топ</b> — рейтинг (листай кнопками)\n"
         . "• <b>🎖 Номинации</b> — текущие номинации\n"
         . "• <b>⚖ Судьи</b> — судьи клуба (нажми — увидишь статистику)\n"
-        . "• <b>🔍 Найти игрока</b> — затем пришли имя";
+        . "• <b>🔍 Найти игрока</b> — затем пришли имя\n"
+        . "• <b>🔔 Уведомления</b> — вкл/выкл оповещения о вечерах и результатах";
 }
 
 function stats_text(string $query): string
@@ -592,6 +615,24 @@ function day_view(int $userId): array
     return [$t, $markup];
 }
 
+// ── Уведомления: статус и переключатель ───────────────────
+function notify_view(int $userId): array
+{
+    $on = bot_notify_enabled($userId);
+    $t = "🔔 <b>Уведомления</b>\n\n"
+        . ($on
+            ? "Статус: <b>включены</b> ✅\n\nБот напишет, когда откроется запись на вечер и когда выйдут результаты игр."
+            : "Статус: <b>отключены</b> 🔕\n\nАвтоматических сообщений не будет. Запись и статистику всегда можно открыть кнопками вручную.");
+    $btn = $on
+        ? ['text' => '🔕 Отключить уведомления', 'callback_data' => 'notify_off']
+        : ['text' => '🔔 Включить уведомления', 'callback_data' => 'notify_on'];
+    $markup = json_encode(['inline_keyboard' => [
+        [$btn],
+        [['text' => '◀ Меню', 'callback_data' => 'menu']],
+    ]], JSON_UNESCAPED_UNICODE);
+    return [$t, $markup];
+}
+
 // ============================================================
 //                      TELEGRAM-ОБЁРТКИ
 // ============================================================
@@ -602,6 +643,7 @@ function menu_markup(int $userId = 0): string
         [['text' => '📅 Запись на игру', 'callback_data' => 'day']],
         [['text' => '🏆 Топ', 'callback_data' => 'top'], ['text' => '🎖 Номинации', 'callback_data' => 'nom']],
         [['text' => '⚖ Судьи', 'callback_data' => 'judges'], ['text' => '🔍 Найти игрока', 'callback_data' => 'find']],
+        [['text' => '🔔 Уведомления', 'callback_data' => 'notify']],
     ];
     if ($userId && bot_is_admin($userId)) {
         $rows[] = [['text' => '🛠 Админка', 'callback_data' => 'admin']];

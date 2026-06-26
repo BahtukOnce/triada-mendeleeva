@@ -1,0 +1,1 @@
+ALTER TABLE players ADD COLUMN notify_enabled TINYINT(1) NOT NULL DEFAULT 1;

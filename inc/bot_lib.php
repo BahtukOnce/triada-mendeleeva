@@ -364,11 +364,42 @@ function bot_day_count(int $dayId): int
     return (int)$st->fetchColumn();
 }
 
+// ── Уведомления: вкл/выкл (по умолчанию включены) ─────────
+function bot_notify_enabled(int $tgId): bool
+{
+    try {
+        $st = db()->prepare('SELECT notify_enabled FROM players WHERE tg_user_id = ? LIMIT 1');
+        $st->execute([$tgId]);
+        $v = $st->fetchColumn();
+        return $v === false ? true : (bool)(int)$v; // нет записи → считаем включёнными
+    } catch (Throwable $e) {
+        return true;
+    }
+}
+
+function bot_set_notify(int $tgId, bool $on): void
+{
+    db()->prepare('UPDATE players SET notify_enabled = ? WHERE tg_user_id = ?')->execute([$on ? 1 : 0, $tgId]);
+}
+
+// Отправить уведомление игроку по player_id, уважая его настройку и привязку
+function bot_notify_player(int $playerId, string $text, ?string $markup = null): bool
+{
+    $st = db()->prepare('SELECT tg_user_id FROM players WHERE id = ? AND tg_user_id IS NOT NULL AND notify_enabled = 1');
+    $st->execute([$playerId]);
+    $tg = $st->fetchColumn();
+    if (!$tg) {
+        return false;
+    }
+    $r = bot_send((int)$tg, $text, $markup);
+    return $r && !empty($r['ok']);
+}
+
 // ── Рассылка ──────────────────────────────────────────────
 function bot_recipients(): array
 {
     return array_map('intval',
-        db()->query('SELECT tg_user_id FROM players WHERE tg_user_id IS NOT NULL')->fetchAll(PDO::FETCH_COLUMN));
+        db()->query('SELECT tg_user_id FROM players WHERE tg_user_id IS NOT NULL AND notify_enabled = 1')->fetchAll(PDO::FETCH_COLUMN));
 }
 
 function bot_broadcast(string $text): array
