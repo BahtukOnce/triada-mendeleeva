@@ -331,8 +331,10 @@ function tg_emojify(string $html): string
         $base = '\x{1F300}-\x{1FAFF}\x{1F000}-\x{1F0FF}\x{1F1E6}-\x{1F1FF}'
             . '\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2300}-\x{23FF}'
             . '\x{2122}\x{2139}\x{2194}-\x{21AA}\x{24C2}\x{2934}\x{2935}';
-        $mod = '\x{FE0F}\x{200D}\x{20E3}\x{1F3FB}-\x{1F3FF}';
-        $re = '/[' . $base . '](?:[' . $mod . $base . '])*/u';
+        // одна эмодзи = база + её модификаторы (VS16, тон кожи, кейкап);
+        // в одну картинку склеиваем только ZWJ-последовательности, а не соседние эмодзи
+        $one = '[' . $base . '][\x{FE0F}\x{1F3FB}-\x{1F3FF}\x{20E3}]*';
+        $re = '/' . $one . '(?:\x{200D}' . $one . ')*/u';
     }
     return (string)preg_replace_callback($re, function ($m) {
         $seq = $m[0];
