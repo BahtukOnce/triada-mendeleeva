@@ -359,6 +359,18 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
     } catch (Throwable $e) {
     }
     send_menu($chatId, $userId, "✅ Готово! Ты привязан к игроку <b>" . bot_esc($matched['name']) . "</b>.\nВыбирай кнопкой 👇");
+    // Дослать приглашения на турниры, отправленные до привязки к боту
+    try {
+        $pid = (int)$matched['player_id'];
+        $inv = db()->prepare("SELECT tp.tournament_id FROM tournament_participants tp
+            JOIN tournaments t ON t.id = tp.tournament_id
+            WHERE tp.player_id = ? AND tp.state = 'invited' AND t.status <> 'finished'");
+        $inv->execute([$pid]);
+        foreach ($inv->fetchAll(PDO::FETCH_COLUMN) as $tid) {
+            bot_tournament_invite((int)$tid, $pid);
+        }
+    } catch (Throwable $e) {
+    }
 }
 
 // ============================================================
