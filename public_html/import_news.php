@@ -142,8 +142,12 @@ for ($p = 0; $p < $pages; $p++) {
             continue; // пост без текста (только фото/видео) — пропускаем
         }
         $raw = node_inner_html($tnode);
+        // Кастомные/премиум-эмодзи Telegram (<tg-emoji>) публично недоступны и приходят
+        // «мусорными» fallback-символами (напр. 💬💬💬 вместо ролевых значков) — вырезаем их целиком.
+        $raw = (string)preg_replace('~<tg-emoji\b[^>]*>.*?</tg-emoji>~is', '', (string)$raw);
         $raw = preg_replace('/<br\s*\/?>/i', "\n", $raw);
         $text = trim(html_entity_decode(strip_tags((string)$raw), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $text = (string)preg_replace('/^[ \t]+/m', '', $text); // убрать отступы, оставшиеся от вырезанных эмодзи
         if ($text === '') {
             continue;
         }
