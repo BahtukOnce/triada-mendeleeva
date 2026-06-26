@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/bot_lib.php';
 $u = require_role('admin');
 $isOwner = $u['role'] === 'owner';
 
@@ -24,8 +25,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
             ->execute([password_hash($temp, PASSWORD_DEFAULT), $targetId]);
-        log_action((int)$u['id'], 'admin_password_reset', ['user_id' => $targetId]);
-        flash_set('ok', 'Новый пароль для «' . $target['nickname'] . '»: ' . $temp . ' — передайте игроку, пусть сменит в кабинете.');
+
+        // Если у игрока привязан Telegram — отправляем новый пароль ему в личку бота
+        $tgId = (int)($target['tg_user_id'] ?? 0);
+        $sent = false;
+        if ($tgId && bot_token() !== '') {
+            $res = bot_send($tgId,
+                "🔐 Администратор сбросил твой пароль на сайте «Триада Менделеева».\n\n"
+                . "Новый пароль: <code>" . esc($temp) . "</code>\n\n"
+                . "Зайди на сайт и смени его в Личном кабинете.");
+            $sent = is_array($res) && !empty($res['ok']);
+        }
+        log_action((int)$u['id'], 'admin_password_reset', ['user_id' => $targetId, 'via' => $sent ? 'telegram' : 'manual']);
+        if ($sent) {
+            flash_set('ok', 'Новый пароль отправлен «' . $target['nickname'] . '» в личку Telegram.');
+        } else {
+            $hint = $tgId ? ' (отправить в Telegram не удалось — передайте вручную)' : ' (Telegram не привязан — передайте вручную)';
+            flash_set('ok', 'Новый пароль для «' . $target['nickname'] . '»: ' . $temp . $hint . '. Пусть сменит в кабинете.');
+        }
         redirect('/admin/users.php');
     }
 
@@ -194,9 +211,14 @@ foreach ($list as $row) {
         echo '</select></form>';
     }
     echo '</td>';
-    echo '<td><form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Сбросить пароль ' . esc($row['nickname']) . '?\');">' . csrf_field();
+    $hasTg = !empty($row['tg_user_id']);
+    $resetLabel = $hasTg ? 'Сбросить → в Telegram' : 'Сбросить пароль';
+    $resetConfirm = $hasTg
+        ? 'Сбросить пароль ' . esc($row['nickname']) . '? Новый пароль придёт ему в личку бота.'
+        : 'Сбросить пароль ' . esc($row['nickname']) . '? Telegram не привязан — пароль покажется тебе.';
+    echo '<td><form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'' . $resetConfirm . '\');">' . csrf_field();
     echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
-    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">Сбросить пароль</button></form>';
+    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . esc($resetLabel) . '</button></form>';
     $canDelete = $rid !== (int)$u['id'] && ($isOwner || !in_array($row['role'], ['owner', 'admin'], true));
     if ($canDelete) {
         echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc($row['nickname']) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
