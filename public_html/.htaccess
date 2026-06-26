@@ -2,6 +2,8 @@ AddDefaultCharset utf-8
 DirectoryIndex index.php index.html
 ErrorDocument 404 /404.php
 
+AddType application/manifest+json .webmanifest
+
 RewriteEngine On
 RewriteRule ^robots\.txt$ robots.php [L]
 

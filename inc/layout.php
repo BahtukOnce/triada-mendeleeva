@@ -81,6 +81,12 @@ function page_head(string $title, string $active = '', array $meta = []): void
     }
     echo '<meta name="twitter:card" content="' . esc($card) . '">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
+    echo '<link rel="manifest" href="/manifest.webmanifest?v=1">';
+    echo '<meta name="theme-color" content="#0e0e11">';
+    echo '<link rel="apple-touch-icon" href="/assets/img/icon-192.png?v=1">';
+    echo '<meta name="apple-mobile-web-app-capable" content="yes">';
+    echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
+    echo '<meta name="apple-mobile-web-app-title" content="Триада">';
     echo '<link rel="stylesheet" href="/assets/css/style.css?v=64">';
     echo '</head><body>';
 
@@ -161,6 +167,7 @@ function page_foot(): void
        . '</span>';
     echo '</div></footer>';
     echo '<script src="/assets/js/app.js?v=15"></script>';
+    echo '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
     echo '</body></html>';
 }
 

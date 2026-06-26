@@ -1,0 +1,18 @@
+{
+  "name": "Триада Менделеева",
+  "short_name": "Триада",
+  "description": "Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "/index.php",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0e0e11",
+  "theme_color": "#0e0e11",
+  "icons": [
+    { "src": "/assets/img/icon-192.png?v=1", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/icon-512.png?v=1", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/icon-512.png?v=1", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
