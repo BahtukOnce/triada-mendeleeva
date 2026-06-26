@@ -160,14 +160,20 @@ if (user_can_judge(current_user())) {
 }
 
 // ── Состав участников (заявка/приглашения) ──
-$rosterRows = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar
-    FROM tournament_participants tp JOIN players p ON p.id = tp.player_id
-    WHERE tp.tournament_id = ? AND tp.state IN ('confirmed','invited')
-    ORDER BY (tp.state='confirmed') DESC, p.nickname");
-$rosterRows->execute([$id]);
-$rosterRows = $rosterRows->fetchAll();
+$mainRid = (int)(db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn() ?: 0);
+$rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.elo,
+        rc.games, (COALESCE(rc.w_civ,0)+COALESCE(rc.w_maf,0)+COALESCE(rc.w_sher,0)+COALESCE(rc.w_don,0)) AS wins
+    FROM tournament_participants tp
+    JOIN players p ON p.id = tp.player_id
+    LEFT JOIN rating_cache rc ON rc.player_id = tp.player_id AND rc.rating_id = ?
+    WHERE tp.tournament_id = ? AND tp.state IN ('confirmed','invited')");
+$rq->execute([$mainRid, $id]);
+$rosterRows = $rq->fetchAll();
 $rConfirmed = array_values(array_filter($rosterRows, fn($r) => $r['state'] === 'confirmed'));
 $rInvited = array_values(array_filter($rosterRows, fn($r) => $r['state'] === 'invited'));
+usort($rConfirmed, fn($a, $b) => (float)$b['elo'] <=> (float)$a['elo']); // сильнейшие выше
+usort($rInvited, fn($a, $b) => strcmp((string)$a['nickname'], (string)$b['nickname']));
+$avgElo = $rConfirmed ? (int)round(array_sum(array_map(fn($r) => (float)$r['elo'], $rConfirmed)) / count($rConfirmed)) : 0;
 
 $cu = current_user();
 $myPid = 0;
@@ -183,7 +189,10 @@ foreach ($rConfirmed as $r) {
 $regOpen = ($t['reg_mode'] ?? 'open') === 'open' && ($t['status'] ?? '') === 'reg_open';
 
 if ($rosterRows || $regOpen) {
-    echo '<div class="card"><h2 style="margin-top:0;">Участники' . ($rConfirmed ? ' <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . count($rConfirmed) . ')</span>' : '') . '</h2>';
+    echo '<div class="card"><h2 style="margin-top:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Участники'
+        . ($rConfirmed ? ' <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . count($rConfirmed) . ')</span>' : '')
+        . ($avgElo ? ' <span style="background:var(--acsf);color:var(--ac);font-size:13px;font-weight:700;padding:4px 11px;border-radius:20px;">средний ELO ' . $avgElo . '</span>' : '')
+        . '</h2>';
     if ($regOpen && $myPid) {
         $act = $iAmIn ? 'leave' : 'join';
         $lbl = $iAmIn ? 'Отменить запись' : 'Записаться на турнир';
@@ -194,10 +203,15 @@ if ($rosterRows || $regOpen) {
         echo '<p style="color:var(--tx3);"><a href="/login.php">Войди</a>, чтобы записаться на турнир.</p>';
     }
     if ($rConfirmed) {
-        echo '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+        echo '<div class="tp-grid">';
         foreach ($rConfirmed as $r) {
-            echo '<a href="/player.php?id=' . (int)$r['player_id'] . '" style="display:inline-flex;align-items:center;gap:7px;background:var(--sf2);border-radius:20px;padding:5px 13px 5px 5px;color:var(--tx);text-decoration:none;">'
-                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 24) . '<span>' . esc($r['nickname']) . '</span></a>';
+            $g = (int)$r['games'];
+            $sub = $g > 0 ? (round((int)$r['wins'] / $g * 100) . '% · ' . $g . ' игр') : 'нет игр';
+            echo '<a class="tp-card" href="/player.php?id=' . (int)$r['player_id'] . '">'
+                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 40)
+                . '<div class="tp-meta"><div class="tp-name">' . esc($r['nickname']) . '</div>'
+                . '<div class="tp-elo">ELO ' . (int)round((float)$r['elo']) . '</div>'
+                . '<div class="tp-sub">' . $sub . '</div></div></a>';
         }
         echo '</div>';
     }
