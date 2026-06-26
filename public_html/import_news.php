@@ -7,7 +7,7 @@
  *   Бэкофилл (история):   https://triada-mendeleeva.ru/import_news.php?key=<deploy_secret>&pages=20
  *   Свежие (для крона):   https://triada-mendeleeva.ru/import_news.php?key=<deploy_secret>
  *   Другой канал:         ...&channel=<username>
- *   CLI (крон Beget):     php public_html/import_news.php <deploy_secret> [pages]
+ *   CLI (крон Beget):     php public_html/import_news.php [pages]   (ключ не нужен)
  *
  * Дедупликация — по уникальному news.tg_msg_id (миграция 017): повторный запуск
  * не плодит дубли, а обновляет текст/дату изменённых постов.
@@ -58,6 +58,15 @@ if ($channel === '') {
 // CLI: число страниц — первым аргументом (по умолчанию 1). Веб: ?pages= (по умолчанию 20).
 $pages = $cli ? (int)($argv[1] ?? 1) : (int)($_GET['pages'] ?? 20);
 $pages = max(1, min(60, $pages));
+
+// Защита от наложения запусков (крон каждые 30 мин + возможный ручной импорт):
+// эксклюзивный неблокирующий flock. Если уже идёт импорт — тихо выходим.
+// Лок-файл в uploads/ — каталог гарантированно доступен на запись при open_basedir.
+$lockFp = @fopen(ROOT . '/public_html/uploads/.news_import.lock', 'c');
+if ($lockFp && !flock($lockFp, LOCK_EX | LOCK_NB)) {
+    echo "Импорт уже выполняется — пропускаем запуск.\n";
+    exit(0);
+}
 
 function tg_fetch(string $url): string
 {
