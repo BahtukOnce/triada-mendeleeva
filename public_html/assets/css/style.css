@@ -769,3 +769,18 @@ body::before {
   .pf-tiles { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .pf-elo { width: 100%; text-align: left; padding-left: 0; }
 }
+
+/* ── Мобильная версия: широкие таблицы, плитки, отступы ── */
+@media (max-width: 760px) {
+  /* Широкие таблицы (рейтинг, протоколы, админ-списки) скроллятся вбок,
+     а не «расплющиваются» в нечитаемую кашу на узком экране */
+  table.tbl { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  .container { padding: 0 14px; }
+  .vs-head { gap: 8px; }
+}
+@media (max-width: 560px) {
+  .pf-tiles { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .container { padding: 0 11px; }
+  .guest-title { font-size: 24px; }
+  .vs-h2h { grid-template-columns: 1fr; gap: 6px; }
+}
