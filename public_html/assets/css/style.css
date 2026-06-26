@@ -393,6 +393,9 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .jt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tx2); background: var(--sf2); border-radius: 18px; padding: 4px 12px 4px 4px; text-decoration: none; }
 .jt:hover { color: var(--tx); }
 .jt-no { color: var(--tx3); font-size: 11px; }
+/* Таблица участников турнира: «Игрок» забирает свободную ширину, остальные — по содержимому */
+.tp-name-col { width: 100%; }
+.tp-tbl th, .tp-tbl td { white-space: nowrap; }
 .post-imgs img { cursor: zoom-in; }
 .img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 22px; cursor: zoom-out; opacity: 0; transition: opacity .2s ease; }
 .img-lightbox.show { opacity: 1; }

@@ -259,8 +259,8 @@ if ($rosterRows || $regOpen) {
             }
             return implode(' ', $out);
         };
-        echo '<div style="overflow-x:auto;"><table class="tbl" style="width:auto;"><tr>'
-            . '<th class="num">#</th><th>Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
+        echo '<div style="overflow-x:auto;"><table class="tbl tp-tbl"><tr>'
+            . '<th class="num">#</th><th class="tp-name-col">Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
             . '<th>Любимая карта</th><th>Ср. доп по ролям <span style="color:var(--tx3);font-weight:400;font-size:11px;">мир/маф/шер/дон</span></th><th class="num">Клубный счёт</th></tr>';
         $pos = 0;
         foreach ($rConfirmed as $r) {
