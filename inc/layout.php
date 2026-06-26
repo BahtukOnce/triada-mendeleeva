@@ -61,7 +61,7 @@ function page_head(string $title, string $active = ''): void
     echo '<meta property="og:description" content="Клуб спортивной мафии РХТУ: вечера, турниры, рейтинг и статистика.">';
     echo '<meta property="og:image" content="' . esc($base) . '/assets/img/favicon.png">';
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=61">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=62">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -141,12 +141,6 @@ function page_foot(): void
        . '</span>';
     echo '</div></footer>';
     echo '<script src="/assets/js/app.js?v=14"></script>';
-    // Twemoji — единый вид эмодзи на всех устройствах
-    echo '<script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>';
-    echo '<script>(function(){function p(el){try{if(window.twemoji)twemoji.parse(el||document.body,'
-        . '{folder:"svg",ext:".svg",base:"https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/"});}catch(e){}}'
-        . 'window.twemojiParse=p;'
-        . 'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){p();});else p();})();</script>';
     echo '</body></html>';
 }
 

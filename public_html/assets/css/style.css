@@ -354,10 +354,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .post-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; display: inline-flex; align-items: center; gap: 7px; padding: 11px 20px; border-radius: 26px; background: var(--ac); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
 .post-video-cover:hover .post-video-play { background: var(--ac-h); }
 
-/* Twemoji — единые эмодзи-картинки */
-img.emoji { height: 1.1em; width: 1.1em; vertical-align: -0.15em; margin: 0 .03em; display: inline-block; }
-.post-video-play img.emoji, .react-btn img.emoji { height: 1.15em; width: 1.15em; }
-
 /* Модалка «Показать полностью» */
 .post-modal { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; }
 .post-modal[hidden] { display: none; }
