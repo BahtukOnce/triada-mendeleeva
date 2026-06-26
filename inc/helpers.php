@@ -188,6 +188,11 @@ function achievement_earners(): array
         foreach (db()->query("SELECT player_id, MAX(s) m FROM (SELECT player_id, gdate, SUM(delta) s FROM elo_history GROUP BY player_id, gdate) t GROUP BY player_id") as $r) {
             $eloDay[(int)$r['player_id']] = (float)$r['m'];
         }
+        // Пиковый ELO — ачивки уровней не исчезают, даже если ELO потом упал
+        $peakElo = [];
+        foreach (db()->query("SELECT player_id, MAX(elo_after) m FROM elo_history GROUP BY player_id") as $r) {
+            $peakElo[(int)$r['player_id']] = (float)$r['m'];
+        }
         // тройка в ЛХ
         $triples = [];
         foreach (db()->query("SELECT DISTINCT me.player_id FROM games g
@@ -213,6 +218,7 @@ function achievement_earners(): array
             $r = $rc[$pid] ?? null;
             $games = $r ? (int)$r['games'] : count($byPlayer[$pid] ?? []);
             $elo = $r ? (float)$r['elo'] : 1000;
+            $peak = max($elo, $peakElo[$pid] ?? 0); // для ачивок уровней — пиковый ELO
             $nick = $nickOf[$pid] ?? ('#' . $pid);
             // серии
             $maxW = 0; $w = 0; $blk = 0; $bsr = 0; $redW = 0; $rwsr = 0; $maxPlus = 0.0;
@@ -230,8 +236,8 @@ function achievement_earners(): array
                 'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
                 'black5' => $blk >= 5, 'red3' => $redW >= 3,
-                'elo1100' => $elo >= 1100, 'elo1300' => $elo >= 1300, 'elo1500' => $elo >= 1500,
-                'elo1700' => $elo >= 1700, 'elo1900' => $elo >= 1900, 'elo2100' => $elo >= 2100,
+                'elo1100' => $peak >= 1100, 'elo1300' => $peak >= 1300, 'elo1500' => $peak >= 1500,
+                'elo1700' => $peak >= 1700, 'elo1900' => $peak >= 1900, 'elo2100' => $peak >= 2100,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
                 'dop30' => $r && (float)$r['dop_sum'] >= 30, 'fatgame' => $maxPlus >= 1.0,
                 'triple' => isset($triples[$pid]),

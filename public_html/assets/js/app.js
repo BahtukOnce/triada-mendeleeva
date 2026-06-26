@@ -190,10 +190,11 @@
     cards.forEach(function (c) {
       c.addEventListener('mouseenter', function () { renderSide(c); });
     });
-    // Курсор ушёл из сетки достижений — вернуть пустую подсказку (иначе панель остаётся раскрытой)
-    var achMain = document.querySelector('.ach-main');
-    if (achMain) {
-      achMain.addEventListener('mouseleave', function () { sideInner.innerHTML = sideEmpty; });
+    // Сброс только когда курсор ушёл со всего блока (сетка + панель),
+    // чтобы можно было перейти на панель и листать список, не теряя его.
+    var achWrap = document.querySelector('.ach-wrap');
+    if (achWrap) {
+      achWrap.addEventListener('mouseleave', function () { sideInner.innerHTML = sideEmpty; });
     }
   }
 })();
