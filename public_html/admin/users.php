@@ -149,7 +149,7 @@ echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и п
 
 echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';
 echo '<form method="get" action="/admin/users.php" style="max-width:300px;flex:1;min-width:200px;">';
-echo '<div class="field" style="margin:0;"><input type="search" name="q" placeholder="Поиск по нику аккаунта" value="' . esc($q) . '"></div></form>';
+echo '<div class="field" style="margin:0;"><input type="search" id="user-search" autocomplete="off" name="q" placeholder="Поиск по нику аккаунта" value="' . esc($q) . '"></div></form>';
 echo '<a class="tag ' . ($onlyTg ? 'tag-open' : '') . '" href="/admin/users.php' . ($onlyTg ? '' : '?tg=1') . '">'
     . ($onlyTg ? 'показать всех' : 'только с Telegram') . '</a>';
 echo '</div>';
@@ -181,7 +181,8 @@ echo '<tr><th>Аккаунт</th><th>Имя</th><th>Telegram</th><th>Стату�
 foreach ($list as $row) {
     $rid = (int)$row['id'];
     $isAdminRow = $row['role'] === 'owner' || $row['role'] === 'admin';
-    echo '<tr><td><div style="display:flex;align-items:center;gap:8px;">' . ($row['online']
+    $searchText = mb_strtolower(trim($row['nickname'] . ' ' . ($row['player_nick'] ?? '') . ' ' . ($row['real_name'] ?? '') . ' ' . ($row['tg_username'] ?? '')));
+    echo '<tr data-search="' . esc($searchText) . '"><td><div style="display:flex;align-items:center;gap:8px;">' . ($row['online']
         ? '<span title="в сети" style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);"></span>'
         : '')
         . avatar_html(['nickname' => $row['player_nick'] ?: $row['nickname'], 'avatar' => $row['avatar']], 28)
@@ -241,5 +242,15 @@ echo '<script>(function(){'
     . 'var on=d.on;btn.classList.toggle("tag-open",on);btn.textContent=(on?"✓ ":"+ ")+label;valInp.value=on?"0":"1";'
     . 'var tr=f.closest("tr");if(tr&&d.status!==undefined){var st=tr.querySelector(".us-status");if(st){st.innerHTML=d.status;}}})'
     . '.catch(function(){btn.disabled=false;});});});})();</script>';
+
+// Живой поиск: фильтрация строк по мере набора (без перезагрузки)
+echo '<script>(function(){'
+    . 'var inp=document.getElementById("user-search");if(!inp)return;'
+    . 'var rows=document.querySelectorAll("table.tbl tr[data-search]");'
+    . 'function apply(){var q=inp.value.trim().toLowerCase();rows.forEach(function(r){'
+    . 'r.style.display=(!q||r.getAttribute("data-search").indexOf(q)!==-1)?"":"none";});}'
+    . 'inp.addEventListener("input",apply);'
+    . 'var form=inp.closest("form");if(form)form.addEventListener("submit",function(e){e.preventDefault();});'
+    . 'apply();})();</script>';
 
 page_foot();
