@@ -221,7 +221,7 @@ if (!empty($edit['table_judges'])) {
 }
 $allPlayers = db_ready() ? db()->query('SELECT id, nickname FROM players ORDER BY nickname')->fetchAll() : [];
 $judgeSelect = function (string $name, int $sel) use ($allPlayers): string {
-    $h = '<select name="' . $name . '"><option value="0">— не назначен —</option>';
+    $h = '<select name="' . $name . '" data-search="Поиск судьи…"><option value="0">— не назначен —</option>';
     foreach ($allPlayers as $p) {
         $h .= '<option value="' . (int)$p['id'] . '"' . ((int)$p['id'] === $sel ? ' selected' : '') . '>' . esc($p['nickname']) . '</option>';
     }
@@ -272,7 +272,7 @@ if ($edit) {
     echo '<div class="card"><h2 style="margin-top:0;">Состав участников <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . $confirmedN . ' в составе)</span></h2>';
     echo '<form method="post" action="/admin/tournaments.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">' . csrf_field();
     echo '<input type="hidden" name="id" value="' . $tid . '">';
-    echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required><option value="">— выбери игрока —</option>';
+    echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
     foreach ($allPlayers as $p) {
         if (in_array((int)$p['id'], $inRoster, true)) {
             continue;

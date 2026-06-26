@@ -277,10 +277,6 @@
     e.stopPropagation();
     showLb(im.currentSrc || im.src);
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && lb && !lb.hidden) hideLb();
-  });
-
   // эмодзи-картинки Telegram: если не загрузилась — вернуть системный символ (alt)
   document.addEventListener('error', function (e) {
     var t = e.target;
@@ -320,7 +316,70 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    if (lb && !lb.hidden) { lb.hidden = true; return; }
+    if (lb && !lb.hidden) { hideLb(); return; }
     closeModal();
   });
+
+  // ── Выпадашка с поиском: <select data-search> ──
+  function enhanceSearchSelect(sel) {
+    if (sel.dataset.ssDone) return;
+    sel.dataset.ssDone = '1';
+    var wrap = document.createElement('div');
+    wrap.className = 'ss-wrap';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    sel.style.display = 'none';
+    var input = document.createElement('input');
+    input.type = 'text'; input.className = 'ss-input'; input.autocomplete = 'off';
+    input.placeholder = sel.getAttribute('data-search') || 'Поиск…';
+    wrap.appendChild(input);
+    var menu = document.createElement('div');
+    menu.className = 'ss-menu'; menu.hidden = true;
+    wrap.appendChild(menu);
+    var opts = Array.prototype.map.call(sel.options, function (o) {
+      return { value: o.value, text: o.text, low: o.text.toLowerCase() };
+    });
+    function isEmpty(v) { return v === '' || v === '0'; }
+    function sync() {
+      var o = sel.options[sel.selectedIndex];
+      input.value = (o && !isEmpty(o.value)) ? o.text : '';
+    }
+    sync();
+    function choose(o) {
+      sel.value = o.value;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      input.value = isEmpty(o.value) ? '' : o.text;
+      menu.hidden = true;
+    }
+    function render(f) {
+      f = (f || '').toLowerCase().trim();
+      menu.innerHTML = ''; var shown = 0;
+      opts.forEach(function (o) {
+        if (isEmpty(o.value) && f) return;
+        if (f && o.low.indexOf(f) === -1) return;
+        if (shown >= 80) return;
+        shown++;
+        var it = document.createElement('div');
+        it.className = 'ss-item' + (o.value === sel.value ? ' sel' : '');
+        it.textContent = o.text;
+        it.addEventListener('mousedown', function (e) { e.preventDefault(); choose(o); });
+        menu.appendChild(it);
+      });
+      if (!shown) {
+        var n = document.createElement('div');
+        n.className = 'ss-item ss-none'; n.textContent = 'Ничего не найдено';
+        menu.appendChild(n);
+      }
+    }
+    input.addEventListener('focus', function () { render(''); menu.hidden = false; input.select(); });
+    input.addEventListener('input', function () { render(input.value); menu.hidden = false; });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !menu.hidden) { e.preventDefault(); }
+      else if (e.key === 'Escape') { menu.hidden = true; sync(); input.blur(); }
+    });
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) { menu.hidden = true; sync(); }
+    });
+  }
+  document.querySelectorAll('select[data-search]').forEach(enhanceSearchSelect);
 })();

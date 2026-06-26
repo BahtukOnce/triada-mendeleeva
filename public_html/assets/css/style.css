@@ -374,6 +374,13 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 
 /* Лайтбокс фото */
 img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline-block; margin: 0 .02em; object-fit: contain; }
+/* Выпадашка с поиском */
+.ss-wrap { position: relative; }
+.ss-menu { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; margin-top: 4px; max-height: 260px; overflow-y: auto; background: var(--sf); border: 1px solid var(--bd); border-radius: 10px; box-shadow: 0 16px 44px rgba(0,0,0,.55); }
+.ss-item { padding: 9px 12px; cursor: pointer; font-size: 14px; color: var(--tx); }
+.ss-item:hover, .ss-item.sel { background: var(--sf2); }
+.ss-item.sel { color: var(--ac); }
+.ss-none { color: var(--tx3); cursor: default; }
 .post-imgs img { cursor: zoom-in; }
 .img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 22px; cursor: zoom-out; opacity: 0; transition: opacity .2s ease; }
 .img-lightbox.show { opacity: 1; }
