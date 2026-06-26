@@ -147,6 +147,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (in_array($form, ['roster_add', 'roster_invite', 'roster_confirm', 'roster_remove'], true) && $id) {
         $pid = (int)($_POST['player_id'] ?? 0);
+        // добавлять/приглашать участников можно только при открытой регистрации
+        if (in_array($form, ['roster_add', 'roster_invite'], true)) {
+            $stt = db()->prepare('SELECT status FROM tournaments WHERE id = ?');
+            $stt->execute([$id]);
+            if ((string)($stt->fetchColumn() ?: '') !== 'reg_open') {
+                flash_set('err', 'Добавлять и приглашать участников можно только при статусе «Регистрация».');
+                redirect('/admin/tournaments.php?edit=' . $id);
+            }
+        }
         if ($pid) {
             if ($form === 'roster_remove') {
                 db()->prepare('DELETE FROM tournament_participants WHERE tournament_id=? AND player_id=?')->execute([$id, $pid]);
@@ -306,19 +315,23 @@ if ($edit) {
     echo '<div class="card"><h2 style="margin-top:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Состав участников '
         . '<span style="color:' . ($filled >= $cap ? 'var(--ok)' : 'var(--ac)') . ';font-weight:700;font-size:16px;">' . $filled . '/' . $cap . '</span>'
         . '<span style="display:inline-block;background:var(--oksf);color:var(--ok);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;">✓ подтвердили: ' . $confirmedN . '</span></h2>';
-    echo '<form method="post" action="/admin/tournaments.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">' . csrf_field();
-    echo '<input type="hidden" name="id" value="' . $tid . '">';
-    echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
-    foreach ($allPlayers as $p) {
-        if (in_array((int)$p['id'], $inRoster, true)) {
-            continue;
+    if (($edit['status'] ?? '') === 'reg_open') {
+        echo '<form method="post" action="/admin/tournaments.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">' . csrf_field();
+        echo '<input type="hidden" name="id" value="' . $tid . '">';
+        echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
+        foreach ($allPlayers as $p) {
+            if (in_array((int)$p['id'], $inRoster, true)) {
+                continue;
+            }
+            echo '<option value="' . (int)$p['id'] . '">' . esc($p['nickname']) . '</option>';
         }
-        echo '<option value="' . (int)$p['id'] . '">' . esc($p['nickname']) . '</option>';
+        echo '</select></div>';
+        echo '<button class="btn" type="submit" name="form" value="roster_add">В состав</button>';
+        echo '<button class="btn btn-ghost" type="submit" name="form" value="roster_invite">Пригласить через бота</button>';
+        echo '</form>';
+    } else {
+        echo '<p style="color:var(--tx2);margin:0 0 14px;background:var(--sf2);padding:11px 13px;border-radius:9px;">Добавлять и приглашать участников можно только при статусе <b style="color:var(--ac);">«Регистрация»</b>. Сейчас: <b>' . esc($statusLabel[$edit['status']] ?? (string)$edit['status']) . '</b>. Смени статус турнира выше и сохрани.</p>';
     }
-    echo '</select></div>';
-    echo '<button class="btn" type="submit" name="form" value="roster_add">В состав</button>';
-    echo '<button class="btn btn-ghost" type="submit" name="form" value="roster_invite">Пригласить через бота</button>';
-    echo '</form>';
 
     if ($rows) {
         echo '<div style="display:flex;flex-direction:column;gap:6px;">';

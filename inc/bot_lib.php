@@ -507,10 +507,14 @@ function bot_tournament_invite(int $tid, int $playerId): bool
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
         . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "")
         . "\nСможешь прийти?";
-    $markup = json_encode(['inline_keyboard' => [[
-        ['text' => '✅ Приду', 'callback_data' => 'tinv_yes:' . $tid],
-        ['text' => '❌ Не смогу', 'callback_data' => 'tinv_no:' . $tid],
-    ]]], JSON_UNESCAPED_UNICODE);
+    $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+    $markup = json_encode(['inline_keyboard' => [
+        [
+            ['text' => '✅ Приду', 'callback_data' => 'tinv_yes:' . $tid],
+            ['text' => '❌ Не смогу', 'callback_data' => 'tinv_no:' . $tid],
+        ],
+        [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],
+    ]], JSON_UNESCAPED_UNICODE);
     $r = bot_send((int)$tg, $text, $markup);
     return $r && !empty($r['ok']);
 }
@@ -536,6 +540,10 @@ function bot_tournament_judge_notify(int $tid, int $playerId, int $tableNo): boo
         . "Роль: <b>" . $role . "</b>\n"
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
         . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "");
-    $r = bot_send((int)$tg, $text);
+    $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+    $markup = json_encode(['inline_keyboard' => [
+        [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],
+    ]], JSON_UNESCAPED_UNICODE);
+    $r = bot_send((int)$tg, $text, $markup);
     return $r && !empty($r['ok']);
 }
