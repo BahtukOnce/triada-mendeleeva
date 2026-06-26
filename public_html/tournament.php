@@ -241,7 +241,9 @@ if ($rosterRows || $regOpen) {
             $netStr = $g > 0 ? (($net > 0 ? '+' : '') . $fmt1($net)) : '—';
             $netColor = $net > 0.001 ? 'var(--ok)' : ($net < -0.001 ? 'var(--ac)' : 'var(--tx2)');
             $score = $r['club_score'] !== null ? $fmt1($r['club_score']) : '—';
-            echo '<tr><td class="num" style="color:var(--tx3);">' . $pos . '</td>'
+            $medal = $pos <= 3 ? ['🥇', '🥈', '🥉'][$pos - 1] : (string)$pos;
+            $mine = ($myPid && (int)$r['player_id'] === $myPid);
+            echo '<tr' . ($mine ? ' style="background:var(--acsf);"' : '') . '><td class="num" style="color:var(--tx3);font-size:15px;">' . $medal . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$r['player_id'] . '" style="display:inline-flex;align-items:center;gap:9px;color:var(--tx);">'
                 . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 30) . '<b>' . esc($r['nickname']) . '</b></a></td>'
                 . '<td class="num" style="color:var(--ac);font-weight:700;">' . (int)round((float)$r['elo']) . '</td>'
