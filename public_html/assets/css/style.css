@@ -381,6 +381,9 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .ss-item:hover, .ss-item.sel { background: var(--sf2); }
 .ss-item.sel { color: var(--ac); }
 .ss-none { color: var(--tx3); cursor: default; }
+.bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; color: var(--tx2); text-decoration: none; flex: none; }
+.bell:hover { background: var(--sf2); color: var(--tx); }
+.bell-badge { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--ac); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
 .post-imgs img { cursor: zoom-in; }
 .img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 22px; cursor: zoom-out; opacity: 0; transition: opacity .2s ease; }
 .img-lightbox.show { opacity: 1; }

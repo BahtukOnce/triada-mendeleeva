@@ -87,7 +87,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=68">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=69">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -111,6 +111,11 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<div class="header-right">';
 
     if ($u) {
+        $unread = app_notify_unread((int)$u['id']);
+        echo '<a class="bell" href="/notifications.php" aria-label="Уведомления" title="Уведомления">'
+            . '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+            . ($unread ? '<span class="bell-badge">' . ($unread > 99 ? '99+' : (int)$unread) . '</span>' : '')
+            . '</a>';
         $roleCls = role_level($u['role']) >= 3 ? 'role-admin' : (user_can_judge($u) ? 'role-judge' : 'role-player');
         $pillDot = (role_level($u['role']) >= 3 && admin_alerts() > 0) ? '<span class="pill-dot" title="есть новые предложения/заявки"></span>' : '';
         echo '<div class="user-pill-wrap"><button class="user-pill ' . $roleCls . '" id="user-pill">' . esc($u['nickname']) . $pillDot . '</button>';

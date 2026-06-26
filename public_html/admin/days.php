@@ -40,11 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $note = '';
             if ($prev !== $to) {
                 try {
+                    $dtt = db()->prepare('SELECT title FROM game_days WHERE id = ?');
+                    $dtt->execute([$id]);
+                    $dtitle = (string)($dtt->fetchColumn() ?: 'вечер');
                     if ($to === 'reg_open') {
                         $n = bot_notify_day_open($id);
+                        app_notify_all_members('📅 Открыта запись на вечер «' . $dtitle . '» — записывайся!', '/days.php');
                         $note = $n ? " · анонс отправлен ($n)" : '';
                     } elseif ($to === 'finished') {
                         $n = bot_notify_day_results($id);
+                        $pq = db()->prepare('SELECT DISTINCT gs.player_id FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.day_id = ?');
+                        $pq->execute([$id]);
+                        foreach ($pq->fetchAll(PDO::FETCH_COLUMN) as $pid) {
+                            app_notify_player((int)$pid, '🎲 Итоги вечера «' . $dtitle . '» готовы — смотри свою статистику', '/my_games.php');
+                        }
                         $note = $n ? " · итоги отправлены ($n)" : '';
                     }
                 } catch (Throwable $e) {

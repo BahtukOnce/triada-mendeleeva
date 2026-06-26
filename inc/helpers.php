@@ -382,6 +382,58 @@ function render_post_body(?string $raw): string
     return nl2br($out);
 }
 
+// ── Уведомления на сайте (колокольчик) ───────────────────
+function app_notify(int $userId, string $text, ?string $link = null): void
+{
+    if ($userId <= 0) {
+        return;
+    }
+    try {
+        db()->prepare('INSERT INTO notifications (user_id, text, link) VALUES (?,?,?)')
+            ->execute([$userId, mb_substr($text, 0, 500), $link]);
+    } catch (Throwable $e) {
+    }
+}
+
+// Уведомить игрока (если у него есть аккаунт на сайте)
+function app_notify_player(int $playerId, string $text, ?string $link = null): void
+{
+    try {
+        $st = db()->prepare('SELECT user_id FROM players WHERE id = ? AND user_id IS NOT NULL');
+        $st->execute([$playerId]);
+        $uid = (int)($st->fetchColumn() ?: 0);
+        if ($uid) {
+            app_notify($uid, $text, $link);
+        }
+    } catch (Throwable $e) {
+    }
+}
+
+// Уведомить всех участников клуба (у кого есть аккаунт и привязан игрок)
+function app_notify_all_members(string $text, ?string $link = null): void
+{
+    try {
+        db()->prepare('INSERT INTO notifications (user_id, text, link)
+            SELECT DISTINCT p.user_id, ?, ? FROM players p WHERE p.user_id IS NOT NULL')
+            ->execute([mb_substr($text, 0, 500), $link]);
+    } catch (Throwable $e) {
+    }
+}
+
+function app_notify_unread(int $userId): int
+{
+    if ($userId <= 0) {
+        return 0;
+    }
+    try {
+        $st = db()->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0');
+        $st->execute([$userId]);
+        return (int)$st->fetchColumn();
+    } catch (Throwable $e) {
+        return 0;
+    }
+}
+
 // Доступные реакции на новости (фиксированный набор — валидируется на сервере).
 function news_react_emojis(): array
 {

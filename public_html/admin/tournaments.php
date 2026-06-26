@@ -129,6 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,'invited','admin')
                     ON DUPLICATE KEY UPDATE state='invited'")->execute([$id, $pid]);
                 $sent = bot_tournament_invite($id, $pid);
+                $tt = db()->prepare('SELECT title FROM tournaments WHERE id = ?');
+                $tt->execute([$id]);
+                app_notify_player($pid, '🎟 Тебя пригласили на турнир «' . (string)($tt->fetchColumn() ?: 'турнир') . '»', '/tournament.php?id=' . $id);
                 flash_set('ok', $sent ? 'Приглашение отправлено в Telegram' : 'Добавлен как приглашённый (в Telegram не ушло — игрок не привязал бота)');
             } else { // roster_add / roster_confirm
                 db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,'confirmed','admin')
