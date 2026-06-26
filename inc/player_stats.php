@@ -272,7 +272,7 @@ function render_player_stats(int $id, bool $own = false): void
             if ($r === 'W') { $rw++; $rl = 0; } elseif ($r === 'L') { $rl++; $rw = 0; } else { $rw = 0; $rl = 0; }
             $maxW = max($maxW, $rw); $maxL = max($maxL, $rl);
         }
-        $form = array_reverse(array_slice($formRows, 0, 10)); // последние 10, новые справа
+        $form = array_reverse(array_slice($formRows, 0, 20)); // последние 20, новые справа
         $roleAb = ['civ' => 'мир', 'sheriff' => 'шер', 'maf' => 'маф', 'don' => 'дон'];
 
         echo '<div class="grid-2eq">';
@@ -283,10 +283,11 @@ function render_player_stats(int $id, bool $own = false): void
         echo '<div><div style="font-size:32px;font-weight:750;color:' . $stColor . ';line-height:1;">' . ($curStreak ?: '—') . '</div><div style="font-size:12px;color:var(--tx2);margin-top:3px;">' . $stType . '</div></div>';
         echo '<div style="color:var(--tx2);font-size:13px;line-height:1.7;">макс. побед подряд: <b style="color:var(--tx);">' . $maxW . '</b><br>макс. поражений подряд: <b style="color:var(--tx);">' . $maxL . '</b></div>';
         echo '</div>';
-        echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние 10 игр (новые справа):</div><div style="display:flex;gap:5px;flex-wrap:wrap;">';
+        echo '<div style="font-size:12px;color:var(--tx2);margin:14px 0 5px;">последние ' . count($form) . ' игр (новые справа):</div>';
+        echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:5px;">';
         foreach ($form as $fr) {
             $c = $fr['res'] === 'W' ? 'var(--ok)' : ($fr['res'] === 'L' ? 'var(--ac)' : 'var(--tx3)');
-            echo '<span style="padding:3px 8px;border-radius:6px;background:' . $c . ';display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;color:#fff;font-weight:600;">' . ($roleAb[$fr['role']] ?? '?') . '</span>';
+            echo '<span style="padding:7px 0;border-radius:6px;background:' . $c . ';display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:600;">' . ($roleAb[$fr['role']] ?? '?') . '</span>';
         }
         echo '</div></div>';
 
