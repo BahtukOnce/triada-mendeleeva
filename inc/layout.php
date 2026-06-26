@@ -87,7 +87,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=66">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=67">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
@@ -166,7 +166,7 @@ function page_foot(): void
        . '<a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=16"></script>';
+    echo '<script src="/assets/js/app.js?v=17"></script>';
     echo '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
     echo '</body></html>';
 }

@@ -281,6 +281,14 @@
     if (e.key === 'Escape' && lb && !lb.hidden) hideLb();
   });
 
+  // эмодзи-картинки Telegram: если не загрузилась — вернуть системный символ (alt)
+  document.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && t.tagName === 'IMG' && t.className && ('' + t.className).indexOf('tg-e') !== -1 && t.parentNode) {
+      t.parentNode.replaceChild(document.createTextNode(t.getAttribute('alt') || ''), t);
+    }
+  }, true);
+
   // ── реакции (эмодзи) ──
   function paintReactions(bar, counts, mine) {
     bar.querySelectorAll('.react-btn').forEach(function (b) {

@@ -322,6 +322,29 @@ function media_embed(string $url): ?string
     return null;
 }
 
+// Эмодзи → картинки Telegram (Apple-стиль). Имя файла = hex UTF-8 байтов без VS16.
+// Если картинка не загрузится — JS заменит её на системный символ (alt).
+function tg_emojify(string $html): string
+{
+    static $re = null;
+    if ($re === null) {
+        $base = '\x{1F300}-\x{1FAFF}\x{1F000}-\x{1F0FF}\x{1F1E6}-\x{1F1FF}'
+            . '\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2300}-\x{23FF}'
+            . '\x{2122}\x{2139}\x{2194}-\x{21AA}\x{24C2}\x{2934}\x{2935}';
+        $mod = '\x{FE0F}\x{200D}\x{20E3}\x{1F3FB}-\x{1F3FF}';
+        $re = '/[' . $base . '](?:[' . $mod . $base . '])*/u';
+    }
+    return (string)preg_replace_callback($re, function ($m) {
+        $seq = $m[0];
+        $clean = str_replace("\xEF\xB8\x8F", '', $seq); // VS16 (U+FE0F) Telegram в имени файла не использует
+        if ($clean === '') {
+            return $seq;
+        }
+        return '<img class="tg-e" src="//telegram.org/img/emoji/40/' . strtoupper(bin2hex($clean))
+            . '.png" alt="' . htmlspecialchars($seq, ENT_QUOTES, 'UTF-8') . '" loading="lazy">';
+    }, $html);
+}
+
 // Рендер текста поста: экранирование + кликабельные ссылки/видео + ссылки на игроков + переносы строк.
 function render_post_body(?string $raw): string
 {
@@ -351,7 +374,7 @@ function render_post_body(?string $raw): string
                     return $id ? '<a class="pl-mention" href="/player.php?id=' . $id . '">' . $m[1] . '</a>' : $m[1];
                 }, $esc);
             }
-            $out .= $esc;
+            $out .= tg_emojify($esc);
         }
     }
     return nl2br($out);
