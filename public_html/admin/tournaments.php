@@ -15,7 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $df = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['date_from'] ?? '')) ? $_POST['date_from'] : null;
         $dt = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['date_to'] ?? '')) ? $_POST['date_to'] : null;
-        $loc = trim((string)($_POST['location'] ?? '')) ?: null;
+        $locSel = (string)($_POST['location_sel'] ?? '');
+        $loc = $locSel === '__other' ? trim((string)($_POST['location_other'] ?? '')) : trim($locSel);
+        $loc = $loc !== '' ? $loc : null;
         $desc = trim((string)($_POST['description'] ?? '')) ?: null;
         $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'finished'], true) ? $_POST['status'] : 'draft';
         $tables = max(1, min(6, (int)($_POST['tables_count'] ?? 1)));
@@ -113,7 +115,20 @@ echo '<div class="field"><label>Название</label><input type="text" name=
 echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
 echo '<div class="field"><label>Дата с</label><input type="date" name="date_from" value="' . esc($edit['date_from'] ?? '') . '"></div>';
 echo '<div class="field"><label>Дата по</label><input type="date" name="date_to" value="' . esc($edit['date_to'] ?? '') . '"></div>';
-echo '<div class="field"><label>Место</label><input type="text" name="location" value="' . esc($edit['location'] ?? '') . '"></div>';
+$loc = (string)($edit['location'] ?? '');
+$locPresets = ['Тушино', 'Миусы'];
+$locOther = $loc !== '' && !in_array($loc, $locPresets, true);
+echo '<div class="field"><label>Место</label>';
+echo '<select name="location_sel" id="loc-sel">';
+echo '<option value=""' . ($loc === '' ? ' selected' : '') . '>— не указано —</option>';
+foreach ($locPresets as $lp) {
+    echo '<option value="' . esc($lp) . '"' . ($loc === $lp ? ' selected' : '') . '>' . esc($lp) . '</option>';
+}
+echo '<option value="__other"' . ($locOther ? ' selected' : '') . '>другое…</option>';
+echo '</select>';
+echo '<input type="text" name="location_other" id="loc-other" placeholder="Своё место" value="' . ($locOther ? esc($loc) : '') . '" style="margin-top:8px;' . ($locOther ? '' : 'display:none;') . '">';
+echo '<script>(function(){var s=document.getElementById("loc-sel"),o=document.getElementById("loc-other");if(!s||!o)return;s.addEventListener("change",function(){o.style.display=s.value==="__other"?"":"none";});})();</script>';
+echo '</div>';
 echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"></div>';
 echo '</div>';
 
@@ -152,14 +167,16 @@ $judgeSelect = function (string $name, int $sel) use ($allPlayers): string {
 };
 echo '<div class="field"><label>Главный судья <span style="color:var(--tx3);font-weight:400;">(по умолчанию судит стол 1)</span></label>'
     . $judgeSelect('main_judge', (int)($edit['main_judge_player_id'] ?? 0)) . '</div>';
-echo '<div class="field"><label>Судьи столов</label>';
-echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
-for ($i = 0; $i < $tcount; $i++) {
-    echo '<div><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . ($i === 0 ? ' (главный)' : '') . '</div>'
-        . $judgeSelect('table_judges[]', (int)($tjudges[$i] ?? 0)) . '</div>';
+if ($tcount > 1) {
+    echo '<div class="field"><label>Судьи столов 2–' . $tcount . '</label>';
+    echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
+    for ($i = 1; $i < $tcount; $i++) {
+        echo '<div><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . '</div>'
+            . $judgeSelect('table_judges[' . $i . ']', (int)($tjudges[$i] ?? 0)) . '</div>';
+    }
+    echo '</div>';
+    echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Стол 1 судит главный судья — отдельно назначать не нужно.</p></div>';
 }
-echo '</div>';
-echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Стол 1 по умолчанию судит главный судья — можно оставить «не назначен».</p></div>';
 
 echo '<div class="field"><label>Статус</label><select name="status">';
 foreach ($statusLabel as $sk => $sl) {
