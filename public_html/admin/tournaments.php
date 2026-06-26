@@ -3,10 +3,40 @@ require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require_once ROOT . '/inc/bot_lib.php';
 $u = require_judge();
 
+// Право редактировать турнир: владелец/админ — всегда; судья — только если он
+// главный судья этого турнира (его игрок == судья стола 1 == main_judge_player_id).
+$isAdmin = role_level($u['role']) >= 3;
+$myPid = 0;
+if (db_ready()) {
+    $mp = db()->prepare('SELECT id FROM players WHERE user_id = ? LIMIT 1');
+    $mp->execute([(int)$u['id']]);
+    $myPid = (int)($mp->fetchColumn() ?: 0);
+}
+$canEditT = function (?array $t) use ($isAdmin, $myPid): bool {
+    if ($isAdmin) {
+        return true;
+    }
+    if (!$t) {
+        return true; // новый турнир может создать любой судья
+    }
+    return $myPid > 0 && (int)($t['main_judge_player_id'] ?? 0) === $myPid;
+};
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $form = (string)($_POST['form'] ?? '');
     $id = (int)($_POST['id'] ?? 0);
+
+    // Любые операции над существующим турниром — только тому, кто вправе его редактировать
+    if ($id) {
+        $gate = db()->prepare('SELECT main_judge_player_id FROM tournaments WHERE id = ?');
+        $gate->execute([$id]);
+        $gateRow = $gate->fetch();
+        if ($gateRow && !$canEditT($gateRow)) {
+            flash_set('err', 'Редактировать этот турнир может только его главный судья');
+            redirect('/tournament.php?id=' . $id);
+        }
+    }
 
     if ($form === 'save') {
         $title = trim((string)($_POST['title'] ?? ''));
@@ -32,13 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $placesJson = array_filter($places) ? json_encode($places, JSON_UNESCAPED_UNICODE) : null;
 
-        // Судьи: главный + по столам (позиционный массив id, индекс = стол − 1)
-        $mainJudge = (int)($_POST['main_judge'] ?? 0) ?: null;
+        // Судьи столов (позиционный массив id, индекс = стол − 1); судья стола 1 = главный
         $tj = (array)($_POST['table_judges'] ?? []);
         $judges = [];
         for ($i = 0; $i < $tables; $i++) {
             $judges[] = (int)($tj[$i] ?? 0) ?: null;
         }
+        $mainJudge = $judges[0] ?? null;
         $judgesJson = array_filter($judges) ? json_encode($judges) : null;
 
         if ($id) {
@@ -124,6 +154,10 @@ if ($editId) {
     $st->execute([$editId]);
     $edit = $st->fetch() ?: null;
 }
+if ($edit && !$canEditT($edit)) {
+    flash_set('err', 'Этот турнир редактирует только его главный судья — открыл просмотр.');
+    redirect('/tournament.php?id=' . (int)$edit['id']);
+}
 $list = db_ready() ? db()->query('SELECT * FROM tournaments ORDER BY date_from DESC, id DESC')->fetchAll() : [];
 $statusLabel = ['draft' => 'черновик', 'announced' => 'анонс', 'reg_open' => 'регистрация', 'live' => 'идёт', 'finished' => 'завершён'];
 
@@ -193,18 +227,13 @@ $judgeSelect = function (string $name, int $sel) use ($allPlayers): string {
     }
     return $h . '</select>';
 };
-echo '<div class="field"><label>Главный судья <span style="color:var(--tx3);font-weight:400;">(по умолчанию судит стол 1)</span></label>'
-    . $judgeSelect('main_judge', (int)($edit['main_judge_player_id'] ?? 0)) . '</div>';
-if ($tcount > 1) {
-    echo '<div class="field"><label>Судьи столов 2–' . $tcount . '</label>';
-    echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
-    for ($i = 1; $i < $tcount; $i++) {
-        echo '<div><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . '</div>'
-            . $judgeSelect('table_judges[' . $i . ']', (int)($tjudges[$i] ?? 0)) . '</div>';
-    }
-    echo '</div>';
-    echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Стол 1 судит главный судья — отдельно назначать не нужно.</p></div>';
+echo '<div class="field"><label>Судьи столов <span style="color:var(--tx3);font-weight:400;">(кто на столе 1 — тот и главный судья)</span></label>';
+echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
+for ($i = 0; $i < $tcount; $i++) {
+    echo '<div><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . ($i === 0 ? ' · главный' : '') . '</div>'
+        . $judgeSelect('table_judges[' . $i . ']', (int)($tjudges[$i] ?? 0)) . '</div>';
 }
+echo '</div></div>';
 
 echo '<div class="field"><label>Статус</label><select name="status">';
 foreach ($statusLabel as $sk => $sl) {
@@ -289,10 +318,16 @@ if ($list) {
         echo '<td><a href="/tournament.php?id=' . (int)$t['id'] . '">' . esc($t['title']) . '</a></td>';
         echo '<td><span class="tag">' . ($statusLabel[$t['status']] ?? $t['status']) . '</span></td>';
         echo '<td class="num">' . (int)$t['tables_count'] . '</td>';
-        echo '<td><a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/tournaments.php?edit=' . (int)$t['id'] . '">Изменить</a> ';
-        echo '<form method="post" action="/admin/tournaments.php" style="display:inline;" onsubmit="return confirm(\'Удалить турнир и все его игры?\');">' . csrf_field();
-        echo '<input type="hidden" name="form" value="delete"><input type="hidden" name="id" value="' . (int)$t['id'] . '">';
-        echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form></td></tr>';
+        echo '<td>';
+        if ($canEditT($t)) {
+            echo '<a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/tournaments.php?edit=' . (int)$t['id'] . '">Изменить</a> ';
+            echo '<form method="post" action="/admin/tournaments.php" style="display:inline;" onsubmit="return confirm(\'Удалить турнир и все его игры?\');">' . csrf_field();
+            echo '<input type="hidden" name="form" value="delete"><input type="hidden" name="id" value="' . (int)$t['id'] . '">';
+            echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
+        } else {
+            echo '<a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/tournament.php?id=' . (int)$t['id'] . '">Открыть</a>';
+        }
+        echo '</td></tr>';
     }
     echo '</table></div>';
 }

@@ -1,14 +1,18 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
 
+$isJudge = user_can_judge(current_user());
 $list = [];
 if (db_ready()) {
+    // Судьи видят турниры в любом статусе; остальные — без черновиков
+    $where = $isJudge ? '' : "WHERE t.status <> 'draft'";
     $list = db()->query('SELECT t.*,
-            (SELECT COUNT(*) FROM tournament_regs r WHERE r.tournament_id = t.id) AS regs_cnt,
+            (SELECT COUNT(*) FROM tournament_participants tp WHERE tp.tournament_id = t.id AND tp.state = \'confirmed\') AS roster_cnt,
             (SELECT COUNT(DISTINCT gs.player_id) FROM games g
                 JOIN game_seats gs ON gs.game_id = g.id
                 WHERE g.tournament_id = t.id) AS players_cnt
         FROM tournaments t
+        ' . $where . '
         ORDER BY t.date_from DESC, t.id DESC LIMIT 50')->fetchAll();
 }
 
@@ -20,14 +24,16 @@ $statusLabel = [
 page_head('Турниры', 'tournaments');
 echo '<h1>Турниры</h1>';
 
-if (user_can_judge(current_user())) {
+if ($isJudge) {
     echo '<p style="margin:-6px 0 14px;"><a class="btn" href="/admin/tournaments.php">+ Создать турнир / управлять</a></p>';
 }
 
 if ($list) {
     foreach ($list as $t) {
         $tag = $t['status'] === 'reg_open' ? 'tag-open' : ($t['status'] === 'finished' ? '' : 'tag-ok');
-        echo '<a class="card card-link t-card" href="/tournament.php?id=' . (int)$t['id'] . '">';
+        // Черновик у судьи открывается сразу в редакторе
+        $href = ($t['status'] === 'draft' && $isJudge) ? '/admin/tournaments.php?edit=' . (int)$t['id'] : '/tournament.php?id=' . (int)$t['id'];
+        echo '<a class="card card-link t-card" href="' . $href . '">';
         if (!empty($t['logo'])) {
             echo '<span class="t-logo"><img src="' . esc($t['logo']) . '" alt=""></span>';
         }
@@ -38,7 +44,7 @@ if ($list) {
         if ($t['date_to'] && $t['date_to'] !== $t['date_from']) {
             $dates .= ' — ' . date('d.m.Y', strtotime($t['date_to']));
         }
-        $participants = (int)$t['players_cnt'] > 0 ? (int)$t['players_cnt'] : (int)$t['regs_cnt'];
+        $participants = (int)$t['players_cnt'] > 0 ? (int)$t['players_cnt'] : (int)$t['roster_cnt'];
         echo '<p class="t-meta">'
             . esc($dates)
             . ($t['location'] ? ' · ' . esc($t['location']) : '')
