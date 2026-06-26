@@ -188,7 +188,7 @@ if ($edit && !$canEditT($edit)) {
     redirect('/tournament.php?id=' . (int)$edit['id']);
 }
 $list = db_ready() ? db()->query('SELECT * FROM tournaments ORDER BY date_from DESC, id DESC')->fetchAll() : [];
-$statusLabel = ['draft' => 'черновик', 'announced' => 'анонс', 'reg_open' => 'регистрация', 'live' => 'идёт', 'finished' => 'завершён'];
+$statusLabel = ['draft' => 'Черновик', 'announced' => 'Анонс', 'reg_open' => 'Регистрация', 'live' => 'Идёт', 'finished' => 'Завершён'];
 
 page_head('Админка — турниры', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Турниры</h1>';
