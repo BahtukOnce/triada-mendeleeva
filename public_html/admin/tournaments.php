@@ -108,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         log_action((int)$u['id'], 'tournament_save', ['id' => $id]);
         flash_set('ok', 'Турнир сохранён');
-        redirect('/admin/tournaments.php');
+        redirect('/admin/tournaments.php?edit=' . $id);
     }
 
     if ($form === 'delete' && $id) {
@@ -268,11 +268,15 @@ if ($edit) {
     $rq->execute([$tid]);
     $rows = $rq->fetchAll();
     $inRoster = array_map('intval', array_column($rows, 'player_id'));
+    $cap = max(1, (int)($edit['tables_count'] ?? 1)) * 10; // 10 игроков на стол
+    $filled = count(array_filter($rows, fn($r) => $r['state'] !== 'declined'));
     $confirmedN = count(array_filter($rows, fn($r) => $r['state'] === 'confirmed'));
     $stLabel = ['confirmed' => 'в составе', 'invited' => 'приглашён', 'declined' => 'отказался'];
     $stColor = ['confirmed' => 'var(--ok)', 'invited' => 'var(--tx2)', 'declined' => 'var(--ac)'];
 
-    echo '<div class="card"><h2 style="margin-top:0;">Состав участников <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . $confirmedN . ' в составе)</span></h2>';
+    echo '<div class="card"><h2 style="margin-top:0;">Состав участников '
+        . '<span style="color:' . ($filled >= $cap ? 'var(--ok)' : 'var(--ac)') . ';font-weight:700;font-size:16px;">' . $filled . '/' . $cap . '</span> '
+        . '<span style="color:var(--tx3);font-weight:400;font-size:13px;">· подтвердили: ' . $confirmedN . '</span></h2>';
     echo '<form method="post" action="/admin/tournaments.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">' . csrf_field();
     echo '<input type="hidden" name="id" value="' . $tid . '">';
     echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
@@ -289,8 +293,14 @@ if ($edit) {
 
     if ($rows) {
         echo '<div style="display:flex;flex-direction:column;gap:6px;">';
+        $num = 0;
         foreach ($rows as $r) {
-            echo '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--sf2);border-radius:9px;">';
+            $isDecl = $r['state'] === 'declined';
+            if (!$isDecl) {
+                $num++;
+            }
+            echo '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--sf2);border-radius:9px;' . ($isDecl ? 'opacity:.5;' : '') . '">';
+            echo '<span style="width:26px;text-align:right;color:var(--tx3);font-variant-numeric:tabular-nums;flex:none;font-size:13px;">' . ($isDecl ? '—' : $num . '.') . '</span>';
             echo !empty($r['avatar'])
                 ? '<img src="' . esc($r['avatar']) . '" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none;">'
                 : '<span style="width:28px;height:28px;border-radius:50%;background:var(--bd);flex:none;"></span>';
