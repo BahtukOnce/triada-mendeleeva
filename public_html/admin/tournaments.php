@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $loc = $locSel === '__other' ? trim((string)($_POST['location_other'] ?? '')) : trim($locSel);
         $loc = $loc !== '' ? $loc : null;
         $desc = trim((string)($_POST['description'] ?? '')) ?: null;
+        $dressCode = trim((string)($_POST['dress_code'] ?? '')) ?: null;
         $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'finished'], true) ? $_POST['status'] : 'draft';
         $tables = max(1, min(6, (int)($_POST['tables_count'] ?? 1)));
         $regMode = (($_POST['reg_mode'] ?? 'open') === 'closed') ? 'closed' : 'open';
@@ -86,11 +87,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($id) {
-            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=?, reg_mode=? WHERE id=?')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode, $id]);
+            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, dress_code=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=?, reg_mode=? WHERE id=?')
+                ->execute([$title, $df, $dt, $loc, $desc, $dressCode, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode, $id]);
         } else {
-            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count, table_places, main_judge_player_id, table_judges, reg_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode]);
+            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, dress_code, status, tables_count, table_places, main_judge_player_id, table_judges, reg_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$title, $df, $dt, $loc, $desc, $dressCode, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode]);
             $id = (int)db()->lastInsertId();
         }
         $cropped = (string)($_POST['logo_cropped'] ?? '');
@@ -213,7 +214,7 @@ echo '</select>';
 echo '<input type="text" name="location_other" id="loc-other" placeholder="Своё место" value="' . ($locOther ? esc($loc) : '') . '" style="margin-top:8px;' . ($locOther ? '' : 'display:none;') . '">';
 echo '<script>(function(){var s=document.getElementById("loc-sel"),o=document.getElementById("loc-other");if(!s||!o)return;s.addEventListener("change",function(){o.style.display=s.value==="__other"?"":"none";});})();</script>';
 echo '</div>';
-echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"></div>';
+echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" id="tables-count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"></div>';
 echo '</div>';
 
 $rmode = (string)($edit['reg_mode'] ?? 'open');
@@ -233,11 +234,11 @@ if (!empty($edit['table_places'])) {
 $tcount = max(1, (int)($edit['tables_count'] ?? 1));
 echo '<div class="field"><label>Места столов</label>';
 echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
-for ($i = 0; $i < $tcount; $i++) {
-    echo '<input type="text" name="table_places[]" placeholder="Стол ' . ($i + 1) . ' — место" value="' . esc($tplaces[$i] ?? '') . '">';
+for ($i = 0; $i < 6; $i++) {
+    echo '<input type="text" name="table_places[' . $i . ']" class="place-cell" data-ti="' . $i . '" placeholder="Стол ' . ($i + 1) . ' — место" value="' . esc($tplaces[$i] ?? '') . '"' . ($i >= $tcount ? ' style="display:none;"' : '') . '>';
 }
 echo '</div>';
-echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">Полей столько же, сколько «Столов». Изменишь число — сохрани и снова открой турнир, поля обновятся.</p></div>';
+echo '<p style="color:var(--tx3);font-size:12px;margin:6px 0 0;">По одному полю на стол — появляются по числу «Столов».</p></div>';
 
 // Судьи турнира: главный + по столам
 $tjudges = [];
@@ -257,11 +258,13 @@ $judgeSelect = function (string $name, int $sel) use ($allPlayers): string {
 };
 echo '<div class="field"><label>Судьи столов <span style="color:var(--tx3);font-weight:400;">(кто на столе 1 — тот и главный судья)</span></label>';
 echo '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">';
-for ($i = 0; $i < $tcount; $i++) {
-    echo '<div><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . ($i === 0 ? ' · главный' : '') . '</div>'
+for ($i = 0; $i < 6; $i++) {
+    echo '<div class="judge-cell" data-ti="' . $i . '"' . ($i >= $tcount ? ' style="display:none;"' : '') . '><div style="font-size:12px;color:var(--tx2);margin-bottom:3px;">Стол ' . ($i + 1) . ($i === 0 ? ' · главный' : '') . '</div>'
         . $judgeSelect('table_judges[' . $i . ']', (int)($tjudges[$i] ?? 0)) . '</div>';
 }
 echo '</div></div>';
+// Поля мест и судей появляются/прячутся сразу при смене числа «Столов» (без пересохранения)
+echo '<script>(function(){var n=document.getElementById("tables-count");if(!n)return;function upd(){var c=Math.max(1,Math.min(6,parseInt(n.value,10)||1));document.querySelectorAll(".judge-cell,.place-cell").forEach(function(el){el.style.display=(parseInt(el.getAttribute("data-ti"),10)<c)?"":"none";});}n.addEventListener("input",upd);n.addEventListener("change",upd);upd();})();</script>';
 
 echo '<div class="field"><label>Статус</label><select name="status">';
 foreach ($statusLabel as $sk => $sl) {
@@ -269,6 +272,7 @@ foreach ($statusLabel as $sk => $sl) {
 }
 echo '</select></div>';
 echo '<div class="field"><label>Описание</label><textarea name="description" rows="3">' . esc($edit['description'] ?? '') . '</textarea></div>';
+echo '<div class="field"><label>Дресс-код</label><input type="text" name="dress_code" value="' . esc($edit['dress_code'] ?? '') . '" placeholder="Напр.: строгий верх / тематический образ…"></div>';
 echo '<div class="field"><label>Логотип турнира (PNG/JPG) — откроется мини-редактор, кадрируй под круг</label>';
 $curLogo = !empty($edit['logo']) ? esc($edit['logo']) : '';
 echo '<div style="display:flex;align-items:center;gap:14px;">';

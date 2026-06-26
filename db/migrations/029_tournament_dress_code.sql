@@ -1,0 +1,1 @@
+ALTER TABLE tournaments ADD COLUMN dress_code VARCHAR(500) DEFAULT NULL;

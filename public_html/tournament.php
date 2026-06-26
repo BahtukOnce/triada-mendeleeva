@@ -150,6 +150,10 @@ if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
 if (!empty($t['description'])) {
     echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
 }
+if (!empty($t['dress_code'])) {
+    echo '<p style="margin:8px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+        . '<span class="tag tag-ok">Дресс-код</span> <span style="color:var(--tx);">' . esc($t['dress_code']) . '</span></p>';
+}
 if (user_can_judge(current_user())) {
     echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
         . '<a class="btn btn-ghost" href="/admin/tournaments.php">Все турниры / создать</a></p>';
