@@ -243,6 +243,27 @@ function handle_callback(array $cb): void
         return;
     }
 
+    // Ответ на приглашение в турнир
+    if (str_starts_with($data, 'tinv_yes:') || str_starts_with($data, 'tinv_no:')) {
+        $p = bot_player_by_tg($userId);
+        $tid = (int)substr($data, (int)strpos($data, ':') + 1);
+        if ($p && $tid) {
+            $state = str_starts_with($data, 'tinv_yes:') ? 'confirmed' : 'declined';
+            db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,?,'bot')
+                ON DUPLICATE KEY UPDATE state = VALUES(state)")->execute([$tid, (int)$p['id'], $state]);
+            $tt = db()->prepare('SELECT title FROM tournaments WHERE id = ?');
+            $tt->execute([$tid]);
+            $title = (string)($tt->fetchColumn() ?: 'турнир');
+            $msg = $state === 'confirmed'
+                ? "✅ Отлично! Ты в составе турнира «" . bot_esc($title) . "». До встречи за столом!"
+                : "Понятно — отметил, что не сможешь быть на «" . bot_esc($title) . "». Спасибо, что ответил!";
+            edit_msg($chatId, $msgId, $msg);
+        } else {
+            edit_msg($chatId, $msgId, "Сначала привяжи свой ник — отправь его одним сообщением.");
+        }
+        return;
+    }
+
     // Отвязать ник (только админ)
     if (str_starts_with($data, 'unbind:')) {
         if (bot_is_admin($userId)) {

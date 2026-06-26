@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/bot_lib.php';
 $u = require_judge();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $desc = trim((string)($_POST['description'] ?? '')) ?: null;
         $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'finished'], true) ? $_POST['status'] : 'draft';
         $tables = max(1, min(6, (int)($_POST['tables_count'] ?? 1)));
+        $regMode = (($_POST['reg_mode'] ?? 'open') === 'closed') ? 'closed' : 'open';
 
         // Места столов: позиционный массив длиной tables_count (индекс = стол − 1)
         $tp = (array)($_POST['table_places'] ?? []);
@@ -40,11 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $judgesJson = array_filter($judges) ? json_encode($judges) : null;
 
         if ($id) {
-            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=? WHERE id=?')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $id]);
+            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=?, reg_mode=? WHERE id=?')
+                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode, $id]);
         } else {
-            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count, table_places, main_judge_player_id, table_judges) VALUES (?,?,?,?,?,?,?,?,?,?)')
-                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson]);
+            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, status, tables_count, table_places, main_judge_player_id, table_judges, reg_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$title, $df, $dt, $loc, $desc, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode]);
             $id = (int)db()->lastInsertId();
         }
         $cropped = (string)($_POST['logo_cropped'] ?? '');
@@ -85,6 +87,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_action((int)$u['id'], 'tournament_delete', ['id' => $id]);
         flash_set('ok', 'Турнир удалён');
         redirect('/admin/tournaments.php');
+    }
+
+    if (in_array($form, ['roster_add', 'roster_invite', 'roster_confirm', 'roster_remove'], true) && $id) {
+        $pid = (int)($_POST['player_id'] ?? 0);
+        if ($pid) {
+            if ($form === 'roster_remove') {
+                db()->prepare('DELETE FROM tournament_participants WHERE tournament_id=? AND player_id=?')->execute([$id, $pid]);
+                flash_set('ok', 'Игрок убран из состава');
+            } elseif ($form === 'roster_invite') {
+                db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,'invited','admin')
+                    ON DUPLICATE KEY UPDATE state='invited'")->execute([$id, $pid]);
+                $sent = bot_tournament_invite($id, $pid);
+                flash_set('ok', $sent ? 'Приглашение отправлено в Telegram' : 'Добавлен как приглашённый (в Telegram не ушло — игрок не привязал бота)');
+            } else { // roster_add / roster_confirm
+                db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,'confirmed','admin')
+                    ON DUPLICATE KEY UPDATE state='confirmed'")->execute([$id, $pid]);
+                flash_set('ok', 'Игрок в составе');
+            }
+        }
+        redirect('/admin/tournaments.php?edit=' . $id);
     }
     redirect('/admin/tournaments.php');
 }
@@ -131,6 +153,12 @@ echo '<script>(function(){var s=document.getElementById("loc-sel"),o=document.ge
 echo '</div>';
 echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"></div>';
 echo '</div>';
+
+$rmode = (string)($edit['reg_mode'] ?? 'open');
+echo '<div class="field"><label>Запись участников</label><select name="reg_mode">';
+echo '<option value="open"' . ($rmode === 'open' ? ' selected' : '') . '>открытая — игроки записываются сами</option>';
+echo '<option value="closed"' . ($rmode === 'closed' ? ' selected' : '') . '>закрытая — состав ведут админы (приглашения через бота)</option>';
+echo '</select></div>';
 
 // Места столов: по одному полю на стол (по числу «Столов»)
 $tplaces = [];
@@ -198,6 +226,60 @@ if ($edit) {
     echo '<a class="btn btn-ghost" href="/admin/tournaments.php">Отмена</a>';
 }
 echo '</div></form></div>';
+
+// ── Состав участников (редактор) — доступен у сохранённого турнира ──
+if ($edit) {
+    $tid = (int)$edit['id'];
+    $rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar
+        FROM tournament_participants tp JOIN players p ON p.id = tp.player_id
+        WHERE tp.tournament_id = ? ORDER BY FIELD(tp.state,'confirmed','invited','declined'), p.nickname");
+    $rq->execute([$tid]);
+    $rows = $rq->fetchAll();
+    $inRoster = array_map('intval', array_column($rows, 'player_id'));
+    $confirmedN = count(array_filter($rows, fn($r) => $r['state'] === 'confirmed'));
+    $stLabel = ['confirmed' => 'в составе', 'invited' => 'приглашён', 'declined' => 'отказался'];
+    $stColor = ['confirmed' => 'var(--ok)', 'invited' => 'var(--tx2)', 'declined' => 'var(--ac)'];
+
+    echo '<div class="card"><h2 style="margin-top:0;">Состав участников <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . $confirmedN . ' в составе)</span></h2>';
+    echo '<form method="post" action="/admin/tournaments.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px;">' . csrf_field();
+    echo '<input type="hidden" name="id" value="' . $tid . '">';
+    echo '<div class="field" style="margin:0;flex:1;min-width:200px;"><label>Добавить игрока</label><select name="player_id" required><option value="">— выбери игрока —</option>';
+    foreach ($allPlayers as $p) {
+        if (in_array((int)$p['id'], $inRoster, true)) {
+            continue;
+        }
+        echo '<option value="' . (int)$p['id'] . '">' . esc($p['nickname']) . '</option>';
+    }
+    echo '</select></div>';
+    echo '<button class="btn" type="submit" name="form" value="roster_add">В состав</button>';
+    echo '<button class="btn btn-ghost" type="submit" name="form" value="roster_invite">Пригласить через бота</button>';
+    echo '</form>';
+
+    if ($rows) {
+        echo '<div style="display:flex;flex-direction:column;gap:6px;">';
+        foreach ($rows as $r) {
+            echo '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--sf2);border-radius:9px;">';
+            echo !empty($r['avatar'])
+                ? '<img src="' . esc($r['avatar']) . '" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none;">'
+                : '<span style="width:28px;height:28px;border-radius:50%;background:var(--bd);flex:none;"></span>';
+            echo '<b style="flex:1;min-width:0;">' . esc($r['nickname']) . '</b>';
+            echo '<span style="font-size:12px;color:' . $stColor[$r['state']] . ';white-space:nowrap;">' . $stLabel[$r['state']] . '</span>';
+            if ($r['state'] !== 'confirmed') {
+                echo '<form method="post" action="/admin/tournaments.php" style="display:inline;">' . csrf_field()
+                    . '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="player_id" value="' . (int)$r['player_id'] . '">'
+                    . '<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" type="submit" name="form" value="roster_confirm">В состав</button></form>';
+            }
+            echo '<form method="post" action="/admin/tournaments.php" style="display:inline;">' . csrf_field()
+                . '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="player_id" value="' . (int)$r['player_id'] . '">'
+                . '<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px;color:var(--ac);" type="submit" name="form" value="roster_remove" title="Убрать">✕</button></form>';
+            echo '</div>';
+        }
+        echo '</div>';
+    } else {
+        echo '<p style="color:var(--tx3);margin:0;">Пока никого. Добавь игроков выше' . (($edit['reg_mode'] ?? 'open') === 'open' ? ', либо они запишутся сами на странице турнира.' : '.') . '</p>';
+    }
+    echo '</div>';
+}
 
 if ($list) {
     echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';

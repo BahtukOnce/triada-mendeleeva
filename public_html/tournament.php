@@ -3,6 +3,35 @@ require dirname(__DIR__) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
 
 $id = (int)($_GET['id'] ?? 0);
+
+// Самозапись игрока на открытый турнир (до любого вывода страницы)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id) {
+    csrf_check();
+    $cu = current_user();
+    $act = (string)($_POST['act'] ?? '');
+    if ($cu && in_array($act, ['join', 'leave'], true)) {
+        $ps = db()->prepare('SELECT id FROM players WHERE user_id = ? LIMIT 1');
+        $ps->execute([(int)$cu['id']]);
+        $myPid = (int)($ps->fetchColumn() ?: 0);
+        $ts = db()->prepare('SELECT status, reg_mode FROM tournaments WHERE id = ?');
+        $ts->execute([$id]);
+        $trow = $ts->fetch();
+        if ($myPid && $trow && ($trow['reg_mode'] ?? 'open') === 'open' && $trow['status'] === 'reg_open') {
+            if ($act === 'join') {
+                db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,'confirmed','self')
+                    ON DUPLICATE KEY UPDATE state='confirmed'")->execute([$id, $myPid]);
+                flash_set('ok', 'Ты записан на турнир!');
+            } else {
+                db()->prepare('DELETE FROM tournament_participants WHERE tournament_id=? AND player_id=?')->execute([$id, $myPid]);
+                flash_set('ok', 'Запись отменена');
+            }
+        } else {
+            flash_set('err', 'Запись на этот турнир сейчас недоступна');
+        }
+    }
+    redirect('/tournament.php?id=' . $id);
+}
+
 $t = null;
 $games = [];
 $seatsByGame = [];
@@ -124,6 +153,62 @@ if (!empty($t['description'])) {
 if (user_can_judge(current_user())) {
     echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
         . '<a class="btn btn-ghost" href="/admin/tournaments.php">Все турниры / создать</a></p>';
+}
+
+// ── Состав участников (заявка/приглашения) ──
+$rosterRows = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar
+    FROM tournament_participants tp JOIN players p ON p.id = tp.player_id
+    WHERE tp.tournament_id = ? AND tp.state IN ('confirmed','invited')
+    ORDER BY (tp.state='confirmed') DESC, p.nickname");
+$rosterRows->execute([$id]);
+$rosterRows = $rosterRows->fetchAll();
+$rConfirmed = array_values(array_filter($rosterRows, fn($r) => $r['state'] === 'confirmed'));
+$rInvited = array_values(array_filter($rosterRows, fn($r) => $r['state'] === 'invited'));
+
+$cu = current_user();
+$myPid = 0;
+if ($cu) {
+    $ps = db()->prepare('SELECT id FROM players WHERE user_id = ? LIMIT 1');
+    $ps->execute([(int)$cu['id']]);
+    $myPid = (int)($ps->fetchColumn() ?: 0);
+}
+$iAmIn = false;
+foreach ($rConfirmed as $r) {
+    if ((int)$r['player_id'] === $myPid && $myPid) { $iAmIn = true; break; }
+}
+$regOpen = ($t['reg_mode'] ?? 'open') === 'open' && ($t['status'] ?? '') === 'reg_open';
+
+if ($rosterRows || $regOpen) {
+    echo '<div class="card"><h2 style="margin-top:0;">Участники' . ($rConfirmed ? ' <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . count($rConfirmed) . ')</span>' : '') . '</h2>';
+    if ($regOpen && $myPid) {
+        $act = $iAmIn ? 'leave' : 'join';
+        $lbl = $iAmIn ? 'Отменить запись' : 'Записаться на турнир';
+        echo '<form method="post" action="/tournament.php?id=' . $id . '" style="margin-bottom:14px;">' . csrf_field()
+            . '<input type="hidden" name="act" value="' . $act . '">'
+            . '<button class="' . ($iAmIn ? 'btn btn-ghost' : 'btn') . '" type="submit">' . $lbl . '</button></form>';
+    } elseif ($regOpen && !$cu) {
+        echo '<p style="color:var(--tx3);"><a href="/login.php">Войди</a>, чтобы записаться на турнир.</p>';
+    }
+    if ($rConfirmed) {
+        echo '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+        foreach ($rConfirmed as $r) {
+            echo '<a href="/player.php?id=' . (int)$r['player_id'] . '" style="display:inline-flex;align-items:center;gap:7px;background:var(--sf2);border-radius:20px;padding:5px 13px 5px 5px;color:var(--tx);text-decoration:none;">'
+                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 24) . '<span>' . esc($r['nickname']) . '</span></a>';
+        }
+        echo '</div>';
+    }
+    if ($rInvited) {
+        echo '<p style="color:var(--tx3);font-size:13px;margin:14px 0 6px;">Приглашены, ждём ответа:</p><div style="display:flex;flex-wrap:wrap;gap:8px;">';
+        foreach ($rInvited as $r) {
+            echo '<span style="display:inline-flex;align-items:center;gap:6px;opacity:.55;font-size:13px;">'
+                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 20) . esc($r['nickname']) . '</span>';
+        }
+        echo '</div>';
+    }
+    if (!$rConfirmed && !$rInvited) {
+        echo '<p style="color:var(--tx3);margin:0;">Пока никто не записан.</p>';
+    }
+    echo '</div>';
 }
 
 // Итоговая таблица турнира — полный агрегат (как в общем рейтинге)

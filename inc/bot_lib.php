@@ -484,3 +484,31 @@ function bot_notify_day_results(int $dayId): int
     }
     return $sent;
 }
+
+// ── Приглашение на турнир (личное, с кнопками Приду/Не смогу) ──
+function bot_tournament_invite(int $tid, int $playerId): bool
+{
+    $st = db()->prepare('SELECT tg_user_id FROM players WHERE id = ? AND tg_user_id IS NOT NULL');
+    $st->execute([$playerId]);
+    $tg = $st->fetchColumn();
+    if (!$tg) {
+        return false;
+    }
+    $t = db()->prepare('SELECT title, date_from, location FROM tournaments WHERE id = ?');
+    $t->execute([$tid]);
+    $tr = $t->fetch();
+    if (!$tr) {
+        return false;
+    }
+    $text = "🎟 <b>Приглашение на турнир</b>\n\n"
+        . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
+        . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
+        . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "")
+        . "\nСможешь прийти?";
+    $markup = json_encode(['inline_keyboard' => [[
+        ['text' => '✅ Приду', 'callback_data' => 'tinv_yes:' . $tid],
+        ['text' => '❌ Не смогу', 'callback_data' => 'tinv_no:' . $tid],
+    ]]], JSON_UNESCAPED_UNICODE);
+    $r = bot_send((int)$tg, $text, $markup);
+    return $r && !empty($r['ok']);
+}
