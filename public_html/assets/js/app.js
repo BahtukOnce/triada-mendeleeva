@@ -245,8 +245,8 @@
     });
   }
 
-  // ── лайтбокс: фото поста открывается в полный размер ──
-  var lb = null, lbImg = null;
+  // ── лайтбокс: фото поста открывается в полный размер (плавно) ──
+  var lb = null, lbImg = null, lbT = null;
   function ensureLb() {
     if (lb) return;
     lb = document.createElement('div');
@@ -255,16 +255,30 @@
     lb.innerHTML = '<img alt="">';
     document.body.appendChild(lb);
     lbImg = lb.querySelector('img');
-    lb.addEventListener('click', function () { lb.hidden = true; });
+    lb.addEventListener('click', hideLb);
+  }
+  function showLb(src) {
+    ensureLb();
+    if (lbT) { clearTimeout(lbT); lbT = null; }
+    lbImg.src = src;
+    lb.hidden = false;
+    // два кадра — чтобы сработал CSS-переход (плавное появление + зум)
+    requestAnimationFrame(function () { requestAnimationFrame(function () { lb.classList.add('show'); }); });
+  }
+  function hideLb() {
+    if (!lb) return;
+    lb.classList.remove('show');
+    lbT = setTimeout(function () { lb.hidden = true; }, 220);
   }
   document.addEventListener('click', function (e) {
     var im = e.target.closest('.post-imgs img');
     if (!im) return;
     e.preventDefault();
     e.stopPropagation();
-    ensureLb();
-    lbImg.src = im.currentSrc || im.src;
-    lb.hidden = false;
+    showLb(im.currentSrc || im.src);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lb && !lb.hidden) hideLb();
   });
 
   // ── реакции (эмодзи) ──

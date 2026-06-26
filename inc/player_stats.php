@@ -492,7 +492,7 @@ function render_player_stats(int $id, bool $own = false): void
         $cond = [
             'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
             'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
-            'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 3,
+            'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 5,
             'elo1100' => $peakElo >= 1100, 'elo1300' => $peakElo >= 1300, 'elo1500' => $peakElo >= 1500, 'elo1700' => $peakElo >= 1700, 'elo1900' => $peakElo >= 1900, 'elo2100' => $peakElo >= 2100,
             'eloday' => $maxEloDay >= 150,
             'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.0,

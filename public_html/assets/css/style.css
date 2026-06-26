@@ -323,10 +323,10 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 .react-btn.active .rc { color: var(--ac); }
 .post-video { display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 9px 0; border-radius: 10px; overflow: hidden; background: #000; }
 .post-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.post-video-link { display: inline-flex; align-items: center; gap: 7px; margin: 8px 0; padding: 10px 16px; border-radius: 10px; background: var(--ac); color: #fff; font-weight: 600; text-decoration: none; }
-.post-video-link:hover { background: var(--ac-h); }
-/* play-треугольник вместо эмодзи ▶ (чтобы не превращался в картинку) */
-.post-tgvideo::before, .post-video-link::before, .post-video-play::before { content: ""; display: inline-block; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid currentColor; margin-right: 6px; }
+.post-video-link { display: inline-flex; align-items: center; gap: 11px; margin: 9px 0; padding: 9px 16px 9px 9px; border-radius: 12px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx); font-weight: 600; text-decoration: none; transition: background .15s ease, border-color .15s ease; }
+.post-video-link:hover { background: var(--sf); border-color: var(--ac); color: var(--tx); }
+/* красный кружок с белым play-треугольником — общий значок видео-ссылок */
+.post-tgvideo::before, .post-video-link::before, .post-video-play::before { content: ""; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ac) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 5v14l11-7z' fill='white'/%3E%3C/svg%3E") center/15px no-repeat; }
 
 /* Лента-превью: карточки картинка+заголовок, полный текст по кнопке */
 .news-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 18px; margin-top: 6px; }
@@ -344,16 +344,17 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 .ncard-cover { position: relative; display: block; }
 .ncard-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .ncard-play::before { content: ""; width: 0; height: 0; border-top: 9px solid transparent; border-bottom: 9px solid transparent; border-left: 14px solid #fff; margin-left: 3px; }
-.post-tgvideo { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 2px; padding: 9px 15px; border-radius: 10px; background: var(--acsf); color: var(--ac); font-weight: 600; text-decoration: none; }
-.post-tgvideo:hover { background: var(--ac); color: #fff; }
+.post-tgvideo { display: inline-flex; align-items: center; gap: 11px; margin: 8px 0 2px; padding: 9px 16px 9px 9px; border-radius: 12px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx); font-weight: 600; text-decoration: none; transition: background .15s ease, border-color .15s ease; }
+.post-tgvideo:hover { background: var(--sf); border-color: var(--ac); color: var(--tx); }
 
 /* Кнопка «смотреть видео» прямо на постере */
 .post-video-cover { position: relative; display: block; }
 .post-video-cover img { width: 100%; height: auto; max-height: 460px; object-fit: cover; display: block; }
 .post-video-cover::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.30); transition: background .15s ease; }
 .post-video-cover:hover::after { background: rgba(0,0,0,.42); }
-.post-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; display: inline-flex; align-items: center; gap: 7px; padding: 11px 20px; border-radius: 26px; background: var(--ac); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
-.post-video-cover:hover .post-video-play { background: var(--ac-h); }
+.post-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; display: inline-flex; align-items: center; gap: 10px; padding: 8px 18px 8px 8px; border-radius: 30px; background: rgba(8,8,10,.6); color: #fff; font-weight: 700; font-size: 14px; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.post-video-cover:hover .post-video-play { background: rgba(8,8,10,.78); }
+.post-video-play::before { width: 34px; height: 34px; background-size: 17px; }
 
 /* Модалка «Показать полностью» */
 .post-modal { position: fixed; inset: 0; z-index: 1000; overflow-y: auto; }
@@ -373,9 +374,12 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 
 /* Лайтбокс фото */
 .post-imgs img { cursor: zoom-in; }
-.img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 22px; cursor: zoom-out; }
+.img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 22px; cursor: zoom-out; opacity: 0; transition: opacity .2s ease; }
+.img-lightbox.show { opacity: 1; }
 .img-lightbox[hidden] { display: none; }
-.img-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.img-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; transform: scale(.9); transition: transform .26s cubic-bezier(.2,.9,.25,1); }
+.img-lightbox.show img { transform: scale(1); }
+@media (prefers-reduced-motion: reduce) { .img-lightbox, .img-lightbox img { transition: none; } }
 
 .progress { height: 6px; background: var(--sf2); border-radius: 3px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--ac); border-radius: 3px; }
