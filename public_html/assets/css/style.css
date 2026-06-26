@@ -427,9 +427,13 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
   display: flex; justify-content: space-between; align-items: center;
   padding: 26px 16px; font-size: 14px; color: var(--tx2); flex-wrap: wrap; gap: 12px;
 }
-.footer-links { display: flex; gap: 18px; }
+.footer-links { display: flex; gap: 18px; align-items: center; }
 .footer-links a { color: var(--tx2); }
 .footer-links a:hover { color: var(--tx); }
+.footer-links a.soc { display: inline-flex; align-items: center; transition: color .15s ease, transform .15s ease; }
+.footer-links a.soc:hover { transform: translateY(-1px); }
+.footer-links a.soc.tg:hover { color: #29a9ea; }
+.footer-links a.soc.vk:hover { color: #0077ff; }
 
 .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .section-head .more { font-size: 13px; }
