@@ -384,13 +384,15 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; color: var(--tx2); text-decoration: none; flex: none; }
 .bell:hover { background: var(--sf2); color: var(--tx); }
 .bell-badge { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--ac); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
-.tp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 10px; }
-.tp-card { display: flex; align-items: center; gap: 11px; background: var(--sf2); border: 1px solid transparent; border-radius: 12px; padding: 9px 12px; text-decoration: none; color: var(--tx); transition: border-color .15s ease, transform .1s ease; }
-.tp-card:hover { border-color: var(--ac); transform: translateY(-1px); }
-.tp-meta { min-width: 0; }
-.tp-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tp-elo { color: var(--ac); font-weight: 700; font-size: 13px; margin-top: 1px; }
-.tp-sub { color: var(--tx3); font-size: 12px; }
+.judge-hero { display: inline-flex; align-items: center; gap: 14px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 14px; padding: 10px 22px 10px 10px; margin: 6px 0 12px; }
+.jh-label { font-size: 11px; color: var(--ac); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.jh-name { font-size: 18px; font-weight: 700; color: var(--tx); text-decoration: none; display: inline-block; margin-top: 1px; }
+.jh-name:hover { color: var(--ac); }
+.jh-sub { font-size: 12.5px; color: var(--tx2); margin-top: 2px; }
+.judge-tables { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.jt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tx2); background: var(--sf2); border-radius: 18px; padding: 4px 12px 4px 4px; text-decoration: none; }
+.jt:hover { color: var(--tx); }
+.jt-no { color: var(--tx3); font-size: 11px; }
 .post-imgs img { cursor: zoom-in; }
 .img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; padding: 22px; cursor: zoom-out; opacity: 0; transition: opacity .2s ease; }
 .img-lightbox.show { opacity: 1; }

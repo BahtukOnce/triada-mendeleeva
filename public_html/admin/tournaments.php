@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('/admin/tournaments.php');
     }
 
-    if (in_array($form, ['roster_add', 'roster_invite', 'roster_confirm', 'roster_remove'], true) && $id) {
+    if (in_array($form, ['roster_add', 'roster_invite', 'roster_reinvite', 'roster_confirm', 'roster_remove'], true) && $id) {
         $pid = (int)($_POST['player_id'] ?? 0);
         // добавлять/приглашать участников можно только при открытой регистрации
         if (in_array($form, ['roster_add', 'roster_invite'], true)) {
@@ -168,6 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tt->execute([$id]);
                 app_notify_player($pid, '🎟 Тебя пригласили на турнир «' . (string)($tt->fetchColumn() ?: 'турнир') . '»', '/tournament.php?id=' . $id);
                 flash_set('ok', $sent ? 'Приглашение отправлено в Telegram' : 'Добавлен как приглашённый (в Telegram не ушло — игрок не привязал бота)');
+            } elseif ($form === 'roster_reinvite') {
+                $sent = bot_tournament_invite($id, $pid);
+                flash_set($sent ? 'ok' : 'err', $sent ? 'Приглашение переслано в Telegram' : 'Не удалось переслать — игрок не привязал Telegram к боту');
             } else { // roster_add / roster_confirm
                 db()->prepare("INSERT INTO tournament_participants (tournament_id, player_id, state, source) VALUES (?,?,'confirmed','admin')
                     ON DUPLICATE KEY UPDATE state='confirmed'")->execute([$id, $pid]);
@@ -359,6 +362,11 @@ if ($edit) {
                 }
             }
             echo '<span style="font-size:12px;color:' . $clr . ';white-space:nowrap;">' . $lbl . '</span>';
+            if ($r['state'] === 'invited') {
+                echo '<form method="post" action="/admin/tournaments.php" style="display:inline;">' . csrf_field()
+                    . '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="player_id" value="' . (int)$r['player_id'] . '">'
+                    . '<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" type="submit" name="form" value="roster_reinvite" title="Переслать приглашение в Telegram">↻ Переслать</button></form>';
+            }
             if ($r['state'] !== 'confirmed') {
                 echo '<form method="post" action="/admin/tournaments.php" style="display:inline;">' . csrf_field()
                     . '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="player_id" value="' . (int)$r['player_id'] . '">'

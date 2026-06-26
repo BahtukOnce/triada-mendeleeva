@@ -121,7 +121,7 @@ $judgeMap = [];
 $judgeIds = array_values(array_filter(array_map('intval', array_merge([$mainJudgeId], $tableJudges))));
 if ($judgeIds) {
     $in = implode(',', array_fill(0, count($judgeIds), '?'));
-    $jq = db()->prepare("SELECT id, nickname, avatar FROM players WHERE id IN ($in)");
+    $jq = db()->prepare("SELECT id, nickname, avatar, elo FROM players WHERE id IN ($in)");
     $jq->execute($judgeIds);
     foreach ($jq->fetchAll() as $jr) {
         $judgeMap[(int)$jr['id']] = $jr;
@@ -143,8 +143,28 @@ $tableJudgeId = function (int $tableNo) use ($tableJudges, $mainJudgeId): int {
     return $jid;
 };
 if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
-    echo '<p style="margin:2px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-        . '<span class="tag tag-open">главный судья</span>' . $judgeCell($mainJudgeId) . '</p>';
+    $mj = $judgeMap[$mainJudgeId];
+    echo '<div class="judge-hero">'
+        . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
+        . '<div><div class="jh-label">⚖ Главный судья</div>'
+        . '<a class="jh-name" href="/player.php?id=' . $mainJudgeId . '">' . esc($mj['nickname']) . '</a>'
+        . ($mj['elo'] !== null ? '<div class="jh-sub">ELO ' . (int)round((float)$mj['elo']) . '</div>' : '')
+        . '</div></div>';
+    $otherJ = [];
+    for ($tn = 2; $tn <= (int)$t['tables_count']; $tn++) {
+        $jid = $tableJudgeId($tn);
+        if ($jid && isset($judgeMap[$jid])) {
+            $otherJ[] = [$tn, $judgeMap[$jid]];
+        }
+    }
+    if ($otherJ) {
+        echo '<div class="judge-tables">';
+        foreach ($otherJ as [$tn, $j]) {
+            echo '<a class="jt" href="/player.php?id=' . (int)$j['id'] . '"><span class="jt-no">Стол ' . $tn . '</span> '
+                . avatar_html(['nickname' => $j['nickname'], 'avatar' => $j['avatar']], 22) . '<span>' . esc($j['nickname']) . '</span></a>';
+        }
+        echo '</div>';
+    }
 }
 
 if (!empty($t['description'])) {
@@ -203,17 +223,21 @@ if ($rosterRows || $regOpen) {
         echo '<p style="color:var(--tx3);"><a href="/login.php">Войди</a>, чтобы записаться на турнир.</p>';
     }
     if ($rConfirmed) {
-        echo '<div class="tp-grid">';
+        echo '<div style="overflow-x:auto;"><table class="tbl"><tr>'
+            . '<th class="num">#</th><th>Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th></tr>';
+        $pos = 0;
         foreach ($rConfirmed as $r) {
+            $pos++;
             $g = (int)$r['games'];
-            $sub = $g > 0 ? (round((int)$r['wins'] / $g * 100) . '% · ' . $g . ' игр') : 'нет игр';
-            echo '<a class="tp-card" href="/player.php?id=' . (int)$r['player_id'] . '">'
-                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 40)
-                . '<div class="tp-meta"><div class="tp-name">' . esc($r['nickname']) . '</div>'
-                . '<div class="tp-elo">ELO ' . (int)round((float)$r['elo']) . '</div>'
-                . '<div class="tp-sub">' . $sub . '</div></div></a>';
+            $wr = $g > 0 ? (round((int)$r['wins'] / $g * 100) . '%') : '—';
+            echo '<tr><td class="num" style="color:var(--tx3);">' . $pos . '</td>'
+                . '<td><a href="/player.php?id=' . (int)$r['player_id'] . '" style="display:inline-flex;align-items:center;gap:9px;color:var(--tx);">'
+                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 30) . '<b>' . esc($r['nickname']) . '</b></a></td>'
+                . '<td class="num" style="color:var(--ac);font-weight:700;">' . (int)round((float)$r['elo']) . '</td>'
+                . '<td class="num">' . ($g ?: '—') . '</td>'
+                . '<td class="num">' . $wr . '</td></tr>';
         }
-        echo '</div>';
+        echo '</table></div>';
     }
     if ($rInvited) {
         echo '<p style="color:var(--tx3);font-size:13px;margin:14px 0 6px;">Приглашены, ждём ответа:</p><div style="display:flex;flex-wrap:wrap;gap:8px;">';
