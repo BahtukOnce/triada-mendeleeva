@@ -396,17 +396,19 @@ function bot_notify_player(int $playerId, string $text, ?string $markup = null):
 }
 
 // ── Рассылка ──────────────────────────────────────────────
-function bot_recipients(): array
+// $includeMuted = true → включая отключивших уведомления (важные объявления)
+function bot_recipients(bool $includeMuted = false): array
 {
-    return array_map('intval',
-        db()->query('SELECT tg_user_id FROM players WHERE tg_user_id IS NOT NULL AND notify_enabled = 1')->fetchAll(PDO::FETCH_COLUMN));
+    $sql = 'SELECT tg_user_id FROM players WHERE tg_user_id IS NOT NULL'
+        . ($includeMuted ? '' : ' AND notify_enabled = 1');
+    return array_map('intval', db()->query($sql)->fetchAll(PDO::FETCH_COLUMN));
 }
 
-function bot_broadcast(string $text): array
+function bot_broadcast(string $text, bool $important = false): array
 {
     $sent = 0;
     $failed = 0;
-    foreach (bot_recipients() as $tg) {
+    foreach (bot_recipients($important) as $tg) {
         $r = bot_send($tg, $text);
         if ($r && !empty($r['ok'])) {
             $sent++;

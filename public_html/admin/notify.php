@@ -4,8 +4,10 @@ $u = require_role('admin');
 require ROOT . '/inc/bot_lib.php';
 
 $recipients = 0;
+$subscribed = 0;
 try {
     $recipients = (int)db()->query('SELECT COUNT(*) FROM players WHERE tg_user_id IS NOT NULL')->fetchColumn();
+    $subscribed = (int)db()->query('SELECT COUNT(*) FROM players WHERE tg_user_id IS NOT NULL AND notify_enabled = 1')->fetchColumn();
 } catch (Throwable $e) {
 }
 
@@ -20,9 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('err', 'Введите текст рассылки.');
     } else {
         set_time_limit(0);
-        $res = bot_broadcast($text);
-        log_action((int)$u['id'], 'bot_broadcast', ['recipients' => $res['recipients'], 'sent' => $res['sent']]);
-        flash_set('ok', "Отправлено: {$res['sent']} из {$res['recipients']}" . ($res['failed'] ? ", не доставлено: {$res['failed']}" : ''));
+        $important = !empty($_POST['important']);
+        $res = bot_broadcast($text, $important);
+        log_action((int)$u['id'], 'bot_broadcast', ['recipients' => $res['recipients'], 'sent' => $res['sent'], 'important' => $important]);
+        flash_set('ok', ($important ? '«Важное» — ' : '') . "отправлено: {$res['sent']} из {$res['recipients']}" . ($res['failed'] ? ", не доставлено: {$res['failed']}" : ''));
     }
     redirect('/admin/notify.php');
 }
@@ -49,12 +52,14 @@ if (!$botReady) {
         . 'в <code>config.php</code> на сервере и поставьте вебхук через <code>/setup_webhook.php?key=…&amp;go=1</code>.</p></div>';
 }
 
-echo '<div class="card"><p style="margin-top:0;color:var(--tx2);">Сообщение получат все игроки, привязавшие Telegram к боту: '
-    . '<b>' . $recipients . '</b>. Поддерживается HTML-разметка Telegram (&lt;b&gt;, &lt;i&gt;, &lt;a href&gt;).</p>';
+echo '<div class="card"><p style="margin-top:0;color:var(--tx2);">Привязали Telegram: <b>' . $recipients . '</b>, из них подписаны на уведомления: <b>' . $subscribed . '</b>. '
+    . 'Обычная рассылка уходит подписанным; «важное» — всем. Поддерживается HTML-разметка Telegram (&lt;b&gt;, &lt;i&gt;, &lt;a href&gt;).</p>';
 echo '<form method="post" action="/admin/notify.php">' . csrf_field();
 echo '<div class="field"><textarea name="text" id="bc-text" rows="8" placeholder="Текст анонса или напоминания...">' . esc($prefill) . '</textarea></div>';
-echo '<button class="btn" type="submit" onclick="return confirm(\'Отправить сообщение всем привязанным участникам?\');"'
-    . ($recipients ? '' : ' disabled') . '>Разослать всем (' . $recipients . ')</button>';
+echo '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;cursor:pointer;">'
+    . '<input type="checkbox" name="important" style="width:auto;"> <span>Важное — отправить <b>всем</b> привязанным, даже отключившим уведомления</span></label>';
+echo '<button class="btn" type="submit" onclick="return confirm(\'Отправить сообщение?\');"'
+    . ($recipients ? '' : ' disabled') . '>Разослать</button>';
 if ($open) {
     echo ' <span style="color:var(--tx3);font-size:13px;margin-left:8px;">Подставлен анонс ближайшего вечера — отредактируйте при необходимости.</span>';
 }
