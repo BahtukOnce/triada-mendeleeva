@@ -179,16 +179,16 @@ page_head('Главная', 'index');
         <?php foreach ($admins as $a):
             $isLead = $a['role'] === 'owner' || $a['role'] === 'admin';
             $label = implode(' · ', user_role_badges($a));
-            $nameHtml = $a['player_id']
-                ? '<a href="/player.php?id=' . (int)$a['player_id'] . '" style="color:var(--tx);">' . esc($a['nickname']) . '</a>'
-                : esc($a['nickname']); ?>
-          <div class="admin-item<?= $isLead ? ' lead' : '' ?>">
+            $pid = (int)($a['player_id'] ?? 0);
+            $tag = $pid ? 'a' : 'div';
+            $attr = $pid ? ' href="/player.php?id=' . $pid . '"' : ''; ?>
+          <<?= $tag ?> class="admin-item<?= $isLead ? ' lead' : '' ?>"<?= $attr ?>>
             <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 92, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
-              <div class="nm"><?= $nameHtml ?></div>
+              <div class="nm"><?= esc($a['nickname']) ?></div>
               <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>
             </div>
-          </div>
+          </<?= $tag ?>>
         <?php endforeach; ?>
       </div>
     <?php else: ?>

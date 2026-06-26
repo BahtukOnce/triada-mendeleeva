@@ -261,6 +261,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   border-color: rgba(232,51,42,0.5);
   background: linear-gradient(180deg, rgba(232,51,42,0.10), var(--sf2) 72%);
 }
+a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 .admin-item > img, .admin-item > .avatar-circle { box-shadow: 0 0 0 3px var(--bd); }
 .admin-item.lead > img, .admin-item.lead > .avatar-circle { box-shadow: 0 0 0 3px rgba(232,51,42,0.55); }
 .admin-item > div { min-width: 0; max-width: 100%; }
