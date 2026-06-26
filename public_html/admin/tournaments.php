@@ -262,7 +262,7 @@ echo '</div></form></div>';
 // ── Состав участников (редактор) — доступен у сохранённого турнира ──
 if ($edit) {
     $tid = (int)$edit['id'];
-    $rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar
+    $rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.tg_user_id
         FROM tournament_participants tp JOIN players p ON p.id = tp.player_id
         WHERE tp.tournament_id = ? ORDER BY FIELD(tp.state,'confirmed','invited','declined'), p.nickname");
     $rq->execute([$tid]);
@@ -305,7 +305,18 @@ if ($edit) {
                 ? '<img src="' . esc($r['avatar']) . '" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none;">'
                 : '<span style="width:28px;height:28px;border-radius:50%;background:var(--bd);flex:none;"></span>';
             echo '<b style="flex:1;min-width:0;">' . esc($r['nickname']) . '</b>';
-            echo '<span style="font-size:12px;color:' . $stColor[$r['state']] . ';white-space:nowrap;">' . $stLabel[$r['state']] . '</span>';
+            $lbl = $stLabel[$r['state']];
+            $clr = $stColor[$r['state']];
+            if ($r['state'] === 'invited') {
+                if (!empty($r['tg_user_id'])) {
+                    $lbl = '📨 ушло в Telegram';
+                    $clr = 'var(--ok)';
+                } else {
+                    $lbl = '⚠ не в боте';
+                    $clr = 'var(--ac)';
+                }
+            }
+            echo '<span style="font-size:12px;color:' . $clr . ';white-space:nowrap;">' . $lbl . '</span>';
             if ($r['state'] !== 'confirmed') {
                 echo '<form method="post" action="/admin/tournaments.php" style="display:inline;">' . csrf_field()
                     . '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="player_id" value="' . (int)$r['player_id'] . '">'
@@ -317,6 +328,7 @@ if ($edit) {
             echo '</div>';
         }
         echo '</div>';
+        echo '<p style="color:var(--tx3);font-size:12px;margin:12px 0 0;">📨 <b>ушло в Telegram</b> — игрок получил приглашение с кнопками «Приду / Не смогу» в боте. ⚠ <b>не в боте</b> — игрок не привязал Telegram, сообщение не доставлено: позови вручную или добавь сразу «В состав».</p>';
     } else {
         echo '<p style="color:var(--tx3);margin:0;">Пока никого. Добавь игроков выше' . (($edit['reg_mode'] ?? 'open') === 'open' ? ', либо они запишутся сами на странице турнира.' : '.') . '</p>';
     }
