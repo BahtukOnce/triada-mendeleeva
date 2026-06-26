@@ -103,7 +103,11 @@ function bot_news_from_channel(array $post): void
 function handle_message($chatId, int $userId, string $text, ?array $from): void
 {
     bot_touch($userId, $from);
-    $registered = bot_player_by_tg($userId) !== null;
+    $me = bot_player_by_tg($userId);
+    $registered = $me !== null;
+    if ($registered) {
+        bot_deliver_pending_invites((int)$me['id']); // дослать неотправленные приглашения на турниры
+    }
 
     $parts = preg_split('/\s+/', $text, 2);
     $cmd   = preg_replace('/@.*/', '', mb_strtolower($parts[0] ?? ''));
@@ -197,10 +201,12 @@ function handle_callback(array $cb): void
     }
     bot_touch($userId, $cb['from'] ?? null);
 
-    if (!bot_player_by_tg($userId)) {
+    $cbPlayer = bot_player_by_tg($userId);
+    if (!$cbPlayer) {
         edit_msg($chatId, $msgId, "Сначала привяжи свой ник — введи его, как в таблице рейтинга, одним сообщением.");
         return;
     }
+    bot_deliver_pending_invites((int)$cbPlayer['id']); // дослать неотправленные приглашения на турниры
 
     if ($data === 'noop') {
         return;
@@ -359,18 +365,7 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
     } catch (Throwable $e) {
     }
     send_menu($chatId, $userId, "✅ Готово! Ты привязан к игроку <b>" . bot_esc($matched['name']) . "</b>.\nВыбирай кнопкой 👇");
-    // Дослать приглашения на турниры, отправленные до привязки к боту
-    try {
-        $pid = (int)$matched['player_id'];
-        $inv = db()->prepare("SELECT tp.tournament_id FROM tournament_participants tp
-            JOIN tournaments t ON t.id = tp.tournament_id
-            WHERE tp.player_id = ? AND tp.state = 'invited' AND t.status <> 'finished'");
-        $inv->execute([$pid]);
-        foreach ($inv->fetchAll(PDO::FETCH_COLUMN) as $tid) {
-            bot_tournament_invite((int)$tid, $pid);
-        }
-    } catch (Throwable $e) {
-    }
+    bot_deliver_pending_invites((int)$matched['player_id']); // дослать приглашения, отправленные до привязки
 }
 
 // ============================================================

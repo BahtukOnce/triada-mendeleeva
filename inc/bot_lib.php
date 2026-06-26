@@ -516,7 +516,27 @@ function bot_tournament_invite(int $tid, int $playerId): bool
         [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],
     ]], JSON_UNESCAPED_UNICODE);
     $r = bot_send((int)$tg, $text, $markup);
-    return $r && !empty($r['ok']);
+    $ok = $r && !empty($r['ok']);
+    if ($ok) {
+        db()->prepare('UPDATE tournament_participants SET notified = 1 WHERE tournament_id = ? AND player_id = ?')
+            ->execute([$tid, $playerId]);
+    }
+    return $ok;
+}
+
+// Дослать игроку все неотправленные приглашения на турниры (после привязки к боту)
+function bot_deliver_pending_invites(int $playerId): void
+{
+    try {
+        $st = db()->prepare("SELECT tp.tournament_id FROM tournament_participants tp
+            JOIN tournaments t ON t.id = tp.tournament_id
+            WHERE tp.player_id = ? AND tp.state = 'invited' AND tp.notified = 0 AND t.status <> 'finished'");
+        $st->execute([$playerId]);
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $tid) {
+            bot_tournament_invite((int)$tid, $playerId); // отметит notified=1 при успешной отправке
+        }
+    } catch (Throwable $e) {
+    }
 }
 
 // Уведомить судью о назначении на турнир (это назначение, без кнопок)

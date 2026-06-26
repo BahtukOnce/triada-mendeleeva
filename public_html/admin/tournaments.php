@@ -300,7 +300,7 @@ echo '</div></form></div>';
 // ── Состав участников (редактор) — доступен у сохранённого турнира ──
 if ($edit) {
     $tid = (int)$edit['id'];
-    $rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.tg_user_id
+    $rq = db()->prepare("SELECT tp.player_id, tp.state, tp.notified, p.nickname, p.avatar, p.tg_user_id
         FROM tournament_participants tp JOIN players p ON p.id = tp.player_id
         WHERE tp.tournament_id = ? ORDER BY FIELD(tp.state,'confirmed','invited','declined'), p.nickname");
     $rq->execute([$tid]);
@@ -350,7 +350,7 @@ if ($edit) {
             $lbl = $stLabel[$r['state']];
             $clr = $stColor[$r['state']];
             if ($r['state'] === 'invited') {
-                if (!empty($r['tg_user_id'])) {
+                if (!empty($r['notified'])) {
                     $lbl = '📨 ушло в Telegram';
                     $clr = 'var(--ok)';
                 } else {
