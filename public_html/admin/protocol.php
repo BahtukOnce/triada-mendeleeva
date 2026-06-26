@@ -108,7 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     trim((string)($_POST['comment'] ?? '')) ?: null, $gid, $dayId]);
             $pdo->prepare('DELETE FROM game_seats WHERE game_id = ?')->execute([$gid]);
         } else {
-            $nextNo = (int)$pdo->query('SELECT COALESCE(MAX(game_no),0)+1 FROM games WHERE day_id = ' . $dayId)->fetchColumn();
+            $stmt = $pdo->prepare('SELECT COALESCE(MAX(game_no),0)+1 FROM games WHERE day_id = ?');
+            $stmt->execute([$dayId]);
+            $nextNo = (int)$stmt->fetchColumn();
             $pdo->prepare("INSERT INTO games (context, day_id, table_no, game_no, judge_player_id, winner,
                 first_killed_seat, bm_seat1, bm_seat2, bm_seat3, comment, status, finished_at)
                 VALUES ('day', ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'finished', NOW())")

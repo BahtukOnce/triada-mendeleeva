@@ -170,7 +170,9 @@ function achievement_earners(): array
         // агрегаты из rating_cache + игроки
         $rc = [];
         if ($mainId) {
-            foreach (db()->query("SELECT rc.*, p.nickname, p.elo FROM rating_cache rc JOIN players p ON p.id = rc.player_id WHERE rc.rating_id = $mainId") as $r) {
+            $stRc = db()->prepare("SELECT rc.*, p.nickname, p.elo FROM rating_cache rc JOIN players p ON p.id = rc.player_id WHERE rc.rating_id = ?");
+            $stRc->execute([$mainId]);
+            foreach ($stRc as $r) {
                 $rc[(int)$r['player_id']] = $r;
             }
         }
