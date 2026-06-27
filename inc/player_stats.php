@@ -482,12 +482,20 @@ function render_player_stats(int $id, bool $own = false): void
         ];
         $cat = achievements_catalog();
         $earners = achievement_earners();
-        // клубные/вычисляемые ачивки — из общего расчёта (есть ли игрок среди получивших)
-        foreach (['antilh', 'tour_win', 'tour_win3'] as $ek) {
-            $cond[$ek] = in_array($id, array_map(fn($e) => (int)$e[0], $earners[$ek] ?? []), true);
-        }
+        // скрытая анти-ачивка — из общего расчёта (есть ли игрок среди получивших)
+        $cond['antilh'] = in_array($id, array_map(fn($e) => (int)$e[0], $earners['antilh'] ?? []), true);
         $viewer = current_user();
         $canSeeHidden = $own || ($viewer && role_level($viewer['role']) >= 3);
+
+        // ── Награды со степенями ──
+        $me = player_metrics_all()[$id] ?? null;
+        echo '<div class="card"><h2 style="margin-top:0;">Награды</h2>';
+        echo '<p style="color:var(--tx2);font-size:13px;margin:-4px 0 0;">Каждая награда растёт по степеням — от бронзы до платины.</p>';
+        echo '<div class="awards-grid">';
+        foreach (awards_catalog() as $aw) {
+            echo award_card($aw, award_progress($aw, (float)($me[$aw['metric']] ?? 0)));
+        }
+        echo '</div></div>';
         $earnedN = 0; $totalAch = 0;
         foreach ($cat as $k => $info) {
             if (!empty($info[4])) {
@@ -506,12 +514,12 @@ function render_player_stats(int $id, bool $own = false): void
             if ($hidden && !($canSeeHidden && !empty($cond[$k]))) {
                 continue; // скрытую видит только владелец/админ и только если получена
             }
-            $byGroup[$info[3]][$k] = [$info[0], $info[1], $info[2], $hidden];
+            $byGroup[$info[3]][$k] = [$info[0], $info[1], $info[2], $hidden, $info[5] ?? ''];
         }
         foreach ($byGroup as $grp => $items) {
             echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
             echo '<div class="ach-grid">';
-            foreach ($items as $k => [$ic, $t, $d, $hidden]) {
+            foreach ($items as $k => [$ic, $t, $d, $hidden, $comment]) {
                 $ok = !empty($cond[$k]);
                 $who = $hidden ? [] : ($earners[$k] ?? []); // у скрытой не светим, кто получил
                 $cnt = count($earners[$k] ?? []);
@@ -521,6 +529,7 @@ function render_player_stats(int $id, bool $own = false): void
                 echo '<div class="ach' . ($ok ? ' ach-on' : '') . ($hidden ? ' ach-secret' : '') . '" data-who="' . $whoJson . '" title="' . esc($tip) . '">'
                     . '<div class="ach-ic">' . $ic . '</div>'
                     . '<div class="ach-t">' . esc($t) . '</div><div class="ach-d">' . esc($d) . '</div>'
+                    . ($comment !== '' ? '<div class="ach-cm">' . esc($comment) . '</div>' : '')
                     . '<div class="ach-cnt">' . ($ok ? '✓ ' : '') . $cnt . ' получ.</div></div>';
             }
             echo '</div>';

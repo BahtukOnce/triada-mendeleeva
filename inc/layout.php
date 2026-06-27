@@ -87,7 +87,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=77">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=78">';
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';

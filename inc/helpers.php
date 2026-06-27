@@ -154,38 +154,303 @@ function records_fmt($v, string $type): string
     };
 }
 
-// Каталог достижений: ключ => [иконка, название, описание, группа]. Условия — в профиле.
+function roman_num(int $n): string
+{
+    return ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][$n] ?? (string)$n;
+}
+
+// Победители турниров: pid => число выигранных турниров (#1 итоговой таблицы).
+function tournament_winners(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $wins = [];
+    if (!db_ready()) {
+        return $cache = $wins;
+    }
+    try {
+        require_once ROOT . '/inc/rating.php';
+        foreach (db()->query("SELECT id FROM tournaments WHERE status = 'finished'")->fetchAll(PDO::FETCH_COLUMN) as $tid) {
+            $gq = db()->prepare("SELECT * FROM games WHERE tournament_id = ? AND status = 'finished'");
+            $gq->execute([(int)$tid]);
+            $gms = $gq->fetchAll();
+            if (!$gms) {
+                continue;
+            }
+            $gids = array_column($gms, 'id');
+            $inG = implode(',', array_fill(0, count($gids), '?'));
+            $sq = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs JOIN players p ON p.id = gs.player_id WHERE gs.game_id IN ($inG)");
+            $sq->execute($gids);
+            $sbg = [];
+            foreach ($sq->fetchAll() as $s) {
+                $sbg[(int)$s['game_id']][] = $s;
+            }
+            $stand = standings_from_games($gms, $sbg);
+            $winPid = $stand ? (int)array_key_first($stand) : 0;
+            if ($winPid) {
+                $wins[$winPid] = ($wins[$winPid] ?? 0) + 1;
+            }
+        }
+    } catch (Throwable $e) {
+    }
+    return $cache = $wins;
+}
+
+// Все метрики игроков для наград и достижений (один тяжёлый расчёт на запрос).
+function player_metrics_all(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $m = [];
+    if (!db_ready()) {
+        return $cache = $m;
+    }
+    try {
+        $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+        $rc = [];
+        if ($mainId) {
+            $stRc = db()->prepare("SELECT rc.*, p.elo FROM rating_cache rc JOIN players p ON p.id = rc.player_id WHERE rc.rating_id = ?");
+            $stRc->execute([$mainId]);
+            foreach ($stRc as $r) {
+                $rc[(int)$r['player_id']] = $r;
+            }
+        }
+        $byPlayer = [];
+        foreach (db()->query("SELECT gs.player_id, gs.role, gs.plus, g.winner
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            WHERE g.status = 'finished' AND g.winner IS NOT NULL
+            ORDER BY gs.player_id, COALESCE((SELECT date FROM game_days WHERE id=g.day_id),(SELECT date_from FROM tournaments WHERE id=g.tournament_id)), g.id") as $row) {
+            $byPlayer[(int)$row['player_id']][] = $row;
+        }
+        $eloDay = [];
+        foreach (db()->query("SELECT player_id, MAX(s) m FROM (SELECT player_id, gdate, SUM(delta) s FROM elo_history GROUP BY player_id, gdate) t GROUP BY player_id") as $r) {
+            $eloDay[(int)$r['player_id']] = (float)$r['m'];
+        }
+        $peakElo = [];
+        foreach (db()->query("SELECT player_id, MAX(elo_after) m FROM elo_history GROUP BY player_id") as $r) {
+            $peakElo[(int)$r['player_id']] = (float)$r['m'];
+        }
+        $triples = [];
+        foreach (db()->query("SELECT DISTINCT me.player_id FROM games g
+            JOIN game_seats me ON me.game_id=g.id AND me.seat=g.first_killed_seat AND me.role IN ('civ','sheriff')
+            WHERE g.status='finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+            AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id=g.id AND s.seat IN (g.bm_seat1,g.bm_seat2,g.bm_seat3) AND s.role IN ('maf','don'))=3") as $r) {
+            $triples[(int)$r['player_id']] = true;
+        }
+        $antilh = [];
+        foreach (db()->query("SELECT me.player_id pid, COUNT(*) c FROM games g
+            JOIN game_seats me ON me.game_id = g.id AND me.seat = g.first_killed_seat AND me.role IN ('civ','sheriff')
+            WHERE g.status = 'finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+              AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id = g.id AND s.seat IN (g.bm_seat1, g.bm_seat2, g.bm_seat3) AND s.role IN ('maf','don')) = 0
+            GROUP BY me.player_id") as $r) {
+            $antilh[(int)$r['pid']] = (int)$r['c'];
+        }
+        $tourWins = tournament_winners();
+        $nickOf = $avaOf = $flairOf = [];
+        foreach (db()->query('SELECT id, nickname, avatar, flair FROM players') as $p) {
+            $pid0 = (int)$p['id'];
+            $nickOf[$pid0] = $p['nickname'];
+            $avaOf[$pid0] = (!empty($p['avatar']) && is_file(ROOT . '/public_html' . $p['avatar'])) ? $p['avatar'] : '';
+            $flairOf[$pid0] = (string)($p['flair'] ?? '');
+        }
+        $allPids = array_unique(array_merge(array_keys($rc), array_keys($byPlayer), array_keys($antilh), array_keys($tourWins)));
+        foreach ($allPids as $pid) {
+            $r = $rc[$pid] ?? null;
+            $maxW = $w = 0; $blk = $bsr = 0; $redW = $rwsr = 0; $maxPlus = 0.0;
+            foreach (($byPlayer[$pid] ?? []) as $g) {
+                $maxPlus = max($maxPlus, (float)$g['plus']);
+                $isBlack = in_array($g['role'], ['maf', 'don'], true);
+                $won = ($g['winner'] === 'red' && !$isBlack) || ($g['winner'] === 'black' && $isBlack);
+                if ($won) { $w++; $maxW = max($maxW, $w); } else { $w = 0; }
+                if ($isBlack) { $bsr++; $blk = max($blk, $bsr); } else { $bsr = 0; }
+                if (!$isBlack && $g['winner'] === 'red') { $rwsr++; $redW = max($redW, $rwsr); } else { $rwsr = 0; }
+            }
+            $m[$pid] = [
+                'pid' => $pid,
+                'nick' => $nickOf[$pid] ?? ('#' . $pid),
+                'avatar' => $avaOf[$pid] ?? '',
+                'flair' => $flairOf[$pid] ?? '',
+                'games' => $r ? (int)$r['games'] : count($byPlayer[$pid] ?? []),
+                'peak_elo' => max($r ? (float)$r['elo'] : 1000, $peakElo[$pid] ?? 0),
+                'winstreak' => $maxW,
+                'blackstreak' => $blk,
+                'redstreak' => $redW,
+                'dop_sum' => $r ? (float)$r['dop_sum'] : 0.0,
+                'maxplus' => $maxPlus,
+                'pu_count' => $r ? (int)$r['pu_count'] : 0,
+                'don_wr' => ($r && (int)$r['g_don'] >= 4) ? (int)$r['w_don'] / (int)$r['g_don'] * 100 : 0,
+                'max_elo_day' => $eloDay[$pid] ?? 0,
+                'triple' => isset($triples[$pid]),
+                'antilh' => $antilh[$pid] ?? 0,
+                'tour_wins' => $tourWins[$pid] ?? 0,
+            ];
+        }
+    } catch (Throwable $e) {
+    }
+    return $cache = $m;
+}
+
+// Награды со степенями. tiers: [порог, название степени, комментарий]. metric → ключ метрики.
+function awards_catalog(): array
+{
+    return [
+        'games' => ['icon' => '🎮', 'title' => 'Игрок', 'unit' => 'игр', 'metric' => 'games', 'tiers' => [
+            [10, 'Десятка', 'Уже свой за столом.'],
+            [50, 'Полтинник', 'Лицо примелькалось.'],
+            [100, 'Ветеран', 'Помнит ещё те раздачи.'],
+            [250, 'Старожил', 'Видел за столом всякое.'],
+            [500, 'Патриарх', 'Живая история клуба.'],
+            [1000, 'Легенда стола', 'Тысяча игр. Просто вдумайтесь.'],
+        ]],
+        'winstreak' => ['icon' => '🔥', 'title' => 'Серия побед', 'unit' => 'побед подряд', 'metric' => 'winstreak', 'tiers' => [
+            [3, 'На кураже', 'Поймали кураж.'],
+            [5, 'Неудержимый', 'Кто-нибудь, остановите.'],
+            [8, 'Беспощадный', 'Стол вас уже боится.'],
+            [10, 'Непобедимый', 'Это уже неприлично.'],
+            [15, 'Феномен', 'Так не бывает. Но вы смогли.'],
+        ]],
+        'elo' => ['icon' => '💎', 'title' => 'Уровень', 'unit' => 'ELO', 'metric' => 'peak_elo', 'tiers' => [
+            [1100, 'Любитель', 'Лиха беда начало.'],
+            [1300, 'Знаток', 'С вами уже считаются.'],
+            [1500, 'Эксперт', 'Опасный соперник.'],
+            [1700, 'Мастер', 'За столом — гранд.'],
+            [1900, 'Чемпион', 'Высшая лига.'],
+            [2100, 'Легенда', 'О вас рассказывают новичкам.'],
+            [2300, 'Небожитель', 'Потолок? Не слышали.'],
+        ]],
+        'black' => ['icon' => '🌑', 'title' => 'Власть тьмы', 'unit' => 'чёрных ролей подряд', 'metric' => 'blackstreak', 'tiers' => [
+            [3, 'Тёмная сторона', 'Колода видит в вас злодея.'],
+            [5, 'Власть тьмы', 'Ночь — ваше время.'],
+            [7, 'Дитя ночи', 'Свет вас больше не зовёт.'],
+        ]],
+        'red' => ['icon' => '🚩', 'title' => 'Красная серия', 'unit' => 'побед красными подряд', 'metric' => 'redstreak', 'tiers' => [
+            [3, 'Красный заряд', 'Город под надёжной защитой.'],
+            [5, 'Красная машина', 'Город может спать спокойно.'],
+            [7, 'Красная стихия', 'Мафия обходит вас стороной.'],
+        ]],
+        'dop' => ['icon' => '➕', 'title' => 'Щедрость', 'unit' => 'допов', 'metric' => 'dop_sum', 'tiers' => [
+            [30, 'Щедрый на допы', 'Судьи вас обожают.'],
+            [60, 'Меценат', 'Раздаёт допы налево и направо.'],
+            [100, 'Воплощение игры', 'Сто допов — это уровень.'],
+        ]],
+        'tour' => ['icon' => '🏆', 'title' => 'Турниры', 'unit' => 'побед на турнирах', 'metric' => 'tour_wins', 'tiers' => [
+            [1, 'Победитель турнира', 'Поднял кубок над головой.'],
+            [3, 'Триумфатор', 'Три кубка — не случайность.'],
+            [5, 'Коллекционер', 'Полка трофеев уже ломится.'],
+        ]],
+    ];
+}
+
+// Прогресс игрока по награде для значения метрики.
+function award_progress(array $aw, float $value): array
+{
+    $tiers = $aw['tiers'];
+    $degree = 0; $curTitle = ''; $curComment = ''; $curThresh = 0;
+    foreach ($tiers as $i => $t) {
+        if ($value >= $t[0]) {
+            $degree = $i + 1; $curTitle = $t[1]; $curComment = $t[2]; $curThresh = $t[0];
+        }
+    }
+    $next = $degree < count($tiers) ? $tiers[$degree] : null;
+    $pct = 0;
+    if ($next) {
+        $base = $degree > 0 ? $tiers[$degree - 1][0] : 0;
+        $span = $next[0] - $base;
+        $pct = $span > 0 ? max(0, min(100, (int)round(($value - $base) / $span * 100))) : 0;
+    }
+    return [
+        'degree' => $degree, 'max' => count($tiers),
+        'title' => $curTitle, 'comment' => $curComment, 'threshold' => $curThresh,
+        'next' => $next[0] ?? null, 'pct' => $pct, 'value' => $value,
+    ];
+}
+
+// Металл/цвет по степени (бронза → серебро → золото → платина).
+function award_degree_meta(int $degree, int $max): array
+{
+    if ($degree <= 0) {
+        return ['нет', 'var(--tx3)'];
+    }
+    if ($degree >= $max) {
+        return ['платина', '#7fd4e6'];
+    }
+    $ratio = $max > 0 ? $degree / $max : 0;
+    if ($ratio >= 0.66) {
+        return ['золото', '#e6b13a'];
+    }
+    if ($ratio >= 0.34) {
+        return ['серебро', '#c8ccd4'];
+    }
+    return ['бронза', '#cd7f44'];
+}
+
+// Топ-обладатель каждой награды по клубу (наивысшая степень).
+function awards_top(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $metrics = player_metrics_all();
+    $out = [];
+    foreach (awards_catalog() as $key => $aw) {
+        $bestPid = 0; $bestVal = -INF;
+        foreach ($metrics as $pid => $mm) {
+            $v = (float)($mm[$aw['metric']] ?? 0);
+            if ($v > $bestVal) { $bestVal = $v; $bestPid = $pid; }
+        }
+        if ($bestPid && $bestVal > 0) {
+            $prog = award_progress($aw, $bestVal);
+            if ($prog['degree'] > 0) {
+                $out[$key] = ['m' => $metrics[$bestPid], 'prog' => $prog];
+            }
+        }
+    }
+    return $cache = $out;
+}
+
+// Карточка награды. $extra — доп. HTML внизу (например, аватар обладателя).
+function award_card(array $aw, array $prog, string $extra = ''): string
+{
+    [$metalName, $metalColor] = award_degree_meta((int)$prog['degree'], (int)$prog['max']);
+    $on = $prog['degree'] > 0;
+    $h = '<div class="award' . ($on ? ' award-on' : '') . '" style="--am:' . $metalColor . ';">';
+    $h .= '<div class="award-ic">' . $aw['icon'] . '</div><div class="award-body">';
+    $h .= '<div class="award-top"><span class="award-title">' . esc($aw['title']) . '</span>'
+        . '<span class="award-deg">' . ($on ? roman_num((int)$prog['degree']) . ' · ' . esc($metalName) : 'нет') . '</span></div>';
+    if ($on) {
+        $h .= '<div class="award-tier">' . esc($prog['title']) . ' · ' . (int)$prog['threshold'] . ' ' . esc($aw['unit']) . '</div>';
+        if ($prog['comment'] !== '') {
+            $h .= '<div class="award-cm">' . esc($prog['comment']) . '</div>';
+        }
+    } else {
+        $h .= '<div class="award-tier award-off">до I — ' . (int)$aw['tiers'][0][0] . ' ' . esc($aw['unit']) . '</div>';
+    }
+    if ($prog['next'] !== null) {
+        $h .= '<div class="award-bar"><span style="width:' . (int)$prog['pct'] . '%;"></span></div>'
+            . '<div class="award-next">до ' . roman_num((int)$prog['degree'] + 1) . ' — ' . (int)$prog['next'] . ' ' . esc($aw['unit']) . '</div>';
+    } elseif ($on) {
+        $h .= '<div class="award-next award-max">высшая степень ✦</div>';
+    }
+    return $h . $extra . '</div></div>';
+}
+
+// Особые достижения (без степеней): [иконка, название, описание, группа, скрытая, комментарий].
+// Ступенчатые ачивки (игры/серии/ELO/допы/турниры) переехали в awards_catalog().
 function achievements_catalog(): array
 {
     return [
-        'debut'    => ['🎬', 'Дебют', 'Первая игра', 'Игры'],
-        'ten'      => ['🎯', 'Десятка', '10 игр сыграно', 'Игры'],
-        'veteran'  => ['🏛', 'Ветеран', '100 игр сыграно', 'Игры'],
-        'streak3'  => ['🔥', 'На кураже', '3 победы подряд', 'Серии'],
-        'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд', 'Серии'],
-        'streak8'  => ['💥', 'Беспощадный', '8 побед подряд', 'Серии'],
-        'streak10' => ['🌟', 'Непобедимый', '10 побед подряд', 'Серии'],
-        'black3'   => ['🌘', 'Тёмная сторона', '3 чёрные роли подряд', 'Серии'],
-        'black5'   => ['🌑', 'Власть тьмы', '5 чёрных ролей подряд', 'Серии'],
-        'black7'   => ['🦇', 'Дитя ночи', '7 чёрных ролей подряд', 'Серии'],
-        'redw3'    => ['❤️', 'Красный заряд', '3 победы красными подряд', 'Серии'],
-        'red3'     => ['🚩', 'Красная машина', '5 побед красными подряд', 'Серии'],
-        'redw7'    => ['🌋', 'Красная стихия', '7 побед красными подряд', 'Серии'],
-        'elo1100'  => ['✨', 'Любитель', 'ELO 1100+', 'ELO'],
-        'elo1300'  => ['⚔️', 'Знаток', 'ELO 1300+', 'ELO'],
-        'elo1500'  => ['💎', 'Эксперт', 'ELO 1500+', 'ELO'],
-        'elo1700'  => ['👑', 'Мастер', 'ELO 1700+', 'ELO'],
-        'elo1900'  => ['🏅', 'Чемпион', 'ELO 1900+', 'ELO'],
-        'elo2100'  => ['🏆', 'Легенда', 'ELO 2100+', 'ELO'],
-        'eloday'   => ['📈', 'Прорыв вечера', '+150 ELO за вечер', 'ELO'],
-        'dop30'    => ['➕', 'Щедрый на допы', '30+ допов всего', 'Мастерство'],
-        'fatgame'  => ['💰', 'Жирная игра', '1+ доп за одну игру', 'Мастерство'],
-        'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Мастерство'],
-        'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Мастерство'],
-        'danger'   => ['🎯', 'Самый опасный', '5+ раз первоубиенный (вас вычисляют первым)', 'Мастерство'],
-        'tour_win'  => ['🥇', 'Победитель турнира', 'Выиграл турнир', 'Турниры'],
-        'tour_win3' => ['🏆', 'Триумфатор', 'Выиграл 3 турнира', 'Турниры'],
-        'antilh'    => ['🃏', 'Антиснайпер', 'Чаще всех бил в ЛХ мимо: три мирных, ни одного чёрного', 'Особые', true],
+        'debut'   => ['🎬', 'Дебют', 'Первая игра', 'Особые', false, 'Все легенды с этого начинали.'],
+        'eloday'  => ['📈', 'Прорыв вечера', '+150 ELO за вечер', 'Особые', false, 'Один вечер — и вы в дамках.'],
+        'fatgame' => ['💰', 'Жирная игра', '1+ доп за одну игру', 'Особые', false, 'Сорвали куш за одну игру.'],
+        'triple'  => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Особые', false, 'Вычислили всех троих.'],
+        'don'     => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Особые', false, 'Дона так и не нашли.'],
+        'danger'  => ['🎯', 'Самый опасный', '5+ раз первоубиенный', 'Особые', false, 'Вас боятся чёрные.'],
+        'antilh'  => ['🃏', 'Антиснайпер', 'Чаще всех бил в ЛХ мимо: три мирных, ни одного чёрного', 'Особые', true, 'Главное — не победа, а участие.'],
     ];
 }
 
@@ -307,37 +572,6 @@ function achievement_earners(): array
             }
         }
 
-        // Победители турниров: #1 итоговой таблицы каждого завершённого турнира
-        require_once ROOT . '/inc/rating.php';
-        $tourWins = [];
-        foreach (db()->query("SELECT id FROM tournaments WHERE status = 'finished'")->fetchAll(PDO::FETCH_COLUMN) as $tid) {
-            $gq = db()->prepare("SELECT * FROM games WHERE tournament_id = ? AND status = 'finished'");
-            $gq->execute([(int)$tid]);
-            $gms = $gq->fetchAll();
-            if (!$gms) {
-                continue;
-            }
-            $gids = array_column($gms, 'id');
-            $inG = implode(',', array_fill(0, count($gids), '?'));
-            $sq = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs JOIN players p ON p.id = gs.player_id WHERE gs.game_id IN ($inG)");
-            $sq->execute($gids);
-            $sbg = [];
-            foreach ($sq->fetchAll() as $s) {
-                $sbg[(int)$s['game_id']][] = $s;
-            }
-            $stand = standings_from_games($gms, $sbg);
-            $winPid = $stand ? (int)array_key_first($stand) : 0;
-            if ($winPid) {
-                $tourWins[$winPid] = ($tourWins[$winPid] ?? 0) + 1;
-            }
-        }
-        foreach ($tourWins as $p0 => $cnt) {
-            $entry = [$p0, $nickOf[$p0] ?? ('#' . $p0), $avaOf[$p0] ?? '', $flairOf[$p0] ?? ''];
-            $out['tour_win'][] = $entry;
-            if ($cnt >= 3) {
-                $out['tour_win3'][] = $entry;
-            }
-        }
     } catch (Throwable $e) {
     }
     $cache = $out;
