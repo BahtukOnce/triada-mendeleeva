@@ -180,8 +180,10 @@ if (!empty($t['description'])) {
     echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
 }
 if (!empty($t['dress_code'])) {
-    echo '<p style="margin:8px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-        . '<span class="tag tag-ok">Дресс-код</span> <span style="color:var(--tx);">' . esc($t['dress_code']) . '</span></p>';
+    echo '<div style="display:flex;align-items:center;gap:13px;background:var(--acsf);border:1px solid rgba(232,51,42,.4);border-radius:12px;padding:12px 16px;margin:10px 0 14px;max-width:520px;">'
+        . '<span style="font-size:24px;line-height:1;flex:none;">👔</span>'
+        . '<div style="min-width:0;"><div style="font-size:11px;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Дресс-код</div>'
+        . '<div style="color:var(--tx);font-weight:600;font-size:15px;margin-top:2px;">' . esc($t['dress_code']) . '</div></div></div>';
 }
 if (user_can_judge(current_user())) {
     echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
@@ -250,18 +252,21 @@ if ($rosterRows || $regOpen) {
     if ($rConfirmed) {
         $fmt1 = fn($v) => rtrim(rtrim(number_format((float)$v, 1, '.', ''), '0'), '.');
         $roleDopCell = function (int $pid) use ($dopByRole, $roleLabel) {
-            $out = [];
+            $out = '';
             foreach (['civ', 'maf', 'sheriff', 'don'] as $rk) {
                 $d = $dopByRole[$pid][$rk] ?? null;
-                $out[] = ($d && $d['g'] > 0)
-                    ? '<span title="' . esc($roleLabel[$rk]) . '" style="color:' . role_color($rk) . ';font-weight:600;">' . number_format($d['avg'], 2, '.', '') . '</span>'
+                $out .= ($d && $d['g'] > 0)
+                    ? '<span title="' . esc($roleLabel[$rk]) . '" style="color:var(--tx);">' . number_format($d['avg'], 2, '.', '') . '</span>'
                     : '<span title="' . esc($roleLabel[$rk]) . '" style="color:var(--tx3);">·</span>';
             }
-            return implode(' ', $out);
+            return '<span style="display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;">' . $out . '</span>';
         };
         echo '<div style="overflow-x:auto;"><table class="tbl tp-tbl"><tr>'
             . '<th class="num">#</th><th class="tp-name-col">Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
-            . '<th>Любимая карта</th><th>Ср. доп по ролям <span style="color:var(--tx3);font-weight:400;font-size:11px;">мир/маф/шер/дон</span></th><th class="num">Клубный счёт</th></tr>';
+            . '<th>Любимая карта</th>'
+            . '<th>Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:right;">'
+            . '<span style="color:#e8332a;">мир</span><span style="color:var(--tx3);">маф</span><span style="color:#e6b13a;">шер</span><span style="color:var(--tx3);">дон</span></span></th>'
+            . '<th class="num">Клубный счёт</th></tr>';
         $pos = 0;
         foreach ($rConfirmed as $r) {
             $pos++;
