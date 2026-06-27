@@ -139,6 +139,9 @@ function club_records(): array
     $single('📈', 'Макс. ELO за игру', "SELECT player_id pid, MAX(delta) v FROM elo_history GROUP BY player_id ORDER BY v DESC LIMIT 1", 'plus');
     $single('💰', 'Макс. доп за игру', "SELECT gs.player_id pid, MAX(gs.plus) v FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished' GROUP BY gs.player_id ORDER BY v DESC LIMIT 1", 'f1');
     $single('⚖️', 'Больше всех судил', "SELECT judge_player_id pid, COUNT(*) v FROM games WHERE status = 'finished' AND judge_player_id IS NOT NULL GROUP BY judge_player_id ORDER BY v DESC LIMIT 1", 'int');
+    // анти-рекорды
+    $add('🎲', 'Больше всех техфолов', $leader($rows, fn($r) => (int)($r['tech_count'] ?? 0)), 'int');
+    $add('➖', 'Больше всех минусов', $leader($rows, fn($r) => (float)$r['minus_sum']), 'f1');
     return $recs;
 }
 
@@ -450,7 +453,7 @@ function achievements_catalog(): array
         'triple'  => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Особые', false, 'Вычислили всех троих.'],
         'don'     => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Особые', false, 'Дона так и не нашли.'],
         'danger'  => ['🎯', 'Самый опасный', '5+ раз первоубиенный', 'Особые', false, 'Вас боятся чёрные.'],
-        'antilh'  => ['🃏', 'Антиснайпер', 'Чаще всех бил в ЛХ мимо: три мирных, ни одного чёрного', 'Особые', true, 'Главное — не победа, а участие.'],
+        'antilh'  => ['🙈', 'Слепой ход', 'Чаще всех бил в ЛХ мимо: три мирных, ни одного чёрного', 'Особые', true, 'Главное — не победа, а участие.'],
     ];
 }
 

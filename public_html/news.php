@@ -133,7 +133,7 @@ $recs = $dbok ? club_records() : [];
 if ($recs) {
     echo '<h2 style="margin:20px 0 4px;">Рекорды клуба</h2>';
     echo '<div class="records-grid">';
-    foreach (array_slice($recs, 0, 12) as [$ic, $title, $row, $val, $type]) {
+    foreach ($recs as [$ic, $title, $row, $val, $type]) {
         echo '<a class="rec-card" href="/player.php?id=' . (int)$row['pid'] . '">';
         echo '<div class="rec-ic">' . $ic . '</div>';
         echo '<div class="rec-body"><div class="rec-title">' . esc($title) . '</div>';
