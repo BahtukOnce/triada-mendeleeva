@@ -221,13 +221,16 @@ if (!empty($t['description'])) {
 }
 
 // ── Рассадка по столам (если сгенерирована) ──
-$seatQ = db()->prepare("SELECT ts.table_no, ts.seat_no, p.id AS pid, p.nickname, p.avatar
-    FROM tournament_seating ts JOIN players p ON p.id = ts.player_id
-    WHERE ts.tournament_id = ? ORDER BY ts.table_no, ts.seat_no");
-$seatQ->execute([$id]);
 $seating = [];
-foreach ($seatQ->fetchAll() as $sr) {
-    $seating[(int)$sr['table_no']][] = $sr;
+try {
+    $seatQ = db()->prepare("SELECT ts.table_no, ts.seat_no, p.id AS pid, p.nickname, p.avatar
+        FROM tournament_seating ts JOIN players p ON p.id = ts.player_id
+        WHERE ts.tournament_id = ? ORDER BY ts.table_no, ts.seat_no");
+    $seatQ->execute([$id]);
+    foreach ($seatQ->fetchAll() as $sr) {
+        $seating[(int)$sr['table_no']][] = $sr;
+    }
+} catch (Throwable $e) {
 }
 if ($seating) {
     echo '<div class="card" id="seating"><h2 style="margin-top:0;">🎲 Рассадка по столам</h2>';
