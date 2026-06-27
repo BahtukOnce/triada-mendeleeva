@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS tournament_seating (tournament_id INT NOT NULL, table_no INT NOT NULL, seat_no INT NOT NULL, player_id INT NOT NULL, PRIMARY KEY (tournament_id, table_no, seat_no), KEY idx_ts_tournament (tournament_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

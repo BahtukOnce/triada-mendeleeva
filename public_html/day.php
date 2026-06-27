@@ -185,7 +185,7 @@ if ($games) {
     echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
         . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
-        . '<th class="num" data-type="num">ELO</th><th class="num" data-type="num">± за вечер</th></tr></thead><tbody>';
+        . '<th class="num" data-type="num">ELO</th><th class="num" data-type="num">ЭЛО за вечер</th></tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;

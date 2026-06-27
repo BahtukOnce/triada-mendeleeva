@@ -118,7 +118,7 @@ if ($rows) {
     echo '<div class="card" style="overflow-x:auto;padding:8px 10px;">';
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
     echo '<thead>'
-        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
+        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo"></th>'
         . '<th colspan="11">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
         . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num">ELO</th>'

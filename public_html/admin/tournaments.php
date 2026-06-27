@@ -132,6 +132,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Throwable $e) {
             }
         }
+        // При переходе в «Идёт» — автоматическая рассадка, если её ещё нет
+        if ($status === 'live') {
+            $sc = db()->prepare('SELECT COUNT(*) FROM tournament_seating WHERE tournament_id = ?');
+            $sc->execute([$id]);
+            if ((int)$sc->fetchColumn() === 0) {
+                tournament_generate_seating($id);
+            }
+        }
         log_action((int)$u['id'], 'tournament_save', ['id' => $id]);
         flash_set('ok', 'Турнир сохранён');
         redirect('/admin/tournaments.php?edit=' . $id);
@@ -179,6 +187,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('/admin/tournaments.php?edit=' . $id);
     }
+
+    if ($form === 'gen_seating' && $id) {
+        $n = tournament_generate_seating($id);
+        flash_set($n > 0 ? 'ok' : 'err', $n > 0 ? ('Рассадка сгенерирована: ' . $n . ' игроков по столам') : 'Нет подтверждённых участников для рассадки');
+        redirect('/admin/tournaments.php?edit=' . $id);
+    }
     redirect('/admin/tournaments.php');
 }
 
@@ -186,6 +200,30 @@ function rating_recompute_all_safe(): void
 {
     require_once ROOT . '/inc/rating.php';
     rating_recompute_all();
+}
+
+// Случайная рассадка подтверждённых участников по столам (равномерно, место в столе — случайно).
+function tournament_generate_seating(int $tid): int
+{
+    $tq = db()->prepare('SELECT tables_count FROM tournaments WHERE id = ?');
+    $tq->execute([$tid]);
+    $nt = max(1, (int)($tq->fetchColumn() ?: 1));
+    $pq = db()->prepare("SELECT player_id FROM tournament_participants WHERE tournament_id = ? AND state = 'confirmed'");
+    $pq->execute([$tid]);
+    $players = array_map('intval', $pq->fetchAll(PDO::FETCH_COLUMN));
+    shuffle($players);
+    db()->prepare('DELETE FROM tournament_seating WHERE tournament_id = ?')->execute([$tid]);
+    if (!$players) {
+        return 0;
+    }
+    $ins = db()->prepare('INSERT INTO tournament_seating (tournament_id, table_no, seat_no, player_id) VALUES (?,?,?,?)');
+    $seatNo = array_fill(1, $nt, 0);
+    foreach ($players as $i => $pid) {
+        $table = ($i % $nt) + 1;       // равномерно «по кругу» между столами
+        $seatNo[$table]++;             // место — порядок попадания (случаен из-за shuffle)
+        $ins->execute([$tid, $table, $seatNo[$table], $pid]);
+    }
+    return count($players);
 }
 
 $editId = (int)($_GET['edit'] ?? 0);
@@ -383,6 +421,20 @@ if ($edit) {
         echo '<p style="color:var(--tx3);margin:0;">Пока никого. Добавь игроков выше' . (($edit['reg_mode'] ?? 'open') === 'open' ? ', либо они запишутся сами на странице турнира.' : '.') . '</p>';
     }
     echo '</div>';
+
+    // ── Рассадка по столам ──
+    $scq = db()->prepare('SELECT COUNT(*) FROM tournament_seating WHERE tournament_id = ?');
+    $scq->execute([$tid]);
+    $seatCount = (int)$scq->fetchColumn();
+    echo '<div class="card"><h2 style="margin-top:0;">🎲 Рассадка по столам</h2>';
+    echo '<p style="color:var(--tx2);margin-top:0;">Случайно распределяет подтверждённых участников по столам и местам. Создаётся автоматически при переходе турнира в статус <b style="color:var(--ac);">«Идёт»</b> — здесь можно пересоздать вручную.</p>';
+    if ($seatCount > 0) {
+        echo '<p style="color:var(--ok);margin:0 0 10px;">Готова: ' . $seatCount . ' игроков. <a href="/tournament.php?id=' . $tid . '#seating" style="color:var(--ac);">посмотреть на странице турнира →</a></p>';
+    }
+    echo '<form method="post" action="/admin/tournaments.php" onsubmit="return confirm(\'Сгенерировать рассадку заново? Текущая будет заменена.\');">' . csrf_field();
+    echo '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="form" value="gen_seating">';
+    echo '<button class="btn" type="submit">🎲 ' . ($seatCount > 0 ? 'Пересоздать рассадку' : 'Сгенерировать рассадку') . '</button>';
+    echo '</form></div>';
 }
 
 if ($list && !$edit) {

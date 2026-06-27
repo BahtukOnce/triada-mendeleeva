@@ -401,6 +401,13 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .t-stats b { display: block; font-size: 22px; font-weight: 700; color: var(--tx); line-height: 1.15; }
 .t-stats span { font-size: 11px; color: var(--tx2); }
 .dress-block { display: flex; align-items: center; gap: 13px; background: var(--acsf); border: 1px solid rgba(232,51,42,.4); border-radius: 14px; padding: 10px 16px; }
+/* унифицированный блок инфо-строки турнира: дата / место / дресс-код */
+.info-block { display: flex; align-items: center; gap: 12px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 14px; padding: 10px 16px; }
+.info-block .ib-ic { font-size: 22px; line-height: 1; flex: none; }
+.info-block .ib-label { font-size: 11px; color: var(--tx2); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.info-block .ib-val { color: var(--tx); font-weight: 600; font-size: 15px; margin-top: 2px; }
+.info-block.accent { background: var(--acsf); border-color: rgba(232,51,42,.4); }
+.info-block.accent .ib-label { color: var(--ac); }
 /* Таблица участников турнира: «Игрок» забирает свободную ширину, остальные — по содержимому */
 .tp-name-col { width: 100%; }
 .tp-tbl th, .tp-tbl td { white-space: nowrap; }

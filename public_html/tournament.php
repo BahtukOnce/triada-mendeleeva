@@ -102,16 +102,7 @@ foreach ($seatsByGame as $seats) {
         $participants[(int)$s['player_id']] = 1;
     }
 }
-$dl = [];
-if (!empty($t['date_from'])) {
-    $dl[] = esc(date('d.m.Y', strtotime((string)$t['date_from'])));
-}
-if (!empty($t['location'])) {
-    $dl[] = esc((string)$t['location']);
-}
-if ($dl) {
-    echo '<p style="color:var(--tx2);margin-top:6px;">' . implode(' · ', $dl) . '</p>';
-}
+// дата и место выводятся блоками в инфо-строке ниже
 
 // Судьи турнира: главный (по умолчанию за столом 1) + по столам
 $mainJudgeId = (int)($t['main_judge_player_id'] ?? 0);
@@ -156,6 +147,11 @@ $plural = function (int $n, string $a, string $b, string $c): string {
     if ($d >= 2 && $d <= 4 && ($h < 10 || $h >= 20)) { return $b; }
     return $c;
 };
+$monthsRu = [1 => 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+$ruDate = function ($d) use ($monthsRu): string {
+    $ts = strtotime((string)$d);
+    return (int)date('j', $ts) . ' ' . ($monthsRu[(int)date('n', $ts)] ?? '') . ' ' . date('Y', $ts);
+};
 $nT = (int)$t['tables_count'];
 $nG = count($games);
 $nP = count($participants);
@@ -172,10 +168,20 @@ $blocks[] = '<div class="t-stats">'
     . '<div><b>' . $nT . '</b><span>' . $plural($nT, 'стол', 'стола', 'столов') . '</span></div>'
     . '<div><b>' . $nG . '</b><span>' . $plural($nG, 'игра', 'игры', 'игр') . '</span></div>'
     . '<div><b>' . $nP . '</b><span>' . $plural($nP, 'участник', 'участника', 'участников') . '</span></div></div>';
+if (!empty($t['date_from'])) {
+    $dStr = $ruDate($t['date_from']);
+    if (!empty($t['date_to']) && $t['date_to'] !== $t['date_from']) {
+        $dStr = (int)date('j', strtotime((string)$t['date_from'])) . '–' . $ruDate($t['date_to']);
+    }
+    $blocks[] = '<div class="info-block"><span class="ib-ic">📅</span><div style="min-width:0;"><div class="ib-label">Дата</div><div class="ib-val">' . esc($dStr) . '</div></div></div>';
+}
+if (!empty($t['location'])) {
+    $blocks[] = '<div class="info-block"><span class="ib-ic">📍</span><div style="min-width:0;"><div class="ib-label">Место</div><div class="ib-val">' . esc((string)$t['location']) . '</div></div></div>';
+}
 if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
     $mj = $judgeMap[$mainJudgeId];
     $jhSub = [];
-    if ($mj['elo'] !== null) { $jhSub[] = 'ELO ' . (int)round((float)$mj['elo']); }
+    if ($mj['elo'] !== null) { $jhSub[] = 'ЭЛО ' . (int)round((float)$mj['elo']); }
     if ((int)($mj['judged'] ?? 0) > 0) { $jhSub[] = '<a href="/my_judged.php?id=' . $mainJudgeId . '" style="color:var(--ac);">судил игр: ' . (int)$mj['judged'] . '</a>'; }
     $blocks[] = '<div class="judge-hero">'
         . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
@@ -185,9 +191,9 @@ if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
         . '</div></div>';
 }
 if (!empty($t['dress_code'])) {
-    $blocks[] = '<div class="dress-block"><span style="font-size:24px;line-height:1;flex:none;">👔</span>'
-        . '<div style="min-width:0;"><div style="font-size:11px;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Дресс-код</div>'
-        . '<div style="color:var(--tx);font-weight:600;font-size:15px;margin-top:2px;">' . esc($t['dress_code']) . '</div></div></div>';
+    $blocks[] = '<div class="info-block accent"><span class="ib-ic">👔</span>'
+        . '<div style="min-width:0;"><div class="ib-label">Дресс-код</div>'
+        . '<div class="ib-val">' . esc($t['dress_code']) . '</div></div></div>';
 }
 echo '<div class="t-inforow">' . implode('', $blocks) . '</div>';
 
@@ -212,6 +218,32 @@ if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
 
 if (!empty($t['description'])) {
     echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
+}
+
+// ── Рассадка по столам (если сгенерирована) ──
+$seatQ = db()->prepare("SELECT ts.table_no, ts.seat_no, p.id AS pid, p.nickname, p.avatar
+    FROM tournament_seating ts JOIN players p ON p.id = ts.player_id
+    WHERE ts.tournament_id = ? ORDER BY ts.table_no, ts.seat_no");
+$seatQ->execute([$id]);
+$seating = [];
+foreach ($seatQ->fetchAll() as $sr) {
+    $seating[(int)$sr['table_no']][] = $sr;
+}
+if ($seating) {
+    echo '<div class="card" id="seating"><h2 style="margin-top:0;">🎲 Рассадка по столам</h2>';
+    echo '<div class="tables-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));">';
+    foreach ($seating as $tableNo => $seats) {
+        echo '<div class="card card-compact" style="margin:0;"><h3 style="margin:0 0 8px;font-size:15px;">Стол ' . (int)$tableNo . '</h3>';
+        echo '<div style="display:flex;flex-direction:column;gap:5px;">';
+        foreach ($seats as $s) {
+            echo '<div style="display:flex;align-items:center;gap:8px;">'
+                . '<span style="width:20px;text-align:right;color:var(--tx3);font-variant-numeric:tabular-nums;flex:none;">' . (int)$s['seat_no'] . '</span>'
+                . avatar_html(['nickname' => $s['nickname'], 'avatar' => $s['avatar']], 24)
+                . '<a href="/player.php?id=' . (int)$s['pid'] . '" style="color:var(--tx);overflow-wrap:anywhere;">' . esc($s['nickname']) . '</a></div>';
+        }
+        echo '</div></div>';
+    }
+    echo '</div></div>';
 }
 if (user_can_judge(current_user())) {
     echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
