@@ -1,15 +1,27 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
 
-$u = require_login();
-$player = current_player();
+// ?id=X — публичный просмотр судейств игрока; без id — свои судейства (нужен вход).
+$viewId = (int)($_GET['id'] ?? 0);
+if ($viewId > 0) {
+    $pl = db()->prepare('SELECT id, nickname FROM players WHERE id = ?');
+    $pl->execute([$viewId]);
+    $player = $pl->fetch() ?: null;
+    $own = false;
+} else {
+    $u = require_login();
+    $player = current_player();
+    $own = true;
+}
 
-page_head('Мои судейства', '');
-echo '<p><a href="/my_stats.php">← Моя статистика</a></p>';
-echo '<h1>Игры, которые я отсудил</h1>';
+$nick = (string)($player['nickname'] ?? '');
+page_head($own ? 'Мои судейства' : ('Судейства — ' . $nick), '');
+echo '<p><a href="' . ($own ? '/my_stats.php' : '/player.php?id=' . $viewId) . '">← '
+    . ($own ? 'Моя статистика' : esc($nick)) . '</a></p>';
+echo '<h1>' . ($own ? 'Игры, которые я отсудил' : 'Игры, которые отсудил ' . esc($nick)) . '</h1>';
 
 if (!$player) {
-    empty_state('Ник ещё не привязан', 'Привяжите игровой ник в личном кабинете.');
+    empty_state('Игрок не найден', '');
     page_foot();
     exit;
 }
@@ -27,7 +39,9 @@ $st->execute([$pid]);
 $games = $st->fetchAll();
 
 if (!$games) {
-    empty_state('Судейств пока нет', 'Здесь появятся игры, которые вы провели как судья.');
+    empty_state('Судейств пока нет', $own
+        ? 'Здесь появятся игры, которые вы провели как судья.'
+        : 'У игрока пока нет проведённых игр.');
     page_foot();
     exit;
 }
@@ -77,7 +91,8 @@ foreach ($groups as $grp) {
         foreach (($seatsByGame[(int)$g['id']] ?? []) as $s) {
             $names[] = role_dot($s['role']) . esc($s['nickname']);
         }
-        echo '<tr><td><a href="' . $link . '">игра ' . (int)$g['game_no'] . '</a></td>'
+        $gameLink = $link . '#game-' . (int)$g['id'];
+        echo '<tr><td><a href="' . $gameLink . '">игра ' . (int)$g['game_no'] . '</a></td>'
             . '<td>' . ($g['winner'] ? '<span class="tag ' . $winTag . '">' . esc($winLabel[$g['winner']]) . '</span>' : '—') . '</td>'
             . '<td style="font-size:12px;color:var(--tx2);overflow-wrap:anywhere;">' . implode(' · ', $names) . '</td></tr>';
     }

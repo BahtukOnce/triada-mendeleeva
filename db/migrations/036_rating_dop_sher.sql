@@ -1,0 +1,1 @@
+ALTER TABLE rating_cache ADD COLUMN dop_sher DECIMAL(8,1) NOT NULL DEFAULT 0

@@ -227,7 +227,7 @@ if ($games) {
         $totals = game_display_totals($g, $seats);
         $winTag = $g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'black' ? 'tag-black' : 'tag-draw');
 
-        echo '<div class="card card-compact">';
+        echo '<div class="card card-compact" id="game-' . (int)$g['id'] . '">';
         echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2><span>';
         if ($g['winner']) {
             echo '<span class="tag ' . $winTag . '">' . esc($winLabel[$g['winner']]) . '</span>';

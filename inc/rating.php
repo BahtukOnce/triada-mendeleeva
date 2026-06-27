@@ -131,8 +131,10 @@ function rating_recompute(int $ratingId): void
     $blank = [
         'games' => 0, 'sum_total' => 0.0, 'sum_plus' => 0.0, 'pu_count' => 0,
         'lh_sum' => 0.0, 'dop_sum' => 0.0, 'minus_sum' => 0.0, 'ci_sum' => 0.0,
+        'tech_count' => 0,
         'w_civ' => 0, 'g_civ' => 0, 'w_maf' => 0, 'g_maf' => 0,
         'w_sher' => 0, 'g_sher' => 0, 'w_don' => 0, 'g_don' => 0,
+        'dop_civ' => 0.0, 'dop_maf' => 0.0, 'dop_sher' => 0.0, 'dop_don' => 0.0,
     ];
     $roleKey = ['civ' => 'civ', 'maf' => 'maf', 'sheriff' => 'sher', 'don' => 'don'];
 
@@ -159,6 +161,7 @@ function rating_recompute(int $ratingId): void
             $a['minus_sum'] += (float)$s['minus']
                 + ((int)$s['fouls'] >= 4 ? 0.6 : 0)
                 + 0.3 * (int)$s['tech_fouls'];
+            $a['tech_count'] += (int)$s['tech_fouls'];
             $a['ci_sum'] += $ci;
             if ($isPu) {
                 $a['pu_count']++;
@@ -171,6 +174,7 @@ function rating_recompute(int $ratingId): void
             }
             $rk = $roleKey[$s['role']];
             $a['g_' . $rk]++;
+            $a['dop_' . $rk] += (float)$s['plus']; // доп-баллы в разрезе роли (тай-брейк по картам)
             if ($winner === 'red' && in_array($s['role'], ROLE_RED, true)) {
                 $a['w_' . $rk]++;
             } elseif ($winner === 'black' && in_array($s['role'], ROLE_BLACK, true)) {
@@ -210,9 +214,10 @@ function rating_recompute(int $ratingId): void
     $pdo->prepare('DELETE FROM rating_cache WHERE rating_id = ?')->execute([$ratingId]);
     $ins = $pdo->prepare('INSERT INTO rating_cache
         (rating_id, player_id, games, sum_total, sum_plus, avg_total, club_score, pu_count,
-         lh_sum, dop_sum, minus_sum, ci_sum,
-         w_civ, g_civ, w_maf, g_maf, w_sher, g_sher, w_don, g_don, mvp_evenings)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+         lh_sum, dop_sum, minus_sum, ci_sum, tech_count,
+         w_civ, g_civ, w_maf, g_maf, w_sher, g_sher, w_don, g_don, mvp_evenings,
+         dop_civ, dop_maf, dop_sher, dop_don)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     foreach ($agg as $pid => $a) {
         $a['sum_plus'] = $a['dop_sum'] + $a['lh_sum'] + $a['ci_sum'];
         $avg = ($a['games'] > 0 && $a['games'] >= $minGames) ? $a['sum_total'] / $a['games'] : null;
@@ -223,10 +228,11 @@ function rating_recompute(int $ratingId): void
             $avg !== null ? round($avg, 4) : null,
             $club !== null ? round($club, 4) : null,
             $a['pu_count'], round($a['lh_sum'], 1), round($a['dop_sum'], 1),
-            round($a['minus_sum'], 1), round($a['ci_sum'], 2),
+            round($a['minus_sum'], 1), round($a['ci_sum'], 2), $a['tech_count'],
             $a['w_civ'], $a['g_civ'], $a['w_maf'], $a['g_maf'],
             $a['w_sher'], $a['g_sher'], $a['w_don'], $a['g_don'],
             $mvp[$pid] ?? 0,
+            round($a['dop_civ'], 1), round($a['dop_maf'], 1), round($a['dop_sher'], 1), round($a['dop_don'], 1),
         ]);
     }
     if ($ownTx) {
@@ -280,14 +286,16 @@ function game_display_totals(array $game, array $seats): array
 }
 
 // Ячейка винрейта (процент + w/g, цвет по проценту). Общая для рейтинга и турниров.
-function wr_cell(int $w, int $g): string
+// $tie — вторичный ключ сортировки (доп-баллы за роль): при равном % выше тот, у кого больше допов.
+function wr_cell(int $w, int $g, float $tie = 0.0): string
 {
     if (!$g) {
         return '<td class="num c-cards" data-sort="-1"><div style="text-align:center;color:var(--tx3);">—</div></td>';
     }
     $pct = round($w / $g * 100);
+    $sort = (int)$pct * 1000000 + min((int)round(max(0.0, $tie) * 100), 999999);
     $col = $pct >= 60 ? 'var(--ok)' : ($pct < 42 ? 'var(--ac)' : 'var(--tx)');
-    return '<td class="num c-cards" data-sort="' . $pct . '"><div style="white-space:nowrap;line-height:1.15;text-align:center;">'
+    return '<td class="num c-cards" data-sort="' . $sort . '"><div style="white-space:nowrap;line-height:1.15;text-align:center;">'
         . '<span style="color:' . $col . ';font-weight:600;">' . $pct . '%</span>'
         . '<div style="font-size:11px;color:var(--tx2);">' . $w . '/' . $g . '</div></div></td>';
 }

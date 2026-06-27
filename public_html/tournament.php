@@ -176,7 +176,7 @@ if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
     $mj = $judgeMap[$mainJudgeId];
     $jhSub = [];
     if ($mj['elo'] !== null) { $jhSub[] = 'ELO ' . (int)round((float)$mj['elo']); }
-    if ((int)($mj['judged'] ?? 0) > 0) { $jhSub[] = 'судил игр: ' . (int)$mj['judged']; }
+    if ((int)($mj['judged'] ?? 0) > 0) { $jhSub[] = '<a href="/my_judged.php?id=' . $mainJudgeId . '" style="color:var(--ac);">судил игр: ' . (int)$mj['judged'] . '</a>'; }
     $blocks[] = '<div class="judge-hero">'
         . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
         . '<div><div class="jh-label">⚖ Главный судья</div>'
@@ -472,7 +472,7 @@ foreach ($byTable as $tableNo => $tGames) {
     foreach ($tGames as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats);
-        echo '<div class="card' . ($multi ? ' card-compact' : '') . '">';
+        echo '<div class="card' . ($multi ? ' card-compact' : '') . '" id="game-' . (int)$g['id'] . '">';
         echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
         if ($g['winner']) {
             echo '<span class="tag ' . ($g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'draw' ? 'tag-draw' : 'tag-black')) . '">'

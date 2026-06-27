@@ -1,0 +1,1 @@
+ALTER TABLE rating_cache ADD COLUMN tech_count INT NOT NULL DEFAULT 0

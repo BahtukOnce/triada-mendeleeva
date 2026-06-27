@@ -44,7 +44,9 @@ if ($rows) {
     // ── Номинации (среди игроков с минимумом игр) ──
     $minG = (int)(setting('min_games_nomination') ?: '10');
     $cands = array_filter($rows, fn($r) => (int)$r['games'] >= $minG);
-    $bestBy = function (array $cands, callable $w, callable $g, int $min = 1) {
+    // $tie — доп-баллы за эту роль: при равном винрейте выше тот, у кого их больше
+    // (а при равных допах — у кого больше игр в роли).
+    $bestBy = function (array $cands, callable $w, callable $g, callable $tie, int $min = 1) {
         $best = null;
         $bw = -1;
         foreach ($cands as $r) {
@@ -53,9 +55,15 @@ if ($rows) {
                 continue;
             }
             $wr = $w($r) / $gg;
-            if ($wr > $bw + 1e-9 || (abs($wr - $bw) < 1e-9 && $best && $gg > $g($best))) {
+            if ($wr > $bw + 1e-9) {
                 $bw = $wr;
                 $best = $r;
+            } elseif ($best && abs($wr - $bw) < 1e-9) {
+                $ct = $tie($r);
+                $bt = $tie($best);
+                if ($ct > $bt + 1e-9 || (abs($ct - $bt) < 1e-9 && $gg > $g($best))) {
+                    $best = $r;
+                }
             }
         }
         return $best ? [$best, $bw] : null;
@@ -69,10 +77,10 @@ if ($rows) {
     }
     $noms = [
         ['MVP клуба', $mvp ? [$mvp, null] : null, 'выше всех в рейтинге'],
-        ['Лучший дон', $bestBy($cands, fn($r) => (int)$r['w_don'], fn($r) => (int)$r['g_don'], 4), 'дон'],
-        ['Лучший шериф', $bestBy($cands, fn($r) => (int)$r['w_sher'], fn($r) => (int)$r['g_sher'], 4), 'шериф'],
-        ['Лучший красный', $bestBy($cands, fn($r) => (int)$r['w_civ'], fn($r) => (int)$r['g_civ'], 10), 'мирный'],
-        ['Лучший чёрный', $bestBy($cands, fn($r) => (int)$r['w_maf'], fn($r) => (int)$r['g_maf'], 8), 'мафия'],
+        ['Лучший дон', $bestBy($cands, fn($r) => (int)$r['w_don'], fn($r) => (int)$r['g_don'], fn($r) => (float)($r['dop_don'] ?? 0), 4), 'дон'],
+        ['Лучший шериф', $bestBy($cands, fn($r) => (int)$r['w_sher'], fn($r) => (int)$r['g_sher'], fn($r) => (float)($r['dop_sher'] ?? 0), 4), 'шериф'],
+        ['Лучший красный', $bestBy($cands, fn($r) => (int)$r['w_civ'], fn($r) => (int)$r['g_civ'], fn($r) => (float)($r['dop_civ'] ?? 0), 10), 'мирный'],
+        ['Лучший чёрный', $bestBy($cands, fn($r) => (int)$r['w_maf'], fn($r) => (int)$r['g_maf'], fn($r) => (float)($r['dop_maf'] ?? 0), 8), 'мафия'],
     ];
     $hasNoms = false;
     foreach ($noms as $n) {
@@ -143,11 +151,11 @@ if ($rows) {
         echo '<td class="num c-club" data-sort="' . round($avgDop, 3) . '"><b>' . number_format($avgDop, 2) . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['minus_sum'] . '">' . number_format((float)$row['minus_sum'], 1) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['ci_sum'] . '">' . number_format((float)$row['ci_sum'], 2) . '</td>';
-        echo str_replace('c-cards"', 'c-cards c-cards-first"', wr_cell((int)$w, (int)$row['games']));
-        echo wr_cell((int)$row['w_civ'], (int)$row['g_civ']);
-        echo wr_cell((int)$row['w_maf'], (int)$row['g_maf']);
-        echo wr_cell((int)$row['w_sher'], (int)$row['g_sher']);
-        echo wr_cell((int)$row['w_don'], (int)$row['g_don']);
+        echo str_replace('c-cards"', 'c-cards c-cards-first"', wr_cell((int)$w, (int)$row['games'], (float)$row['dop_sum']));
+        echo wr_cell((int)$row['w_civ'], (int)$row['g_civ'], (float)($row['dop_civ'] ?? 0));
+        echo wr_cell((int)$row['w_maf'], (int)$row['g_maf'], (float)($row['dop_maf'] ?? 0));
+        echo wr_cell((int)$row['w_sher'], (int)$row['g_sher'], (float)($row['dop_sher'] ?? 0));
+        echo wr_cell((int)$row['w_don'], (int)$row['g_don'], (float)($row['dop_don'] ?? 0));
         echo '</tr>';
     }
     echo '</tbody></table></div>';

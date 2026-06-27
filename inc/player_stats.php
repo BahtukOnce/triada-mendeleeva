@@ -126,17 +126,19 @@ function render_player_stats(int $id, bool $own = false): void
         }
     }
 
-    // ── «Судья»: только в своей статистике ──
-    if ($own) {
-        $jst = db()->prepare("SELECT COUNT(*) FROM games WHERE judge_player_id = ? AND status = 'finished'");
-        $jst->execute([$id]);
-        $judged = (int)$jst->fetchColumn();
-        if ($judged > 0) {
-            echo '<a class="card card-link" href="/my_judged.php" style="display:flex;align-items:center;gap:12px;">'
-                . '<span class="tag tag-open" style="font-size:14px;">судья</span>'
-                . '<span>Вы отсудили <b>' . $judged . '</b> ' . ($judged % 10 === 1 && $judged % 100 !== 11 ? 'игру' : 'игр')
-                . '. <span style="color:var(--ac);">посмотреть, какие →</span></span></a>';
-        }
+    // ── «Судья»: список отсуженных игр (видно всем) ──
+    $jst = db()->prepare("SELECT COUNT(*) FROM games WHERE judge_player_id = ? AND status = 'finished'");
+    $jst->execute([$id]);
+    $judged = (int)$jst->fetchColumn();
+    if ($judged > 0) {
+        $jWord = ($judged % 10 === 1 && $judged % 100 !== 11) ? 'игру' : 'игр';
+        $jLink = $own ? '/my_judged.php' : '/my_judged.php?id=' . (int)$id;
+        $jText = $own
+            ? ('Вы отсудили <b>' . $judged . '</b> ' . $jWord)
+            : ('Судил игр: <b>' . $judged . '</b>');
+        echo '<a class="card card-link" href="' . $jLink . '" style="display:flex;align-items:center;gap:12px;">'
+            . '<span class="tag tag-open" style="font-size:14px;">судья</span>'
+            . '<span>' . $jText . '. <span style="color:var(--ac);">посмотреть, какие →</span></span></a>';
     }
 
     if ($stats) {
@@ -234,6 +236,7 @@ function render_player_stats(int $id, bool $own = false): void
             ['ЛХ (бонусы)', number_format((float)$stats['lh_sum'], 1)],
             ['Допы', number_format((float)$stats['dop_sum'], 1)],
             ['Минусы и штрафы', number_format((float)$stats['minus_sum'], 1)],
+            ['Техфолы', (int)($stats['tech_count'] ?? 0)],
             ['Ci (компенсации)', number_format((float)$stats['ci_sum'], 2)],
             ['🥇 MVP вечеров', (int)($stats['mvp_evenings'] ?? 0)],
         ] as [$lbl, $val]) {

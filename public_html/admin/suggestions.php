@@ -39,6 +39,18 @@ foreach ($list as $s) {
     echo '<b>' . esc($s['nickname'] ?? '—') . '</b>';
     echo '<span style="font-size:12px;color:var(--tx2);">' . date('d.m.Y H:i', strtotime($s['created_at']))
         . ' · ' . $statusLabel[$s['status']] . '</span></div>';
+    if (!empty($s['images'])) {
+        $imgs = json_decode((string)$s['images'], true);
+        if (is_array($imgs) && $imgs) {
+            echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">';
+            foreach ($imgs as $iu) {
+                if (is_string($iu) && strncmp($iu, '/uploads/', 9) === 0) {
+                    echo '<a href="' . esc($iu) . '" target="_blank" rel="noopener"><img src="' . esc($iu) . '" alt="" loading="lazy" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--bd);"></a>';
+                }
+            }
+            echo '</div>';
+        }
+    }
     echo '<div style="margin-bottom:10px;">' . nl2br(esc($s['body'])) . '</div>';
     echo '<form method="post" action="/admin/suggestions.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' . csrf_field();
     echo '<input type="hidden" name="form" value="update"><input type="hidden" name="id" value="' . (int)$s['id'] . '">';
