@@ -294,7 +294,7 @@ if ($rosterRows || $regOpen) {
             . '<th>Любимая карта</th>'
             . '<th>Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:right;">'
             . '<span style="color:#e8332a;">мир</span><span style="color:var(--tx3);">маф</span><span style="color:#e6b13a;">шер</span><span style="color:var(--tx3);">дон</span></span></th>'
-            . '<th class="num">Клубный счёт</th></tr>';
+            . '<th class="num">Клубный рейтинг</th></tr>';
         $pos = 0;
         foreach ($rConfirmed as $r) {
             $pos++;

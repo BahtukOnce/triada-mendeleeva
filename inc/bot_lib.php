@@ -505,6 +505,8 @@ function bot_tournament_invite(int $tid, int $playerId): bool
     $cc = db()->prepare("SELECT COUNT(*) FROM tournament_participants WHERE tournament_id = ? AND state = 'confirmed'");
     $cc->execute([$tid]);
     $confirmed = (int)$cc->fetchColumn();
+    $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+    $url = $base . '/tournament.php?id=' . $tid;
     $text = "🎟 <b>Приглашение на турнир</b>\n\n"
         . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
@@ -512,14 +514,14 @@ function bot_tournament_invite(int $tid, int $playerId): bool
         . ($tr['tables_count'] ? "🎲 Столов: " . (int)$tr['tables_count'] . "\n" : "")
         . (!empty($tr['dress_code']) ? "👔 Дресс-код: " . bot_esc((string)$tr['dress_code']) . "\n" : "")
         . ($confirmed > 0 ? "👥 Уже в составе: " . $confirmed . "\n" : "")
+        . "\n🔗 <a href=\"" . $url . "\">Страница турнира</a>\n"
         . "\nСможете прийти?";
-    $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
     $markup = json_encode(['inline_keyboard' => [
         [
             ['text' => '✅ Приду', 'callback_data' => 'tinv_yes:' . $tid],
             ['text' => '❌ Не смогу', 'callback_data' => 'tinv_no:' . $tid],
         ],
-        [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],
+        [['text' => '🔗 Страница турнира', 'url' => $url]],
     ]], JSON_UNESCAPED_UNICODE);
     $r = bot_send((int)$tg, $text, $markup);
     $ok = $r && !empty($r['ok']);
@@ -569,8 +571,10 @@ function bot_tournament_judge_notify(int $tid, int $playerId, int $tableNo): boo
         . ($tr['tables_count'] ? "🎲 Столов: " . (int)$tr['tables_count'] . "\n" : "")
         . (!empty($tr['dress_code']) ? "👔 Дресс-код: " . bot_esc((string)$tr['dress_code']) . "\n" : "");
     $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+    $url = $base . '/tournament.php?id=' . $tid;
+    $text .= "\n🔗 <a href=\"" . $url . "\">Страница турнира</a>";
     $markup = json_encode(['inline_keyboard' => [
-        [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],
+        [['text' => '🔗 Страница турнира', 'url' => $url]],
     ]], JSON_UNESCAPED_UNICODE);
     $r = bot_send((int)$tg, $text, $markup);
     return $r && !empty($r['ok']);
