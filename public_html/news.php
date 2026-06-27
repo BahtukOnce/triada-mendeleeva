@@ -144,27 +144,8 @@ if ($recs) {
     echo '</div>';
 }
 
-// ── Награды клуба (степени + лучший обладатель) ──
-if ($dbok) {
-    $awTop = awards_top();
-    echo '<h2 style="margin:20px 0 4px;">Награды клуба</h2>';
-    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Ступенчатые награды: у каждой показан обладатель с наивысшей степенью.</p>';
-    echo '<div class="awards-grid">';
-    foreach (awards_catalog() as $key => $aw) {
-        $top = $awTop[$key] ?? null;
-        $extra = '';
-        if ($top) {
-            $mm = $top['m'];
-            $extra = '<a class="award-who" href="/player.php?id=' . (int)$mm['pid'] . '">'
-                . avatar_html(['nickname' => $mm['nick'], 'avatar' => $mm['avatar']], 22) . '<span>' . esc($mm['nick']) . '</span></a>';
-        }
-        echo award_card($aw, $top ? $top['prog'] : award_progress($aw, 0), $extra);
-    }
-    echo '</div>';
-}
-
-// ── Особые достижения ──
-echo '<h2 style="margin:20px 0 4px;">Особые достижения</h2>';
+// ── Достижения ──
+echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
 echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Наведи курсор на ачивку — справа появятся все, кто её получил (или нажми, чтобы открыть списком).</p>';
 $earners = $dbok ? achievement_earners() : [];
 $byGroup = [];
@@ -172,21 +153,20 @@ foreach (achievements_catalog() as $k => $info) {
     if (!empty($info[4])) { // скрытые ачивки в общем списке не показываем
         continue;
     }
-    $byGroup[$info[3]][$k] = [$info[0], $info[1], $info[2], $info[5] ?? ''];
+    [$ic, $t, $d, $grp] = $info;
+    $byGroup[$grp][$k] = [$ic, $t, $d];
 }
 echo '<div class="ach-wrap"><div class="ach-main">';
 foreach ($byGroup as $grp => $items) {
     echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
     echo '<div class="ach-grid">';
-    foreach ($items as $k => [$ic, $t, $d, $comment]) {
+    foreach ($items as $k => [$ic, $t, $d]) {
         $who = $earners[$k] ?? [];
         $cnt = count($who);
         $whoJson = esc(json_encode(array_slice($who, 0, 200), JSON_UNESCAPED_UNICODE));
         echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" data-who="' . $whoJson . '" data-title="' . esc($t) . '">'
             . '<div class="ach-ic">' . $ic . '</div><div class="ach-t">' . esc($t) . '</div>'
-            . '<div class="ach-d">' . esc($d) . '</div>'
-            . ($comment !== '' ? '<div class="ach-cm">' . esc($comment) . '</div>' : '')
-            . '<div class="ach-cnt">' . $cnt . ' получ.</div></div>';
+            . '<div class="ach-d">' . esc($d) . '</div><div class="ach-cnt">' . $cnt . ' получ.</div></div>';
     }
     echo '</div>';
 }

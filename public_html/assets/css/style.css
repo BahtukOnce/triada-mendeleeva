@@ -660,24 +660,6 @@ body::before {
 .ach-ic { font-size: 26px; line-height: 1; }
 .ach-t { font-weight: 650; font-size: 13px; margin-top: 6px; }
 .ach-d { font-size: 11px; color: var(--tx2); margin-top: 2px; line-height: 1.3; }
-.ach-cm { font-size: 11px; color: var(--tx3); font-style: italic; margin-top: 5px; line-height: 1.3; }
-/* награды со степенями */
-.awards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; margin-top: 12px; }
-.award { display: flex; gap: 12px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 14px; padding: 12px 14px; opacity: .5; filter: grayscale(.7); }
-.award-on { opacity: 1; filter: none; border-color: var(--am); }
-.award-ic { font-size: 30px; line-height: 1; flex: none; }
-.award-body { min-width: 0; flex: 1; }
-.award-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.award-title { font-weight: 700; font-size: 15px; color: var(--tx); }
-.award-deg { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--am); white-space: nowrap; }
-.award-tier { font-size: 12.5px; color: var(--tx2); margin-top: 3px; }
-.award-tier.award-off { color: var(--tx3); }
-.award-cm { font-size: 11.5px; color: var(--tx3); font-style: italic; margin-top: 4px; line-height: 1.3; }
-.award-bar { height: 6px; border-radius: 4px; background: var(--bd); margin-top: 8px; overflow: hidden; }
-.award-bar > span { display: block; height: 100%; background: var(--am); border-radius: 4px; }
-.award-next { font-size: 10.5px; color: var(--tx3); margin-top: 4px; }
-.award-next.award-max { color: var(--am); font-weight: 600; }
-.award-who { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--tx2); }
 .ach-cnt { font-size: 10.5px; color: var(--tx3); margin-top: 5px; }
 .ach-on .ach-cnt { color: var(--ok); }
 .ach[data-who] { transition: transform .12s ease, box-shadow .12s ease; }
