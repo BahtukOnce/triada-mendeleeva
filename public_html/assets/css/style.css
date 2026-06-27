@@ -393,6 +393,14 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .jt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tx2); background: var(--sf2); border-radius: 18px; padding: 4px 12px 4px 4px; text-decoration: none; }
 .jt:hover { color: var(--tx); }
 .jt-no { color: var(--tx3); font-size: 11px; }
+/* инфо-строка турнира: статы + главный судья + дресс-код в один ряд */
+.t-inforow { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; margin: 8px 0 12px; }
+.t-inforow > * { margin: 0 !important; }
+.t-stats { display: flex; align-items: center; gap: 22px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 14px; padding: 10px 22px; }
+.t-stats > div { text-align: center; }
+.t-stats b { display: block; font-size: 22px; font-weight: 700; color: var(--tx); line-height: 1.15; }
+.t-stats span { font-size: 11px; color: var(--tx2); }
+.dress-block { display: flex; align-items: center; gap: 13px; background: var(--acsf); border: 1px solid rgba(232,51,42,.4); border-radius: 14px; padding: 10px 16px; }
 /* Таблица участников турнира: «Игрок» забирает свободную ширину, остальные — по содержимому */
 .tp-name-col { width: 100%; }
 .tp-tbl th, .tp-tbl td { white-space: nowrap; }

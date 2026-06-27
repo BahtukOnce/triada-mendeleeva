@@ -496,16 +496,22 @@ function bot_tournament_invite(int $tid, int $playerId): bool
     if (!$tg) {
         return false;
     }
-    $t = db()->prepare('SELECT title, date_from, location FROM tournaments WHERE id = ?');
+    $t = db()->prepare('SELECT title, date_from, location, tables_count, dress_code FROM tournaments WHERE id = ?');
     $t->execute([$tid]);
     $tr = $t->fetch();
     if (!$tr) {
         return false;
     }
+    $cc = db()->prepare("SELECT COUNT(*) FROM tournament_participants WHERE tournament_id = ? AND state = 'confirmed'");
+    $cc->execute([$tid]);
+    $confirmed = (int)$cc->fetchColumn();
     $text = "🎟 <b>Приглашение на турнир</b>\n\n"
         . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
         . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "")
+        . ($tr['tables_count'] ? "🎲 Столов: " . (int)$tr['tables_count'] . "\n" : "")
+        . (!empty($tr['dress_code']) ? "👔 Дресс-код: " . bot_esc((string)$tr['dress_code']) . "\n" : "")
+        . ($confirmed > 0 ? "👥 Уже в составе: " . $confirmed . "\n" : "")
         . "\nСможете прийти?";
     $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
     $markup = json_encode(['inline_keyboard' => [
@@ -548,7 +554,7 @@ function bot_tournament_judge_notify(int $tid, int $playerId, int $tableNo): boo
     if (!$tg) {
         return false;
     }
-    $t = db()->prepare('SELECT title, date_from, location FROM tournaments WHERE id = ?');
+    $t = db()->prepare('SELECT title, date_from, location, tables_count, dress_code FROM tournaments WHERE id = ?');
     $t->execute([$tid]);
     $tr = $t->fetch();
     if (!$tr) {
@@ -559,7 +565,9 @@ function bot_tournament_judge_notify(int $tid, int $playerId, int $tableNo): boo
         . "<b>" . bot_esc((string)$tr['title']) . "</b>\n"
         . "Роль: <b>" . $role . "</b>\n"
         . ($tr['date_from'] ? "🗓 " . bot_date((string)$tr['date_from']) . "\n" : "")
-        . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "");
+        . ($tr['location'] ? "📍 " . bot_esc((string)$tr['location']) . "\n" : "")
+        . ($tr['tables_count'] ? "🎲 Столов: " . (int)$tr['tables_count'] . "\n" : "")
+        . (!empty($tr['dress_code']) ? "👔 Дресс-код: " . bot_esc((string)$tr['dress_code']) . "\n" : "");
     $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
     $markup = json_encode(['inline_keyboard' => [
         [['text' => '🔗 Страница турнира', 'url' => $base . '/tournament.php?id=' . $tid]],

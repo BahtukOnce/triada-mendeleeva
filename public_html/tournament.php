@@ -102,11 +102,16 @@ foreach ($seatsByGame as $seats) {
         $participants[(int)$s['player_id']] = 1;
     }
 }
-echo '<p style="color:var(--tx2);margin-top:6px;">Столов: ' . (int)$t['tables_count']
-    . ' · игр: ' . count($games)
-    . ' · участников: ' . count($participants)
-    . ($t['date_from'] ? ' · ' . esc(date('d.m.Y', strtotime($t['date_from']))) : '')
-    . ($t['location'] ? ' · ' . esc($t['location']) : '') . '</p>';
+$dl = [];
+if (!empty($t['date_from'])) {
+    $dl[] = esc(date('d.m.Y', strtotime((string)$t['date_from'])));
+}
+if (!empty($t['location'])) {
+    $dl[] = esc((string)$t['location']);
+}
+if ($dl) {
+    echo '<p style="color:var(--tx2);margin-top:6px;">' . implode(' · ', $dl) . '</p>';
+}
 
 // Судьи турнира: главный (по умолчанию за столом 1) + по столам
 $mainJudgeId = (int)($t['main_judge_player_id'] ?? 0);
@@ -144,21 +149,50 @@ $tableJudgeId = function (int $tableNo) use ($tableJudges, $mainJudgeId): int {
     }
     return $jid;
 };
+// ── Инфо-строка: статы + главный судья + дресс-код в одну строку ──
+$plural = function (int $n, string $a, string $b, string $c): string {
+    $d = $n % 10; $h = $n % 100;
+    if ($d === 1 && $h !== 11) { return $a; }
+    if ($d >= 2 && $d <= 4 && ($h < 10 || $h >= 20)) { return $b; }
+    return $c;
+};
+$nT = (int)$t['tables_count'];
+$nG = count($games);
+$nP = count($participants);
+if ($nP === 0) { // предстоящий турнир — берём подтверждённый состав
+    try {
+        $cq = db()->prepare("SELECT COUNT(*) FROM tournament_participants WHERE tournament_id = ? AND state = 'confirmed'");
+        $cq->execute([$id]);
+        $nP = (int)$cq->fetchColumn();
+    } catch (Throwable $e) {
+    }
+}
+$blocks = [];
+$blocks[] = '<div class="t-stats">'
+    . '<div><b>' . $nT . '</b><span>' . $plural($nT, 'стол', 'стола', 'столов') . '</span></div>'
+    . '<div><b>' . $nG . '</b><span>' . $plural($nG, 'игра', 'игры', 'игр') . '</span></div>'
+    . '<div><b>' . $nP . '</b><span>' . $plural($nP, 'участник', 'участника', 'участников') . '</span></div></div>';
 if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
     $mj = $judgeMap[$mainJudgeId];
     $jhSub = [];
-    if ($mj['elo'] !== null) {
-        $jhSub[] = 'ELO ' . (int)round((float)$mj['elo']);
-    }
-    if ((int)($mj['judged'] ?? 0) > 0) {
-        $jhSub[] = 'судил игр: ' . (int)$mj['judged'];
-    }
-    echo '<div class="judge-hero">'
+    if ($mj['elo'] !== null) { $jhSub[] = 'ELO ' . (int)round((float)$mj['elo']); }
+    if ((int)($mj['judged'] ?? 0) > 0) { $jhSub[] = 'судил игр: ' . (int)$mj['judged']; }
+    $blocks[] = '<div class="judge-hero">'
         . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
         . '<div><div class="jh-label">⚖ Главный судья</div>'
         . '<a class="jh-name" href="/player.php?id=' . $mainJudgeId . '">' . esc($mj['nickname']) . '</a>'
         . ($jhSub ? '<div class="jh-sub">' . implode(' · ', $jhSub) . '</div>' : '')
         . '</div></div>';
+}
+if (!empty($t['dress_code'])) {
+    $blocks[] = '<div class="dress-block"><span style="font-size:24px;line-height:1;flex:none;">👔</span>'
+        . '<div style="min-width:0;"><div style="font-size:11px;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Дресс-код</div>'
+        . '<div style="color:var(--tx);font-weight:600;font-size:15px;margin-top:2px;">' . esc($t['dress_code']) . '</div></div></div>';
+}
+echo '<div class="t-inforow">' . implode('', $blocks) . '</div>';
+
+// судьи столов 2+
+if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
     $otherJ = [];
     for ($tn = 2; $tn <= (int)$t['tables_count']; $tn++) {
         $jid = $tableJudgeId($tn);
@@ -178,12 +212,6 @@ if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
 
 if (!empty($t['description'])) {
     echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
-}
-if (!empty($t['dress_code'])) {
-    echo '<div style="display:flex;align-items:center;gap:13px;background:var(--acsf);border:1px solid rgba(232,51,42,.4);border-radius:12px;padding:12px 16px;margin:10px 0 14px;max-width:520px;">'
-        . '<span style="font-size:24px;line-height:1;flex:none;">👔</span>'
-        . '<div style="min-width:0;"><div style="font-size:11px;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Дресс-код</div>'
-        . '<div style="color:var(--tx);font-weight:600;font-size:15px;margin-top:2px;">' . esc($t['dress_code']) . '</div></div></div>';
 }
 if (user_can_judge(current_user())) {
     echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
