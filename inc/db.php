@@ -68,5 +68,21 @@ function run_migrations(): array
     if (!$log) {
         $log[] = 'nothing to apply';
     }
+    // Хук: миграция с «recompute» в имени запускает полный пересчёт рейтинга.
+    // SQL-миграции не умеют звать PHP, а кэш рейтинга (rating_cache) иногда надо
+    // переагрегировать на боевых данных — напр. заполнить колонку mvp_evenings,
+    // добавленную позже наполнения кэша. Маркер-файл срабатывает один раз.
+    foreach ($log as $line) {
+        if (strpos($line, 'recompute') !== false && is_file(ROOT . '/inc/rating.php')) {
+            try {
+                require_once ROOT . '/inc/rating.php';
+                rating_recompute_all();
+                $log[] = 'rating recomputed';
+            } catch (Throwable $e) {
+                $log[] = 'recompute error: ' . $e->getMessage();
+            }
+            break;
+        }
+    }
     return $log;
 }
