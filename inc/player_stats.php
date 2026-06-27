@@ -473,7 +473,8 @@ function render_player_stats(int $id, bool $own = false): void
         $cond = [
             'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
             'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
-            'black5' => $blackStreak >= 5, 'red3' => $redWinStreak >= 5,
+            'black3' => $blackStreak >= 3, 'black5' => $blackStreak >= 5, 'black7' => $blackStreak >= 7,
+            'redw3' => $redWinStreak >= 3, 'red3' => $redWinStreak >= 5, 'redw7' => $redWinStreak >= 7,
             'elo1100' => $peakElo >= 1100, 'elo1300' => $peakElo >= 1300, 'elo1500' => $peakElo >= 1500, 'elo1700' => $peakElo >= 1700, 'elo1900' => $peakElo >= 1900, 'elo2100' => $peakElo >= 2100,
             'eloday' => $maxEloDay >= 150,
             'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.0,
@@ -481,29 +482,43 @@ function render_player_stats(int $id, bool $own = false): void
         ];
         $cat = achievements_catalog();
         $earners = achievement_earners();
-        $earnedN = 0;
-        foreach ($cat as $k => $c) {
+        // клубные/вычисляемые ачивки — из общего расчёта (есть ли игрок среди получивших)
+        foreach (['antilh', 'tour_win', 'tour_win3'] as $ek) {
+            $cond[$ek] = in_array($id, array_map(fn($e) => (int)$e[0], $earners[$ek] ?? []), true);
+        }
+        $viewer = current_user();
+        $canSeeHidden = $own || ($viewer && role_level($viewer['role']) >= 3);
+        $earnedN = 0; $totalAch = 0;
+        foreach ($cat as $k => $info) {
+            if (!empty($info[4])) {
+                continue; // скрытые не входят в счёт «N из M»
+            }
+            $totalAch++;
             if (!empty($cond[$k])) {
                 $earnedN++;
             }
         }
         echo '<div class="card"><div class="section-head"><h2 style="margin:0;">Достижения</h2>'
-            . '<span style="font-size:13px;color:var(--tx2);">получено ' . $earnedN . ' из ' . count($cat) . '</span></div>';
+            . '<span style="font-size:13px;color:var(--tx2);">получено ' . $earnedN . ' из ' . $totalAch . '</span></div>';
         $byGroup = [];
-        foreach ($cat as $k => [$ic, $t, $d, $grp]) {
-            $byGroup[$grp][$k] = [$ic, $t, $d];
+        foreach ($cat as $k => $info) {
+            $hidden = !empty($info[4]);
+            if ($hidden && !($canSeeHidden && !empty($cond[$k]))) {
+                continue; // скрытую видит только владелец/админ и только если получена
+            }
+            $byGroup[$info[3]][$k] = [$info[0], $info[1], $info[2], $hidden];
         }
         foreach ($byGroup as $grp => $items) {
             echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
             echo '<div class="ach-grid">';
-            foreach ($items as $k => [$ic, $t, $d]) {
+            foreach ($items as $k => [$ic, $t, $d, $hidden]) {
                 $ok = !empty($cond[$k]);
-                $who = $earners[$k] ?? [];
-                $cnt = count($who);
+                $who = $hidden ? [] : ($earners[$k] ?? []); // у скрытой не светим, кто получил
+                $cnt = count($earners[$k] ?? []);
                 $names = array_map(fn($e) => $e[1], $who);
-                $tip = $cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($names, 0, 40)) : 'Пока ни у кого';
+                $tip = $hidden ? 'Скрытая ачивка' : ($cnt ? 'Получили (' . $cnt . '): ' . implode(', ', array_slice($names, 0, 40)) : 'Пока ни у кого');
                 $whoJson = esc(json_encode(array_slice($who, 0, 200), JSON_UNESCAPED_UNICODE));
-                echo '<div class="ach' . ($ok ? ' ach-on' : '') . '" data-who="' . $whoJson . '" title="' . esc($tip) . '">'
+                echo '<div class="ach' . ($ok ? ' ach-on' : '') . ($hidden ? ' ach-secret' : '') . '" data-who="' . $whoJson . '" title="' . esc($tip) . '">'
                     . '<div class="ach-ic">' . $ic . '</div>'
                     . '<div class="ach-t">' . esc($t) . '</div><div class="ach-d">' . esc($d) . '</div>'
                     . '<div class="ach-cnt">' . ($ok ? '✓ ' : '') . $cnt . ' получ.</div></div>';

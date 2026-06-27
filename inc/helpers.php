@@ -116,6 +116,29 @@ function club_records(): array
     $add('🔪', 'Больше всех ПУ', $leader($rows, fn($r) => (int)$r['pu_count']), 'int');
     $add('🌟', 'Больше всех ЛХ', $leader($rows, fn($r) => (float)$r['lh_sum']), 'f1');
     $add('📊', 'Высший средний (~Σ) — от 10 игр', $leader($rows, fn($r) => (float)$r['avg_total'], 10), 'f2');
+    $add('🥇', 'Больше всех MVP вечеров', $leader($rows, fn($r) => (int)($r['mvp_evenings'] ?? 0)), 'int');
+
+    // Рекорды по «одной игре» / прочее — отдельными запросами; игрок берётся по id.
+    $plById = function (int $pid): ?array {
+        $st = db()->prepare('SELECT nickname, avatar, flair, elo, id AS pid FROM players WHERE id = ?');
+        $st->execute([$pid]);
+        return $st->fetch() ?: null;
+    };
+    $single = function (string $ic, string $title, string $sql, string $type) use (&$recs, $plById): void {
+        try {
+            $r = db()->query($sql)->fetch();
+            if ($r && (float)$r['v'] > 0) {
+                $pl = $plById((int)$r['pid']);
+                if ($pl) {
+                    $recs[] = [$ic, $title, $pl, $type === 'int' ? (int)$r['v'] : (float)$r['v'], $type];
+                }
+            }
+        } catch (Throwable $e) {
+        }
+    };
+    $single('📈', 'Макс. ELO за игру', "SELECT player_id pid, MAX(delta) v FROM elo_history GROUP BY player_id ORDER BY v DESC LIMIT 1", 'plus');
+    $single('💰', 'Макс. доп за игру', "SELECT gs.player_id pid, MAX(gs.plus) v FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished' GROUP BY gs.player_id ORDER BY v DESC LIMIT 1", 'f1');
+    $single('⚖️', 'Больше всех судил', "SELECT judge_player_id pid, COUNT(*) v FROM games WHERE status = 'finished' AND judge_player_id IS NOT NULL GROUP BY judge_player_id ORDER BY v DESC LIMIT 1", 'int');
     return $recs;
 }
 
@@ -124,6 +147,7 @@ function records_fmt($v, string $type): string
     return match ($type) {
         'pct' => round($v * 100) . '%',
         'int' => (string)(int)$v,
+        'plus' => '+' . round((float)$v),
         'f1' => number_format((float)$v, 1),
         'f2' => number_format((float)$v, 2),
         default => (string)$v,
@@ -141,8 +165,12 @@ function achievements_catalog(): array
         'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд', 'Серии'],
         'streak8'  => ['💥', 'Беспощадный', '8 побед подряд', 'Серии'],
         'streak10' => ['🌟', 'Непобедимый', '10 побед подряд', 'Серии'],
+        'black3'   => ['🌘', 'Тёмная сторона', '3 чёрные роли подряд', 'Серии'],
         'black5'   => ['🌑', 'Власть тьмы', '5 чёрных ролей подряд', 'Серии'],
+        'black7'   => ['🦇', 'Дитя ночи', '7 чёрных ролей подряд', 'Серии'],
+        'redw3'    => ['❤️', 'Красный заряд', '3 победы красными подряд', 'Серии'],
         'red3'     => ['🚩', 'Красная машина', '5 побед красными подряд', 'Серии'],
+        'redw7'    => ['🌋', 'Красная стихия', '7 побед красными подряд', 'Серии'],
         'elo1100'  => ['✨', 'Любитель', 'ELO 1100+', 'ELO'],
         'elo1300'  => ['⚔️', 'Знаток', 'ELO 1300+', 'ELO'],
         'elo1500'  => ['💎', 'Эксперт', 'ELO 1500+', 'ELO'],
@@ -155,12 +183,19 @@ function achievements_catalog(): array
         'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Мастерство'],
         'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Мастерство'],
         'danger'   => ['🎯', 'Самый опасный', '5+ раз первоубиенный (вас вычисляют первым)', 'Мастерство'],
+        'tour_win'  => ['🥇', 'Победитель турнира', 'Выиграл турнир', 'Турниры'],
+        'tour_win3' => ['🏆', 'Триумфатор', 'Выиграл 3 турнира', 'Турниры'],
+        'antilh'    => ['🃏', 'Антиснайпер', 'Чаще всех бил в ЛХ мимо: три мирных, ни одного чёрного', 'Особые', true],
     ];
 }
 
 // Кто уже получил каждое достижение: ключ => [ник, ...]. Считается по всему клубу.
 function achievement_earners(): array
 {
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
     $out = array_fill_keys(array_keys(achievements_catalog()), []);
     if (!db_ready()) {
         return $out;
@@ -237,7 +272,8 @@ function achievement_earners(): array
             $cond = [
                 'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
-                'black5' => $blk >= 5, 'red3' => $redW >= 5,
+                'black3' => $blk >= 3, 'black5' => $blk >= 5, 'black7' => $blk >= 7,
+                'redw3' => $redW >= 3, 'red3' => $redW >= 5, 'redw7' => $redW >= 7,
                 'elo1100' => $peak >= 1100, 'elo1300' => $peak >= 1300, 'elo1500' => $peak >= 1500,
                 'elo1700' => $peak >= 1700, 'elo1900' => $peak >= 1900, 'elo2100' => $peak >= 2100,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
@@ -251,8 +287,60 @@ function achievement_earners(): array
                 }
             }
         }
+
+        // Анти-ачивка «Антиснайпер»: больше всех ЛХ мимо (3 мирных, ни одного чёрного)
+        $wl = db()->query("SELECT me.player_id pid, COUNT(*) c FROM games g
+            JOIN game_seats me ON me.game_id = g.id AND me.seat = g.first_killed_seat AND me.role IN ('civ','sheriff')
+            WHERE g.status = 'finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+              AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id = g.id AND s.seat IN (g.bm_seat1, g.bm_seat2, g.bm_seat3) AND s.role IN ('maf','don')) = 0
+            GROUP BY me.player_id")->fetchAll();
+        $maxWl = 0;
+        foreach ($wl as $row) {
+            $maxWl = max($maxWl, (int)$row['c']);
+        }
+        if ($maxWl > 0) {
+            foreach ($wl as $row) {
+                if ((int)$row['c'] === $maxWl) {
+                    $p0 = (int)$row['pid'];
+                    $out['antilh'][] = [$p0, $nickOf[$p0] ?? ('#' . $p0), $avaOf[$p0] ?? '', $flairOf[$p0] ?? ''];
+                }
+            }
+        }
+
+        // Победители турниров: #1 итоговой таблицы каждого завершённого турнира
+        require_once ROOT . '/inc/rating.php';
+        $tourWins = [];
+        foreach (db()->query("SELECT id FROM tournaments WHERE status = 'finished'")->fetchAll(PDO::FETCH_COLUMN) as $tid) {
+            $gq = db()->prepare("SELECT * FROM games WHERE tournament_id = ? AND status = 'finished'");
+            $gq->execute([(int)$tid]);
+            $gms = $gq->fetchAll();
+            if (!$gms) {
+                continue;
+            }
+            $gids = array_column($gms, 'id');
+            $inG = implode(',', array_fill(0, count($gids), '?'));
+            $sq = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs JOIN players p ON p.id = gs.player_id WHERE gs.game_id IN ($inG)");
+            $sq->execute($gids);
+            $sbg = [];
+            foreach ($sq->fetchAll() as $s) {
+                $sbg[(int)$s['game_id']][] = $s;
+            }
+            $stand = standings_from_games($gms, $sbg);
+            $winPid = $stand ? (int)array_key_first($stand) : 0;
+            if ($winPid) {
+                $tourWins[$winPid] = ($tourWins[$winPid] ?? 0) + 1;
+            }
+        }
+        foreach ($tourWins as $p0 => $cnt) {
+            $entry = [$p0, $nickOf[$p0] ?? ('#' . $p0), $avaOf[$p0] ?? '', $flairOf[$p0] ?? ''];
+            $out['tour_win'][] = $entry;
+            if ($cnt >= 3) {
+                $out['tour_win3'][] = $entry;
+            }
+        }
     } catch (Throwable $e) {
     }
+    $cache = $out;
     return $out;
 }
 

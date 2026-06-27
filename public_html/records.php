@@ -34,7 +34,11 @@ echo '<h2 style="margin-top:18px;">Достижения</h2>';
 echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Наведи курсор на ачивку — справа появятся все, кто её получил (или нажми, чтобы открыть списком).</p>';
 $earners = achievement_earners();
 $byGroup = [];
-foreach (achievements_catalog() as $k => [$ic, $t, $d, $grp]) {
+foreach (achievements_catalog() as $k => $info) {
+    if (!empty($info[4])) { // скрытые ачивки в общем зале славы не показываем
+        continue;
+    }
+    [$ic, $t, $d, $grp] = $info;
     $byGroup[$grp][$k] = [$ic, $t, $d];
 }
 echo '<div class="ach-wrap"><div class="ach-main">';

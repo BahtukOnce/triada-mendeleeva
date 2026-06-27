@@ -133,7 +133,7 @@ $recs = $dbok ? club_records() : [];
 if ($recs) {
     echo '<h2 style="margin:20px 0 4px;">Рекорды клуба</h2>';
     echo '<div class="records-grid">';
-    foreach (array_slice($recs, 0, 8) as [$ic, $title, $row, $val, $type]) {
+    foreach (array_slice($recs, 0, 12) as [$ic, $title, $row, $val, $type]) {
         echo '<a class="rec-card" href="/player.php?id=' . (int)$row['pid'] . '">';
         echo '<div class="rec-ic">' . $ic . '</div>';
         echo '<div class="rec-body"><div class="rec-title">' . esc($title) . '</div>';
@@ -149,7 +149,11 @@ echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
 echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Наведи курсор на ачивку — справа появятся все, кто её получил (или нажми, чтобы открыть списком).</p>';
 $earners = $dbok ? achievement_earners() : [];
 $byGroup = [];
-foreach (achievements_catalog() as $k => [$ic, $t, $d, $grp]) {
+foreach (achievements_catalog() as $k => $info) {
+    if (!empty($info[4])) { // скрытые ачивки в общем списке не показываем
+        continue;
+    }
+    [$ic, $t, $d, $grp] = $info;
     $byGroup[$grp][$k] = [$ic, $t, $d];
 }
 echo '<div class="ach-wrap"><div class="ach-main">';
