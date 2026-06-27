@@ -160,10 +160,32 @@ if ($games) {
         }
     }
     uasort($standing, fn($a, $b) => $b['sum'] <=> $a['sum']);
+    // изменение ELO за вечер (сумма дельт по играм этого дня)
+    $eloDayDelta = [];
+    try {
+        $gidsD = array_column($games, 'id');
+        $inD = implode(',', array_fill(0, count($gidsD), '?'));
+        $stD = db()->prepare("SELECT player_id, SUM(delta) AS d FROM elo_history WHERE game_id IN ($inD) GROUP BY player_id");
+        $stD->execute($gidsD);
+        foreach ($stD->fetchAll() as $er) {
+            $eloDayDelta[(int)$er['player_id']] = (float)$er['d'];
+        }
+    } catch (Throwable $e) {
+    }
+    $eloDeltaFmt = function (?float $d): string {
+        if ($d === null) {
+            return '<span style="color:var(--tx3);">—</span>';
+        }
+        $r = (int)round($d);
+        if ($r === 0) {
+            return '<span style="color:var(--tx3);">±0</span>';
+        }
+        return '<span style="color:' . ($r > 0 ? 'var(--ok)' : 'var(--ac)') . ';font-weight:600;">' . ($r > 0 ? '+' : '−') . abs($r) . '</span>';
+    };
     echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
         . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
-        . '<th class="num" data-type="num">ELO</th></tr></thead><tbody>';
+        . '<th class="num" data-type="num">ELO</th><th class="num" data-type="num">± за вечер</th></tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
@@ -175,7 +197,8 @@ if ($games) {
             . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a></td>'
             . '<td class="num" data-sort="' . $row['games'] . '">' . $row['games'] . '</td>'
             . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td>'
-            . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td></tr>';
+            . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td>'
+            . '<td class="num" data-sort="' . round($eloDayDelta[$pid] ?? 0, 1) . '">' . $eloDeltaFmt($eloDayDelta[$pid] ?? null) . '</td></tr>';
     }
     echo '</tbody></table></div>';
 }
