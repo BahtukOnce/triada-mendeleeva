@@ -55,6 +55,29 @@ function render_player_stats(int $id, bool $own = false): void
             $rank = (int)$st->fetchColumn();
         }
     }
+    // ── Фильтр статистики по сезонам (как переключатель рейтинга) ──
+    // ELO-график и ачивки считаются всегда за всю историю — здесь не фильтруются.
+    $sst = db()->prepare("SELECT COALESCE(d.season,'__current__') s, COUNT(*) c
+        FROM game_seats gs JOIN games g ON g.id = gs.game_id
+        LEFT JOIN game_days d ON d.id = g.day_id
+        WHERE gs.player_id = ? AND g.status = 'finished'
+        GROUP BY s");
+    $sst->execute([$id]);
+    $seasonsAvail = [];
+    foreach ($sst->fetchAll() as $r) {
+        $seasonsAvail[(string)$r['s']] = (int)$r['c'];
+    }
+    $season = isset($_GET['season']) ? (string)$_GET['season'] : 'all';
+    if ($season !== 'all' && !isset($seasonsAvail[$season])) {
+        $season = 'all';
+    }
+    $seasonWhere = '';
+    $seasonArgs = [];
+    if ($season !== 'all') {
+        $seasonWhere = " AND COALESCE(d.season,'__current__') = ?";
+        $seasonArgs = [$season];
+    }
+
     $st = db()->prepare("SELECT gs.role, gs.plus, gs.minus, gs.fouls, gs.tech_fouls,
             g.id AS game_id, g.game_no, g.winner, g.first_killed_seat, gs.seat,
             g.context, d.id AS day_id, d.title AS day_title, d.date AS day_date,
@@ -63,10 +86,10 @@ function render_player_stats(int $id, bool $own = false): void
         JOIN games g ON g.id = gs.game_id
         LEFT JOIN game_days d ON d.id = g.day_id
         LEFT JOIN tournaments t ON t.id = g.tournament_id
-        WHERE gs.player_id = ? AND g.status = 'finished'
+        WHERE gs.player_id = ? AND g.status = 'finished'" . $seasonWhere . "
         ORDER BY COALESCE(d.date, t.date_from) DESC, g.id DESC
-        LIMIT 300");
-    $st->execute([$id]);
+        LIMIT 500");
+    $st->execute(array_merge([$id], $seasonArgs));
     $history = $st->fetchAll();
 
     $roleLabel = ['civ' => 'Мирный', 'maf' => 'Мафия', 'sheriff' => 'Шериф', 'don' => 'Дон'];
@@ -164,13 +187,26 @@ function render_player_stats(int $id, bool $own = false): void
             SUM(gs.role='don') g_don,      SUM(gs.role='don' AND g.winner='black') w_don,
             SUM(gs.seat = g.first_killed_seat) pu_count
         FROM game_seats gs JOIN games g ON g.id = gs.game_id
-        WHERE gs.player_id = ? AND g.status='finished' AND g.winner IS NOT NULL");
-    $agSt->execute([$id]);
+        LEFT JOIN game_days d ON d.id = g.day_id
+        WHERE gs.player_id = ? AND g.status='finished' AND g.winner IS NOT NULL" . $seasonWhere);
+    $agSt->execute(array_merge([$id], $seasonArgs));
     $aw = $agSt->fetch() ?: [];
+    // Σ/допы — из rating_cache соответствующего сезона (все рейтинги при «Все сезоны»)
+    $rcWhere = '';
+    $rcArgs = [$id];
+    if ($season === '__current__') {
+        $rcWhere = ' AND rating_id = ?';
+        $rcArgs[] = $mainId;
+    } elseif ($season !== 'all') {
+        $frid = db()->prepare("SELECT id FROM ratings WHERE title = ? ORDER BY is_frozen DESC, id DESC LIMIT 1");
+        $frid->execute([$season]);
+        $rcWhere = ' AND rating_id = ?';
+        $rcArgs[] = ((int)$frid->fetchColumn()) ?: -1;
+    }
     $rcSt = db()->prepare("SELECT COALESCE(SUM(sum_total),0) sum_total, COALESCE(SUM(sum_plus),0) sum_plus,
             COALESCE(SUM(dop_sum),0) dop_sum, COALESCE(SUM(ci_sum),0) ci_sum, COALESCE(SUM(games),0) rgames
-        FROM rating_cache WHERE player_id = ?");
-    $rcSt->execute([$id]);
+        FROM rating_cache WHERE player_id = ?" . $rcWhere);
+    $rcSt->execute($rcArgs);
     $rc = $rcSt->fetch() ?: [];
     $agGames = (int)($aw['games'] ?? 0);
     $rGames = ((int)($rc['rgames'] ?? 0)) ?: $agGames;
@@ -233,6 +269,28 @@ function render_player_stats(int $id, bool $own = false): void
                     . ' <span style="color:var(--tx3);">· ' . $pt['games'] . '</span></a>';
             }
             echo '</div>';
+        }
+        echo '</div>';
+    }
+
+    // Переключатель сезонов: статистика ниже считается за выбранный сезон
+    if (count($seasonsAvail) > 1) {
+        $mainTitle = (string)(db()->query("SELECT title FROM ratings WHERE is_main = 1 LIMIT 1")->fetchColumn() ?: 'Текущий сезон');
+        $tabs = [['all', 'Все сезоны']];
+        if (isset($seasonsAvail['__current__'])) {
+            $tabs[] = ['__current__', $mainTitle];
+        }
+        $histS = array_filter(array_keys($seasonsAvail), fn($s) => $s !== '__current__');
+        rsort($histS);
+        foreach ($histS as $s) {
+            $tabs[] = [$s, $s];
+        }
+        $base = $own ? '/my_stats.php?season=' : ('/player.php?id=' . $id . '&season=');
+        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px;">';
+        echo '<span style="font-size:12px;color:var(--tx2);">статистика за:</span>';
+        foreach ($tabs as [$key, $label]) {
+            $on = $season === $key;
+            echo '<a class="tag ' . ($on ? 'tag-open' : '') . '" href="' . esc($base . urlencode($key)) . '">' . esc($label) . '</a>';
         }
         echo '</div>';
     }
@@ -529,58 +587,19 @@ function render_player_stats(int $id, bool $own = false): void
         }
 
         // ── Достижения (ачивки) ──
-        $triples = 0;
-        try {
-            $tq = db()->prepare("SELECT COUNT(*) FROM games g
-                JOIN game_seats me ON me.game_id = g.id AND me.player_id = ? AND me.seat = g.first_killed_seat AND me.role IN ('civ','sheriff')
-                WHERE g.status = 'finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
-                  AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id = g.id AND s.seat IN (g.bm_seat1, g.bm_seat2, g.bm_seat3) AND s.role IN ('maf','don')) = 3");
-            $tq->execute([$id]);
-            $triples = (int)$tq->fetchColumn();
-        } catch (Throwable $e) {
-        }
-        $donWr = (int)$ag['g_don'] >= 4 ? round((int)$ag['w_don'] / max(1, (int)$ag['g_don']) * 100) : 0;
-        // доп. серии и рекорды для ачивок
-        $chrono = array_reverse($history); // старые → новые
-        $blackStreak = 0; $bs = 0;
-        $redWinStreak = 0; $rws = 0;
-        $maxPlusGame = 0.0;
-        foreach ($chrono as $h) {
-            $maxPlusGame = max($maxPlusGame, (float)$h['plus']);
-            $isBlack = in_array($h['role'], ['maf', 'don'], true);
-            if ($isBlack) { $bs++; $blackStreak = max($blackStreak, $bs); } else { $bs = 0; }
-            if (!$isBlack && $h['winner'] === 'red') { $rws++; $redWinStreak = max($redWinStreak, $rws); } else { $rws = 0; }
-        }
-        $maxEloDay = 0.0;
-        try {
-            $ed = db()->prepare('SELECT SUM(delta) s FROM elo_history WHERE player_id = ? GROUP BY gdate');
-            $ed->execute([$id]);
-            foreach ($ed->fetchAll() as $r) { $maxEloDay = max($maxEloDay, (float)$r['s']); }
-        } catch (Throwable $e) {
-        }
-        // Пиковый ELO — ачивки уровней не исчезают, даже если ELO потом упал
-        $peakElo = (float)$elo;
-        try {
-            $pq = db()->prepare('SELECT MAX(elo_after) FROM elo_history WHERE player_id = ?');
-            $pq->execute([$id]);
-            $peakElo = max($peakElo, (float)$pq->fetchColumn());
-        } catch (Throwable $e) {
-        }
-        $cond = [
-            'debut' => $agGames >= 1, 'ten' => $agGames >= 10, 'games25' => $agGames >= 25, 'games50' => $agGames >= 50, 'veteran' => $agGames >= 100,
-            'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
-            'black3' => $blackStreak >= 3, 'black5' => $blackStreak >= 5, 'black7' => $blackStreak >= 7,
-            'redw3' => $redWinStreak >= 3, 'red3' => $redWinStreak >= 5, 'redw7' => $redWinStreak >= 7,
-            'elo1100' => $peakElo >= 1100, 'elo1400' => $peakElo >= 1400, 'elo1700' => $peakElo >= 1700, 'elo2000' => $peakElo >= 2000, 'elo2300' => $peakElo >= 2300, 'elo2600' => $peakElo >= 2600,
-            'eloday' => $maxEloDay >= 150,
-            'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.0,
-            'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$ag['pu_count'] >= 5,
-        ];
         $cat = achievements_catalog();
         $earners = achievement_earners();
-        // клубные/вычисляемые ачивки — из общего расчёта (есть ли игрок среди получивших)
-        foreach (['antilh', 'tour_win', 'tour_win3'] as $ek) {
-            $cond[$ek] = in_array($id, array_map(fn($e) => (int)$e[0], $earners[$ek] ?? []), true);
+        // Ачивки всегда считаются за всю историю клуба и согласованы с панелью
+        // «кто получил»: «получено» = игрок есть в общем списке получивших ачивку.
+        // Поэтому фильтр по сезонам (ниже, для статистики) на ачивки не влияет.
+        $cond = [];
+        foreach ($earners as $ek => $list) {
+            foreach ($list as $e) {
+                if ((int)$e[0] === $id) {
+                    $cond[$ek] = true;
+                    break;
+                }
+            }
         }
         $viewer = current_user();
         $canSeeHidden = $own || ($viewer && role_level($viewer['role']) >= 3);
