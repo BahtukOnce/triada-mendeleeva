@@ -7,7 +7,8 @@ $current = null;
 $rows = [];
 
 if (db_ready()) {
-    $ratings = db()->query('SELECT * FROM ratings WHERE is_active = 1 ORDER BY is_main DESC, id ASC')->fetchAll();
+    // основной (текущий сезон) первым, дальше исторические сезоны от новых к старым
+    $ratings = db()->query('SELECT * FROM ratings WHERE is_active = 1 ORDER BY is_main DESC, id DESC')->fetchAll();
     $reqId = isset($_GET['r']) ? (int)$_GET['r'] : 0;
     foreach ($ratings as $r) {
         if ((int)$r['id'] === $reqId) {
