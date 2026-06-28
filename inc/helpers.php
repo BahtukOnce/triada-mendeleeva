@@ -72,7 +72,7 @@ function rank_medal(int $pos): string
     return $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : (string)$pos));
 }
 
-// Рекорды клуба: массив [иконка, название, строка-игрока, значение, тип]
+// Рекорды клуба: массив [иконка, название, топ-3 ([['row'=>игрок,'val'=>значение],...]), тип]
 function club_records(): array
 {
     if (!db_ready()) {
@@ -87,26 +87,30 @@ function club_records(): array
     if (!$rows) {
         return [];
     }
-    $topElo = db()->query('SELECT nickname, avatar, flair, elo, id AS pid FROM players ORDER BY elo DESC LIMIT 1')->fetch();
+    $topEloRows = db()->query('SELECT nickname, avatar, flair, elo, id AS pid FROM players ORDER BY elo DESC LIMIT 3')->fetchAll();
     $wins = fn($r) => (int)$r['w_civ'] + (int)$r['w_maf'] + (int)$r['w_sher'] + (int)$r['w_don'];
-    $leader = function (array $rows, callable $metric, int $minGames = 0) {
-        $best = null; $bestV = -INF;
+    // топ-3 по метрике → [['row'=>игрок, 'val'=>значение], ...]
+    $leader = function (array $rows, callable $metric, int $minGames = 0): array {
+        $scored = [];
         foreach ($rows as $r) {
             if ((int)$r['games'] < $minGames) {
                 continue;
             }
-            $v = $metric($r);
-            if ($v > $bestV) { $bestV = $v; $best = $r; }
+            $mv = $metric($r);
+            if ((float)$mv > 0) {
+                $scored[] = ['row' => $r, 'val' => $mv];
+            }
         }
-        return $best ? [$best, $bestV] : null;
+        usort($scored, fn($a, $b) => (float)$b['val'] <=> (float)$a['val']);
+        return array_slice($scored, 0, 3);
     };
     $recs = [];
-    if ($topElo) {
-        $recs[] = ['👑', 'Высший ELO', $topElo, (float)$topElo['elo'], 'int'];
+    if ($topEloRows) {
+        $recs[] = ['👑', 'Высший ELO', array_map(fn($r) => ['row' => $r, 'val' => (float)$r['elo']], $topEloRows), 'int'];
     }
-    $add = function (string $ic, string $title, ?array $res, string $type) use (&$recs) {
-        if ($res) {
-            $recs[] = [$ic, $title, $res[0], $res[1], $type];
+    $add = function (string $ic, string $title, array $list, string $type) use (&$recs) {
+        if ($list) {
+            $recs[] = [$ic, $title, $list, $type];
         }
     };
     $add('💯', 'Высший клубный счёт', $leader($rows, fn($r) => (float)$r['club_score']), 'f2');
@@ -126,19 +130,25 @@ function club_records(): array
     };
     $single = function (string $ic, string $title, string $sql, string $type) use (&$recs, $plById): void {
         try {
-            $r = db()->query($sql)->fetch();
-            if ($r && (float)$r['v'] > 0) {
+            $list = [];
+            foreach (db()->query($sql)->fetchAll() as $r) {
+                if ((float)$r['v'] <= 0) {
+                    continue;
+                }
                 $pl = $plById((int)$r['pid']);
                 if ($pl) {
-                    $recs[] = [$ic, $title, $pl, $type === 'int' ? (int)$r['v'] : (float)$r['v'], $type];
+                    $list[] = ['row' => $pl, 'val' => $type === 'int' ? (int)$r['v'] : (float)$r['v']];
                 }
+            }
+            if ($list) {
+                $recs[] = [$ic, $title, $list, $type];
             }
         } catch (Throwable $e) {
         }
     };
-    $single('📈', 'Макс. ELO за игру', "SELECT player_id pid, MAX(delta) v FROM elo_history GROUP BY player_id ORDER BY v DESC LIMIT 1", 'plus');
-    $single('💰', 'Макс. доп за игру', "SELECT gs.player_id pid, MAX(gs.plus) v FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished' GROUP BY gs.player_id ORDER BY v DESC LIMIT 1", 'f1');
-    $single('⚖️', 'Больше всех судил', "SELECT judge_player_id pid, COUNT(*) v FROM games WHERE status = 'finished' AND judge_player_id IS NOT NULL GROUP BY judge_player_id ORDER BY v DESC LIMIT 1", 'int');
+    $single('📈', 'Макс. ELO за игру', "SELECT player_id pid, MAX(delta) v FROM elo_history GROUP BY player_id ORDER BY v DESC LIMIT 3", 'plus');
+    $single('💰', 'Макс. доп за игру', "SELECT gs.player_id pid, MAX(gs.plus) v FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished' GROUP BY gs.player_id ORDER BY v DESC LIMIT 3", 'f1');
+    $single('⚖️', 'Больше всех судил', "SELECT judge_player_id pid, COUNT(*) v FROM games WHERE status = 'finished' AND judge_player_id IS NOT NULL GROUP BY judge_player_id ORDER BY v DESC LIMIT 3", 'int');
     // анти-рекорды
     $add('🎲', 'Больше всех техфолов', $leader($rows, fn($r) => (int)($r['tech_count'] ?? 0)), 'int');
     $add('➖', 'Больше всех минусов', $leader($rows, fn($r) => (float)$r['minus_sum']), 'f1');

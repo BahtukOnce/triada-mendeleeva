@@ -19,13 +19,19 @@ if (!$records) {
 }
 
 echo '<div class="records-grid">';
-foreach ($records as [$ic, $title, $row, $val, $type]) {
-    echo '<a class="rec-card" href="/player.php?id=' . (int)$row['pid'] . '">';
-    echo '<div class="rec-ic">' . $ic . '</div>';
-    echo '<div class="rec-body"><div class="rec-title">' . esc($title) . '</div>';
-    echo '<div class="rec-player">' . avatar_html($row, 30) . '<span>' . player_label($row) . '</span></div></div>';
-    echo '<div class="rec-val">' . esc(records_fmt($val, $type)) . '</div>';
-    echo '</a>';
+foreach ($records as [$ic, $title, $list, $type]) {
+    echo '<div class="rec-card"><div class="rec-head"><span class="rec-ic">' . $ic . '</span><span class="rec-title">' . esc($title) . '</span></div><div class="rec-rows">';
+    $rank = 0;
+    foreach ($list as $item) {
+        $rank++;
+        $row = $item['row'];
+        $medal = $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : '🥉');
+        echo '<a class="rec-row" href="/player.php?id=' . (int)$row['pid'] . '">'
+            . '<span class="rec-rank">' . $medal . '</span>' . avatar_html($row, 24)
+            . '<span class="rec-name">' . player_label($row) . '</span>'
+            . '<span class="rec-v">' . esc(records_fmt($item['val'], $type)) . '</span></a>';
+    }
+    echo '</div></div>';
 }
 echo '</div>';
 

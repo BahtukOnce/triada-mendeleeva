@@ -625,15 +625,18 @@ body::before {
 .hist-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
 
 /* ── Зал славы ──────────────────────────────────── */
-.records-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 12px; margin: 14px 0; }
-.rec-card { display: flex; align-items: center; gap: 12px; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 14px; color: var(--tx); }
-.rec-card:hover { color: var(--tx); border-color: var(--ac); }
-.rec-ic { font-size: 26px; flex: none; }
-.rec-body { flex: 1; min-width: 0; }
-.rec-title { font-size: 12px; color: var(--tx2); }
-.rec-player { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-top: 3px; overflow: hidden; }
-.rec-player span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rec-val { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; flex: none; color: var(--ac); }
+.records-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 14px 0; align-items: start; }
+.rec-card { background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 12px 14px; }
+.rec-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.rec-ic { font-size: 22px; flex: none; }
+.rec-title { font-size: 12.5px; color: var(--tx2); font-weight: 600; }
+.rec-rows { display: flex; flex-direction: column; gap: 3px; }
+.rec-row { display: flex; align-items: center; gap: 8px; color: var(--tx); padding: 4px 6px; border-radius: 9px; }
+.rec-row:hover { color: var(--tx); background: var(--sf2); }
+.rec-rank { flex: none; font-size: 13px; width: 18px; text-align: center; }
+.rec-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; font-size: 13.5px; }
+.rec-v { flex: none; font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--ac); }
+.rec-row:not(:first-child) .rec-v { font-size: 14px; color: var(--tx2); }
 
 /* ── Очная ставка ───────────────────────────────── */
 .vs-head { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 12px; }
