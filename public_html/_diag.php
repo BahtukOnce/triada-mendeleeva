@@ -74,4 +74,28 @@ if ($cupId) {
         echo "    {$r['nickname']}: игр {$r['games']}, побед {$r['wins']}\n";
     }
 }
+if ($cupId) {
+    echo "  --- сумма очков кубка по игрокам (победы*1 + сумма допов; сверка с тотал-столбцом) ---\n";
+    foreach ($q("SELECT p.nickname,
+        SUM(((g.winner='red') AND gs.role IN ('civ','sheriff')) OR ((g.winner='black') AND gs.role IN ('maf','don'))) wins,
+        ROUND(SUM(gs.plus - gs.minus),2) dop
+        FROM game_seats gs JOIN games g ON g.id=gs.game_id JOIN players p ON p.id=gs.player_id
+        WHERE g.tournament_id=$cupId GROUP BY p.id ORDER BY (SUM(((g.winner='red') AND gs.role IN ('civ','sheriff')) OR ((g.winner='black') AND gs.role IN ('maf','don'))) + SUM(gs.plus-gs.minus)) DESC") as $r) {
+        $tot = round($r['wins'] + $r['dop'], 2);
+        echo "    {$r['nickname']}: победы {$r['wins']} + допы {$r['dop']} = ИТОГО {$tot}\n";
+    }
+}
+
+echo "\n=== ДЕВЯТИИГРОВЫЕ ПАРТИИ (#1455, #1456) ===\n";
+foreach ([1455, 1456] as $gid) {
+    $info = $q("SELECT g.id, g.winner, d.date, d.season, d.title FROM games g LEFT JOIN game_days d ON d.id=g.day_id WHERE g.id=$gid");
+    if ($info) {
+        $i = $info[0];
+        echo "  game #{$gid}: дата {$i['date']}, сезон " . ($i['season'] ?? '—') . ", вечер «{$i['title']}», победитель {$i['winner']}\n";
+        foreach ($q("SELECT gs.seat, gs.role, p.nickname, gs.plus, gs.minus FROM game_seats gs JOIN players p ON p.id=gs.player_id WHERE gs.game_id=$gid ORDER BY gs.seat") as $s) {
+            echo "      место {$s['seat']}: {$s['nickname']} [{$s['role']}] +{$s['plus']}/-{$s['minus']}\n";
+        }
+    }
+}
+
 echo "\nГОТОВО\n";
