@@ -11,8 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $log = legacy_import_run();
         flash_set('ok', 'Импорт выполнен');
     } elseif ($action === 'import_games') {
-        $log = legacy_games_import_run();
-        flash_set('ok', 'Поигровые данные импортированы, ELO пересчитан');
+        $log = legacy_days_import_run();
+        flash_set('ok', 'Игровые вечера импортированы, ELO пересчитан');
     } elseif ($action === 'clear') {
         $old = db()->query('SELECT id FROM ratings WHERE is_frozen = 1')->fetchAll(PDO::FETCH_COLUMN);
         if ($old) {
@@ -44,12 +44,12 @@ echo '<form method="post">' . csrf_field()
 echo '<p style="color:var(--tx3);font-size:12px;margin:10px 0 0;">Импорт идемпотентен: пересоздаёт замороженные рейтинги заново, основной рейтинг не трогает.</p>';
 echo '</div>';
 
-echo '<div class="card"><h2 style="margin-top:0;">Поигровые данные (ELO)</h2>';
-echo '<p style="color:var(--tx2);">Загружает исторические игры (<code>games_*.json</code>) в legacy_games и пересчитывает ELO по всей истории — у исторических игроков появляется настоящий ELO.</p>';
+echo '<div class="card"><h2 style="margin-top:0;">Поигровые данные → вечера + ELO</h2>';
+echo '<p style="color:var(--tx2);">Загружает исторические игры (<code>games_*.json</code>) как настоящие игровые вечера с реальными датами и пересчитывает ELO по всей истории.</p>';
 echo '<form method="post">' . csrf_field()
     . '<input type="hidden" name="action" value="import_games">'
-    . '<button class="btn" type="submit">Импортировать игры + пересчитать ELO</button></form>';
-echo '<p style="color:var(--tx3);font-size:12px;margin:10px 0 0;">Исторические игры участвуют только в расчёте ELO; рейтинги, протоколы и рекорды не затрагиваются.</p>';
+    . '<button class="btn" type="submit">Импортировать вечера + пересчитать ELO</button></form>';
+echo '<p style="color:var(--tx3);font-size:12px;margin:10px 0 0;">Исторические вечера помечены сезоном и не привязаны к рейтингам — основной рейтинг остаётся текущим; идут в статистику, профили, рекорды и ELO.</p>';
 echo '</div>';
 
 if ($frozen) {
