@@ -251,11 +251,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .empty-state h2 { color: var(--tx); margin: 8px 0 6px; }
 .empty-state p { max-width: 420px; margin: 0 auto; font-size: 14px; }
 
-.admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
 .admin-item {
-  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 11px;
-  padding: 30px 18px 24px; background: var(--sf2);
-  border: 1px solid var(--bd); border-radius: 18px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  padding: 18px 12px 15px; background: var(--sf2);
+  border: 1px solid var(--bd); border-radius: 14px;
 }
 .admin-item.lead {
   border-color: rgba(232,51,42,0.5);
@@ -272,13 +272,13 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 }
 .avatar-circle.accent { background: var(--acsf); color: var(--ac); }
 .admin-item .nm {
-  font-size: 17px; font-weight: 600; color: var(--tx); max-width: 100%;
+  font-size: 14.5px; font-weight: 600; color: var(--tx); max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .admin-item .rl {
-  display: inline-block; margin-top: 7px; font-size: 11px; font-weight: 600;
+  display: inline-block; margin-top: 5px; font-size: 9.5px; font-weight: 600;
   letter-spacing: .03em; text-transform: uppercase;
-  padding: 4px 12px; border-radius: 999px; background: var(--bd); color: var(--tx2);
+  padding: 3px 9px; border-radius: 999px; background: var(--bd); color: var(--tx2);
 }
 .admin-item .rl.accent { background: var(--acsf); color: var(--ac); }
 

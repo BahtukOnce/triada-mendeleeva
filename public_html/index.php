@@ -183,7 +183,7 @@ page_head('Главная', 'index');
             $tag = $pid ? 'a' : 'div';
             $attr = $pid ? ' href="/player.php?id=' . $pid . '"' : ''; ?>
           <<?= $tag ?> class="admin-item<?= $isLead ? ' lead' : '' ?>"<?= $attr ?>>
-            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 92, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
+            <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 60, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
               <div class="nm"><?= esc($a['nickname']) ?></div>
               <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>
