@@ -111,7 +111,7 @@
   });
 })();
 
-// Достижения: клик по карточке -> список получивших со ссылками на профили
+// Достижения: клик по карточке -> боковая панель (десктоп) либо модалка (телефон)
 (function () {
   var cards = document.querySelectorAll('.ach[data-who]');
   if (!cards.length) return;
@@ -121,21 +121,6 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
     });
   }
-
-  var ov = document.createElement('div');
-  ov.className = 'ach-modal';
-  ov.innerHTML = '<div class="ach-modal-box" role="dialog" aria-modal="true">'
-    + '<button class="ach-modal-x" aria-label="Закрыть">✕</button>'
-    + '<h3 class="ach-modal-h"></h3><div class="ach-modal-list"></div></div>';
-  document.body.appendChild(ov);
-  var titleEl = ov.querySelector('.ach-modal-h');
-  var listEl = ov.querySelector('.ach-modal-list');
-
-  function close() { ov.classList.remove('open'); }
-  ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-  ov.querySelector('.ach-modal-x').addEventListener('click', close);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
-
   function whoOf(c) {
     try { return JSON.parse(c.getAttribute('data-who') || '[]'); } catch (e) { return []; }
   }
@@ -148,54 +133,68 @@
     return '<span class="avatar-circle">' + letter + '</span>';
   }
 
-  // Клик -> модалка (работает и на телефоне)
+  // Модалка — фолбэк для телефона (боковой панели там нет)
+  var ov = document.createElement('div');
+  ov.className = 'ach-modal';
+  ov.innerHTML = '<div class="ach-modal-box" role="dialog" aria-modal="true">'
+    + '<button class="ach-modal-x" aria-label="Закрыть">✕</button>'
+    + '<h3 class="ach-modal-h"></h3><div class="ach-modal-list"></div></div>';
+  document.body.appendChild(ov);
+  var titleEl = ov.querySelector('.ach-modal-h');
+  var listEl = ov.querySelector('.ach-modal-list');
+  function closeModal() { ov.classList.remove('open'); }
+  ov.addEventListener('click', function (e) { if (e.target === ov) closeModal(); });
+  ov.querySelector('.ach-modal-x').addEventListener('click', closeModal);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+  function openModal(c) {
+    var who = whoOf(c);
+    titleEl.textContent = titleOf(c) + ' — получили: ' + who.length;
+    if (!who.length) {
+      listEl.innerHTML = '<p style="color:var(--tx2);margin:0;">Пока ни у кого</p>';
+    } else {
+      listEl.innerHTML = who.map(function (e) {
+        return '<a class="ach-earner" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
+          + escapeHtml(e[1]) + (e[3] ? ' ' + escapeHtml(e[3]) : '') + '</a>';
+      }).join('');
+    }
+    if (window.twemojiParse) window.twemojiParse(listEl);
+    ov.classList.add('open');
+  }
+
+  // Боковая панель (десктоп)
+  var side = document.getElementById('ach-side');
+  var sideInner = side ? side.querySelector('.ach-side-inner') : null;
+  var sideEmpty = sideInner ? sideInner.innerHTML : '';
+  var pinned = false;
+  function renderSide(c) {
+    if (!sideInner) return;
+    var who = whoOf(c);
+    var html = '<div class="ach-side-ttl">' + escapeHtml(titleOf(c)) + '</div>'
+      + '<div class="ach-side-sub">получили: ' + who.length + '</div>';
+    if (!who.length) {
+      html += '<div class="ach-side-empty">Пока ни у кого</div>';
+    } else {
+      html += '<div class="ach-side-list">' + who.map(function (e) {
+        return '<a class="ach-side-row" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
+          + avaHtml(e[1], e[2]) + '<span class="nm">' + escapeHtml(e[1]) + (e[3] ? ' ' + escapeHtml(e[3]) : '') + '</span></a>';
+      }).join('') + '</div>';
+    }
+    sideInner.innerHTML = html;
+    if (window.twemojiParse) window.twemojiParse(sideInner);
+  }
+  function sideVisible() { return side && side.offsetParent !== null; }
+
   cards.forEach(function (c) {
     c.style.cursor = 'pointer';
     c.addEventListener('click', function () {
-      var who = whoOf(c);
-      titleEl.textContent = titleOf(c) + ' — получили: ' + who.length;
-      if (!who.length) {
-        listEl.innerHTML = '<p style="color:var(--tx2);margin:0;">Пока ни у кого</p>';
-      } else {
-        listEl.innerHTML = who.map(function (e) {
-          return '<a class="ach-earner" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
-            + escapeHtml(e[1]) + (e[3] ? ' ' + escapeHtml(e[3]) : '') + '</a>';
-        }).join('');
-      }
-      if (window.twemojiParse) window.twemojiParse(listEl);
-      ov.classList.add('open');
+      if (sideVisible()) { pinned = true; renderSide(c); } else { openModal(c); }
     });
+    c.addEventListener('mouseenter', function () { if (sideVisible()) renderSide(c); });
   });
-
-  // Наведение -> боковая панель с плашками игроков
-  var side = document.getElementById('ach-side');
-  if (side) {
-    var sideInner = side.querySelector('.ach-side-inner');
-    var sideEmpty = sideInner.innerHTML;
-    function renderSide(c) {
-      var who = whoOf(c);
-      var html = '<div class="ach-side-ttl">' + escapeHtml(titleOf(c)) + '</div>'
-        + '<div class="ach-side-sub">получили: ' + who.length + '</div>';
-      if (!who.length) {
-        html += '<div class="ach-side-empty">Пока ни у кого</div>';
-      } else {
-        html += '<div class="ach-side-list">' + who.map(function (e) {
-          return '<a class="ach-side-row" href="/player.php?id=' + encodeURIComponent(e[0]) + '">'
-            + avaHtml(e[1], e[2]) + '<span class="nm">' + escapeHtml(e[1]) + (e[3] ? ' ' + escapeHtml(e[3]) : '') + '</span></a>';
-        }).join('') + '</div>';
-      }
-      sideInner.innerHTML = html;
-      if (window.twemojiParse) window.twemojiParse(sideInner);
-    }
-    cards.forEach(function (c) {
-      c.addEventListener('mouseenter', function () { renderSide(c); });
-    });
-    // Сброс только когда курсор ушёл со всего блока (сетка + панель),
-    // чтобы можно было перейти на панель и листать список, не теряя его.
-    var achWrap = document.querySelector('.ach-wrap');
-    if (achWrap) {
-      achWrap.addEventListener('mouseleave', function () { sideInner.innerHTML = sideEmpty; });
-    }
+  // Сброс панели, только когда курсор ушёл со всего блока и список не «закреплён» кликом
+  var achWrap = document.querySelector('.ach-wrap');
+  if (achWrap && sideInner) {
+    achWrap.addEventListener('mouseleave', function () { if (!pinned) sideInner.innerHTML = sideEmpty; });
   }
 })();
 

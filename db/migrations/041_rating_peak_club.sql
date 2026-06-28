@@ -1,0 +1,1 @@
+ALTER TABLE rating_cache ADD COLUMN peak_club DECIMAL(10,4) NULL

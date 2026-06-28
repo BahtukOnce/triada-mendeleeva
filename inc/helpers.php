@@ -87,7 +87,9 @@ function club_records(): array
     if (!$rows) {
         return [];
     }
-    $topEloRows = db()->query('SELECT nickname, avatar, flair, elo, id AS pid FROM players ORDER BY elo DESC LIMIT 3')->fetchAll();
+    // Высший ELO — пиковый за всю историю (MAX по elo_history), не текущий
+    $topEloRows = db()->query('SELECT p.nickname, p.avatar, p.flair, p.id AS pid, MAX(eh.elo_after) AS elo
+        FROM elo_history eh JOIN players p ON p.id = eh.player_id GROUP BY p.id ORDER BY elo DESC LIMIT 3')->fetchAll();
     $wins = fn($r) => (int)$r['w_civ'] + (int)$r['w_maf'] + (int)$r['w_sher'] + (int)$r['w_don'];
     // топ-3 по метрике → [['row'=>игрок, 'val'=>значение], ...]
     $leader = function (array $rows, callable $metric, int $minGames = 0): array {
@@ -113,7 +115,7 @@ function club_records(): array
             $recs[] = [$ic, $title, $list, $type];
         }
     };
-    $add('💯', 'Высший клубный счёт', $leader($rows, fn($r) => (float)$r['club_score']), 'f2');
+    $add('💯', 'Высший клубный счёт', $leader($rows, fn($r) => (float)($r['peak_club'] ?? $r['club_score'])), 'f2');
     $add('🏆', 'Лучший винрейт (от 30 игр)', $leader($rows, fn($r) => $r['games'] ? $wins($r) / $r['games'] : 0, 30), 'pct');
     $add('🎮', 'Больше всех игр', $leader($rows, fn($r) => (int)$r['games']), 'int');
     $add('➕', 'Больше всех допов', $leader($rows, fn($r) => (float)$r['dop_sum']), 'f1');
@@ -175,6 +177,8 @@ function achievements_catalog(): array
     return [
         'debut'    => ['🎬', 'Дебют', 'Первая игра', 'Игры'],
         'ten'      => ['🎯', 'Десятка', '10 игр сыграно', 'Игры'],
+        'games25'  => ['🎲', 'Завсегдатай', '25 игр сыграно', 'Игры'],
+        'games50'  => ['🪙', 'Полтинник', '50 игр сыграно', 'Игры'],
         'veteran'  => ['🏛', 'Ветеран', '100 игр сыграно', 'Игры'],
         'streak3'  => ['🔥', 'На кураже', '3 победы подряд', 'Серии'],
         'streak5'  => ['⚡', 'Неудержимый', '5 побед подряд', 'Серии'],
@@ -199,6 +203,7 @@ function achievements_catalog(): array
         'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Мастерство'],
         'danger'   => ['🎯', 'Самый опасный', '5+ раз первоубиенный (вас вычисляют первым)', 'Мастерство'],
         'tour_win'  => ['🥇', 'Победитель турнира', 'Выиграл турнир', 'Турниры'],
+        'tour_win2' => ['🏅', 'Двукратный', 'Выиграл 2 турнира', 'Турниры'],
         'tour_win3' => ['🏆', 'Триумфатор', 'Выиграл 3 турнира', 'Турниры'],
         'antilh'    => ['🙈', 'Слепой ход', 'Чаще всех бил в ЛХ мимо: три мирных, ни одного чёрного', 'Особые', true],
     ];
@@ -285,7 +290,7 @@ function achievement_earners(): array
             $puPct = $games ? ((int)($r['pu_count'] ?? 0)) / $games * 100 : 100;
             $donWr = ($r && (int)$r['g_don'] >= 4) ? (int)$r['w_don'] / (int)$r['g_don'] * 100 : 0;
             $cond = [
-                'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
+                'debut' => $games >= 1, 'ten' => $games >= 10, 'games25' => $games >= 25, 'games50' => $games >= 50, 'veteran' => $games >= 100,
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
                 'black3' => $blk >= 3, 'black5' => $blk >= 5, 'black7' => $blk >= 7,
                 'redw3' => $redW >= 3, 'red3' => $redW >= 5, 'redw7' => $redW >= 7,
@@ -349,6 +354,9 @@ function achievement_earners(): array
         foreach ($tourWins as $p0 => $cnt) {
             $entry = [$p0, $nickOf[$p0] ?? ('#' . $p0), $avaOf[$p0] ?? '', $flairOf[$p0] ?? ''];
             $out['tour_win'][] = $entry;
+            if ($cnt >= 2) {
+                $out['tour_win2'][] = $entry;
+            }
             if ($cnt >= 3) {
                 $out['tour_win3'][] = $entry;
             }

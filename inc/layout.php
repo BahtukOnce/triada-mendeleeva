@@ -173,7 +173,7 @@ function page_foot(): void
        . '<a class="soc vk" href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank" aria-label="VK" title="VK">' . $vkIcon . '</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=18"></script>';
+    echo '<script src="/assets/js/app.js?v=19"></script>';
     echo '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
     echo '</body></html>';
 }

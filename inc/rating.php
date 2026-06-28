@@ -211,17 +211,28 @@ function rating_recompute(int $ratingId): void
     if ($ownTx) {
         $pdo->beginTransaction();
     }
+    // пиковый клубный счёт переживает пересчёт (только растёт)
+    $oldPeaks = [];
+    try {
+        $pq = $pdo->prepare('SELECT player_id, peak_club FROM rating_cache WHERE rating_id = ?');
+        $pq->execute([$ratingId]);
+        foreach ($pq->fetchAll() as $pr) {
+            $oldPeaks[(int)$pr['player_id']] = (float)$pr['peak_club'];
+        }
+    } catch (Throwable $e) {
+    }
     $pdo->prepare('DELETE FROM rating_cache WHERE rating_id = ?')->execute([$ratingId]);
     $ins = $pdo->prepare('INSERT INTO rating_cache
         (rating_id, player_id, games, sum_total, sum_plus, avg_total, club_score, pu_count,
          lh_sum, dop_sum, minus_sum, ci_sum, tech_count,
          w_civ, g_civ, w_maf, g_maf, w_sher, g_sher, w_don, g_don, mvp_evenings,
-         dop_civ, dop_maf, dop_sher, dop_don)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+         dop_civ, dop_maf, dop_sher, dop_don, peak_club)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     foreach ($agg as $pid => $a) {
         $a['sum_plus'] = $a['dop_sum'] + $a['lh_sum'] + $a['ci_sum'];
         $avg = ($a['games'] > 0 && $a['games'] >= $minGames) ? $a['sum_total'] / $a['games'] : null;
         $club = $avg !== null ? $avg * $a['sum_total'] : null;
+        $peakClub = max((float)($oldPeaks[$pid] ?? 0), $club !== null ? (float)$club : 0.0);
         $ins->execute([
             $ratingId, $pid, $a['games'],
             round($a['sum_total'], 2), round($a['sum_plus'], 2),
@@ -233,6 +244,7 @@ function rating_recompute(int $ratingId): void
             $a['w_sher'], $a['g_sher'], $a['w_don'], $a['g_don'],
             $mvp[$pid] ?? 0,
             round($a['dop_civ'], 1), round($a['dop_maf'], 1), round($a['dop_sher'], 1), round($a['dop_don'], 1),
+            $peakClub > 0 ? round($peakClub, 4) : null,
         ]);
     }
     if ($ownTx) {
