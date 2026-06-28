@@ -71,24 +71,33 @@ if ($list) {
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
         echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" href="/player.php?id=' . (int)$p['id'] . '">';
-        $favHtml = $p['fav_role']
-            ? '<span class="fav-chip"><span class="fdot" style="background:' . role_color($p['fav_role'] === 'sheriff' ? 'sheriff' : $p['fav_role']) . ';"></span>' . esc($roleLbl[$p['fav_role']]) . '</span>'
-            : '<span style="color:var(--tx3);font-size:11.5px;">роль не выбрана</span>';
-        $rank = $rankMap[(int)$p['id']] ?? null;
+        $casper = is_casper((string)$p['nickname']);
+        $favHtml = $casper
+            ? '<span style="color:var(--tx3);font-size:11.5px;">👻 призрак клуба</span>'
+            : ($p['fav_role']
+                ? '<span class="fav-chip"><span class="fdot" style="background:' . role_color($p['fav_role'] === 'sheriff' ? 'sheriff' : $p['fav_role']) . ';"></span>' . esc($roleLbl[$p['fav_role']]) . '</span>'
+                : '<span style="color:var(--tx3);font-size:11.5px;">роль не выбрана</span>');
+        $rank = $casper ? null : ($rankMap[(int)$p['id']] ?? null);
         $rankHtml = $rank
             ? '<span class="pc-rank' . ($rank <= 3 ? ' top' . $rank : '') . '" title="место в рейтинге Триады">#' . $rank . '</span>'
             : '';
-        $mvp = $mvpMap[(int)$p['id']] ?? 0;
+        $mvp = $casper ? 0 : ($mvpMap[(int)$p['id']] ?? 0);
         $mvpChip = $mvp ? ' <span title="MVP вечеров" style="color:#ffc400;font-weight:600;">🥇' . $mvp . '</span>' : '';
         echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
             . '<div class="pc-name">' . player_label($p)
             . '<div class="pc-fav">' . $favHtml . $mvpChip . '</div></div>'
             . $rankHtml . '</div>';
-        echo '<div class="pc-stats">'
-            . '<div><b>' . $g . '</b><span>игр</span></div>'
-            . '<div><b>' . ($wr !== null ? $wr . '%' : '—') . '</b><span>винрейт</span></div>'
-            . '<div><b>' . $elo . '</b><span>ELO</span></div>'
-            . '</div></a>';
+        if ($casper) {
+            echo '<div class="pc-stats" style="grid-template-columns:1fr;">'
+                . '<div><b style="font-size:18px;">👻 Бу!</b><span>у призраков нет статистики</span></div>'
+                . '</div></a>';
+        } else {
+            echo '<div class="pc-stats">'
+                . '<div><b>' . $g . '</b><span>игр</span></div>'
+                . '<div><b>' . ($wr !== null ? $wr . '%' : '—') . '</b><span>винрейт</span></div>'
+                . '<div><b>' . $elo . '</b><span>ELO</span></div>'
+                . '</div></a>';
+        }
     }
     echo '</div>';
     echo '<div id="pl-empty" style="display:none;color:var(--tx2);padding:18px 2px;">Никого не нашлось — попробуйте другой запрос.</div>';

@@ -170,6 +170,9 @@ function auth_register(string $nick, string $pass1, string $pass2)
     if ($nick === null) {
         return 'Ник: от 2 до 30 символов, без кавычек, слэшей и угловых скобок';
     }
+    if (is_casper($nick)) {
+        return 'Под этим ником зарегистрироваться нельзя — он принадлежит призраку клуба 👻';
+    }
     if (mb_strlen($pass1) < 6) {
         return 'Пароль — минимум 6 символов';
     }

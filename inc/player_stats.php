@@ -26,6 +26,19 @@ function render_player_stats(int $id, bool $own = false): void
         return;
     }
 
+    // 👻 Каспер — призрак клуба: без статистики, с пасхалкой
+    if (is_casper($player['nickname'])) {
+        echo '<style>@keyframes ghostFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}</style>';
+        echo '<div class="card" style="text-align:center;padding:40px 22px;max-width:560px;margin:14px auto;">';
+        echo '<div style="font-size:66px;line-height:1;animation:ghostFloat 3s ease-in-out infinite;">👻</div>';
+        echo '<h1 style="margin:16px 0 0;font-size:25px;">Бу! Ты нашёл Каспера</h1>';
+        echo '<p style="color:var(--tx2);font-size:15px;line-height:1.7;margin:16px 0;">Его не существует — это клубный призрак, дежурный десятый. '
+            . 'Не хватало игрока? Каспер молча садился за стол и первым ловил пулю, чтобы игра состоялась.</p>';
+        echo '<p style="font-size:15px;line-height:1.6;margin:0;color:var(--tx);">Статистики у призраков нет. Есть только легенда. 🤍</p>';
+        echo '</div>';
+        return;
+    }
+
     $stats = null;
     $rank = null;
     $history = [];

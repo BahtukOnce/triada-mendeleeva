@@ -15,6 +15,13 @@ function esc(?string $s): string
 const EMOJI_RANGES = '\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2190}-\x{21FF}'
     . '\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{2122}\x{2139}\x{24C2}\x{3030}\x{303D}\x{3297}\x{3299}';
 
+// Каспер — клубный «призрак-десятый» (не реальный игрок). У него нет статистики,
+// на странице — пасхалка, и под этим ником нельзя зарегистрироваться.
+function is_casper(?string $nick): bool
+{
+    return $nick !== null && mb_strtolower(trim($nick)) === 'каспер';
+}
+
 // Ник без эмодзи (игровая идентичность всегда чистая, напр. «НЕ_ЛИС»)
 function nickname_clean(string $s): string
 {
