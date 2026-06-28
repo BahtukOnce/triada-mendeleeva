@@ -192,3 +192,127 @@ function legacy_import_run(): array
     }
     return $log;
 }
+
+// ── Исторические ПОИГРОВЫЕ данные (для расчёта ELO) ───────────────────────────
+// Снятые с mafiauniverse игры (storage/legacy/games_<id>.json) → legacy_games.
+// Файлы и даты: даты синтетические, лишь бы порядок был верным и раньше текущих игр.
+function legacy_games_sources(): array
+{
+    return [
+        ['file' => '855',  'season' => 'Сезон 2022/2023', 'date' => '2022-12-01'],
+        ['file' => '893',  'season' => 'Сезон 2023/2024', 'date' => '2023-11-01'],
+        ['file' => '1355', 'season' => 'Сезон 2023/2024', 'date' => '2024-03-01'],
+        ['file' => '3557', 'season' => 'Сезон 2024/2025', 'date' => '2024-12-01'],
+    ];
+}
+
+function legacy_games_import_run(): array
+{
+    $log = [];
+    $pdo = db();
+    $dir = ROOT . '/storage/legacy';
+    $skip = ['Пустой слот' => 1, '' => 1];
+
+    $byNick = [];
+    foreach ($pdo->query('SELECT id, nickname FROM players') as $p) {
+        $byNick[nick_key((string)$p['nickname'])] = (int)$p['id'];
+    }
+    $insPlayer = $pdo->prepare('INSERT INTO players (nickname) VALUES (?)');
+    $findByNick = $pdo->prepare('SELECT id FROM players WHERE nickname = ? LIMIT 1');
+    $pidOf = function (string $name) use (&$byNick, $insPlayer, $findByNick, $pdo): int {
+        $k = nick_key($name);
+        if (isset($byNick[$k])) {
+            return $byNick[$k];
+        }
+        try {
+            $insPlayer->execute([$name]);
+            $id = (int)$pdo->lastInsertId();
+        } catch (PDOException $e) {
+            $findByNick->execute([$name]);
+            $id = (int)$findByNick->fetchColumn();
+            if (!$id) {
+                throw $e;
+            }
+        }
+        $byNick[$k] = $id;
+        return $id;
+    };
+
+    $roleMap = ['civ' => 'civ', 'maf' => 'maf', 'don' => 'don', 'sheriff' => 'sheriff'];
+    $totalG = 0;
+    $totalS = 0;
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec('DELETE FROM legacy_game_seats');
+        $pdo->exec('DELETE FROM legacy_games');
+        $insG = $pdo->prepare('INSERT INTO legacy_games (season, gdate, seq, winner) VALUES (?,?,?,?)');
+        $insS = $pdo->prepare('INSERT INTO legacy_game_seats (game_id, player_id, role) VALUES (?,?,?)');
+
+        foreach (legacy_games_sources() as $src) {
+            $file = "$dir/games_{$src['file']}.json";
+            if (!is_file($file)) {
+                $log[] = "нет файла games_{$src['file']}.json — пропуск";
+                continue;
+            }
+            $games = json_decode((string)file_get_contents($file), true);
+            if (!is_array($games)) {
+                $log[] = "{$src['file']}: битый JSON — пропуск";
+                continue;
+            }
+            usort($games, fn($a, $b) => ((int)($a['gno'] ?? 0)) <=> ((int)($b['gno'] ?? 0)));
+            $cnt = 0;
+            foreach ($games as $g) {
+                $winner = (($g['winner'] ?? '') === 'red' || ($g['winner'] ?? '') === 'black') ? $g['winner'] : null;
+                if (!$winner) {
+                    continue;
+                }
+                $seen = [];
+                $seats = [];
+                foreach (($g['players'] ?? []) as $p) {
+                    $name = trim((string)($p['name'] ?? ''));
+                    if ($name === '' || isset($skip[$name])) {
+                        continue;
+                    }
+                    $role = $roleMap[$p['role'] ?? 'civ'] ?? 'civ';
+                    $pid = $pidOf($name);
+                    if (isset($seen[$pid])) {
+                        continue;
+                    }
+                    $seen[$pid] = 1;
+                    $seats[] = [$pid, $role];
+                }
+                if (count($seats) < 4) {
+                    continue;
+                }
+                $insG->execute([$src['season'], $src['date'], (int)($g['gno'] ?? ($cnt + 1)), $winner]);
+                $gid = (int)$pdo->lastInsertId();
+                foreach ($seats as $st) {
+                    $insS->execute([$gid, $st[0], $st[1]]);
+                    $totalS++;
+                }
+                $totalG++;
+                $cnt++;
+            }
+            $log[] = "✓ {$src['file']} ({$src['season']}): игр $cnt";
+        }
+        $pdo->commit();
+        $log[] = "ИТОГО исторических: игр $totalG, мест $totalS";
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $log[] = 'ОШИБКА: ' . $e->getMessage();
+        return $log;
+    }
+
+    // Пересчёт ELO по всей истории (текущие + исторические игры)
+    try {
+        require_once ROOT . '/inc/elo.php';
+        elo_recompute();
+        $log[] = 'ELO пересчитан по всей истории';
+    } catch (Throwable $e) {
+        $log[] = 'ELO ошибка: ' . $e->getMessage();
+    }
+    return $log;
+}
