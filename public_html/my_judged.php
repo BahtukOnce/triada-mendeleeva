@@ -52,7 +52,7 @@ $winLabel = ['red' => 'Победа красных', 'black' => 'Победа ч
 $ids = array_column($games, 'id');
 $in = implode(',', array_fill(0, count($ids), '?'));
 $seatsByGame = [];
-$ss = db()->prepare("SELECT gs.game_id, gs.seat, gs.role, p.nickname FROM game_seats gs
+$ss = db()->prepare("SELECT gs.game_id, gs.seat, gs.role, p.id AS pid, p.nickname FROM game_seats gs
     JOIN players p ON p.id = gs.player_id WHERE gs.game_id IN ($in) ORDER BY gs.game_id, gs.seat");
 $ss->execute($ids);
 foreach ($ss->fetchAll() as $s) {
@@ -89,7 +89,7 @@ foreach ($groups as $grp) {
         $winTag = $g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'black' ? 'tag-black' : 'tag-draw');
         $names = [];
         foreach (($seatsByGame[(int)$g['id']] ?? []) as $s) {
-            $names[] = role_dot($s['role']) . esc($s['nickname']);
+            $names[] = role_dot($s['role']) . '<a href="/player.php?id=' . (int)$s['pid'] . '" style="color:var(--tx2);">' . esc($s['nickname']) . '</a>';
         }
         $gameLink = $link . '#game-' . (int)$g['id'];
         echo '<tr><td><a href="' . $gameLink . '">игра ' . (int)$g['game_no'] . '</a></td>'

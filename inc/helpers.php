@@ -147,6 +147,8 @@ function club_records(): array
         }
     };
     $single('📈', 'Макс. ELO за игру', "SELECT player_id pid, MAX(delta) v FROM elo_history GROUP BY player_id ORDER BY v DESC LIMIT 3", 'plus');
+    $single('🌙', 'Макс. ELO за вечер', "SELECT player_id pid, MAX(s) v FROM (SELECT player_id, gdate, SUM(delta) s FROM elo_history GROUP BY player_id, gdate) t GROUP BY player_id ORDER BY v DESC LIMIT 3", 'plus');
+    $single('🚀', 'Макс. ELO за турнир', "SELECT player_id pid, MAX(s) v FROM (SELECT eh.player_id, g.tournament_id, SUM(eh.delta) s FROM elo_history eh JOIN games g ON g.id = eh.game_id WHERE g.tournament_id IS NOT NULL AND g.status = 'finished' GROUP BY eh.player_id, g.tournament_id) t GROUP BY player_id ORDER BY v DESC LIMIT 3", 'plus');
     $single('💰', 'Макс. доп за игру', "SELECT gs.player_id pid, MAX(gs.plus) v FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished' GROUP BY gs.player_id ORDER BY v DESC LIMIT 3", 'f1');
     $single('⚖️', 'Больше всех судил', "SELECT judge_player_id pid, COUNT(*) v FROM games WHERE status = 'finished' AND judge_player_id IS NOT NULL GROUP BY judge_player_id ORDER BY v DESC LIMIT 3", 'int');
     // анти-рекорды
