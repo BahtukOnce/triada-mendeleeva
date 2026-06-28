@@ -322,12 +322,12 @@ if ($rosterRows || $regOpen) {
                     ? '<span title="' . esc($roleLabel[$rk]) . '" style="color:var(--tx);">' . number_format($d['avg'], 2, '.', '') . '</span>'
                     : '<span title="' . esc($roleLabel[$rk]) . '" style="color:var(--tx3);">·</span>';
             }
-            return '<span style="display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;">' . $out . '</span>';
+            return '<span style="display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;font-variant-numeric:tabular-nums;font-size:12.5px;">' . $out . '</span>';
         };
         echo '<div style="overflow-x:auto;"><table class="tbl tp-tbl"><tr>'
             . '<th class="num">#</th><th class="tp-name-col">Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
             . '<th>Любимая карта</th>'
-            . '<th>Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:right;">'
+            . '<th>Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;">'
             . '<span style="color:#e8332a;">мир</span><span style="color:var(--tx3);">маф</span><span style="color:#e6b13a;">шер</span><span style="color:var(--tx3);">дон</span></span></th>'
             . '<th class="num">Клубный рейтинг</th></tr>';
         $pos = 0;
