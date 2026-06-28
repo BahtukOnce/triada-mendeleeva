@@ -12,9 +12,8 @@ function legacy_sources(): array
         ['files' => ['855'], 'title' => 'Сезон 2022/2023', 'kind' => 'season'],
         ['files' => ['893', '1355'], 'title' => 'Сезон 2023/2024', 'kind' => 'season'],
         ['files' => ['3557'], 'title' => 'Сезон 2024/2025', 'kind' => 'season'],
-        // Летний кубок — без поигровых данных (из Google-таблицы) → остаётся итоговой таблицей.
-        // Межвуз/ВОВ/Halloween переносятся поигрово (legacy_tour_import_run) как настоящие турниры.
-        ['files' => ['letkubok'], 'title' => 'I Летний кубок Менделеева', 'kind' => 'tour', 'date' => '2023-06-01'],
+        // Все турниры (Межвуз/ВОВ/Halloween/Летний кубок) переносятся поигрово
+        // через legacy_tour_import_run — здесь только сезоны.
     ];
 }
 
@@ -367,6 +366,7 @@ function legacy_tour_sources(): array
         ['file' => '7459', 'title' => 'Межвузовский дружественный турнир'],
         ['file' => '6447', 'title' => 'Турнир в честь 80 лет Победы в ВОВ'],
         ['file' => '1072', 'title' => 'Halloween cup'],
+        ['file' => 'letkubok', 'title' => 'I Летний кубок Менделеева'],
     ];
 }
 
