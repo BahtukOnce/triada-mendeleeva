@@ -199,7 +199,14 @@ function legacy_import_run(): array
 function legacy_days_sources(): array
 {
     return [
-        ['file' => '855',  'season' => 'Сезон 2022/2023'],
+        // 855 на mafiauniverse залит одной датой 27.08.2023 (нет поигровых дат).
+        // Реальные даты — в клубной Google-таблице (6 сессий 08.04–15.06.2023);
+        // игры сопоставлены по составам, порядок Игра 1→30 = хронология. Проставляем
+        // реальные даты по номеру игры, чтобы сезон лёг в весну 2023 (а не август).
+        ['file' => '855',  'season' => 'Сезон 2022/2023', 'redate' => [
+            [1, 3, '2023-04-08'], [4, 6, '2023-04-15'], [7, 11, '2023-05-06'],
+            [12, 15, '2023-05-13'], [16, 21, '2023-05-20'], [22, 30, '2023-06-15'],
+        ]],
         ['file' => '893',  'season' => 'Сезон 2023/2024'],
         ['file' => '1355', 'season' => 'Сезон 2023/2024'],
         ['file' => '3557', 'season' => 'Сезон 2024/2025'],
@@ -264,6 +271,19 @@ function legacy_days_import_run(): array
             if (!is_array($games)) {
                 $log[] = "{$src['file']}: битый JSON — пропуск";
                 continue;
+            }
+            // проставить реальные даты сессий по номеру игры (если задано у источника)
+            if (!empty($src['redate'])) {
+                foreach ($games as &$gg) {
+                    $gno = (int)($gg['gno'] ?? 0);
+                    foreach ($src['redate'] as [$lo, $hi, $d]) {
+                        if ($gno >= $lo && $gno <= $hi) {
+                            $gg['date'] = $d;
+                            break;
+                        }
+                    }
+                }
+                unset($gg);
             }
             // группируем по дате — день = игровой вечер
             $byDate = [];
@@ -366,7 +386,9 @@ function legacy_tour_sources(): array
         ['file' => '7459', 'title' => 'Межвузовский дружественный турнир'],
         ['file' => '6447', 'title' => 'Турнир в честь 80 лет Победы в ВОВ'],
         ['file' => '1072', 'title' => 'Halloween cup'],
-        ['file' => 'letkubok', 'title' => 'I Летний кубок Менделеева'],
+        // Кубок — финал сезона 2022/2023; ставим на день после последней сессии
+        // (15.06.2023), чтобы игроки входили в него с накопленным за сезон ELO.
+        ['file' => 'letkubok', 'title' => 'I Летний кубок Менделеева', 'date' => '2023-06-16'],
     ];
 }
 
@@ -439,7 +461,7 @@ function legacy_tour_import_run(): array
 
             usort($games, fn($a, $b) => ((int)($a['gno'] ?? 0)) <=> ((int)($b['gno'] ?? 0)));
             $dates = array_filter(array_map(fn($g) => $g['date'] ?? null, $games));
-            $tdate = $dates ? min($dates) : null;
+            $tdate = $src['date'] ?? ($dates ? min($dates) : null);
             $uniq = [];
             foreach ($games as $g) {
                 foreach (($g['players'] ?? []) as $p) {
