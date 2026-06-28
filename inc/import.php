@@ -25,13 +25,34 @@ const MONTHS_RU = [
 const SEASON_YEAR_FIRST = 2025;
 const SEASON_YEAR_SECOND = 2026;
 
+// Постоянные алиасы ников (ручные слияния админа), загружаются один раз за запрос.
+function nick_aliases_map(): array
+{
+    static $map = null;
+    if ($map === null) {
+        $map = [];
+        try {
+            if (function_exists('db_ready') && db_ready()) {
+                foreach (db()->query('SELECT alias_key, canonical_key FROM nick_aliases') as $r) {
+                    $map[(string)$r['alias_key']] = (string)$r['canonical_key'];
+                }
+            }
+        } catch (Throwable $e) {
+            $map = [];
+        }
+    }
+    return $map;
+}
+
 function nick_key(string $n): string
 {
     $n = mb_strtolower(trim($n));
     $n = (string)preg_replace('/\s+/u', ' ', $n);
     $n = (string)preg_replace('/[^\p{L}\p{N}_ ]/u', '', $n);
     $n = trim($n);
-    return NICK_MERGES[$n] ?? $n;
+    $n = NICK_MERGES[$n] ?? $n;            // хардкод-алиасы (исторические)
+    $aliases = nick_aliases_map();
+    return $aliases[$n] ?? $n;             // ручные слияния админа — переживают переимпорт
 }
 
 function import_download(string $url, string $tmpName): string

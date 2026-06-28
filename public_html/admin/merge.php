@@ -2,6 +2,7 @@
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
 require ROOT . '/inc/elo.php';
+require_once ROOT . '/inc/import.php'; // nick_key() для постоянного алиаса слияния
 $u = require_role('admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge') {
@@ -69,6 +70,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
     }
     $pdo->prepare('DELETE FROM players WHERE id = ?')->execute([$srcId]);
     $pdo->commit();
+
+    // Запомнить слияние НАВСЕГДА: алиас ника-источника → канонический ник цели,
+    // чтобы переимпорт исторических игр не воссоздавал источник заново.
+    try {
+        $ak = nick_key((string)$src['nickname']);
+        $ck = nick_key((string)$dst['nickname']);
+        if ($ak !== '' && $ck !== '' && $ak !== $ck) {
+            db()->prepare('INSERT INTO nick_aliases (alias_key, canonical_key) VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE canonical_key = VALUES(canonical_key)')->execute([$ak, $ck]);
+            db()->prepare('UPDATE nick_aliases SET canonical_key = ? WHERE canonical_key = ?')->execute([$ck, $ak]);
+        }
+    } catch (Throwable $e) {
+    }
 
     rating_recompute_all();
     elo_recompute();
