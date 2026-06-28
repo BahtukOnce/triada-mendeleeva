@@ -133,10 +133,10 @@ $recs = $dbok ? club_records() : [];
 if ($recs) {
     echo '<h2 style="margin:20px 0 4px;">Рекорды клуба</h2>';
     echo '<div class="records-grid">';
-    foreach ($recs as [$ic, $title, $list, $type]) {
+    foreach ($recs as [$ic, $title, $recList, $type]) {
         echo '<div class="rec-card"><div class="rec-head"><span class="rec-ic">' . $ic . '</span><span class="rec-title">' . esc($title) . '</span></div><div class="rec-rows">';
         $rank = 0;
-        foreach ($list as $item) {
+        foreach ($recList as $item) {
             $rank++;
             $row = $item['row'];
             $medal = $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : '🥉');
