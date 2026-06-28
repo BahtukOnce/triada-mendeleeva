@@ -141,19 +141,41 @@ function render_player_stats(int $id, bool $own = false): void
             . '<span>' . $jText . '. <span style="color:var(--ac);">посмотреть, какие →</span></span></a>';
     }
 
-    // ── Сводка за всё время (все зарегистрированные игры клуба, включая историю) ──
+    // ── Сводка по ВСЕМ зарегистрированным играм клуба (текущий сезон + история) ──
+    // Счётчики (игры, винрейт, роли, ПУ) — из реальных game_seats; начисления (Σ, допы) —
+    // суммарно по всем рейтингам игрока. По этой сводке рисуется весь блок ниже и ачивки.
     $agSt = db()->prepare("SELECT COUNT(*) games,
-            SUM(CASE WHEN (g.winner='red' AND gs.role IN('civ','sheriff')) OR (g.winner='black' AND gs.role IN('maf','don')) THEN 1 ELSE 0 END) wins,
-            SUM(gs.role='civ') g_civ,     SUM(gs.role='civ' AND g.winner='red') w_civ,
+            SUM(gs.role='civ') g_civ,      SUM(gs.role='civ' AND g.winner='red') w_civ,
             SUM(gs.role='sheriff') g_sher, SUM(gs.role='sheriff' AND g.winner='red') w_sher,
-            SUM(gs.role='maf') g_maf,     SUM(gs.role='maf' AND g.winner='black') w_maf,
-            SUM(gs.role='don') g_don,     SUM(gs.role='don' AND g.winner='black') w_don,
+            SUM(gs.role='maf') g_maf,      SUM(gs.role='maf' AND g.winner='black') w_maf,
+            SUM(gs.role='don') g_don,      SUM(gs.role='don' AND g.winner='black') w_don,
             SUM(gs.seat = g.first_killed_seat) pu_count
         FROM game_seats gs JOIN games g ON g.id = gs.game_id
         WHERE gs.player_id = ? AND g.status='finished' AND g.winner IS NOT NULL");
     $agSt->execute([$id]);
-    $ag = $agSt->fetch() ?: ['games' => 0];
-    $agGames = (int)$ag['games'];
+    $aw = $agSt->fetch() ?: [];
+    $rcSt = db()->prepare("SELECT COALESCE(SUM(sum_total),0) sum_total, COALESCE(SUM(sum_plus),0) sum_plus,
+            COALESCE(SUM(dop_sum),0) dop_sum, COALESCE(SUM(ci_sum),0) ci_sum, COALESCE(SUM(games),0) rgames
+        FROM rating_cache WHERE player_id = ?");
+    $rcSt->execute([$id]);
+    $rc = $rcSt->fetch() ?: [];
+    $agGames = (int)($aw['games'] ?? 0);
+    $rGames = ((int)($rc['rgames'] ?? 0)) ?: $agGames;
+    $sumTotal = (float)($rc['sum_total'] ?? 0);
+    $at = [
+        'games' => $agGames,
+        'w_civ' => (int)($aw['w_civ'] ?? 0), 'g_civ' => (int)($aw['g_civ'] ?? 0),
+        'w_sher' => (int)($aw['w_sher'] ?? 0), 'g_sher' => (int)($aw['g_sher'] ?? 0),
+        'w_maf' => (int)($aw['w_maf'] ?? 0), 'g_maf' => (int)($aw['g_maf'] ?? 0),
+        'w_don' => (int)($aw['w_don'] ?? 0), 'g_don' => (int)($aw['g_don'] ?? 0),
+        'pu_count' => (int)($aw['pu_count'] ?? 0),
+        'sum_total' => $sumTotal, 'sum_plus' => (float)($rc['sum_plus'] ?? 0),
+        'dop_sum' => (float)($rc['dop_sum'] ?? 0), 'ci_sum' => (float)($rc['ci_sum'] ?? 0), 'lh_sum' => 0.0,
+        'avg_total' => $rGames > 0 ? round($sumTotal / $rGames, 4) : null,
+        'club_score' => $rGames > 0 ? round(($sumTotal / $rGames) * $sumTotal, 4) : null,
+    ];
+    $ag = $at;                              // ачивки ниже используют $ag
+    $stats = $agGames > 0 ? $at : null;     // весь блок метрик/графиков/ачивок — за всё время
 
     $fgSt = db()->prepare("SELECT MIN(COALESCE(d.date, t.date_from)) FROM game_seats gs
         JOIN games g ON g.id = gs.game_id
@@ -162,28 +184,6 @@ function render_player_stats(int $id, bool $own = false): void
         WHERE gs.player_id = ? AND g.status='finished'");
     $fgSt->execute([$id]);
     $firstGame = $fgSt->fetchColumn() ?: null;
-
-    if ($agGames > 0) {
-        $agWr = round((int)$ag['wins'] / $agGames * 100);
-        echo '<div class="card"><div class="section-head"><h2 style="margin:0;">За всё время</h2>'
-            . '<span style="font-size:12px;color:var(--tx2);">все игры клуба, включая историю</span></div>';
-        echo '<div class="pf-tiles">';
-        echo '<div class="stat"><div class="lbl">игр</div><div class="val">' . $agGames . '</div></div>';
-        echo '<div class="stat"><div class="lbl">винрейт</div><div class="val">' . $agWr . '%</div></div>';
-        echo '</div>';
-        if ($firstGame) {
-            echo '<p style="color:var(--tx2);font-size:13px;margin:10px 0 0;">Первая игра в клубе: <b style="color:var(--tx);">'
-                . date('d.m.Y', strtotime((string)$firstGame)) . '</b></p>';
-        }
-        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
-        foreach ([['civ', 'Мирный'], ['sher', 'Шериф'], ['maf', 'Мафия'], ['don', 'Дон']] as [$rk, $rl]) {
-            $gg = (int)$ag['g_' . $rk];
-            $ww = (int)$ag['w_' . $rk];
-            $wp = $gg ? round($ww / $gg * 100) : null;
-            echo '<span class="tag">' . $rl . ': ' . ($wp !== null ? $wp . '% <span style="color:var(--tx3);">(' . $ww . '/' . $gg . ')</span>' : '—') . '</span>';
-        }
-        echo '</div></div>';
-    }
 
     // ── Где участвовал: сезоны и турниры ──
     $parts = [];
@@ -206,15 +206,22 @@ function render_player_stats(int $id, bool $own = false): void
         $parts[] = ['title' => (string)$r['title'], 'games' => (int)$r['games'],
             'href' => '/tournament.php?id=' . (int)$r['id'], 'tour' => true, 'main' => false];
     }
-    if ($parts) {
-        echo '<div class="card"><h2 style="margin-top:0;">Где участвовал</h2>';
-        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-        foreach ($parts as $pt) {
-            $ic = $pt['main'] ? '⭐ ' : ($pt['tour'] ? '🏆 ' : '📅 ');
-            echo '<a class="tag" href="' . esc($pt['href']) . '">' . $ic . esc($pt['title'])
-                . ' <span style="color:var(--tx3);">· ' . $pt['games'] . '</span></a>';
+    if ($parts || $firstGame) {
+        echo '<div class="card"><h2 style="margin-top:0;">Участие в клубе</h2>';
+        if ($firstGame) {
+            echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">Первая игра в клубе: <b style="color:var(--tx);">'
+                . date('d.m.Y', strtotime((string)$firstGame)) . '</b></p>';
         }
-        echo '</div></div>';
+        if ($parts) {
+            echo '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+            foreach ($parts as $pt) {
+                $ic = $pt['main'] ? '⭐ ' : ($pt['tour'] ? '🏆 ' : '📅 ');
+                echo '<a class="tag" href="' . esc($pt['href']) . '">' . $ic . esc($pt['title'])
+                    . ' <span style="color:var(--tx3);">· ' . $pt['games'] . '</span></a>';
+            }
+            echo '</div>';
+        }
+        echo '</div>';
     }
 
     if ($stats) {
@@ -551,7 +558,7 @@ function render_player_stats(int $id, bool $own = false): void
             'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
             'black3' => $blackStreak >= 3, 'black5' => $blackStreak >= 5, 'black7' => $blackStreak >= 7,
             'redw3' => $redWinStreak >= 3, 'red3' => $redWinStreak >= 5, 'redw7' => $redWinStreak >= 7,
-            'elo1100' => $peakElo >= 1100, 'elo1300' => $peakElo >= 1300, 'elo1500' => $peakElo >= 1500, 'elo1700' => $peakElo >= 1700, 'elo1900' => $peakElo >= 1900, 'elo2100' => $peakElo >= 2100,
+            'elo1100' => $peakElo >= 1100, 'elo1400' => $peakElo >= 1400, 'elo1700' => $peakElo >= 1700, 'elo2000' => $peakElo >= 2000, 'elo2300' => $peakElo >= 2300, 'elo2600' => $peakElo >= 2600,
             'eloday' => $maxEloDay >= 150,
             'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.0,
             'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$ag['pu_count'] >= 5,
@@ -618,11 +625,11 @@ Chart.defaults.color = tx;
 Chart.defaults.font.family = "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
 var TIERS=[{v:800,n:'Новичок',col:'120,132,124',a:0.10},
   {v:1100,n:'Любитель',col:'52,168,99',a:0.12},
-  {v:1300,n:'Знаток',col:'40,165,170',a:0.13},
-  {v:1500,n:'Эксперт',col:'64,120,224',a:0.15},
-  {v:1700,n:'Мастер',col:'160,96,224',a:0.18},
-  {v:1900,n:'Чемпион',col:'230,126,34',a:0.22},
-  {v:2100,n:'Легенда',col:'232,184,48',a:0.26}];
+  {v:1400,n:'Знаток',col:'40,165,170',a:0.13},
+  {v:1700,n:'Эксперт',col:'64,120,224',a:0.15},
+  {v:2000,n:'Мастер',col:'160,96,224',a:0.18},
+  {v:2300,n:'Чемпион',col:'230,126,34',a:0.22},
+  {v:2600,n:'Легенда',col:'232,184,48',a:0.26}];
 function tierColor(v){ var T=TIERS[0]; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) T=TIERS[i]; } return 'rgba('+T.col+','+T.a+')'; }
 function tierName(v){ var n=TIERS[0].n; for(var i=0;i<TIERS.length;i++){ if(v>=TIERS[i].v) n=TIERS[i].n; } return n; }
 var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
