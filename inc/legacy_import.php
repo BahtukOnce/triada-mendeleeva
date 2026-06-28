@@ -12,9 +12,8 @@ function legacy_sources(): array
         ['files' => ['855'], 'title' => 'Сезон 2022/2023', 'kind' => 'season'],
         ['files' => ['893', '1355'], 'title' => 'Сезон 2023/2024', 'kind' => 'season'],
         ['files' => ['3557'], 'title' => 'Сезон 2024/2025', 'kind' => 'season'],
-        ['files' => ['7459'], 'title' => 'Межвузовский дружественный турнир', 'kind' => 'tour', 'date' => '2025-03-01'],
-        ['files' => ['6447'], 'title' => 'Турнир в честь 80 лет Победы в ВОВ', 'kind' => 'tour', 'date' => '2025-05-09'],
-        ['files' => ['1072'], 'title' => 'Halloween cup', 'kind' => 'tour', 'date' => '2022-10-31'],
+        // Летний кубок — без поигровых данных (из Google-таблицы) → остаётся итоговой таблицей.
+        // Межвуз/ВОВ/Halloween переносятся поигрово (legacy_tour_import_run) как настоящие турниры.
         ['files' => ['letkubok'], 'title' => 'I Летний кубок Менделеева', 'kind' => 'tour', 'date' => '2023-06-01'],
     ];
 }
@@ -344,6 +343,163 @@ function legacy_days_import_run(): array
     }
 
     // Пересчёт ELO по всей истории (текущие + исторические игры в хронологии)
+    try {
+        require_once ROOT . '/inc/elo.php';
+        elo_recompute();
+        $log[] = 'ELO пересчитан по всей истории';
+    } catch (Throwable $e) {
+        $log[] = 'ELO ошибка: ' . $e->getMessage();
+    }
+    return $log;
+}
+
+// ── Исторические ТУРНИРЫ → настоящие турниры с играми ────────────────────────
+// Поигровые данные турниров с mafiauniverse (GamesList) → реальные games
+// (context='tournament') у записей `tournaments`. Идут в ELO, статистику, ачивки;
+// страница турнира показывает реальные игры. Сезон определяется по дате (1 сентября).
+function legacy_tour_sources(): array
+{
+    return [
+        ['file' => '7459', 'title' => 'Межвузовский дружественный турнир'],
+        ['file' => '6447', 'title' => 'Турнир в честь 80 лет Победы в ВОВ'],
+        ['file' => '1072', 'title' => 'Halloween cup'],
+    ];
+}
+
+function legacy_tour_import_run(): array
+{
+    $log = [];
+    $pdo = db();
+    $dir = ROOT . '/storage/legacy';
+    $skip = ['Пустой слот' => 1, '' => 1];
+
+    $byNick = [];
+    foreach ($pdo->query('SELECT id, nickname FROM players') as $p) {
+        $byNick[nick_key((string)$p['nickname'])] = (int)$p['id'];
+    }
+    $insPlayer = $pdo->prepare('INSERT INTO players (nickname) VALUES (?)');
+    $findByNick = $pdo->prepare('SELECT id FROM players WHERE nickname = ? LIMIT 1');
+    $pidOf = function (string $name) use (&$byNick, $insPlayer, $findByNick, $pdo): int {
+        $k = nick_key($name);
+        if (isset($byNick[$k])) {
+            return $byNick[$k];
+        }
+        try {
+            $insPlayer->execute([$name]);
+            $id = (int)$pdo->lastInsertId();
+        } catch (PDOException $e) {
+            $findByNick->execute([$name]);
+            $id = (int)$findByNick->fetchColumn();
+            if (!$id) {
+                throw $e;
+            }
+        }
+        $byNick[$k] = $id;
+        return $id;
+    };
+
+    $roleOk = ['civ' => 1, 'maf' => 1, 'don' => 1, 'sheriff' => 1];
+    $totalT = 0;
+    $totalG = 0;
+
+    $pdo->beginTransaction();
+    try {
+        $delTour = $pdo->prepare('DELETE FROM tournaments WHERE title = ?'); // каскад: games + game_seats
+        $findFrozen = $pdo->prepare('SELECT id FROM ratings WHERE title = ? AND is_frozen = 1');
+        $delRc = $pdo->prepare('DELETE FROM rating_cache WHERE rating_id = ?');
+        $delRating = $pdo->prepare('DELETE FROM ratings WHERE id = ?');
+        $insTour = $pdo->prepare("INSERT INTO tournaments (title, date_from, status, tables_count, reg_mode)
+            VALUES (?, ?, 'finished', ?, 'open')");
+        $insGame = $pdo->prepare("INSERT INTO games (context, tournament_id, table_no, game_no, judge_player_id, winner, status)
+            VALUES ('tournament', ?, 1, ?, ?, ?, 'finished')");
+        $insSeat = $pdo->prepare('INSERT INTO game_seats (game_id, seat, player_id, role, plus, minus) VALUES (?,?,?,?,?,?)');
+
+        foreach (legacy_tour_sources() as $src) {
+            $file = "$dir/games_{$src['file']}.json";
+            if (!is_file($file)) {
+                $log[] = "нет games_{$src['file']}.json — пропуск";
+                continue;
+            }
+            $games = json_decode((string)file_get_contents($file), true);
+            if (!is_array($games)) {
+                $log[] = "{$src['file']}: битый JSON — пропуск";
+                continue;
+            }
+            // снести старую версию турнира (агрегатный рейтинг + редирект-запись)
+            $delTour->execute([$src['title']]);
+            $findFrozen->execute([$src['title']]);
+            foreach ($findFrozen->fetchAll(PDO::FETCH_COLUMN) as $frid) {
+                $delRc->execute([(int)$frid]);
+                $delRating->execute([(int)$frid]);
+            }
+
+            usort($games, fn($a, $b) => ((int)($a['gno'] ?? 0)) <=> ((int)($b['gno'] ?? 0)));
+            $dates = array_filter(array_map(fn($g) => $g['date'] ?? null, $games));
+            $tdate = $dates ? min($dates) : null;
+            $uniq = [];
+            foreach ($games as $g) {
+                foreach (($g['players'] ?? []) as $p) {
+                    $n = trim((string)($p['name'] ?? ''));
+                    if ($n !== '' && !isset($skip[$n])) {
+                        $uniq[nick_key($n)] = 1;
+                    }
+                }
+            }
+            $insTour->execute([$src['title'], $tdate, max(1, (int)ceil(count($uniq) / 10))]);
+            $tid = (int)$pdo->lastInsertId();
+
+            $gameNo = 0;
+            $cnt = 0;
+            foreach ($games as $g) {
+                $winner = (($g['winner'] ?? '') === 'red' || ($g['winner'] ?? '') === 'black') ? $g['winner'] : null;
+                if (!$winner) {
+                    continue;
+                }
+                $jn = trim((string)($g['judge'] ?? ''));
+                $judgeId = ($jn !== '' && !isset($skip[$jn])) ? $pidOf($jn) : null;
+                $gameNo++;
+                $insGame->execute([$tid, $gameNo, $judgeId, $winner]);
+                $gid = (int)$pdo->lastInsertId();
+                $usedSeats = [];
+                $seenPid = [];
+                $fb = 0;
+                foreach (($g['players'] ?? []) as $p) {
+                    $name = trim((string)($p['name'] ?? ''));
+                    if ($name === '' || isset($skip[$name])) {
+                        continue;
+                    }
+                    $pid = $pidOf($name);
+                    if (isset($seenPid[$pid])) {
+                        continue;
+                    }
+                    $seenPid[$pid] = 1;
+                    $role = isset($roleOk[$p['role'] ?? '']) ? $p['role'] : 'civ';
+                    $seat = (int)($p['seat'] ?? 0);
+                    if ($seat < 1 || $seat > 10 || isset($usedSeats[$seat])) {
+                        do {
+                            $seat = ++$fb;
+                        } while (isset($usedSeats[$seat]));
+                    }
+                    $usedSeats[$seat] = 1;
+                    $tot = (float)($p['total'] ?? 0);
+                    $insSeat->execute([$gid, $seat, $pid, $role, $tot > 0 ? round($tot, 1) : 0, $tot < 0 ? round(-$tot, 1) : 0]);
+                }
+                $cnt++;
+            }
+            $totalT++;
+            $totalG += $cnt;
+            $log[] = "✓ {$src['title']}: турнир #$tid, игр $cnt, дата " . ($tdate ?: '?');
+        }
+        $pdo->commit();
+        $log[] = "ИТОГО турниров: $totalT, игр $totalG";
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $log[] = 'ОШИБКА: ' . $e->getMessage();
+        return $log;
+    }
+
     try {
         require_once ROOT . '/inc/elo.php';
         elo_recompute();

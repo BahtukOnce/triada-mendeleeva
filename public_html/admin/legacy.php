@@ -13,6 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'import_games') {
         $log = legacy_days_import_run();
         flash_set('ok', 'Игровые вечера импортированы, ELO пересчитан');
+    } elseif ($action === 'import_tours') {
+        $log = legacy_tour_import_run();
+        flash_set('ok', 'Турниры импортированы поигрово, ELO пересчитан');
     } elseif ($action === 'clear') {
         $old = db()->query('SELECT id FROM ratings WHERE is_frozen = 1')->fetchAll(PDO::FETCH_COLUMN);
         if ($old) {
@@ -50,6 +53,13 @@ echo '<form method="post">' . csrf_field()
     . '<input type="hidden" name="action" value="import_games">'
     . '<button class="btn" type="submit">Импортировать вечера + пересчитать ELO</button></form>';
 echo '<p style="color:var(--tx3);font-size:12px;margin:10px 0 0;">Исторические вечера помечены сезоном и не привязаны к рейтингам — основной рейтинг остаётся текущим; идут в статистику, профили, рекорды и ELO.</p>';
+echo '</div>';
+
+echo '<div class="card"><h2 style="margin-top:0;">Турниры поигрово (ачивки)</h2>';
+echo '<p style="color:var(--tx2);">Импортирует игры турниров (Межвуз, ВОВ, Halloween) из <code>games_7459/6447/1072.json</code> как настоящие турнирные игры — они идут в ачивки/статистику, страница турнира показывает реальные игры. Сезон — по дате (1 сентября).</p>';
+echo '<form method="post">' . csrf_field()
+    . '<input type="hidden" name="action" value="import_tours">'
+    . '<button class="btn" type="submit">Импортировать турниры + пересчитать ELO</button></form>';
 echo '</div>';
 
 if ($frozen) {

@@ -55,12 +55,17 @@ function render_player_stats(int $id, bool $own = false): void
             $rank = (int)$st->fetchColumn();
         }
     }
-    // ── Фильтр статистики по сезонам (как переключатель рейтинга) ──
+    // ── Фильтр статистики по сезонам (сезон = 1 сентября–31 августа, по дате игры) ──
     // ELO-график и ачивки считаются всегда за всю историю — здесь не фильтруются.
-    $sst = db()->prepare("SELECT COALESCE(d.season,'__current__') s, COUNT(*) c
+    $mainTitle = (string)(db()->query("SELECT title FROM ratings WHERE is_main = 1 LIMIT 1")->fetchColumn() ?: 'Текущий сезон');
+    $dExpr = "COALESCE(d.date, t.date_from)";
+    $startY = "(YEAR($dExpr) - (MONTH($dExpr) < 9))";
+    $seasonExpr = "CONCAT('Сезон ', $startY, '/', $startY + 1)";
+    $sst = db()->prepare("SELECT $seasonExpr s, COUNT(*) c
         FROM game_seats gs JOIN games g ON g.id = gs.game_id
         LEFT JOIN game_days d ON d.id = g.day_id
-        WHERE gs.player_id = ? AND g.status = 'finished'
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE gs.player_id = ? AND g.status = 'finished' AND $dExpr IS NOT NULL
         GROUP BY s");
     $sst->execute([$id]);
     $seasonsAvail = [];
@@ -74,7 +79,7 @@ function render_player_stats(int $id, bool $own = false): void
     $seasonWhere = '';
     $seasonArgs = [];
     if ($season !== 'all') {
-        $seasonWhere = " AND COALESCE(d.season,'__current__') = ?";
+        $seasonWhere = " AND ($seasonExpr) = ?";
         $seasonArgs = [$season];
     }
 
@@ -188,17 +193,16 @@ function render_player_stats(int $id, bool $own = false): void
             SUM(gs.seat = g.first_killed_seat) pu_count
         FROM game_seats gs JOIN games g ON g.id = gs.game_id
         LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
         WHERE gs.player_id = ? AND g.status='finished' AND g.winner IS NOT NULL" . $seasonWhere);
     $agSt->execute(array_merge([$id], $seasonArgs));
     $aw = $agSt->fetch() ?: [];
-    // Σ/допы — из rating_cache соответствующего сезона (все рейтинги при «Все сезоны»)
+    // Σ/допы — из rating_cache рейтинга этого сезона (текущий → основной, иначе frozen);
+    // при «Все сезоны» — сумма по всем рейтингам игрока
     $rcWhere = '';
     $rcArgs = [$id];
-    if ($season === '__current__') {
-        $rcWhere = ' AND rating_id = ?';
-        $rcArgs[] = $mainId;
-    } elseif ($season !== 'all') {
-        $frid = db()->prepare("SELECT id FROM ratings WHERE title = ? ORDER BY is_frozen DESC, id DESC LIMIT 1");
+    if ($season !== 'all') {
+        $frid = db()->prepare("SELECT id FROM ratings WHERE title = ? ORDER BY is_main DESC, is_frozen DESC, id DESC LIMIT 1");
         $frid->execute([$season]);
         $rcWhere = ' AND rating_id = ?';
         $rcArgs[] = ((int)$frid->fetchColumn()) ?: -1;
@@ -275,16 +279,9 @@ function render_player_stats(int $id, bool $own = false): void
 
     // Переключатель сезонов: статистика ниже считается за выбранный сезон
     if (count($seasonsAvail) > 1) {
-        $mainTitle = (string)(db()->query("SELECT title FROM ratings WHERE is_main = 1 LIMIT 1")->fetchColumn() ?: 'Текущий сезон');
-        $tabs = [['all', 'Все сезоны']];
-        if (isset($seasonsAvail['__current__'])) {
-            $tabs[] = ['__current__', $mainTitle];
-        }
-        $histS = array_filter(array_keys($seasonsAvail), fn($s) => $s !== '__current__');
-        rsort($histS);
-        foreach ($histS as $s) {
-            $tabs[] = [$s, $s];
-        }
+        $sKeys = array_keys($seasonsAvail);
+        rsort($sKeys); // новые сезоны выше
+        $tabs = array_merge([['all', 'Все сезоны']], array_map(fn($s) => [$s, $s], $sKeys));
         $base = $own ? '/my_stats.php?season=' : ('/player.php?id=' . $id . '&season=');
         echo '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px;">';
         echo '<span style="font-size:12px;color:var(--tx2);">статистика за:</span>';
