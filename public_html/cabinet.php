@@ -69,8 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $birthVal = preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth) ? $birth : null;
         $fav = (string)($_POST['fav_role'] ?? '');
         $favVal = in_array($fav, ['civ', 'maf', 'sheriff', 'don'], true) ? $fav : null;
+        $seat = (int)($_POST['fav_seat'] ?? 0);
+        $seatVal = ($seat >= 1 && $seat <= 10) ? $seat : null;
         $rhtu = !empty($_POST['is_rhtu']) ? 1 : 0;
-        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, is_rhtu = ?, flair = ?
+        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, fav_seat = ?, is_rhtu = ?, flair = ?
             WHERE id = ?')->execute([
             trim((string)($_POST['real_name'] ?? '')) ?: null,
             trim((string)($_POST['tg'] ?? '')) ?: null,
@@ -79,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $rhtu ? (trim((string)($_POST['study_group'] ?? '')) ?: null) : null,
             $birthVal,
             $favVal,
+            $seatVal,
             $rhtu,
             flair_clean((string)($_POST['flair'] ?? '')) ?: null,
             (int)$player['id'],
@@ -386,12 +389,19 @@ if ($player) {
     echo '<div class="field"><label>Факультет</label><input type="text" name="faculty" value="' . esc($player['faculty']) . '"></div>';
     echo '<div class="field"><label>Группа</label><input type="text" name="study_group" value="' . esc($player['study_group']) . '"></div>';
     echo '</div>';
-    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    $selStyle = 'width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;';
+    echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">';
     echo '<div class="field"><label>Дата рождения</label><input type="date" name="birth_date" value="' . esc($player['birth_date']) . '"></div>';
     $favOpts = ['' => '— не выбрана —', 'civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
-    echo '<div class="field"><label>Любимая роль</label><select name="fav_role" style="width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;">';
+    echo '<div class="field"><label>Любимая роль</label><select name="fav_role" style="' . $selStyle . '">';
     foreach ($favOpts as $fk => $fl) {
         echo '<option value="' . $fk . '" ' . (($player['fav_role'] ?? '') === $fk ? 'selected' : '') . '>' . $fl . '</option>';
+    }
+    echo '</select></div>';
+    echo '<div class="field"><label>Любимый слот (место за столом)</label><select name="fav_seat" style="' . $selStyle . '">';
+    echo '<option value="">— не выбрано —</option>';
+    for ($s = 1; $s <= 10; $s++) {
+        echo '<option value="' . $s . '" ' . (((int)($player['fav_seat'] ?? 0)) === $s ? 'selected' : '') . '>' . $s . '</option>';
     }
     echo '</select></div></div>';
     echo '<div class="field"><label>Эмодзи-«висюлька» (необязательно — показывается рядом с ником; в играх и рейтинге ник остаётся чистым)</label>'

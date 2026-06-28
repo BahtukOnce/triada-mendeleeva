@@ -8,10 +8,10 @@ if (db_ready()) {
     $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
     // Игры и победы — по всем зарегистрированным играм клуба (game_seats),
     // включая исторические вечера: статистика всегда актуальна по всем играм.
-    $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, p.elo,
+    $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo,
             agg.games, agg.wins
         FROM players p
-        LEFT JOIN (
+        JOIN (
             SELECT gs.player_id,
                 COUNT(*) AS games,
                 SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
@@ -83,9 +83,12 @@ if ($list) {
             : '';
         $mvp = $casper ? 0 : ($mvpMap[(int)$p['id']] ?? 0);
         $mvpChip = $mvp ? ' <span title="MVP вечеров" style="color:#ffc400;font-weight:600;">🥇' . $mvp . '</span>' : '';
+        $seatChip = (!$casper && !empty($p['fav_seat']))
+            ? ' <span class="fav-chip" title="любимое место за столом"><span class="fdot" style="background:var(--ac);"></span>место ' . (int)$p['fav_seat'] . '</span>'
+            : '';
         echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
             . '<div class="pc-name">' . player_label($p)
-            . '<div class="pc-fav">' . $favHtml . $mvpChip . '</div></div>'
+            . '<div class="pc-fav">' . $favHtml . $seatChip . $mvpChip . '</div></div>'
             . $rankHtml . '</div>';
         if ($casper) {
             echo '<div class="pc-stats" style="grid-template-columns:1fr;">'

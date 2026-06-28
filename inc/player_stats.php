@@ -139,6 +139,9 @@ function render_player_stats(int $id, bool $own = false): void
     if (!empty($player['fav_role'])) {
         echo '<span class="fav-chip"><span class="fdot" style="background:' . role_color($player['fav_role']) . ';"></span>любимая роль: ' . esc($roleLbl[$player['fav_role']]) . '</span>';
     }
+    if (!empty($player['fav_seat'])) {
+        echo '<span class="fav-chip"><span class="fdot" style="background:var(--ac);"></span>любимое место: ' . (int)$player['fav_seat'] . '</span>';
+    }
     if (!empty($player['is_rhtu'])) {
         echo '<span class="tag">студент РХТУ</span>';
     }

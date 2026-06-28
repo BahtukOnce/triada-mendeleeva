@@ -474,7 +474,7 @@ if ($standing) {
         echo '<td>' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['pid'] . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nick']) . '</span></a></td>';
+            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
         echo '<td class="num c-elo"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num">' . number_format((float)$row['avg_total'], 2) . '</td>';
         echo '<td class="num">' . number_format((float)$row['sum'], 2) . '</td>';

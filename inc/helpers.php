@@ -61,6 +61,14 @@ function player_label(?array $p): string
     return $f !== '' ? $n . ' <span class="flair">' . esc($f) . '</span>' : $n;
 }
 
+// Пасхальная пометка призрака клуба (Каспер) рядом с ником в таблицах/списках
+function casper_ghost(?string $nick): string
+{
+    return is_casper($nick)
+        ? ' <span title="призрак клуба — у призраков нет статистики" style="opacity:.8;">👻</span>'
+        : '';
+}
+
 // Цветная точка роли (мирный/шериф/мафия/дон) — единый код цвета по сайту
 // Палитра ролей: мирный — красный, шериф — жёлтый, мафия — тёмно-серый, дон — чёрный.
 function role_color(string $role): string
