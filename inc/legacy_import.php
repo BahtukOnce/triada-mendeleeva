@@ -141,14 +141,28 @@ function legacy_import_run(): array
             }
             $insRating->execute([$src['title']]);
             $rid = (int)$pdo->lastInsertId();
-            $n = 0;
+            // сгруппировать по player_id: разные ники одного игрока → один ряд
+            $rawByPid = [];
             foreach ($merged as $name => $row) {
+                $pid = $pidOf((string)$name);
+                if (!isset($rawByPid[$pid])) {
+                    $rawByPid[$pid] = $row;
+                } elseif ($kind === 'season') {
+                    $rawByPid[$pid] = legacy_merge_season($rawByPid[$pid], $row);
+                } else {
+                    foreach (['sum', 'lh', 'dop', 'ci', 'g', 'wins'] as $f) {
+                        $rawByPid[$pid][$f] = ($rawByPid[$pid][$f] ?? 0) + ($row[$f] ?? 0);
+                    }
+                }
+            }
+            $n = 0;
+            foreach ($rawByPid as $pid => $row) {
                 $rc = legacy_to_cache($row, $kind);
                 if ($rc['games'] <= 0) {
                     continue;
                 }
                 $insRC->execute([
-                    $rid, $pidOf((string)$name), $rc['games'], $rc['sum_total'], $rc['sum_plus'],
+                    $rid, $pid, $rc['games'], $rc['sum_total'], $rc['sum_plus'],
                     $rc['avg_total'], $rc['club_score'], $rc['pu_count'],
                     $rc['lh_sum'], $rc['dop_sum'], $rc['ci_sum'],
                     $rc['w_civ'], $rc['g_civ'], $rc['w_maf'], $rc['g_maf'],
