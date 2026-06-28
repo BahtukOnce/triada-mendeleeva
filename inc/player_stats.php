@@ -120,7 +120,9 @@ function render_player_stats(int $id, bool $own = false): void
         ? ' href="/cabinet.php" class="pf-hero pf-hero-link" title="Открыть личный кабинет — редактировать профиль"'
         : ' class="pf-hero"';
     echo '<' . $heroTag . $heroAttr . '>';
-    echo '<div class="pf-ava">' . avatar_html($player, 64, 'background:var(--acsf);color:var(--ac);font-size:26px;') . '</div>';
+    $hasPhoto = !empty($player['avatar']) && is_file(ROOT . '/public_html' . $player['avatar']);
+    $avaAttr = $hasPhoto ? ' pf-ava-zoom" data-full="' . esc($player['avatar']) . '" title="Открыть фото' : '';
+    echo '<div class="pf-ava' . $avaAttr . '">' . avatar_html($player, 64, 'background:var(--acsf);color:var(--ac);font-size:26px;') . '</div>';
     $flairStr = trim((string)($player['flair'] ?? ''));
     $flairHtml = '';
     if ($flairStr !== '') {
@@ -691,6 +693,18 @@ var tierBands={id:'tierBands',beforeDatasetsDraw:function(ch){
   }
   c.restore();
 }};
+var startLine={id:'startLine',afterDatasetsDraw:function(ch){
+  var ya=ch.scales.y, ar=ch.chartArea; if(!ya||!ar) return;
+  if(1000<ya.min||1000>ya.max) return;
+  var c=ch.ctx, py=ya.getPixelForValue(1000);
+  c.save();
+  c.strokeStyle='rgba(255,255,255,0.5)'; c.lineWidth=1; c.setLineDash([5,4]);
+  c.beginPath(); c.moveTo(ar.left,Math.round(py)+0.5); c.lineTo(ar.right,Math.round(py)+0.5); c.stroke();
+  c.setLineDash([]); c.textAlign='left'; c.textBaseline='bottom';
+  c.font='600 10px system-ui'; c.fillStyle='rgba(255,255,255,0.72)';
+  c.fillText('старт · 1000', ar.left+6, py-3);
+  c.restore();
+}};
 var eloMax=Math.max.apply(null,D.elo), eloNextTier=null;
 for(var ti=0;ti<TIERS.length;ti++){ if(TIERS[ti].v>eloMax){ eloNextTier=TIERS[ti].v; break; } }
 var topTierV=TIERS[TIERS.length-1].v;
@@ -705,7 +719,7 @@ new Chart(document.getElementById('ch-elo'),{type:'line',
     label:function(c){var i=c.dataIndex,L=['ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y)];
       if(i>0){var dl=Math.round(c.parsed.y-D.elo[i-1]);L.push((dl>0?'▲ +':(dl<0?'▼ ':'')) + dl + ' с прошлой игры');}else{L.push('старт');}return L;}}}},
     scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{min:800,max:eloSMax,grid:{display:false},afterBuildTicks:function(s){s.ticks=TIERS.filter(function(t){return t.v>=s.min&&t.v<=s.max;}).map(function(t){return {value:t.v};});}}},maintainAspectRatio:false},
-  plugins:[tierBands]});
+  plugins:[tierBands,startLine]});
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
     datasets:[{data:D.outcomes,backgroundColor:['#2fa45c','#1f7a45','#e8332a','#8c2420','#888'],borderWidth:0}]},

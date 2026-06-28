@@ -276,6 +276,14 @@
     e.stopPropagation();
     showLb(im.currentSrc || im.src);
   });
+  // аватар профиля — клик открывает фото в полный размер (не уводя в кабинет)
+  document.addEventListener('click', function (e) {
+    var z = e.target.closest('.pf-ava-zoom');
+    if (!z || !z.getAttribute('data-full')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showLb(z.getAttribute('data-full'));
+  });
   // эмодзи-картинки Telegram: если не загрузилась — вернуть системный символ (alt)
   document.addEventListener('error', function (e) {
     var t = e.target;
