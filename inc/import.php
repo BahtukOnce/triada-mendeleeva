@@ -11,6 +11,7 @@ const IMPORT_SERVICE_SHEETS = ['Рейтинг', 'Экзамены', 'Преду
 
 // Ручные слияния ников: нормализованный вариант => канонический нормализованный
 const NICK_MERGES = [
+    'osinovykol' => 'осиновый кол',
     'не_лиса' => 'не_лис',
     'rainbow aka радуга' => 'rainbow',
     'нелис' => 'не_лис',
@@ -345,9 +346,11 @@ function run_import(bool $write, ?callable $progress = null): array
     $pdo = db();
     $pdo->beginTransaction();
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-    foreach (['game_seats', 'games', 'rating_days', 'day_registrations', 'game_days', 'tournament_regs', 'tournaments', 'rating_cache'] as $tbl) {
+    foreach (['game_seats', 'games', 'rating_days', 'day_registrations', 'game_days', 'tournament_regs', 'tournaments'] as $tbl) {
         $pdo->exec("DELETE FROM $tbl");
     }
+    // rating_cache чистим, КРОМЕ замороженных исторических рейтингов (импорт mafiauniverse)
+    $pdo->exec('DELETE FROM rating_cache WHERE rating_id NOT IN (SELECT id FROM ratings WHERE is_frozen = 1)');
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
     $note('старые игровые данные очищены');
     // Игроки: существующие по ключу
@@ -444,7 +447,8 @@ function run_import(bool $write, ?callable $progress = null): array
     $removed = $pdo->exec("DELETE FROM players
         WHERE user_id IS NULL
           AND id NOT IN (SELECT DISTINCT player_id FROM game_seats)
-          AND id NOT IN (SELECT DISTINCT judge_player_id FROM games WHERE judge_player_id IS NOT NULL)");
+          AND id NOT IN (SELECT DISTINCT judge_player_id FROM games WHERE judge_player_id IS NOT NULL)
+          AND id NOT IN (SELECT DISTINCT player_id FROM rating_cache)");
     $note("удалено игроков без игр: " . (int)$removed);
     $note('игроков на сайте: ' . (int)$pdo->query('SELECT COUNT(*) FROM players')->fetchColumn());
     $pdo->commit();

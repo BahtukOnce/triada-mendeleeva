@@ -254,7 +254,7 @@ function rating_recompute(int $ratingId): void
 
 function rating_recompute_all(): void
 {
-    foreach (db()->query('SELECT id FROM ratings WHERE is_active = 1')->fetchAll() as $r) {
+    foreach (db()->query('SELECT id FROM ratings WHERE is_active = 1 AND is_frozen = 0')->fetchAll() as $r) {
         rating_recompute((int)$r['id']);
     }
 }

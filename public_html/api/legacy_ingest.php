@@ -17,6 +17,12 @@ if (!hash_equals(LEGACY_TOKEN, (string)($_GET['t'] ?? ''))) {
     http_response_code(403);
     exit('forbidden');
 }
+if (($_GET['apply'] ?? '') === '1') {
+    require_once ROOT . '/inc/legacy_import.php';
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['log' => legacy_import_run()], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 $src = preg_replace('/[^a-z0-9_]/i', '', (string)($_GET['src'] ?? ''));
 if ($src === '') {
     http_response_code(400);
