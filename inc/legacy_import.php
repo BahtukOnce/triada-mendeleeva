@@ -319,10 +319,14 @@ function legacy_days_import_run(): array
                             } while (isset($usedSeats[$seat]));
                         }
                         $usedSeats[$seat] = 1;
+                        // mafiauniverse total УЖЕ включает победный балл (+1 у победителей);
+                        // сайт сам добавит 1 за победу (seat_total), поэтому храним только
+                        // доп-часть: total минус победный балл.
                         $tot = (float)($p['total'] ?? 0);
-                        $plus = $tot > 0 ? round($tot, 1) : 0;
-                        $minus = $tot < 0 ? round(-$tot, 1) : 0;
-                        $insSeat->execute([$gid, $seat, $pid, $role, $plus, $minus]);
+                        $isWin = ($winner === 'red' && ($role === 'civ' || $role === 'sheriff'))
+                            || ($winner === 'black' && ($role === 'maf' || $role === 'don'));
+                        $net = $tot - ($isWin ? 1.0 : 0.0);
+                        $insSeat->execute([$gid, $seat, $pid, $role, $net > 0 ? round($net, 1) : 0, $net < 0 ? round(-$net, 1) : 0]);
                     }
                     $cntGames++;
                 }
@@ -481,8 +485,12 @@ function legacy_tour_import_run(): array
                         } while (isset($usedSeats[$seat]));
                     }
                     $usedSeats[$seat] = 1;
+                    // mafiauniverse total включает победный балл — храним только доп-часть
                     $tot = (float)($p['total'] ?? 0);
-                    $insSeat->execute([$gid, $seat, $pid, $role, $tot > 0 ? round($tot, 1) : 0, $tot < 0 ? round(-$tot, 1) : 0]);
+                    $isWin = ($winner === 'red' && ($role === 'civ' || $role === 'sheriff'))
+                        || ($winner === 'black' && ($role === 'maf' || $role === 'don'));
+                    $net = $tot - ($isWin ? 1.0 : 0.0);
+                    $insSeat->execute([$gid, $seat, $pid, $role, $net > 0 ? round($net, 1) : 0, $net < 0 ? round(-$net, 1) : 0]);
                 }
                 $cnt++;
             }

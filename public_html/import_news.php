@@ -98,8 +98,15 @@ function node_inner_html(DOMNode $node): string
 $stmt = db()->prepare('INSERT INTO news (title, body, published_at, image, images, has_video, tg_msg_id)
         VALUES (?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE title = VALUES(title), body = VALUES(body),
-            published_at = VALUES(published_at), image = COALESCE(VALUES(image), image),
+            image = COALESCE(VALUES(image), image),
             images = COALESCE(VALUES(images), images), has_video = VALUES(has_video)');
+
+// Самолечение: испорченные ранее даты (1970, до затыка с published_at) → время создания записи.
+try {
+    db()->exec("UPDATE news SET published_at = created_at
+        WHERE published_at IS NOT NULL AND published_at < '2005-01-01' AND created_at IS NOT NULL");
+} catch (Throwable $e) {
+}
 
 $imgDir = ROOT . '/public_html/uploads/news';
 
@@ -152,9 +159,10 @@ for ($p = 0; $p < $pages; $p++) {
             continue;
         }
         $dt = $xp->query(".//time[@datetime]", $node)->item(0);
-        $ts = ($dt && $dt->getAttribute('datetime'))
-            ? date('Y-m-d H:i:s', strtotime($dt->getAttribute('datetime')))
-            : date('Y-m-d H:i:s');
+        // strtotime может вернуть false (формат изменился) → date(...,false) даст 1970.
+        // Защищаемся: при неудаче парсинга берём «сейчас», а не эпоху.
+        $parsed = ($dt && $dt->getAttribute('datetime')) ? strtotime($dt->getAttribute('datetime')) : false;
+        $ts = $parsed ? date('Y-m-d H:i:s', $parsed) : date('Y-m-d H:i:s');
         $firstLine = trim((string)strtok($text, "\n"));
         $title = mb_substr($firstLine !== '' ? $firstLine : $text, 0, 200);
 
