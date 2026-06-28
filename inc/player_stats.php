@@ -141,6 +141,82 @@ function render_player_stats(int $id, bool $own = false): void
             . '<span>' . $jText . '. <span style="color:var(--ac);">посмотреть, какие →</span></span></a>';
     }
 
+    // ── Сводка за всё время (все зарегистрированные игры клуба, включая историю) ──
+    $agSt = db()->prepare("SELECT COUNT(*) games,
+            SUM(CASE WHEN (g.winner='red' AND gs.role IN('civ','sheriff')) OR (g.winner='black' AND gs.role IN('maf','don')) THEN 1 ELSE 0 END) wins,
+            SUM(gs.role='civ') g_civ,     SUM(gs.role='civ' AND g.winner='red') w_civ,
+            SUM(gs.role='sheriff') g_sher, SUM(gs.role='sheriff' AND g.winner='red') w_sher,
+            SUM(gs.role='maf') g_maf,     SUM(gs.role='maf' AND g.winner='black') w_maf,
+            SUM(gs.role='don') g_don,     SUM(gs.role='don' AND g.winner='black') w_don,
+            SUM(gs.seat = g.first_killed_seat) pu_count
+        FROM game_seats gs JOIN games g ON g.id = gs.game_id
+        WHERE gs.player_id = ? AND g.status='finished' AND g.winner IS NOT NULL");
+    $agSt->execute([$id]);
+    $ag = $agSt->fetch() ?: ['games' => 0];
+    $agGames = (int)$ag['games'];
+
+    $fgSt = db()->prepare("SELECT MIN(COALESCE(d.date, t.date_from)) FROM game_seats gs
+        JOIN games g ON g.id = gs.game_id
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE gs.player_id = ? AND g.status='finished'");
+    $fgSt->execute([$id]);
+    $firstGame = $fgSt->fetchColumn() ?: null;
+
+    if ($agGames > 0) {
+        $agWr = round((int)$ag['wins'] / $agGames * 100);
+        echo '<div class="card"><div class="section-head"><h2 style="margin:0;">За всё время</h2>'
+            . '<span style="font-size:12px;color:var(--tx2);">все игры клуба, включая историю</span></div>';
+        echo '<div class="pf-tiles">';
+        echo '<div class="stat"><div class="lbl">игр</div><div class="val">' . $agGames . '</div></div>';
+        echo '<div class="stat"><div class="lbl">винрейт</div><div class="val">' . $agWr . '%</div></div>';
+        echo '</div>';
+        if ($firstGame) {
+            echo '<p style="color:var(--tx2);font-size:13px;margin:10px 0 0;">Первая игра в клубе: <b style="color:var(--tx);">'
+                . date('d.m.Y', strtotime((string)$firstGame)) . '</b></p>';
+        }
+        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
+        foreach ([['civ', 'Мирный'], ['sher', 'Шериф'], ['maf', 'Мафия'], ['don', 'Дон']] as [$rk, $rl]) {
+            $gg = (int)$ag['g_' . $rk];
+            $ww = (int)$ag['w_' . $rk];
+            $wp = $gg ? round($ww / $gg * 100) : null;
+            echo '<span class="tag">' . $rl . ': ' . ($wp !== null ? $wp . '% <span style="color:var(--tx3);">(' . $ww . '/' . $gg . ')</span>' : '—') . '</span>';
+        }
+        echo '</div></div>';
+    }
+
+    // ── Где участвовал: сезоны и турниры ──
+    $parts = [];
+    $pst = db()->prepare("SELECT r.id, r.title, r.is_main, rc.games,
+            (SELECT t.id FROM tournaments t WHERE t.legacy_rating_id = r.id LIMIT 1) AS tour_id
+        FROM rating_cache rc JOIN ratings r ON r.id = rc.rating_id
+        WHERE rc.player_id = ? AND rc.games > 0 ORDER BY r.is_main DESC, r.id DESC");
+    $pst->execute([$id]);
+    foreach ($pst->fetchAll() as $r) {
+        $parts[] = ['title' => (string)$r['title'], 'games' => (int)$r['games'],
+            'href' => $r['tour_id'] ? '/tournament.php?id=' . (int)$r['tour_id'] : '/rating.php?r=' . (int)$r['id'],
+            'tour' => (bool)$r['tour_id'], 'main' => (bool)$r['is_main']];
+    }
+    $tst = db()->prepare("SELECT t.id, t.title, COUNT(*) games FROM game_seats gs
+        JOIN games g ON g.id = gs.game_id JOIN tournaments t ON t.id = g.tournament_id
+        WHERE gs.player_id = ? AND g.status='finished' AND t.legacy_rating_id IS NULL
+        GROUP BY t.id, t.title ORDER BY t.date_from DESC");
+    $tst->execute([$id]);
+    foreach ($tst->fetchAll() as $r) {
+        $parts[] = ['title' => (string)$r['title'], 'games' => (int)$r['games'],
+            'href' => '/tournament.php?id=' . (int)$r['id'], 'tour' => true, 'main' => false];
+    }
+    if ($parts) {
+        echo '<div class="card"><h2 style="margin-top:0;">Где участвовал</h2>';
+        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+        foreach ($parts as $pt) {
+            $ic = $pt['main'] ? '⭐ ' : ($pt['tour'] ? '🏆 ' : '📅 ');
+            echo '<a class="tag" href="' . esc($pt['href']) . '">' . $ic . esc($pt['title'])
+                . ' <span style="color:var(--tx3);">· ' . $pt['games'] . '</span></a>';
+        }
+        echo '</div></div>';
+    }
+
     if ($stats) {
         $games = (int)$stats['games'];
         $totW = (int)$stats['w_civ'] + (int)$stats['w_maf'] + (int)$stats['w_sher'] + (int)$stats['w_don'];
@@ -443,7 +519,7 @@ function render_player_stats(int $id, bool $own = false): void
             $triples = (int)$tq->fetchColumn();
         } catch (Throwable $e) {
         }
-        $donWr = (int)$stats['g_don'] >= 4 ? round((int)$stats['w_don'] / (int)$stats['g_don'] * 100) : 0;
+        $donWr = (int)$ag['g_don'] >= 4 ? round((int)$ag['w_don'] / max(1, (int)$ag['g_don']) * 100) : 0;
         // доп. серии и рекорды для ачивок
         $chrono = array_reverse($history); // старые → новые
         $blackStreak = 0; $bs = 0;
@@ -471,14 +547,14 @@ function render_player_stats(int $id, bool $own = false): void
         } catch (Throwable $e) {
         }
         $cond = [
-            'debut' => $games >= 1, 'ten' => $games >= 10, 'veteran' => $games >= 100,
+            'debut' => $agGames >= 1, 'ten' => $agGames >= 10, 'veteran' => $agGames >= 100,
             'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
             'black3' => $blackStreak >= 3, 'black5' => $blackStreak >= 5, 'black7' => $blackStreak >= 7,
             'redw3' => $redWinStreak >= 3, 'red3' => $redWinStreak >= 5, 'redw7' => $redWinStreak >= 7,
             'elo1100' => $peakElo >= 1100, 'elo1300' => $peakElo >= 1300, 'elo1500' => $peakElo >= 1500, 'elo1700' => $peakElo >= 1700, 'elo1900' => $peakElo >= 1900, 'elo2100' => $peakElo >= 2100,
             'eloday' => $maxEloDay >= 150,
             'dop30' => (float)$stats['dop_sum'] >= 30, 'fatgame' => $maxPlusGame >= 1.0,
-            'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$stats['pu_count'] >= 5,
+            'triple' => $triples >= 1, 'don' => $donWr >= 60, 'danger' => (int)$ag['pu_count'] >= 5,
         ];
         $cat = achievements_catalog();
         $earners = achievement_earners();
