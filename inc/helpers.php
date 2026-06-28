@@ -280,7 +280,7 @@ function achievement_earners(): array
 
         foreach ($allPids as $pid) {
             $r = $rc[$pid] ?? null;
-            $games = $r ? (int)$r['games'] : count($byPlayer[$pid] ?? []);
+            $games = count($byPlayer[$pid] ?? []); // все игры клуба за всё время (как в профиле)
             $elo = $r ? (float)$r['elo'] : 1000;
             $peak = max($elo, $peakElo[$pid] ?? 0); // для ачивок уровней — пиковый ELO
             $nick = $nickOf[$pid] ?? ('#' . $pid);

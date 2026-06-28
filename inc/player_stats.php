@@ -567,7 +567,7 @@ function render_player_stats(int $id, bool $own = false): void
         } catch (Throwable $e) {
         }
         $cond = [
-            'debut' => $agGames >= 1, 'ten' => $agGames >= 10, 'veteran' => $agGames >= 100,
+            'debut' => $agGames >= 1, 'ten' => $agGames >= 10, 'games25' => $agGames >= 25, 'games50' => $agGames >= 50, 'veteran' => $agGames >= 100,
             'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
             'black3' => $blackStreak >= 3, 'black5' => $blackStreak >= 5, 'black7' => $blackStreak >= 7,
             'redw3' => $redWinStreak >= 3, 'red3' => $redWinStreak >= 5, 'redw7' => $redWinStreak >= 7,
