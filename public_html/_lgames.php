@@ -23,5 +23,13 @@ if (!empty($_GET['run'])) {
     exit;
 }
 
+if (!empty($_GET['newsdiag'])) {
+    foreach (db()->query("SELECT id, pinned, published_at, created_at, tg_msg_id, LEFT(title,40) t
+        FROM news ORDER BY pinned DESC, published_at ASC LIMIT 12") as $r) {
+        echo "#{$r['id']} pin={$r['pinned']} pub={$r['published_at']} created={$r['created_at']} tg={$r['tg_msg_id']} | {$r['t']}\n";
+    }
+    exit;
+}
+
 http_response_code(400);
 echo 'no run';
