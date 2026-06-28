@@ -2,6 +2,7 @@
 // ВРЕМЕННЫЙ: посев алиасов ников из лога слияний + переприменение. Удаляется после.
 declare(strict_types=1);
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/import.php'; // NICK_MERGES, nick_key()
 header('Content-Type: text/plain; charset=utf-8');
 if (!hash_equals('lgm_5kQ2x9aZ', (string)($_GET['t'] ?? ''))) {
     http_response_code(403);
