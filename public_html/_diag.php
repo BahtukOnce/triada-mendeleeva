@@ -98,4 +98,14 @@ foreach ([1455, 1456] as $gid) {
     }
 }
 
+echo "\n=== ТИП КОЛОНКИ + КЛЕЙ В КУБКЕ ===\n";
+foreach ($q("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='game_seats' AND COLUMN_NAME IN ('plus','minus')") as $r) {
+    echo "  {$r['COLUMN_NAME']}: {$r['COLUMN_TYPE']}\n";
+}
+if ($cupId) {
+    foreach ($q("SELECT g.game_no, gs.role, gs.plus, gs.minus FROM game_seats gs JOIN games g ON g.id=gs.game_id JOIN players p ON p.id=gs.player_id
+        WHERE g.tournament_id=$cupId AND p.nickname='Клей' ORDER BY g.game_no") as $r) {
+        echo "    Клей игра {$r['game_no']} [{$r['role']}]: plus={$r['plus']} minus={$r['minus']}\n";
+    }
+}
 echo "\nГОТОВО\n";
