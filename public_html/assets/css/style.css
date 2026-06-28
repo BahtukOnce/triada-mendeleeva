@@ -252,6 +252,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .empty-state p { max-width: 420px; margin: 0 auto; font-size: 14px; }
 
 .admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+/* Главная: карточки администрации заполняют блок по высоте (всегда 2–3 ряда, не 1 узкий) */
+.admin-list.home-admins { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; align-content: stretch; }
+@media (min-width: 1280px) { .admin-list.home-admins { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .admin-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px;
   padding: 18px 12px 15px; background: var(--sf2);

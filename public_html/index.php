@@ -175,7 +175,7 @@ page_head('Главная', 'index');
   <div class="card" style="display:flex;flex-direction:column;">
     <h2 style="margin-top:0;">Администрация клуба</h2>
     <?php if ($admins): ?>
-      <div class="admin-list" style="flex:1;align-content:stretch;">
+      <div class="admin-list home-admins" style="flex:1;">
         <?php foreach ($admins as $a):
             $isLead = $a['role'] === 'owner' || $a['role'] === 'admin';
             $label = implode(' · ', user_role_badges($a));
