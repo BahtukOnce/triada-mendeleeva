@@ -82,32 +82,13 @@ if ($aId && $bId && $aId !== $bId) {
     }
     echo '</table></div>';
 
-    // ── Личные встречи ──
-    $st = db()->prepare("SELECT g.winner, sa.role AS ra, sb.role AS rb
-        FROM games g
-        JOIN game_seats sa ON sa.game_id = g.id AND sa.player_id = ?
-        JOIN game_seats sb ON sb.game_id = g.id AND sb.player_id = ?
-        WHERE g.status = 'finished'");
-    $st->execute([$aId, $bId]);
-    $aw = 0; $bw = 0; $dr = 0; $together = 0; $togetherWin = 0;
-    $team = fn($role) => in_array($role, ['civ', 'sheriff'], true) ? 'red' : 'black';
-    foreach ($st->fetchAll() as $g) {
-        $ta = $team($g['ra']); $tb = $team($g['rb']);
-        if ($ta === $tb) {
-            $together++;
-            if ($g['winner'] === $ta) {
-                $togetherWin++;
-            }
-            continue;
-        }
-        if ($g['winner'] === 'draw') {
-            $dr++;
-        } elseif ($g['winner'] === $ta) {
-            $aw++;
-        } elseif ($g['winner'] === $tb) {
-            $bw++;
-        }
-    }
+    // ── Личные встречи ── (логика вынесена в pair_record, см. inc/helpers.php)
+    $rec = pair_record($aId, $bId);
+    $aw = $rec['a_win'];
+    $bw = $rec['b_win'];
+    $dr = $rec['draw'];
+    $together = $rec['together'];
+    $togetherWin = $rec['together_win'];
     echo '<div class="card"><h2 style="margin-top:0;">Личные встречи</h2>';
     echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">когда играли в разных командах</p>';
     echo '<div class="vs-h2h">';

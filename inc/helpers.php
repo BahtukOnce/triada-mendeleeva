@@ -69,6 +69,43 @@ function casper_ghost(?string $nick): string
         : '';
 }
 
+// Личный счёт пары игроков по всем завершённым играм: сколько раз были в ОДНОЙ
+// команде (и сколько та команда выиграла) и личные встречи в РАЗНЫХ командах
+// (победы A / B / ничьи). Возвращает [together, together_win, a_win, b_win, draw].
+function pair_record(int $aId, int $bId): array
+{
+    $r = ['together' => 0, 'together_win' => 0, 'a_win' => 0, 'b_win' => 0, 'draw' => 0];
+    if ($aId < 1 || $bId < 1 || $aId === $bId) {
+        return $r;
+    }
+    $st = db()->prepare("SELECT g.winner, sa.role AS ra, sb.role AS rb
+        FROM games g
+        JOIN game_seats sa ON sa.game_id = g.id AND sa.player_id = ?
+        JOIN game_seats sb ON sb.game_id = g.id AND sb.player_id = ?
+        WHERE g.status = 'finished'");
+    $st->execute([$aId, $bId]);
+    $team = fn($role) => in_array($role, ['civ', 'sheriff'], true) ? 'red' : 'black';
+    foreach ($st->fetchAll() as $g) {
+        $ta = $team($g['ra']);
+        $tb = $team($g['rb']);
+        if ($ta === $tb) {
+            $r['together']++;
+            if ($g['winner'] === $ta) {
+                $r['together_win']++;
+            }
+            continue;
+        }
+        if ($g['winner'] === 'draw') {
+            $r['draw']++;
+        } elseif ($g['winner'] === $ta) {
+            $r['a_win']++;
+        } elseif ($g['winner'] === $tb) {
+            $r['b_win']++;
+        }
+    }
+    return $r;
+}
+
 // Цветная точка роли (мирный/шериф/мафия/дон) — единый код цвета по сайту
 // Палитра ролей: мирный — красный, шериф — жёлтый, мафия — тёмно-серый, дон — чёрный.
 function role_color(string $role): string

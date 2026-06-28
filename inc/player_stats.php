@@ -282,6 +282,60 @@ function render_player_stats(int $id, bool $own = false): void
         echo '</div>';
     }
 
+    // ── Напарник и соперник (интерактивные связи профиля) ──
+    $loadMate = function (int $mid) {
+        if ($mid < 1) {
+            return null;
+        }
+        $s = db()->prepare('SELECT id, nickname, avatar, flair, partner_player_id FROM players WHERE id = ? AND banned_at IS NULL');
+        $s->execute([$mid]);
+        return $s->fetch() ?: null;
+    };
+    $partner = $loadMate((int)($player['partner_player_id'] ?? 0));
+    $rival = $loadMate((int)($player['rival_player_id'] ?? 0));
+    if ($partner || $rival || $own) {
+        $pg = function (int $n): string {
+            $a = $n % 10;
+            $b = $n % 100;
+            $w = ($a === 1 && $b !== 11) ? 'игра' : ((in_array($a, [2, 3, 4], true) && !in_array($b, [12, 13, 14], true)) ? 'игры' : 'игр');
+            return $n . ' ' . $w;
+        };
+        $rowS = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--bd);';
+        $lblS = 'color:var(--tx2);font-size:13px;min-width:92px;';
+        $lnkS = 'display:inline-flex;align-items:center;color:var(--tx);font-weight:600;';
+        $statS = 'color:var(--tx2);font-size:13px;margin-left:auto;';
+        echo '<div class="card"><h2 style="margin-top:0;">Напарник и соперник</h2>';
+        if ($partner) {
+            $rec = pair_record($id, (int)$partner['id']);
+            $mutual = (int)($partner['partner_player_id'] ?? 0) === $id;
+            $wr = $rec['together'] ? round($rec['together_win'] / $rec['together'] * 100) : null;
+            $stat = $rec['together']
+                ? 'вместе ' . $pg($rec['together']) . ($wr !== null ? ' · <b style="color:var(--ok);">' . $wr . '% побед</b>' : '')
+                : 'вместе ещё не играли';
+            echo '<div style="' . $rowS . '"><span style="' . $lblS . '">🤝 Напарник</span>'
+                . '<a style="' . $lnkS . '" href="/player.php?id=' . (int)$partner['id'] . '">' . avatar_html($partner, 24, 'margin-right:7px;') . player_label($partner) . '</a>'
+                . ($mutual ? '<span class="tag tag-ok" style="font-size:11px;padding:2px 8px;">взаимно</span>' : '')
+                . '<span style="' . $statS . '">' . $stat . '</span></div>';
+        }
+        if ($rival) {
+            $rec = pair_record($id, (int)$rival['id']);
+            $tot = $rec['a_win'] + $rec['b_win'];
+            $lead = ($tot && $rec['a_win'] !== $rec['b_win'])
+                ? ' · ведёт ' . esc($rec['a_win'] > $rec['b_win'] ? (string)$player['nickname'] : (string)$rival['nickname'])
+                : ($tot ? ' · поровну' : '');
+            $stat = $tot
+                ? 'личка <b style="color:var(--tx);">' . $rec['a_win'] . ' : ' . $rec['b_win'] . '</b>' . ($rec['draw'] ? ' (' . $rec['draw'] . ' нич.)' : '') . $lead
+                : 'в разных командах ещё не встречались';
+            echo '<div style="' . $rowS . '"><span style="' . $lblS . '">⚔️ Соперник</span>'
+                . '<a style="' . $lnkS . '" href="/player.php?id=' . (int)$rival['id'] . '">' . avatar_html($rival, 24, 'margin-right:7px;') . player_label($rival) . '</a>'
+                . '<span style="' . $statS . '">' . $stat . '</span></div>';
+        }
+        if ($own && !$partner && !$rival) {
+            echo '<p style="color:var(--tx2);font-size:13px;margin:0;">Выбери напарника и соперника в <a href="/cabinet.php" style="color:var(--ac);">кабинете</a> — покажем совместную статистику и личные встречи.</p>';
+        }
+        echo '</div>';
+    }
+
     // Переключатель сезонов: статистика ниже считается за выбранный сезон
     if (count($seasonsAvail) > 1) {
         $sKeys = array_keys($seasonsAvail);

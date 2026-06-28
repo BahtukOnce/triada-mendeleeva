@@ -71,8 +71,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $favVal = in_array($fav, ['civ', 'maf', 'sheriff', 'don'], true) ? $fav : null;
         $seat = (int)($_POST['fav_seat'] ?? 0);
         $seatVal = ($seat >= 1 && $seat <= 10) ? $seat : null;
+        $selfId = (int)$player['id'];
+        $mateOk = db()->prepare('SELECT 1 FROM players WHERE id = ? AND banned_at IS NULL');
+        $mateVal = function ($raw) use ($mateOk, $selfId) {
+            $v = (int)$raw;
+            if ($v < 1 || $v === $selfId) {
+                return null;
+            }
+            $mateOk->execute([$v]);
+            return $mateOk->fetchColumn() ? $v : null;
+        };
+        $partnerVal = $mateVal($_POST['partner_player_id'] ?? 0);
+        $rivalVal = $mateVal($_POST['rival_player_id'] ?? 0);
         $rhtu = !empty($_POST['is_rhtu']) ? 1 : 0;
-        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, fav_seat = ?, is_rhtu = ?, flair = ?
+        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, fav_seat = ?, partner_player_id = ?, rival_player_id = ?, is_rhtu = ?, flair = ?
             WHERE id = ?')->execute([
             trim((string)($_POST['real_name'] ?? '')) ?: null,
             trim((string)($_POST['tg'] ?? '')) ?: null,
@@ -82,6 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $birthVal,
             $favVal,
             $seatVal,
+            $partnerVal,
+            $rivalVal,
             $rhtu,
             flair_clean((string)($_POST['flair'] ?? '')) ?: null,
             (int)$player['id'],
@@ -404,6 +418,23 @@ if ($player) {
         echo '<option value="' . $s . '" ' . (((int)($player['fav_seat'] ?? 0)) === $s ? 'selected' : '') . '>' . $s . '</option>';
     }
     echo '</select></div></div>';
+    $matePlayers = db()->query('SELECT id, nickname FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll();
+    $mateSel = function (string $name, $cur) use ($matePlayers, $player, $selStyle) {
+        $h = '<select name="' . $name . '" data-search="Поиск игрока…" style="' . $selStyle . '"><option value="0">— не выбран —</option>';
+        foreach ($matePlayers as $mp) {
+            if ((int)$mp['id'] === (int)$player['id']) {
+                continue;
+            }
+            $h .= '<option value="' . (int)$mp['id'] . '"' . ((int)$cur === (int)$mp['id'] ? ' selected' : '') . '>' . esc($mp['nickname']) . '</option>';
+        }
+        return $h . '</select>';
+    };
+    echo '<div class="field" style="margin-bottom:6px;"><label style="color:var(--tx);">Связи в клубе</label>'
+        . '<span style="font-size:12px;color:var(--tx2);">Напарник — твой игровой дуэт (если он выберет тебя в ответ, появится «взаимно» и общая статистика). Соперник — личные встречи в разных командах.</span></div>';
+    echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">';
+    echo '<div class="field"><label>🤝 Напарник</label>' . $mateSel('partner_player_id', $player['partner_player_id'] ?? 0) . '</div>';
+    echo '<div class="field"><label>⚔️ Соперник</label>' . $mateSel('rival_player_id', $player['rival_player_id'] ?? 0) . '</div>';
+    echo '</div>';
     echo '<div class="field"><label>Эмодзи-«висюлька» (необязательно — показывается рядом с ником; в играх и рейтинге ник остаётся чистым)</label>'
         . '<input type="text" id="flair-input" name="flair" maxlength="12" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;">';
     $emojiList = ['🦊', '🐺', '🐻', '🦁', '🐯', '🐱', '🐶', '🐼', '🦄', '🐲', '🦅', '🦉', '🐢', '🐍', '🦂', '🐙', '🦈', '🐳',
