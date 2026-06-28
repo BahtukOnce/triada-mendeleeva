@@ -58,8 +58,21 @@ function run_migrations(): array
         $stmts = preg_split('/;\s*(?:\r?\n|$)/', $sql);
         foreach ($stmts as $stmt) {
             $stmt = trim($stmt);
-            if ($stmt !== '') {
+            if ($stmt === '') {
+                continue;
+            }
+            try {
                 $pdo->exec($stmt);
+            } catch (PDOException $e) {
+                // Идемпотентные ошибки «уже в нужном состоянии» (колонка/таблица/индекс
+                // уже есть, или DROP несуществующего) не должны навсегда блокировать
+                // миграцию, частично применившуюся при прошлом сбойном деплое.
+                $code = (int)($e->errorInfo[1] ?? 0);
+                if (in_array($code, [1050, 1060, 1061, 1091, 1022, 1826], true)) {
+                    $log[] = "skip ($code) в $id: " . $e->getMessage();
+                    continue;
+                }
+                throw $e;
             }
         }
         $pdo->prepare('INSERT INTO _migrations (id) VALUES (?)')->execute([$id]);
