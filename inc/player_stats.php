@@ -360,8 +360,12 @@ function render_player_stats(int $id, bool $own = false): void
 
         // ── Графики ──
         echo '<div class="grid-2eq">';
+        $eloNote = $season !== 'all'
+            ? '<div style="font-size:11.5px;color:var(--tx3);margin:-4px 0 8px;">за всю историю — ELO по сезонам не делится</div>'
+            : '';
         echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . $elo
             . ' <span style="color:var(--ac);font-size:13px;">· ' . esc(elo_tier_name((float)$elo)) . '</span></h2>'
+            . $eloNote
             . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div></div>';
         echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
             . '<div style="position:relative;height:210px;"><canvas id="ch-results"></canvas></div></div>';

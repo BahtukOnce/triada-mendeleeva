@@ -115,7 +115,7 @@ page_head('Главная', 'index');
   <a class="stat" href="/tournaments.php"><div class="lbl">турниров</div><div class="val"><?= $stats['tournaments'] ?></div></a>
 </div>
 
-<div class="grid-2">
+<div class="grid-2" style="align-items:stretch;">
   <div>
   <?php if (!empty($top5)): ?>
   <div class="card" style="overflow-x:auto;">
@@ -172,10 +172,10 @@ page_head('Главная', 'index');
   </div>
   <?php endif; ?>
 
-  <div class="card">
+  <div class="card" style="display:flex;flex-direction:column;">
     <h2 style="margin-top:0;">Администрация клуба</h2>
     <?php if ($admins): ?>
-      <div class="admin-list">
+      <div class="admin-list" style="flex:1;align-content:center;">
         <?php foreach ($admins as $a):
             $isLead = $a['role'] === 'owner' || $a['role'] === 'admin';
             $label = implode(' · ', user_role_badges($a));
