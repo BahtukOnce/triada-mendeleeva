@@ -11,16 +11,16 @@ if (db_ready()) {
     $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo,
             agg.games, agg.wins
         FROM players p
-        JOIN (
+        LEFT JOIN (
             SELECT gs.player_id,
                 COUNT(*) AS games,
                 SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
                           OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS wins
             FROM game_seats gs JOIN games g ON g.id = gs.game_id
-            WHERE g.status = 'finished'
+            WHERE g.status = 'finished' AND g.winner IS NOT NULL
             GROUP BY gs.player_id
         ) agg ON agg.player_id = p.id
-        WHERE p.banned_at IS NULL";
+        WHERE p.banned_at IS NULL AND (agg.games IS NOT NULL OR p.user_id IS NOT NULL)";
     $params = [];
     if ($q !== '') {
         $sql .= ' AND p.nickname LIKE ?';

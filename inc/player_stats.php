@@ -283,8 +283,8 @@ function render_player_stats(int $id, bool $own = false): void
     }
 
     // ── Напарник и соперник (интерактивные связи профиля) ──
-    $loadMate = function (int $mid) {
-        if ($mid < 1) {
+    $loadMate = function (int $mid) use ($id) {
+        if ($mid < 1 || $mid === $id) {
             return null;
         }
         $s = db()->prepare('SELECT id, nickname, avatar, flair, partner_player_id FROM players WHERE id = ? AND banned_at IS NULL');

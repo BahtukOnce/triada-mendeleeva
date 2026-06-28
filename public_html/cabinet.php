@@ -363,11 +363,13 @@ $tgrow = $tg->fetch();
 $botUser = setting('bot_username');
 echo '<div class="card"><h2 style="margin-top:0;">Telegram-бот</h2>';
 if ($tgrow && $tgrow['tg_user_id']) {
-    echo '<p style="color:var(--ok);margin:0 0 12px;">✓ Telegram привязан'
+    echo '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">';
+    echo '<span style="color:var(--ok);">✓ Привязан'
         . ($tgrow['tg_username'] ? ' (@' . esc($tgrow['tg_username']) . ')' : '')
-        . '. Вы будете получать анонсы и голосовалки по игровым дням.</p>';
-    echo '<form method="post" action="/cabinet.php">' . csrf_field()
-        . '<input type="hidden" name="form" value="tg_unlink"><button class="btn btn-ghost" type="submit">Отвязать Telegram</button></form>';
+        . ' — анонсы и голосовалки по игровым дням</span>';
+    echo '<form method="post" action="/cabinet.php" style="margin:0;">' . csrf_field()
+        . '<input type="hidden" name="form" value="tg_unlink"><button class="btn btn-ghost" type="submit" style="padding:7px 14px;margin:0;">Отвязать</button></form>';
+    echo '</div>';
 } else {
     $cs = db()->prepare('SELECT code FROM tg_link_codes WHERE user_id = ?');
     $cs->execute([(int)$u['id']]);
