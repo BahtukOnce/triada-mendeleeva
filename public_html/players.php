@@ -58,19 +58,19 @@ page_head('Игроки', 'players');
 echo '<h1>Игроки</h1>';
 
 echo '<form method="get" action="/players.php" style="max-width:340px;margin-bottom:14px;">';
-echo '<div class="field" style="margin:0;"><input type="search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '"></div>';
+echo '<div class="field" style="margin:0;"><input type="search" id="pl-search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
 echo '</form>';
 
 if ($list) {
     $roleLbl = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
-    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">Всего игроков: ' . count($list) . '</p>';
+    echo '<p id="pl-count" style="color:var(--tx2);font-size:13px;margin:0 0 10px;">Всего игроков: ' . count($list) . '</p>';
     echo '<div class="player-grid">';
     foreach ($list as $p) {
         $g = $p['games'] !== null ? (int)$p['games'] : 0;
         $w = (int)$p['wins'];
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
-        echo '<a class="player-card" href="/player.php?id=' . (int)$p['id'] . '">';
+        echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" href="/player.php?id=' . (int)$p['id'] . '">';
         $favHtml = $p['fav_role']
             ? '<span class="fav-chip"><span class="fdot" style="background:' . role_color($p['fav_role'] === 'sheriff' ? 'sheriff' : $p['fav_role']) . ';"></span>' . esc($roleLbl[$p['fav_role']]) . '</span>'
             : '<span style="color:var(--tx3);font-size:11.5px;">роль не выбрана</span>';
@@ -91,9 +91,36 @@ if ($list) {
             . '</div></a>';
     }
     echo '</div>';
+    echo '<div id="pl-empty" style="display:none;color:var(--tx2);padding:18px 2px;">Никого не нашлось — попробуйте другой запрос.</div>';
 } elseif ($q !== '') {
     empty_state('Никого не нашлось', 'Попробуйте изменить запрос.');
 } else {
     empty_state('Список игроков пока пуст', 'Появится после переноса истории.');
 }
+?>
+<script>
+(function () {
+  var input = document.getElementById('pl-search');
+  if (!input) return;
+  var cards = [].slice.call(document.querySelectorAll('.player-card[data-nick]'));
+  var countEl = document.getElementById('pl-count');
+  var emptyEl = document.getElementById('pl-empty');
+  function apply() {
+    var q = input.value.trim().toLowerCase();
+    var shown = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var ok = !q || cards[i].getAttribute('data-nick').indexOf(q) !== -1;
+      cards[i].style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    }
+    if (countEl) countEl.textContent = 'Всего игроков: ' + shown;
+    if (emptyEl) emptyEl.style.display = (shown === 0 && q) ? '' : 'none';
+  }
+  input.addEventListener('input', apply);
+  var form = input.closest('form');
+  if (form) form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
+  apply();
+})();
+</script>
+<?php
 page_foot();
