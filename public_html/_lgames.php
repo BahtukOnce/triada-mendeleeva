@@ -8,6 +8,22 @@ if (!hash_equals('lgm_5kQ2x9aZ', (string)($_GET['t'] ?? ''))) {
     http_response_code(403);
     exit('forbidden');
 }
+if (!empty($_GET['migrate'])) {
+    $pdo = db();
+    $done = $pdo->query('SELECT id FROM _migrations')->fetchAll(PDO::FETCH_COLUMN);
+    echo "050 в _migrations: " . (in_array('050_seat_score_precision.sql', $done, true) ? 'ДА' : 'НЕТ') . "\n";
+    try {
+        $pdo->exec('ALTER TABLE game_seats MODIFY plus DECIMAL(5,2) NOT NULL DEFAULT 0, MODIFY minus DECIMAL(5,2) NOT NULL DEFAULT 0');
+        echo "ALTER выполнен успешно\n";
+        $pdo->prepare('INSERT IGNORE INTO _migrations (id) VALUES (?)')->execute(['050_seat_score_precision.sql']);
+    } catch (Throwable $e) {
+        echo "ALTER ОШИБКА: " . $e->getMessage() . "\n";
+    }
+    foreach ($pdo->query("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='game_seats' AND COLUMN_NAME IN ('plus','minus')") as $r) {
+        echo "  {$r['COLUMN_NAME']}: {$r['COLUMN_TYPE']}\n";
+    }
+    exit;
+}
 if (!empty($_GET['run'])) {
     require_once ROOT . '/inc/legacy_import.php';
     echo implode("\n", legacy_tour_import_run()) . "\n";
