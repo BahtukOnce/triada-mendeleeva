@@ -194,9 +194,15 @@ function achievements_catalog(): array
         'black3'   => ['🌘', 'Тёмная сторона', '3 раза подряд выпала чёрная роль (по раздаче, не победы)', 'Серии'],
         'black5'   => ['🌑', 'Власть тьмы', '5 раз подряд выпала чёрная роль (по раздаче)', 'Серии'],
         'black7'   => ['🦇', 'Дитя ночи', '7 раз подряд выпала чёрная роль (по раздаче)', 'Серии'],
+        'redrole3' => ['🌔', 'Светлая сторона', '3 раза подряд выпала красная роль (по раздаче)', 'Серии'],
+        'redrole5' => ['🌕', 'Власть света', '5 раз подряд выпала красная роль (по раздаче)', 'Серии'],
+        'redrole7' => ['🕊️', 'Дитя дня', '7 раз подряд выпала красная роль (по раздаче)', 'Серии'],
         'redw3'    => ['❤️', 'Красный заряд', '3 победы красными подряд', 'Серии'],
         'red3'     => ['🚩', 'Красная машина', '5 побед красными подряд', 'Серии'],
         'redw7'    => ['🌋', 'Красная стихия', '7 побед красными подряд', 'Серии'],
+        'blackw3'  => ['🖤', 'Чёрный заряд', '3 победы чёрными подряд', 'Серии'],
+        'blackw5'  => ['♠️', 'Чёрная машина', '5 побед чёрными подряд', 'Серии'],
+        'blackw7'  => ['🌌', 'Чёрная стихия', '7 побед чёрными подряд', 'Серии'],
         'elo1100'  => ['✨', 'Любитель', 'ELO 1100+', 'ELO'],
         'elo1400'  => ['⚔️', 'Знаток', 'ELO 1400+', 'ELO'],
         'elo1700'  => ['💎', 'Эксперт', 'ELO 1700+', 'ELO'],
@@ -284,15 +290,19 @@ function achievement_earners(): array
             $elo = $r ? (float)$r['elo'] : 1000;
             $peak = max($elo, $peakElo[$pid] ?? 0); // для ачивок уровней — пиковый ELO
             $nick = $nickOf[$pid] ?? ('#' . $pid);
-            // серии
-            $maxW = 0; $w = 0; $blk = 0; $bsr = 0; $redW = 0; $rwsr = 0; $maxPlus = 0.0;
+            // серии: по раздаче роли (чёрн/красн) и по победам (чёрн/красн)
+            $maxW = 0; $w = 0; $maxPlus = 0.0;
+            $blk = 0; $bsr = 0; $redRole = 0; $rrsr = 0;     // роль подряд (раздача)
+            $redW = 0; $rwsr = 0; $blackW = 0; $bwsr = 0;    // победы подряд цветом
             foreach (($byPlayer[$pid] ?? []) as $g) {
                 $maxPlus = max($maxPlus, (float)$g['plus']);
                 $isBlack = in_array($g['role'], ['maf', 'don'], true);
                 $won = ($g['winner'] === 'red' && !$isBlack) || ($g['winner'] === 'black' && $isBlack);
                 if ($won) { $w++; $maxW = max($maxW, $w); } else { $w = 0; }
-                if ($isBlack) { $bsr++; $blk = max($blk, $bsr); } else { $bsr = 0; }
+                if ($isBlack) { $bsr++; $blk = max($blk, $bsr); $rrsr = 0; }
+                else { $rrsr++; $redRole = max($redRole, $rrsr); $bsr = 0; }
                 if (!$isBlack && $g['winner'] === 'red') { $rwsr++; $redW = max($redW, $rwsr); } else { $rwsr = 0; }
+                if ($isBlack && $g['winner'] === 'black') { $bwsr++; $blackW = max($blackW, $bwsr); } else { $bwsr = 0; }
             }
             $puPct = $games ? ((int)($r['pu_count'] ?? 0)) / $games * 100 : 100;
             $donWr = ($r && (int)$r['g_don'] >= 4) ? (int)$r['w_don'] / (int)$r['g_don'] * 100 : 0;
@@ -300,7 +310,9 @@ function achievement_earners(): array
                 'debut' => $games >= 1, 'ten' => $games >= 10, 'games25' => $games >= 25, 'games50' => $games >= 50, 'veteran' => $games >= 100,
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
                 'black3' => $blk >= 3, 'black5' => $blk >= 5, 'black7' => $blk >= 7,
+                'redrole3' => $redRole >= 3, 'redrole5' => $redRole >= 5, 'redrole7' => $redRole >= 7,
                 'redw3' => $redW >= 3, 'red3' => $redW >= 5, 'redw7' => $redW >= 7,
+                'blackw3' => $blackW >= 3, 'blackw5' => $blackW >= 5, 'blackw7' => $blackW >= 7,
                 'elo1100' => $peak >= 1100, 'elo1400' => $peak >= 1400, 'elo1700' => $peak >= 1700,
                 'elo2000' => $peak >= 2000, 'elo2300' => $peak >= 2300, 'elo2600' => $peak >= 2600,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
