@@ -325,7 +325,7 @@ function legacy_days_import_run(): array
                         $isWin = ($winner === 'red' && ($role === 'civ' || $role === 'sheriff'))
                             || ($winner === 'black' && ($role === 'maf' || $role === 'don'));
                         $net = $tot - ($isWin ? 1.0 : 0.0);
-                        $insSeat->execute([$gid, $seat, $pid, $role, $net > 0 ? round($net, 1) : 0, $net < 0 ? round(-$net, 1) : 0]);
+                        $insSeat->execute([$gid, $seat, $pid, $role, $net > 0 ? round($net, 2) : 0, $net < 0 ? round(-$net, 2) : 0]);
                     }
                     $cntGames++;
                 }
@@ -490,7 +490,7 @@ function legacy_tour_import_run(): array
                     $isWin = ($winner === 'red' && ($role === 'civ' || $role === 'sheriff'))
                         || ($winner === 'black' && ($role === 'maf' || $role === 'don'));
                     $net = $tot - ($isWin ? 1.0 : 0.0);
-                    $insSeat->execute([$gid, $seat, $pid, $role, $net > 0 ? round($net, 1) : 0, $net < 0 ? round(-$net, 1) : 0]);
+                    $insSeat->execute([$gid, $seat, $pid, $role, $net > 0 ? round($net, 2) : 0, $net < 0 ? round(-$net, 2) : 0]);
                 }
                 $cnt++;
             }
