@@ -79,13 +79,23 @@ function legacy_import_run(): array
         $byNick[nick_key((string)$p['nickname'])] = (int)$p['id'];
     }
     $insPlayer = $pdo->prepare('INSERT INTO players (nickname) VALUES (?)');
-    $pidOf = function (string $name) use (&$byNick, $insPlayer, $pdo): int {
+    $findByNick = $pdo->prepare('SELECT id FROM players WHERE nickname = ? LIMIT 1');
+    $pidOf = function (string $name) use (&$byNick, $insPlayer, $findByNick, $pdo): int {
         $k = nick_key($name);
         if (isset($byNick[$k])) {
             return $byNick[$k];
         }
-        $insPlayer->execute([$name]);
-        $id = (int)$pdo->lastInsertId();
+        try {
+            $insPlayer->execute([$name]);
+            $id = (int)$pdo->lastInsertId();
+        } catch (PDOException $e) {
+            // коллизия UNIQUE (напр. ё/е: коллация БД считает их одинаковыми) — берём существующего
+            $findByNick->execute([$name]);
+            $id = (int)$findByNick->fetchColumn();
+            if (!$id) {
+                throw $e;
+            }
+        }
         $byNick[$k] = $id;
         return $id;
     };
