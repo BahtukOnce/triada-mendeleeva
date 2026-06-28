@@ -83,8 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         };
         $partnerVal = $mateVal($_POST['partner_player_id'] ?? 0);
         $rivalVal = $mateVal($_POST['rival_player_id'] ?? 0);
+        $quote = mb_substr(trim((string)($_POST['quote'] ?? '')), 0, 280);
+        $quoteVal = $quote !== '' ? $quote : null;
         $rhtu = !empty($_POST['is_rhtu']) ? 1 : 0;
-        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, fav_seat = ?, partner_player_id = ?, rival_player_id = ?, is_rhtu = ?, flair = ?
+        db()->prepare('UPDATE players SET real_name = ?, tg = ?, vk = ?, faculty = ?, study_group = ?, birth_date = ?, fav_role = ?, fav_seat = ?, partner_player_id = ?, rival_player_id = ?, is_rhtu = ?, flair = ?, quote = ?
             WHERE id = ?')->execute([
             trim((string)($_POST['real_name'] ?? '')) ?: null,
             trim((string)($_POST['tg'] ?? '')) ?: null,
@@ -98,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $rivalVal,
             $rhtu,
             flair_clean((string)($_POST['flair'] ?? '')) ?: null,
+            $quoteVal,
             (int)$player['id'],
         ]);
         if (!empty($_FILES['avatar']['name'])) {
@@ -437,6 +440,8 @@ if ($player) {
     echo '<div class="field"><label>🤝 Напарник</label>' . $mateSel('partner_player_id', $player['partner_player_id'] ?? 0) . '</div>';
     echo '<div class="field"><label>⚔️ Соперник</label>' . $mateSel('rival_player_id', $player['rival_player_id'] ?? 0) . '</div>';
     echo '</div>';
+    echo '<div class="field"><label>Цитата / девиз (показывается на твоей странице публично)</label>'
+        . '<input type="text" name="quote" maxlength="280" value="' . esc($player['quote'] ?? '') . '" placeholder="например: Тишина — лучшая защита мафии"></div>';
     echo '<div class="field"><label>Эмодзи-«висюлька» (необязательно — показывается рядом с ником; в играх и рейтинге ник остаётся чистым)</label>'
         . '<input type="text" id="flair-input" name="flair" maxlength="12" value="' . esc($player['flair'] ?? '') . '" placeholder="например 🦊" style="width:160px;">';
     $emojiList = ['🦊', '🐺', '🐻', '🦁', '🐯', '🐱', '🐶', '🐼', '🦄', '🐲', '🦅', '🦉', '🐢', '🐍', '🦂', '🐙', '🦈', '🐳',

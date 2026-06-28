@@ -158,6 +158,10 @@ function render_player_stats(int $id, bool $own = false): void
     echo '<div class="pf-elo"><div class="v">' . $elo . '</div><div class="l">ELO</div></div>';
     echo '</' . $heroTag . '>';
 
+    if (!empty($player['quote'])) {
+        echo '<div style="margin:12px 0 4px;padding:8px 0 8px 16px;border-left:3px solid var(--ac);color:var(--tx2);font-style:italic;font-size:15px;line-height:1.55;">«' . esc((string)$player['quote']) . '»</div>';
+    }
+
     if ($canSeePrivate) {
         $priv = array_filter([
             $player['real_name'],

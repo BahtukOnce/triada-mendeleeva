@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
         $pdo->prepare('UPDATE players SET user_id = NULL WHERE id = ?')->execute([$srcId]);
         $pdo->prepare('UPDATE players SET user_id = ? WHERE id = ?')->execute([(int)$src['user_id'], $dstId]);
     }
-    foreach (['real_name', 'tg', 'vk', 'faculty', 'study_group', 'birth_date', 'avatar', 'fav_role', 'flair'] as $col) {
+    foreach (['real_name', 'tg', 'vk', 'faculty', 'study_group', 'birth_date', 'avatar', 'fav_role', 'fav_seat', 'flair', 'quote'] as $col) {
         if (empty($dst[$col]) && !empty($src[$col])) {
             $pdo->prepare("UPDATE players SET $col = ? WHERE id = ?")->execute([$src[$col], $dstId]);
         }
