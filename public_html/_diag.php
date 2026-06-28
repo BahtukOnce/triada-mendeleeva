@@ -98,6 +98,21 @@ foreach ([1455, 1456] as $gid) {
     }
 }
 
+echo "\n=== МИГРАЦИИ ===\n";
+$done = $pdo->query("SELECT id FROM _migrations ORDER BY id DESC LIMIT 6")->fetchAll(PDO::FETCH_COLUMN);
+echo "  последние применённые: " . implode(', ', $done) . "\n";
+echo "  050 применена: " . (in_array('050_seat_score_precision.sql', $done, true) ? 'ДА' : 'НЕТ') . "\n";
+$logf = ROOT . '/deploy.log';
+if (is_file($logf)) {
+    $lines = array_slice(array_filter(explode("\n", (string)file_get_contents($logf))), -25);
+    echo "  --- хвост deploy.log ---\n";
+    foreach ($lines as $l) {
+        if (stripos($l, 'migration') !== false || stripos($l, 'error') !== false || stripos($l, 'applied') !== false || stripos($l, '050') !== false || stripos($l, 'ALTER') !== false) {
+            echo "    $l\n";
+        }
+    }
+}
+
 echo "\n=== ТИП КОЛОНКИ + КЛЕЙ В КУБКЕ ===\n";
 foreach ($q("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='game_seats' AND COLUMN_NAME IN ('plus','minus')") as $r) {
     echo "  {$r['COLUMN_NAME']}: {$r['COLUMN_TYPE']}\n";
