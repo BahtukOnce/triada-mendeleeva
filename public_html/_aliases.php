@@ -88,4 +88,82 @@ if ($what === 'apply') {
     }
     exit;
 }
+if ($what === 'merge') {
+    require_once ROOT . '/inc/rating.php';
+    require_once ROOT . '/inc/elo.php';
+    $aliases = [];
+    foreach (db()->query("SELECT alias_key, canonical_key FROM nick_aliases") as $a) {
+        $aliases[(string)$a['alias_key']] = (string)$a['canonical_key'];
+    }
+    $resolve = function (string $k) use ($aliases): string {
+        $i = 0;
+        while (isset($aliases[$k]) && $aliases[$k] !== $k && $i++ < 12) {
+            $k = $aliases[$k];
+        }
+        return $k;
+    };
+    $players = db()->query("SELECT id, nickname, user_id FROM players")->fetchAll();
+    $byKey = [];
+    foreach ($players as $p) {
+        $byKey[$rawKey($p['nickname'])][] = $p;
+    }
+    $gamesOf = function (int $pid): int {
+        return (int)db()->query("SELECT COUNT(*) FROM game_seats WHERE player_id = " . $pid)->fetchColumn();
+    };
+    $pdo = db();
+    $report = [];
+    foreach ($byKey as $k => $grp) {
+        if (!isset($aliases[$k])) {
+            continue; // не источник алиаса
+        }
+        $canon = $resolve($k);
+        $dsts = $byKey[$canon] ?? [];
+        if (!$dsts) {
+            $report[] = "ПРОПУСК {$grp[0]['nickname']}: целевой игрок ($canon) не найден";
+            continue;
+        }
+        $dst = null;
+        $mx = -1;
+        foreach ($dsts as $d) {
+            $g = $gamesOf((int)$d['id']);
+            if ($g > $mx) {
+                $mx = $g;
+                $dst = $d;
+            }
+        }
+        foreach ($grp as $src) {
+            if ((int)$src['id'] === (int)$dst['id']) {
+                continue;
+            }
+            $sid = (int)$src['id'];
+            $did = (int)$dst['id'];
+            $pdo->beginTransaction();
+            $pdo->prepare('UPDATE game_seats SET player_id=? WHERE player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('UPDATE games SET judge_player_id=? WHERE judge_player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('DELETE r1 FROM day_registrations r1 JOIN day_registrations r2 ON r2.day_id=r1.day_id AND r2.player_id=? WHERE r1.player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('UPDATE day_registrations SET player_id=? WHERE player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('DELETE r1 FROM tournament_regs r1 JOIN tournament_regs r2 ON r2.tournament_id=r1.tournament_id AND r2.player_id=? WHERE r1.player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('UPDATE tournament_regs SET player_id=? WHERE player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('UPDATE player_avatars SET player_id=? WHERE player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('UPDATE players SET partner_player_id=? WHERE partner_player_id=?')->execute([$did, $sid]);
+            $pdo->prepare('UPDATE players SET rival_player_id=? WHERE rival_player_id=?')->execute([$did, $sid]);
+            if ($src['user_id'] && !$dst['user_id']) {
+                $pdo->prepare('UPDATE players SET user_id=NULL WHERE id=?')->execute([$sid]);
+                $pdo->prepare('UPDATE players SET user_id=? WHERE id=?')->execute([(int)$src['user_id'], $did]);
+            } elseif ($src['user_id']) {
+                $pdo->prepare('UPDATE players SET user_id=NULL WHERE id=?')->execute([$sid]);
+            }
+            $pdo->prepare('DELETE FROM players WHERE id=?')->execute([$sid]);
+            $pdo->commit();
+            $report[] = "{$src['nickname']} → {$dst['nickname']}";
+        }
+    }
+    rating_recompute_all();
+    elo_recompute();
+    echo "слито напрямую: " . count($report) . "\n";
+    foreach ($report as $m) {
+        echo "  $m\n";
+    }
+    exit;
+}
 exit('ok');
