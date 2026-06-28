@@ -28,12 +28,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'create_
     redirect('/day.php?id=' . $newId);
 }
 
+// Фильтр по сезонам: «текущий» (season IS NULL) по умолчанию, исторические — по метке
 $list = [];
+$seasons = [];
+$season = isset($_GET['season']) ? (string)$_GET['season'] : 'cur';
 if (db_ready()) {
-    $list = db()->query('SELECT d.*,
+    $seasons = db()->query("SELECT DISTINCT season FROM game_days WHERE season IS NOT NULL ORDER BY season DESC")
+        ->fetchAll(PDO::FETCH_COLUMN);
+    if ($season === 'all') {
+        $where = '';
+        $params = [];
+    } elseif ($season !== 'cur' && in_array($season, $seasons, true)) {
+        $where = 'WHERE d.season = ?';
+        $params = [$season];
+    } else {
+        $season = 'cur';
+        $where = 'WHERE d.season IS NULL';
+        $params = [];
+    }
+    $st = db()->prepare('SELECT d.*,
             (SELECT COUNT(*) FROM games g WHERE g.day_id = d.id) AS games_cnt
         FROM game_days d
-        ORDER BY d.date DESC LIMIT 100')->fetchAll();
+        ' . $where . '
+        ORDER BY d.date DESC LIMIT 200');
+    $st->execute($params);
+    $list = $st->fetchAll();
 }
 
 $statusLabel = [
@@ -57,6 +76,20 @@ if ($canEdit) {
     echo '</div></form></div>';
 }
 
+if ($seasons) {
+    echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">';
+    $tabs = [['cur', 'Текущий сезон']];
+    foreach ($seasons as $s) {
+        $tabs[] = [$s, $s];
+    }
+    $tabs[] = ['all', 'Все вечера'];
+    foreach ($tabs as [$key, $label]) {
+        $on = $season === $key;
+        echo '<a class="tag ' . ($on ? 'tag-open' : '') . '" href="/days.php?season=' . urlencode($key) . '">' . esc($label) . '</a>';
+    }
+    echo '</div>';
+}
+
 if ($list) {
     echo '<div class="days-grid">';
     foreach ($list as $d) {
@@ -67,6 +100,9 @@ if ($list) {
         }
         echo '</div>';
         echo '<div class="day-date">' . esc(date('d.m.Y', strtotime($d['date']))) . '</div>';
+        if (!empty($d['season'])) {
+            echo '<div style="font-size:11px;color:var(--tx3);margin-top:2px;">' . esc($d['season']) . '</div>';
+        }
         echo '<div class="day-meta">';
         echo '<span>' . ($d['location'] ? esc($d['location']) : '<span style="color:var(--tx3);">без локации</span>') . '</span>';
         echo '<span class="day-games"><b>' . (int)$d['games_cnt'] . '</b> игр</span>';
