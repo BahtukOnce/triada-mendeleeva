@@ -822,6 +822,14 @@ body::before {
   .pf-elo { width: 100%; text-align: left; padding-left: 0; }
 }
 
+/* Планшеты и узкие окна (≤820): поля форм и инлайновые min-width не форсируют
+   ширину — иначе фильтры/формы дают горизонтальный скролл на iPad и узких окнах */
+@media (max-width: 820px) {
+  .field { min-width: 0 !important; }
+  [style*="min-width"] { min-width: 0 !important; }
+  .pf-id, .hero-info { min-width: 0 !important; }
+}
+
 /* ── Мобильная версия: широкие таблицы, плитки, отступы ── */
 @media (max-width: 760px) {
   /* Широкие таблицы (рейтинг, протоколы, админ-списки) скроллятся вбок,
@@ -835,10 +843,6 @@ body::before {
   .container { padding: 0 11px; }
   .guest-title { font-size: 24px; }
   .vs-h2h { grid-template-columns: 1fr; gap: 6px; }
-  /* поля форм и инлайновые min-width не форсируют ширину → нет горизонтального скролла */
-  .field { min-width: 0 !important; }
-  [style*="min-width"] { min-width: 0 !important; }
-  .pf-id, .hero-info { min-width: 0 !important; }
   .emoji-pick { max-width: 100% !important; }
   .ss-menu { max-width: calc(100vw - 22px); }
   .tp-tbl th, .tp-tbl td { font-size: 12px; padding: 7px 8px; }
@@ -852,4 +856,10 @@ body::before {
 @media (max-width: 400px) {
   .brand-text b { font-size: 13px; }
   .user-pill { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pf-name { font-size: 22px; }
+  .pf-tiles { gap: 7px; }
+}
+@media (max-width: 360px) {
+  .container { padding: 0 8px; }
+  .pf-name { font-size: 20px; }
 }
