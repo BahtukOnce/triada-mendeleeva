@@ -10,6 +10,7 @@ if (db_ready()) {
     $counts['players'] = (int)db()->query('SELECT COUNT(*) FROM players')->fetchColumn();
     $counts['news'] = (int)db()->query('SELECT COUNT(*) FROM news')->fetchColumn();
     $counts['sugg_new'] = (int)db()->query("SELECT COUNT(*) FROM suggestions WHERE status = 'new'")->fetchColumn();
+    $counts['banned'] = (int)db()->query('SELECT COUNT(*) FROM players WHERE banned_at IS NOT NULL')->fetchColumn();
     try {
         $online = db()->query("SELECT us.nickname, us.last_seen, p.id AS player_id, p.avatar, p.nickname AS pnick
             FROM users us LEFT JOIN players p ON p.user_id = us.id
@@ -33,6 +34,7 @@ $groups = [
         ['/admin/users.php', 'Пользователи и роли', 'роли, Telegram, в сети, пароли', false],
         ['/admin/links.php', 'Заявки на привязку', $counts['pending'] ? '⚠ ожидают: ' . $counts['pending'] : 'нет ожидающих', $counts['pending'] > 0],
         ['/admin/suggestions.php', 'Предложения', $counts['sugg_new'] ? '⚠ новых: ' . $counts['sugg_new'] : 'идеи от участников', $counts['sugg_new'] > 0],
+        ['/admin/banlist.php', 'Бан-лист', !empty($counts['banned']) ? 'забанено: ' . $counts['banned'] : 'бан и разбан игроков', false],
     ],
     'Контент' => [
         ['/admin/news.php', 'Новости', 'публикаций: ' . $counts['news'], false],
