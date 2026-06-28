@@ -160,6 +160,14 @@ if ($games) {
         }
     }
     uasort($standing, fn($a, $b) => $b['sum'] <=> $a['sum']);
+    // ELO в рейтинге вечера — на момент того вечера (входной ELO игрока), а не текущий
+    $enterElo = event_entry_elo(array_column($games, 'id'));
+    foreach ($standing as $pid => &$rowE) {
+        if (isset($enterElo[$pid])) {
+            $rowE['elo'] = $enterElo[$pid];
+        }
+    }
+    unset($rowE);
     // изменение ELO за вечер (сумма дельт по играм этого дня)
     $eloDayDelta = [];
     try {
@@ -185,7 +193,7 @@ if ($games) {
     echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
         . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
-        . '<th class="num" data-type="num">ELO</th><th class="num" data-type="num">ЭЛО за вечер</th></tr></thead><tbody>';
+        . '<th class="num" data-type="num" title="ELO на момент вечера">ELO</th><th class="num" data-type="num">ЭЛО за вечер</th></tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;

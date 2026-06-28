@@ -372,6 +372,21 @@ if ($rosterRows || $regOpen) {
     echo '</div>';
 }
 
+// ELO в итоговой таблице — на момент турнира (входной ELO участника), а не текущий
+$enterElo = event_entry_elo(array_column($games, 'id'));
+if ($enterElo) {
+    foreach ($seatsByGame as &$seatsRef) {
+        foreach ($seatsRef as &$s) {
+            $pid = (int)$s['player_id'];
+            if (isset($enterElo[$pid])) {
+                $s['elo'] = $enterElo[$pid];
+            }
+        }
+        unset($s);
+    }
+    unset($seatsRef);
+}
+
 // Итоговая таблица турнира — полный агрегат (как в общем рейтинге)
 $standing = standings_from_games($games, $seatsByGame);
 
@@ -443,7 +458,7 @@ if ($standing) {
         . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
         . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
-        . '<th>#</th><th>Игрок</th><th class="num c-elo">ELO</th>'
+        . '<th>#</th><th>Игрок</th><th class="num c-elo" title="ELO на момент турнира">ELO</th>'
         . '<th class="num">~Σ</th><th class="num">Σ</th>'
         . '<th class="num">Σ+</th><th class="num">Игр</th><th class="num">ПУ</th><th class="num">ЛХ</th>'
         . '<th class="num">Допы</th><th class="num c-club">ср.доп</th><th class="num">−</th><th class="num">Ci</th>'

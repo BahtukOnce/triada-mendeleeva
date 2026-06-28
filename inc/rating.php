@@ -371,3 +371,31 @@ function standings_from_games(array $games, array $seatsByGame): array
     uasort($rows, fn($a, $b) => $b['club_score'] <=> $a['club_score']);
     return $rows;
 }
+
+// ELO каждого игрока «на момент мероприятия» (турнира/вечера) — его входной ELO
+// ДО первой по хронологии игры из набора $gameIds. Берётся из elo_history
+// (elo_after − delta той игры, что шла первой). Внутри одного дня/турнира хронология
+// = порядок game_id (так считает elo_recompute), поэтому первая игра = MIN(game_id).
+// Нужно, чтобы итоговые таблицы турниров/вечеров показывали ELO на тот момент,
+// а не текущий. Возвращает [player_id => elo_before].
+function event_entry_elo(array $gameIds): array
+{
+    $ids = array_values(array_filter(array_map('intval', $gameIds)));
+    if (!$ids) {
+        return [];
+    }
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $out = [];
+    try {
+        $st = db()->prepare("SELECT eh.player_id, (eh.elo_after - eh.delta) AS elo_before
+            FROM elo_history eh
+            JOIN (SELECT player_id, MIN(game_id) AS first_g FROM elo_history WHERE game_id IN ($in) GROUP BY player_id) f
+              ON f.player_id = eh.player_id AND f.first_g = eh.game_id");
+        $st->execute($ids);
+        foreach ($st->fetchAll() as $r) {
+            $out[(int)$r['player_id']] = round((float)$r['elo_before'], 1);
+        }
+    } catch (Throwable $e) {
+    }
+    return $out;
+}
