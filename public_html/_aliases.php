@@ -61,6 +61,7 @@ if ($what === 'check') {
 
 if ($what === 'apply') {
     require_once ROOT . '/inc/legacy_import.php';
+    db()->exec("DELETE FROM nick_aliases WHERE alias_key = canonical_key"); // убрать само-алиасы
     echo "=== ПЕРЕИМПОРТ С УЧЁТОМ АЛИАСОВ ===\n";
     echo implode("\n", legacy_days_import_run()) . "\n";
     echo implode("\n", legacy_tour_import_run()) . "\n";
