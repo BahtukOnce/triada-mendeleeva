@@ -40,6 +40,11 @@ if ($id && db_ready()) {
     $st = db()->prepare('SELECT * FROM tournaments WHERE id = ?');
     $st->execute([$id]);
     $t = $st->fetch() ?: null;
+    if ($t && !empty($t['legacy_rating_id'])) {
+        // исторический турнир без сыгранных игр — открываем его итоговую таблицу
+        header('Location: /rating.php?r=' . (int)$t['legacy_rating_id'], true, 302);
+        exit;
+    }
     if ($t) {
         $st = db()->prepare("SELECT g.*, jp.nickname AS judge_nick FROM games g
             LEFT JOIN players jp ON jp.id = g.judge_player_id

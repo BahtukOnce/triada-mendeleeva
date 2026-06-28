@@ -14,6 +14,12 @@ if (db_ready()) {
             $current = $r;
         }
     }
+    // прямой доступ по ?r=ID к рейтингу вне переключателя (турнирная таблица)
+    if (!$current && $reqId) {
+        $st0 = db()->prepare('SELECT * FROM ratings WHERE id = ?');
+        $st0->execute([$reqId]);
+        $current = $st0->fetch() ?: null;
+    }
     if (!$current && $ratings) {
         $current = $ratings[0];
     }
@@ -38,6 +44,19 @@ if (count($ratings) > 1) {
         echo '<a class="tag ' . ($on ? 'tag-open' : '') . '" href="/rating.php?r=' . (int)$r['id'] . '">' . esc($r['title']) . '</a>';
     }
     echo '</div>';
+}
+
+// Турнирная таблица (рейтинг вне переключателя) — подписываем и даём ссылку назад
+$inSwitcher = false;
+foreach ($ratings as $r) {
+    if ($current && (int)$r['id'] === (int)$current['id']) {
+        $inSwitcher = true;
+        break;
+    }
+}
+if ($current && !$inSwitcher) {
+    echo '<p style="margin:-4px 0 14px;color:var(--tx2);">Итоговая таблица турнира: <b style="color:var(--tx);">'
+        . esc($current['title']) . '</b> · <a href="/tournaments.php">← ко всем турнирам</a></p>';
 }
 
 if ($rows) {

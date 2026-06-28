@@ -12,10 +12,10 @@ function legacy_sources(): array
         ['files' => ['855'], 'title' => 'Сезон 2022/2023', 'kind' => 'season'],
         ['files' => ['893', '1355'], 'title' => 'Сезон 2023/2024', 'kind' => 'season'],
         ['files' => ['3557'], 'title' => 'Сезон 2024/2025', 'kind' => 'season'],
-        ['files' => ['7459'], 'title' => 'Межвузовский дружественный турнир', 'kind' => 'tour'],
-        ['files' => ['6447'], 'title' => 'Турнир в честь 80 лет Победы в ВОВ', 'kind' => 'tour'],
-        ['files' => ['1072'], 'title' => 'Halloween cup', 'kind' => 'tour'],
-        ['files' => ['letkubok'], 'title' => 'I Летний кубок Менделеева', 'kind' => 'tour'],
+        ['files' => ['7459'], 'title' => 'Межвузовский дружественный турнир', 'kind' => 'tour', 'date' => '2025-03-01'],
+        ['files' => ['6447'], 'title' => 'Турнир в честь 80 лет Победы в ВОВ', 'kind' => 'tour', 'date' => '2025-05-09'],
+        ['files' => ['1072'], 'title' => 'Halloween cup', 'kind' => 'tour', 'date' => '2022-10-31'],
+        ['files' => ['letkubok'], 'title' => 'I Летний кубок Менделеева', 'kind' => 'tour', 'date' => '2023-06-01'],
     ];
 }
 
@@ -102,13 +102,19 @@ function legacy_import_run(): array
 
     $pdo->beginTransaction();
     try {
+        // сначала турнирные записи (ссылаются на frozen-рейтинг), затем сами рейтинги
+        $pdo->exec('DELETE FROM tournaments WHERE legacy_rating_id IS NOT NULL');
         $old = $pdo->query('SELECT id FROM ratings WHERE is_frozen = 1')->fetchAll(PDO::FETCH_COLUMN);
         if ($old) {
             $in = implode(',', array_map('intval', $old));
             $pdo->exec("DELETE FROM rating_cache WHERE rating_id IN ($in)");
             $pdo->exec("DELETE FROM ratings WHERE id IN ($in)");
         }
-        $insRating = $pdo->prepare('INSERT INTO ratings (title, is_main, is_active, is_frozen) VALUES (?, 0, 1, 1)');
+        // сезоны — в переключателе рейтингов (is_active=1); турниры — скрыты оттуда
+        // (is_active=0) и показываются в разделе «Турниры», доступ к таблице по /rating.php?r=ID
+        $insRating = $pdo->prepare('INSERT INTO ratings (title, is_main, is_active, is_frozen) VALUES (?, 0, ?, 1)');
+        $insTour = $pdo->prepare("INSERT INTO tournaments (title, date_from, status, tables_count, reg_mode, legacy_rating_id)
+            VALUES (?, ?, 'finished', ?, 'open', ?)");
         $insRC = $pdo->prepare('INSERT INTO rating_cache
             (rating_id, player_id, games, sum_total, sum_plus, avg_total, club_score, pu_count,
              lh_sum, dop_sum, ci_sum, w_civ, g_civ, w_maf, g_maf, w_sher, g_sher, w_don, g_don, peak_club)
@@ -139,7 +145,7 @@ function legacy_import_run(): array
                 $log[] = "{$src['title']}: данных нет — пропуск";
                 continue;
             }
-            $insRating->execute([$src['title']]);
+            $insRating->execute([$src['title'], $kind === 'season' ? 1 : 0]);
             $rid = (int)$pdo->lastInsertId();
             // сгруппировать по player_id: разные ники одного игрока → один ряд
             $rawByPid = [];
@@ -170,7 +176,12 @@ function legacy_import_run(): array
                 ]);
                 $n++;
             }
-            $log[] = "✓ {$src['title']}: рейтинг #$rid, игроков $n";
+            if ($kind === 'tour') {
+                $insTour->execute([$src['title'], $src['date'] ?? null, max(1, (int)ceil($n / 10)), $rid]);
+                $log[] = "✓ {$src['title']}: турнир + рейтинг #$rid, игроков $n";
+            } else {
+                $log[] = "✓ {$src['title']}: рейтинг #$rid, игроков $n";
+            }
         }
         $pdo->commit();
     } catch (Throwable $e) {

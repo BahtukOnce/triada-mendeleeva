@@ -10,7 +10,8 @@ if (db_ready()) {
             (SELECT COUNT(*) FROM tournament_participants tp WHERE tp.tournament_id = t.id AND tp.state = \'confirmed\') AS roster_cnt,
             (SELECT COUNT(DISTINCT gs.player_id) FROM games g
                 JOIN game_seats gs ON gs.game_id = g.id
-                WHERE g.tournament_id = t.id) AS players_cnt
+                WHERE g.tournament_id = t.id) AS players_cnt,
+            (SELECT COUNT(*) FROM rating_cache rc WHERE rc.rating_id = t.legacy_rating_id) AS legacy_cnt
         FROM tournaments t
         ' . $where . '
         ORDER BY t.date_from DESC, t.id DESC LIMIT 50')->fetchAll();
@@ -32,7 +33,9 @@ if ($list) {
     foreach ($list as $t) {
         $tag = $t['status'] === 'reg_open' ? 'tag-open' : ($t['status'] === 'finished' ? '' : 'tag-ok');
         // Черновик у судьи открывается сразу в редакторе
-        $href = ($t['status'] === 'draft' && $isJudge) ? '/admin/tournaments.php?edit=' . (int)$t['id'] : '/tournament.php?id=' . (int)$t['id'];
+        $href = !empty($t['legacy_rating_id'])
+            ? '/rating.php?r=' . (int)$t['legacy_rating_id']
+            : (($t['status'] === 'draft' && $isJudge) ? '/admin/tournaments.php?edit=' . (int)$t['id'] : '/tournament.php?id=' . (int)$t['id']);
         echo '<a class="card card-link t-card" href="' . $href . '">';
         if (!empty($t['logo'])) {
             echo '<span class="t-logo"><img src="' . esc($t['logo']) . '" alt=""></span>';
@@ -44,7 +47,7 @@ if ($list) {
         if ($t['date_to'] && $t['date_to'] !== $t['date_from']) {
             $dates .= ' — ' . date('d.m.Y', strtotime($t['date_to']));
         }
-        $participants = (int)$t['players_cnt'] > 0 ? (int)$t['players_cnt'] : (int)$t['roster_cnt'];
+        $participants = max((int)$t['players_cnt'], (int)$t['roster_cnt'], (int)($t['legacy_cnt'] ?? 0));
         echo '<p class="t-meta">'
             . esc($dates)
             . ($t['location'] ? ' · ' . esc($t['location']) : '')
