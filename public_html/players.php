@@ -6,20 +6,19 @@ $list = [];
 
 if (db_ready()) {
     $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    // Игры и победы — суммарно по всем рейтингам игрока (текущий сезон + история),
-    // из rating_cache: так у исторических/турнирных игроков тоже есть игры и винрейт.
-    // Винрейт считаем по играм с известными ролями (g_*) — турнирные игры без
-    // разбивки по ролям в знаменатель винрейта не попадают.
+    // Игры и победы — по всем зарегистрированным играм клуба (game_seats),
+    // включая исторические вечера: статистика всегда актуальна по всем играм.
     $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.flair, p.elo,
-            agg.games, agg.role_games, agg.wins
+            agg.games, agg.wins
         FROM players p
         LEFT JOIN (
-            SELECT rc.player_id,
-                SUM(rc.games) AS games,
-                SUM(rc.g_civ + rc.g_maf + rc.g_sher + rc.g_don) AS role_games,
-                SUM(rc.w_civ + rc.w_maf + rc.w_sher + rc.w_don) AS wins
-            FROM rating_cache rc
-            GROUP BY rc.player_id
+            SELECT gs.player_id,
+                COUNT(*) AS games,
+                SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
+                          OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS wins
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            WHERE g.status = 'finished'
+            GROUP BY gs.player_id
         ) agg ON agg.player_id = p.id
         WHERE p.banned_at IS NULL";
     $params = [];
@@ -68,9 +67,8 @@ if ($list) {
     echo '<div class="player-grid">';
     foreach ($list as $p) {
         $g = $p['games'] !== null ? (int)$p['games'] : 0;
-        $rg = (int)($p['role_games'] ?? 0);
         $w = (int)$p['wins'];
-        $wr = $rg ? round($w / $rg * 100) : null;
+        $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
         echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" href="/player.php?id=' . (int)$p['id'] . '">';
         $favHtml = $p['fav_role']
