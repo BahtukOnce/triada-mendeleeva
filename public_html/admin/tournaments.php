@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $loc = $loc !== '' ? $loc : null;
         $desc = trim((string)($_POST['description'] ?? '')) ?: null;
         $dressCode = trim((string)($_POST['dress_code'] ?? '')) ?: null;
-        $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'finished'], true) ? $_POST['status'] : 'draft';
+        $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'review', 'finished'], true) ? $_POST['status'] : 'draft';
         $tables = max(1, min(6, (int)($_POST['tables_count'] ?? 1)));
         $rounds = max(1, min(20, (int)($_POST['rounds'] ?? 1)));
         $regMode = (($_POST['reg_mode'] ?? 'open') === 'closed') ? 'closed' : 'open';
@@ -278,7 +278,7 @@ if ($edit && !$canEditT($edit)) {
     redirect('/tournament.php?id=' . (int)$edit['id']);
 }
 $list = db_ready() ? db()->query('SELECT * FROM tournaments ORDER BY date_from DESC, id DESC')->fetchAll() : [];
-$statusLabel = ['draft' => 'Черновик', 'announced' => 'Анонс', 'reg_open' => 'Регистрация', 'live' => 'Идёт', 'finished' => 'Завершён'];
+$statusLabel = ['draft' => 'Черновик', 'announced' => 'Анонс', 'reg_open' => 'Регистрация', 'live' => 'Идёт', 'review' => 'Сверка результатов', 'finished' => 'Завершён'];
 
 page_head('Админка — турниры', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Турниры</h1>';

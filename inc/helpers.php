@@ -132,6 +132,7 @@ function tournament_status_chip(?string $status): string
         'announced' => ['Анонс', '#5b9bd5', 'rgba(91,155,213,.14)'],
         'reg_open'  => ['Регистрация', '#3fb6c8', 'rgba(63,182,200,.14)'],
         'live'      => ['Идёт', '#2fbf57', 'rgba(47,191,87,.16)'],
+        'review'    => ['Сверка результатов', '#d98a2b', 'rgba(217,138,43,.15)'],
         'finished'  => ['Завершён', 'var(--tx2)', 'var(--sf2)'],
     ];
     [$lbl, $fg, $bg] = $m[(string)$status] ?? [(string)$status, 'var(--tx2)', 'var(--sf2)'];

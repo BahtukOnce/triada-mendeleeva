@@ -19,7 +19,7 @@ if (db_ready()) {
 
 $statusLabel = [
     'draft' => 'черновик', 'announced' => 'анонсирован', 'reg_open' => 'регистрация открыта',
-    'live' => 'идёт сейчас', 'finished' => 'завершён',
+    'live' => 'идёт сейчас', 'review' => 'сверка результатов', 'finished' => 'завершён',
 ];
 
 page_head('Турниры', 'tournaments');
