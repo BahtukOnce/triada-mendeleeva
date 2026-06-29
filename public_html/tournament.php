@@ -529,6 +529,14 @@ foreach ($games as $g) {
 $multi = count($byTable) > 1;
 ksort($byTable);
 
+// Подсказка судье, если есть несыгранные игры (рассадка создана, ждём результатов)
+$draftLeft = count(array_filter($games, fn($g) => ($g['status'] ?? '') !== 'finished'));
+if ($canManageT && $draftLeft > 0) {
+    echo '<div class="card" style="border-color:#2fbf57;background:rgba(47,191,87,.07);margin-bottom:14px;">'
+        . '<b>🎯 Идёт ввод результатов.</b> Ниже рассадка по играм — у каждой нажми <b>«Внести результат»</b> '
+        . '(проставь роли и победителя). Итоговая таблица наверху пересчитывается сразу. Осталось внести: ' . $draftLeft . '.</div>';
+}
+
 if ($multi) {
     echo '<div class="tables-grid" style="grid-template-columns:repeat(' . count($byTable) . ',minmax(0,1fr));">';
 }
@@ -547,7 +555,7 @@ foreach ($byTable as $tableNo => $tGames) {
         $isFin = ($g['status'] ?? '') === 'finished';
         $totals = $isFin ? game_display_totals($g, $seats) : [];
         echo '<div class="card' . ($multi ? ' card-compact' : '') . '" id="game-' . (int)$g['id'] . '">';
-        echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">' . ($multi ? 'Круг ' : 'Игра ') . (int)$g['game_no'] . '</h2>';
+        echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
         if ($g['winner']) {
             echo '<span class="tag ' . ($g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'draw' ? 'tag-draw' : 'tag-black')) . '">'
                 . esc($winLabel[$g['winner']]) . '</span>';

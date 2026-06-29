@@ -124,6 +124,21 @@ function pair_record(int $aId, int $bId): array
     return $r;
 }
 
+// Цветной бейдж статуса турнира (единый по сайту). «Идёт» выделяется зелёным.
+function tournament_status_chip(?string $status): string
+{
+    $m = [
+        'draft'     => ['Черновик', 'var(--tx2)', 'var(--sf2)'],
+        'announced' => ['Анонс', '#5b9bd5', 'rgba(91,155,213,.14)'],
+        'reg_open'  => ['Регистрация', '#3fb6c8', 'rgba(63,182,200,.14)'],
+        'live'      => ['Идёт', '#2fbf57', 'rgba(47,191,87,.16)'],
+        'finished'  => ['Завершён', 'var(--tx2)', 'var(--sf2)'],
+    ];
+    [$lbl, $fg, $bg] = $m[(string)$status] ?? [(string)$status, 'var(--tx2)', 'var(--sf2)'];
+    return '<span style="display:inline-block;background:' . $bg . ';color:' . $fg
+        . ';font-weight:600;font-size:12px;padding:3px 11px;border-radius:20px;white-space:nowrap;">' . esc($lbl) . '</span>';
+}
+
 // Цветная точка роли (мирный/шериф/мафия/дон) — единый код цвета по сайту
 // Палитра ролей: мирный — красный, шериф — жёлтый, мафия — тёмно-серый, дон — чёрный.
 function role_color(string $role): string

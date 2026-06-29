@@ -288,11 +288,11 @@ echo '<p><a href="/admin/">← Админка</a></p><h1>Турниры</h1>';
 $collapseNew = (!$edit && $list);
 if ($collapseNew) {
     echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Все турниры</h2><table class="tbl">';
-    echo '<tr><th>Лого</th><th>Турнир</th><th>Статус</th><th class="num">Столов</th><th class="num">Кругов</th><th></th></tr>';
+    echo '<tr><th>Лого</th><th>Турнир</th><th>Статус</th><th class="num">Столов</th><th class="num">Игр</th><th></th></tr>';
     foreach ($list as $t) {
         echo '<tr><td>' . (!empty($t['logo']) ? '<img src="' . esc($t['logo']) . '" style="width:32px;height:32px;object-fit:contain;border-radius:6px;">' : '—') . '</td>';
         echo '<td><a href="/tournament.php?id=' . (int)$t['id'] . '">' . esc($t['title']) . '</a></td>';
-        echo '<td><span class="tag">' . ($statusLabel[$t['status']] ?? $t['status']) . '</span></td>';
+        echo '<td>' . tournament_status_chip($t['status']) . '</td>';
         echo '<td class="num">' . (int)$t['tables_count'] . '</td>';
         echo '<td class="num">' . (int)($t['rounds'] ?? 1) . '</td>';
         echo '<td>';
@@ -317,6 +317,7 @@ echo '<div class="field"><label>Название</label><input type="text" name=
 echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
 echo '<div class="field"><label>Дата с</label><input type="date" name="date_from" value="' . esc($edit['date_from'] ?? '') . '"></div>';
 echo '<div class="field"><label>Дата по</label><input type="date" name="date_to" value="' . esc($edit['date_to'] ?? '') . '"></div>';
+echo '</div>'; // закрыли сетку дат — «Место» идёт на всю ширину
 $loc = (string)($edit['location'] ?? '');
 $locPresets = ['Тушино', 'Миусы'];
 $locOther = $loc !== '' && !in_array($loc, $locPresets, true);
@@ -331,8 +332,9 @@ echo '</select>';
 echo '<input type="text" name="location_other" id="loc-other" placeholder="Своё место" value="' . ($locOther ? esc($loc) : '') . '" style="margin-top:8px;' . ($locOther ? '' : 'display:none;') . '">';
 echo '<script>(function(){var s=document.getElementById("loc-sel"),o=document.getElementById("loc-other");if(!s||!o)return;s.addEventListener("change",function(){o.style.display=s.value==="__other"?"":"none";});})();</script>';
 echo '</div>';
+echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
 echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" id="tables-count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">вместимость: столов × 10 игроков</span></div>';
-echo '<div class="field"><label>Кругов</label><input type="number" name="rounds" id="rounds-count" min="1" max="20" value="' . (int)($edit['rounds'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">партий на игрока (= игр на каждом столе)</span></div>';
+echo '<div class="field"><label>Игр</label><input type="number" name="rounds" id="rounds-count" min="1" max="20" value="' . (int)($edit['rounds'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">сколько игр сыграет каждый (= игр на каждом столе)</span></div>';
 echo '</div>';
 
 $rmode = (string)($edit['reg_mode'] ?? 'open');
