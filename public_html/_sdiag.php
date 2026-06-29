@@ -50,6 +50,24 @@ foreach ($players as $p) {
     $out['detail'][] = $info;
 }
 
+// где s1lence — участник (roster) и где у него турнирные партии
+foreach ($players as $p) {
+    $pid = (int)$p['id'];
+    $st = db()->prepare("SELECT t.id, t.title, t.date_from, tp.state,
+            (SELECT COUNT(*) FROM game_seats gs JOIN games g ON g.id=gs.game_id
+             WHERE g.tournament_id=t.id AND gs.player_id=? AND g.status='finished') AS my_games
+        FROM tournament_participants tp JOIN tournaments t ON t.id=tp.tournament_id
+        WHERE tp.player_id=?");
+    $st->execute([$pid, $pid]);
+    $out['tournaments_as_participant'][$p['nickname']] = $st->fetchAll(PDO::FETCH_ASSOC);
+    // турниры, где есть партии (даже без roster)
+    $st = db()->prepare("SELECT DISTINCT g.tournament_id, t.title FROM game_seats gs
+        JOIN games g ON g.id=gs.game_id JOIN tournaments t ON t.id=g.tournament_id
+        WHERE gs.player_id=? AND g.tournament_id IS NOT NULL");
+    $st->execute([$pid]);
+    $out['tournaments_with_games'][$p['nickname']] = $st->fetchAll(PDO::FETCH_ASSOC);
+}
+
 // общая картина: дни Google-таблицы — есть ли у них season и какие даты
 $out['day_seasons'] = db()->query("SELECT COALESCE(season,'(нет/основной)') AS season, COUNT(*) AS days,
         MIN(date) AS first_date, MAX(date) AS last_date
