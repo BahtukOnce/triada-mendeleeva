@@ -32,23 +32,18 @@ function bm_bonus_for_game(array $seats, array $game): float
 }
 
 // Ci — компенсация первоубиенному (мирный/шериф, при заполненном ЛХ с бонусом > 0).
-// puTotal/gamesTotal — «плывущие» тотальные счётчики игрока в рейтинге.
+// Официальная формула 8.6.1:  Ci = i·0.4 / B при i ≤ B;  Ci = 0.4 при i > B.
+//   i ($puTotal) — сколько раз игрок был первоубиен ночью за красного/шерифа на дистанции;
+//   B — 40% сыгранных на дистанции игр ($gamesTotal), округлённое, но не менее 4.
+// ($winner в формуле не участвует — оставлен в сигнатуре для совместимости вызовов.)
 function ci_value(string $role, ?string $winner, int $puTotal, int $gamesTotal, float $bmBonus): float
 {
     if (!in_array($role, ROLE_RED, true) || $bmBonus <= 0 || $gamesTotal <= 0) {
         return 0.0;
     }
-    $g = $gamesTotal * 0.4;
-    $p = (float)$puTotal;
-    if ($g >= $p) {
-        $base = $g > 0 ? ($p * 0.4) / $g : 0.4;
-    } else {
-        $base = 0.4;
-    }
-    if ($winner === 'red') {
-        $base = $base / 2;
-    }
-    return min(0.4, $base);
+    $i = (float)$puTotal;
+    $B = max(4, (int)round($gamesTotal * 0.4));
+    return $i <= $B ? ($i * 0.4) / $B : 0.4;
 }
 
 // Итог игрока за игру (без Ci и ЛХ — они передаются отдельно)
@@ -120,7 +115,8 @@ function rating_recompute(int $ratingId): void
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
             $gamesTotal[$pid] = ($gamesTotal[$pid] ?? 0) + 1;
-            if ((int)$g['first_killed_seat'] === (int)$s['seat']) {
+            // i для Ci — первоубиенные ночью только за красного/шерифа (по формуле 8.6.1)
+            if ((int)$g['first_killed_seat'] === (int)$s['seat'] && in_array($s['role'], ROLE_RED, true)) {
                 $puTotal[$pid] = ($puTotal[$pid] ?? 0) + 1;
             }
         }
@@ -167,8 +163,8 @@ function rating_recompute(int $ratingId): void
                 + 0.6 * (int)($s['big_tech'] ?? 0);
             $a['tech_count'] += (int)$s['tech_fouls'];
             $a['ci_sum'] += $ci;
-            if ($isPu) {
-                $a['pu_count']++;
+            if ($isPu && in_array($s['role'], ROLE_RED, true)) {
+                $a['pu_count']++; // ПУ-счётчик = i для Ci (первоубиен ночью за красного/шерифа)
             }
             if ($isLh) {
                 $gotLh = $winner === 'draw'
@@ -267,24 +263,26 @@ function rating_recompute_all(): void
 
 // Итоги по местам для отображения протокола одной игры.
 // Использует тотальные счётчики основного рейтинга для Ci (как в таблице).
-function game_display_totals(array $game, array $seats): array
+function game_display_totals(array $game, array $seats, ?array $distTotals = null): array
 {
-    static $totals = null;
-    if ($totals === null) {
-        $totals = ['pu' => [], 'games' => []];
+    static $mainTotals = null;
+    if ($mainTotals === null) {
+        $mainTotals = ['pu' => [], 'games' => []];
         try {
             $main = db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
             if ($main) {
                 $st = db()->prepare('SELECT player_id, games, pu_count FROM rating_cache WHERE rating_id = ?');
                 $st->execute([(int)$main]);
                 foreach ($st->fetchAll() as $row) {
-                    $totals['games'][(int)$row['player_id']] = (int)$row['games'];
-                    $totals['pu'][(int)$row['player_id']] = (int)$row['pu_count'];
+                    $mainTotals['games'][(int)$row['player_id']] = (int)$row['games'];
+                    $mainTotals['pu'][(int)$row['player_id']] = (int)$row['pu_count'];
                 }
             }
         } catch (Throwable $e) {
         }
     }
+    // дистанция для Ci: переданная (турнир — свои игры) либо основной рейтинг (вечера/одиночная игра)
+    $totals = $distTotals ?? $mainTotals;
     $bm = bm_bonus_for_game($seats, $game);
     $bmBonus = max(0.0, $bm);
     $lhSeat = (int)($game['lh_seat'] ?? 0) ?: (int)$game['first_killed_seat'];
@@ -328,9 +326,22 @@ function standings_from_games(array $games, array $seatsByGame): array
 {
     $roleKey = ['civ' => 'civ', 'maf' => 'maf', 'sheriff' => 'sher', 'don' => 'don'];
     $rows = [];
+    // дистанция турнира для Ci (формула 8.6.1): игры и красные/шериф-ПУ в пределах турнира
+    $distGames = [];
+    $distPu = [];
+    foreach ($games as $g) {
+        foreach ($seatsByGame[(int)$g['id']] ?? [] as $s) {
+            $pid = (int)$s['player_id'];
+            $distGames[$pid] = ($distGames[$pid] ?? 0) + 1;
+            if ((int)$g['first_killed_seat'] === (int)$s['seat'] && in_array($s['role'], ROLE_RED, true)) {
+                $distPu[$pid] = ($distPu[$pid] ?? 0) + 1;
+            }
+        }
+    }
+    $distTotals = ['games' => $distGames, 'pu' => $distPu];
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
-        $totals = game_display_totals($g, $seats);
+        $totals = game_display_totals($g, $seats, $distTotals);
         $bmBonus = max(0.0, bm_bonus_for_game($seats, $g));
         $winner = $g['winner'];
         foreach ($seats as $s) {

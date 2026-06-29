@@ -80,9 +80,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Не указан победитель');
             redirect('/admin/tournament_protocol.php?game=' . $gid);
         }
-        if (count($seatNos) === 10 && ($cnt['don'] !== 1 || $cnt['sheriff'] !== 1 || $cnt['maf'] !== 2)) {
-            flash_set('err', 'Внимание: нестандартный расклад ролей (дон ' . $cnt['don']
-                . ', шериф ' . $cnt['sheriff'] . ', мафия ' . $cnt['maf'] . '). Сохранено как есть.');
+        if (count($seatNos) === 10 && ($cnt['don'] !== 1 || $cnt['sheriff'] !== 1 || $cnt['maf'] !== 2 || $cnt['civ'] !== 6)) {
+            flash_set('err', 'Неверный расклад ролей: нужно 1 дон, 1 шериф, 2 мафии, 6 мирных (сейчас: дон '
+                . $cnt['don'] . ', шериф ' . $cnt['sheriff'] . ', мафия ' . $cnt['maf'] . ', мирн ' . $cnt['civ'] . ')');
+            redirect('/admin/tournament_protocol.php?game=' . $gid);
         }
 
         $pdo = db();
