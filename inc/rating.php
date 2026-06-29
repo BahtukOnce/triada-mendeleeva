@@ -80,6 +80,7 @@ function seat_total(array $seat, ?string $winner, bool $isPu, float $bmBonus, fl
         $total -= 0.6;
     }
     $total -= 0.3 * (int)$seat['tech_fouls'];
+    $total -= 0.6 * (int)($seat['big_tech'] ?? 0); // большой тех.фол: −0.6 каждый (макс 2)
     return $total;
 }
 
@@ -160,7 +161,8 @@ function rating_recompute(int $ratingId): void
             $a['dop_sum'] += (float)$s['plus'];
             $a['minus_sum'] += (float)$s['minus']
                 + ((int)$s['fouls'] >= 4 ? 0.6 : 0)
-                + 0.3 * (int)$s['tech_fouls'];
+                + 0.3 * (int)$s['tech_fouls']
+                + 0.6 * (int)($s['big_tech'] ?? 0);
             $a['tech_count'] += (int)$s['tech_fouls'];
             $a['ci_sum'] += $ci;
             if ($isPu) {
@@ -342,7 +344,7 @@ function standings_from_games(array $games, array $seatsByGame): array
             $r['sum'] += (float)$tt['total'];
             $r['dop_sum'] += (float)$s['plus'];
             $r['plus'] += (float)$s['plus'];
-            $r['minus_sum'] += (float)$s['minus'] + ((int)$s['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$s['tech_fouls'];
+            $r['minus_sum'] += (float)$s['minus'] + ((int)$s['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$s['tech_fouls'] + 0.6 * (int)($s['big_tech'] ?? 0);
             $r['ci_sum'] += (float)$tt['ci'];
             if (!empty($tt['is_pu'])) {
                 $r['pu_count']++;

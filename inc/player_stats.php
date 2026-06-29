@@ -85,7 +85,7 @@ function render_player_stats(int $id, bool $own = false): void
         $seasonArgs = [$season];
     }
 
-    $st = db()->prepare("SELECT gs.role, gs.plus, gs.minus, gs.fouls, gs.tech_fouls,
+    $st = db()->prepare("SELECT gs.role, gs.plus, gs.minus, gs.fouls, gs.tech_fouls, gs.big_tech,
             g.id AS game_id, g.game_no, g.winner, g.first_killed_seat, gs.seat,
             g.context, d.id AS day_id, d.title AS day_title, d.date AS day_date,
             t.id AS t_id, t.title AS t_title
@@ -815,7 +815,7 @@ JS;
                 : ($won ? '<span class="tag tag-ok">победа</span>' : '<span class="tag">поражение</span>');
             $date = $h['day_date'] ? date('d.m.Y', strtotime($h['day_date'])) : '';
             $plus = (float)$h['plus'];
-            $minus = (float)$h['minus'] + ((int)$h['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$h['tech_fouls'];
+            $minus = (float)$h['minus'] + ((int)$h['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$h['tech_fouls'] + 0.6 * (int)($h['big_tech'] ?? 0);
             $dl = $eloByGame[(int)$h['game_id']] ?? null;
             $dlHtml = $dl === null ? '<span style="color:var(--tx3);">—</span>'
                 : '<span style="color:' . ($dl > 0 ? 'var(--ok)' : ($dl < 0 ? 'var(--ac)' : 'var(--tx2)')) . ';">' . ($dl > 0 ? '+' : '') . number_format($dl, 1) . '</span>';

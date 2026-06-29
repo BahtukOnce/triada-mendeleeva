@@ -69,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'role' => $role,
                 'fouls' => max(0, min(4, (int)($_POST["fouls$i"] ?? 0))),
                 'tech_fouls' => max(0, min(2, (int)($_POST["tech$i"] ?? 0))),
+                'big_tech' => max(0, min(2, (int)($_POST["bigtech$i"] ?? 0))),
                 'plus' => max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0'))),
                 'minus' => max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0'))),
                 'out_order' => (int)($_POST["out$i"] ?? 0) ?: null,
@@ -119,11 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $gid = (int)$pdo->lastInsertId();
         }
         $insS = $pdo->prepare('INSERT INTO game_seats
-            (game_id, seat, player_id, role, fouls, tech_fouls, plus, minus, out_order)
-            VALUES (?,?,?,?,?,?,?,?,?)');
+            (game_id, seat, player_id, role, fouls, tech_fouls, big_tech, plus, minus, out_order)
+            VALUES (?,?,?,?,?,?,?,?,?,?)');
         foreach ($seats as $seat => $s) {
             $insS->execute([$gid, $seat, $s['player_id'], $s['role'], $s['fouls'],
-                $s['tech_fouls'], $s['plus'], $s['minus'], $s['out_order']]);
+                $s['tech_fouls'], $s['big_tech'], $s['plus'], $s['minus'], $s['out_order']]);
         }
         $pdo->commit();
 
@@ -226,7 +227,7 @@ page_head('Ведение игры — ' . $day['title'], '');
     <div style="overflow-x:auto;">
       <table class="tbl protocol-tbl">
         <tr>
-          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th>
+          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2">Бол.<br>тех</th>
           <th>+</th><th>−</th><th class="num">Итог</th><th>Выб.</th>
         </tr>
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
@@ -247,6 +248,9 @@ page_head('Ведение игры — ' . $day['title'], '');
           <td><select name="tech<?= $i ?>" class="f-tech"><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['tech_fouls'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
+          <td><select name="bigtech<?= $i ?>" class="f-bigtech"><?php for ($f = 0; $f <= 2; $f++): ?>
+            <option value="<?= $f ?>" <?= (int)($es['big_tech'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
+          <?php endfor; ?></select></td>
           <td><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal"
               value="<?= $es && (float)$es['plus'] ? rtrim(rtrim(number_format((float)$es['plus'], 1, '.', ''), '0'), '.') : '' ?>" style="width:42px;"></td>
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
@@ -261,13 +265,21 @@ page_head('Ведение игры — ' . $day['title'], '');
       </table>
     </div>
 
+    <div id="dop-pad" style="margin-top:10px;padding:9px 11px;background:var(--sf2);border-radius:9px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+      <span style="font-size:12px;color:var(--tx2);">Быстрый доп → <b id="dop-target" style="color:var(--ac);">кликни в поле «+»</b>:</span>
+      <?php for ($d = 1; $d <= 15; $d++): $vv = number_format($d / 10, 1, '.', ''); ?>
+        <button type="button" class="btn btn-ghost dop-b" data-v="<?= $vv ?>" style="padding:3px 9px;font-size:12.5px;"><?= $vv ?></button>
+      <?php endfor; ?>
+      <button type="button" class="btn btn-ghost dop-b" data-v="0" style="padding:3px 11px;font-size:12.5px;" title="очистить">×</button>
+    </div>
+
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;align-items:end;">
       <div class="field" style="margin:0;">
         <label>Первоубиенный (ПУ)</label>
         <select name="pu" id="f-pu" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;">
           <option value="0">промах / нет</option>
           <?php for ($o = 1; $o <= 10; $o++): ?>
-            <option value="<?= $o ?>" <?= (int)($editGame['first_killed_seat'] ?? 0) === $o ? 'selected' : '' ?>>место <?= $o ?></option>
+            <option value="<?= $o ?>" <?= (int)($editGame['first_killed_seat'] ?? 0) === $o ? 'selected' : '' ?>><?= $o ?></option>
           <?php endfor; ?>
         </select>
       </div>
@@ -385,6 +397,7 @@ page_head('Ведение игры — ' . $day['title'], '');
       var minus = parseFloat((tr.querySelector('.f-minus').value || '0').replace(',', '.')) || 0;
       var fouls = parseInt(tr.querySelector('.f-fouls').value, 10) || 0;
       var tech = parseInt(tr.querySelector('.f-tech').value, 10) || 0;
+      var bigtech = parseInt((tr.querySelector('.f-bigtech') || {}).value, 10) || 0;
       var isPu = (pu === seat);
       var total = 0;
       if (winner === 'draw') {
@@ -398,6 +411,7 @@ page_head('Ведение игры — ' . $day['title'], '');
       }
       if (fouls >= 4) total -= 0.6;
       total -= 0.3 * tech;
+      total -= 0.6 * bigtech;
       var nick = tr.querySelector('[name=nick' + seat + ']').value.trim();
       tr.querySelector('.f-total').textContent = nick ? (Math.round(total * 100) / 100) : '0';
     });
@@ -405,6 +419,30 @@ page_head('Ведение игры — ' . $day['title'], '');
   document.getElementById('game-form').addEventListener('input', recompute);
   document.getElementById('game-form').addEventListener('change', recompute);
   recompute();
+
+  // ── Быстрые кнопки допов (применяются к последнему выбранному полю «+») ──
+  var lastPlus = null, dopTarget = document.getElementById('dop-target');
+  document.querySelectorAll('.f-plus').forEach(function (inp) {
+    inp.addEventListener('focus', function () {
+      lastPlus = inp;
+      var tr = inp.closest('tr[data-seat]');
+      if (dopTarget && tr) {
+        var ni = tr.querySelector('input[name^="nick"]');
+        var nick = ni ? ni.value.trim() : '';
+        dopTarget.textContent = 'место ' + tr.dataset.seat + (nick ? ' · ' + nick : '');
+      }
+    });
+  });
+  document.querySelectorAll('.dop-b').forEach(function (b) {
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () {
+      if (!lastPlus) return;
+      var v = b.getAttribute('data-v');
+      lastPlus.value = (v === '0') ? '' : v;
+      lastPlus.dispatchEvent(new Event('input', { bubbles: true }));
+      lastPlus.focus();
+    });
+  });
 })();
 </script>
 <?php page_foot(); ?>
