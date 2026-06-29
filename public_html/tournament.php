@@ -29,6 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id) {
             flash_set('err', 'Запись на этот турнир сейчас недоступна');
         }
     }
+    // Судья скрывает/открывает итоговую таблицу для игроков
+    if ($act === 'toggle_standings' && user_can_judge($cu)) {
+        $cur = (int)(db()->query('SELECT standings_hidden FROM tournaments WHERE id = ' . $id)->fetchColumn() ?: 0);
+        db()->prepare('UPDATE tournaments SET standings_hidden = ? WHERE id = ?')->execute([$cur ? 0 : 1, $id]);
+        flash_set('ok', $cur ? 'Таблица снова видна игрокам' : 'Таблица скрыта от игроков');
+    }
     redirect('/tournament.php?id=' . $id);
 }
 
@@ -120,8 +126,19 @@ if ($enterElo) {
     unset($seatsRef);
 }
 $standing = standings_from_games($finishedGames, $seatsByGame);
-if ($standing) {
-    echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2>';
+$canManageT = user_can_judge(current_user()); // судья видит таблицу всегда и может скрыть её от игроков
+$standingsHidden = (int)($t['standings_hidden'] ?? 0);
+if ($standing && (!$standingsHidden || $canManageT)) {
+    echo '<div class="card" style="overflow-x:auto;">';
+    echo '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">';
+    echo '<h2 style="margin:0;">Итоговая таблица' . ($standingsHidden ? ' <span style="font-size:13px;font-weight:600;color:#ff8c2a;">· скрыта от игроков</span>' : '') . '</h2>';
+    if ($canManageT) {
+        echo '<form method="post" action="/tournament.php?id=' . $id . '" style="margin:0;">' . csrf_field()
+            . '<input type="hidden" name="act" value="toggle_standings">'
+            . '<button class="btn btn-ghost" style="padding:5px 12px;font-size:13px;" type="submit">'
+            . ($standingsHidden ? '👁 Открыть игрокам' : '🙈 Скрыть от игроков') . '</button></form>';
+    }
+    echo '</div>';
     echo '<table class="tbl rating-tbl" style="font-size:13px;">';
     echo '<thead>'
         . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
@@ -163,6 +180,8 @@ if ($standing) {
         echo '</tr>';
     }
     echo '</tbody></table></div>';
+} elseif ($standing && $standingsHidden && !$canManageT) {
+    echo '<div class="card"><p style="margin:0;color:var(--tx2);">📊 Итоговая таблица временно скрыта судьёй — будет открыта позже.</p></div>';
 }
 $participants = [];
 foreach ($seatsByGame as $seats) {
@@ -521,7 +540,6 @@ if (!empty($t['table_places'])) {
     }
 }
 
-$canManageT = user_can_judge(current_user()); // показывать кнопки «внести результат»
 $byTable = [];
 foreach ($games as $g) {
     $byTable[(int)$g['table_no']][] = $g;
