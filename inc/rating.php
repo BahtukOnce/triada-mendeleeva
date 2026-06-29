@@ -144,15 +144,17 @@ function rating_recompute(int $ratingId): void
         $winner = $g['winner'];
         $bm = bm_bonus_for_game($seats, $g);
         $bmBonus = max(0.0, $bm);
+        $lhSeat = (int)($g['lh_seat'] ?? 0) ?: (int)$g['first_killed_seat']; // ЛХ-мейкер: по умолчанию = ПУ
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
             $agg[$pid] = $agg[$pid] ?? $blank;
             $a = &$agg[$pid];
-            $isPu = (int)$g['first_killed_seat'] === (int)$s['seat'];
+            $isPu = (int)$g['first_killed_seat'] === (int)$s['seat']; // ПУ (ночной) — для Ci
+            $isLh = $lhSeat === (int)$s['seat'];                       // ЛХ-мейкер — для бонуса ЛХ
             $ci = $isPu
                 ? ci_value($s['role'], $winner, $puTotal[$pid] ?? 0, $gamesTotal[$pid] ?? 0, $bmBonus)
                 : 0.0;
-            $total = seat_total($s, $winner, $isPu, $bmBonus, $ci);
+            $total = seat_total($s, $winner, $isLh, $bmBonus, $ci);
             $dayId = (int)$g['day_id'];
             $eveSum[$dayId][$pid] = ($eveSum[$dayId][$pid] ?? 0.0) + $total;
 
@@ -167,6 +169,8 @@ function rating_recompute(int $ratingId): void
             $a['ci_sum'] += $ci;
             if ($isPu) {
                 $a['pu_count']++;
+            }
+            if ($isLh) {
                 $gotLh = $winner === 'draw'
                     ? $bmBonus > 0
                     : ($bmBonus > 0 && in_array($s['role'], ROLE_RED, true));
@@ -283,17 +287,20 @@ function game_display_totals(array $game, array $seats): array
     }
     $bm = bm_bonus_for_game($seats, $game);
     $bmBonus = max(0.0, $bm);
+    $lhSeat = (int)($game['lh_seat'] ?? 0) ?: (int)$game['first_killed_seat'];
     $out = [];
     foreach ($seats as $s) {
         $pid = (int)$s['player_id'];
         $isPu = (int)$game['first_killed_seat'] === (int)$s['seat'];
+        $isLh = $lhSeat === (int)$s['seat'];
         $ci = $isPu
             ? ci_value($s['role'], $game['winner'], $totals['pu'][$pid] ?? 0, $totals['games'][$pid] ?? 0, $bmBonus)
             : 0.0;
         $out[(int)$s['seat']] = [
-            'total' => seat_total($s, $game['winner'], $isPu, $bmBonus, $ci),
+            'total' => seat_total($s, $game['winner'], $isLh, $bmBonus, $ci),
             'ci' => $ci,
             'is_pu' => $isPu,
+            'is_lh' => $isLh,
         ];
     }
     return $out;
@@ -348,6 +355,8 @@ function standings_from_games(array $games, array $seatsByGame): array
             $r['ci_sum'] += (float)$tt['ci'];
             if (!empty($tt['is_pu'])) {
                 $r['pu_count']++;
+            }
+            if (!empty($tt['is_lh'])) {
                 $gotLh = $winner === 'draw' ? $bmBonus > 0 : ($bmBonus > 0 && in_array($s['role'], ROLE_RED, true));
                 if ($gotLh) {
                     $r['lh_sum'] += $bmBonus;
