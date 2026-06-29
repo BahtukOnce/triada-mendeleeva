@@ -72,7 +72,9 @@ function render_player_stats(int $id, bool $own = false): void
     foreach ($sst->fetchAll() as $r) {
         $seasonsAvail[(string)$r['s']] = (int)$r['c'];
     }
-    $season = isset($_GET['season']) ? (string)$_GET['season'] : 'all';
+    // По умолчанию — текущий сезон (1 сент–31 авг). Нет игр в нём → «Все сезоны».
+    $defaultSeason = current_season_bounds()[2];
+    $season = isset($_GET['season']) ? (string)$_GET['season'] : $defaultSeason;
     if ($season !== 'all' && !isset($seasonsAvail[$season])) {
         $season = 'all';
     }

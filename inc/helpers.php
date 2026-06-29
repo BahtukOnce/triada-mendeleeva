@@ -11,6 +11,24 @@ function esc(?string $s): string
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
+// Границы текущего игрового сезона (1 сентября — 31 августа).
+// Возвращает [дата_начала, дата_конца, 'Сезон YYYY/YYYY']; отсчёт по $on (или «сейчас»).
+function current_season_bounds(?string $on = null): array
+{
+    $ts = $on !== null ? strtotime($on) : time();
+    if ($ts === false) {
+        $ts = time();
+    }
+    $y = (int)date('Y', $ts);
+    $m = (int)date('n', $ts);
+    $startY = $m >= 9 ? $y : $y - 1;     // сезон стартует 1 сентября
+    return [
+        sprintf('%04d-09-01', $startY),
+        sprintf('%04d-08-31', $startY + 1),
+        sprintf('Сезон %d/%d', $startY, $startY + 1),
+    ];
+}
+
 // Диапазоны эмодзи/пиктограмм/модификаторов (для очистки ников и «висюлек»)
 const EMOJI_RANGES = '\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2190}-\x{21FF}'
     . '\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{2122}\x{2139}\x{24C2}\x{3030}\x{303D}\x{3297}\x{3299}';

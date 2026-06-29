@@ -6,10 +6,11 @@ $list = [];
 
 if (db_ready()) {
     $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    // Игры и победы — по всем зарегистрированным играм клуба (game_seats),
-    // включая исторические вечера: статистика всегда актуальна по всем играм.
+    [$seasonStart, $seasonEnd] = current_season_bounds();
+    // Игры и победы — за ТЕКУЩИЙ сезон (1 сент–31 авг), включая турниры (sagg).
+    // В списке остаётся каждый, кто когда-либо играл ИЛИ зарегистрирован (agg_all — для фильтра).
     $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo,
-            agg.games, agg.wins
+            sagg.games, sagg.wins
         FROM players p
         LEFT JOIN (
             SELECT gs.player_id,
@@ -17,11 +18,20 @@ if (db_ready()) {
                 SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
                           OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS wins
             FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            LEFT JOIN game_days d ON d.id = g.day_id
+            LEFT JOIN tournaments t ON t.id = g.tournament_id
+            WHERE g.status = 'finished' AND g.winner IS NOT NULL
+              AND COALESCE(d.date, t.date_from) BETWEEN ? AND ?
+            GROUP BY gs.player_id
+        ) sagg ON sagg.player_id = p.id
+        LEFT JOIN (
+            SELECT gs.player_id, COUNT(*) AS games
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
             WHERE g.status = 'finished' AND g.winner IS NOT NULL
             GROUP BY gs.player_id
-        ) agg ON agg.player_id = p.id
-        WHERE p.banned_at IS NULL AND (agg.games IS NOT NULL OR p.user_id IS NOT NULL)";
-    $params = [];
+        ) agg_all ON agg_all.player_id = p.id
+        WHERE p.banned_at IS NULL AND (agg_all.games IS NOT NULL OR p.user_id IS NOT NULL)";
+    $params = [$seasonStart, $seasonEnd];
     if ($q !== '') {
         $sql .= ' AND p.nickname LIKE ?';
         $params[] = '%' . $q . '%';
@@ -56,6 +66,7 @@ if (db_ready()) {
 
 page_head('Игроки', 'players');
 echo '<h1>Игроки</h1>';
+echo '<p style="color:var(--tx2);font-size:13px;margin:-6px 0 14px;">Статистика за ' . esc(current_season_bounds()[2]) . ' · вся история — в профиле игрока</p>';
 
 echo '<form method="get" action="/players.php" style="max-width:340px;margin-bottom:14px;">';
 echo '<div class="field" style="margin:0;"><input type="search" id="pl-search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
