@@ -54,6 +54,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $v = (int)($_POST[$k] ?? 0);
             $bm[] = ($v >= 1 && $v <= 10) ? $v : null;
         }
+        // второй ЛХ — заголосованного на 0-м круге (независим от ЛХ ПУ)
+        $vote0 = (int)($_POST['vote0_seat'] ?? 0);
+        $vote0 = ($vote0 >= 1 && $vote0 <= 10) ? $vote0 : null;
+        $v0bm = [];
+        foreach (['v0bm1', 'v0bm2', 'v0bm3'] as $k) {
+            $v = (int)($_POST[$k] ?? 0);
+            $v0bm[] = ($v >= 1 && $v <= 10) ? $v : null;
+        }
 
         // существующие места этой игры (игроки зафиксированы рассадкой)
         $sq = db()->prepare('SELECT seat FROM game_seats WHERE game_id = ? ORDER BY seat');
@@ -89,9 +97,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = db();
         $pdo->beginTransaction();
         $pdo->prepare("UPDATE games SET judge_player_id=?, winner=?, first_killed_seat=?,
-            bm_seat1=?, bm_seat2=?, bm_seat3=?, comment=?, status='finished', finished_at=NOW()
+            bm_seat1=?, bm_seat2=?, bm_seat3=?, vote0_seat=?, vote0_bm1=?, vote0_bm2=?, vote0_bm3=?,
+            comment=?, status='finished', finished_at=NOW()
             WHERE id=? AND context='tournament'")
             ->execute([$judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
+                $vote0, $v0bm[0], $v0bm[1], $v0bm[2],
                 trim((string)($_POST['comment'] ?? '')) ?: null, $gid]);
         $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, plus=?, minus=?, out_order=?
             WHERE game_id=? AND seat=?');
@@ -217,7 +227,7 @@ page_head('Протокол — ' . $g['t_title'], '');
         </select>
       </div>
       <div class="field" style="margin:0;">
-        <label>Лучший ход (3 места)</label>
+        <label>ЛХ первоубиенного (3 места)</label>
         <div style="display:flex;gap:6px;">
           <?php foreach (['bm1' => 'bm_seat1', 'bm2' => 'bm_seat2', 'bm3' => 'bm_seat3'] as $f => $col): ?>
           <select name="<?= $f ?>" class="f-bm" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 8px;">
@@ -237,6 +247,31 @@ page_head('Протокол — ' . $g['t_title'], '');
           <option value="black" <?= ($g['winner'] ?? '') === 'black' ? 'selected' : '' ?>>Чёрные</option>
           <option value="draw" <?= ($g['winner'] ?? '') === 'draw' ? 'selected' : '' ?>>Ничья</option>
         </select>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;align-items:end;">
+      <div class="field" style="margin:0;">
+        <label>Заголосован на 0-м круге <span style="color:var(--tx3);font-weight:400;font-size:11px;">(одиночный → его ЛХ)</span></label>
+        <select name="vote0_seat" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;">
+          <option value="0">— нет —</option>
+          <?php for ($o = 1; $o <= $maxSeat; $o++): ?>
+            <option value="<?= $o ?>" <?= (int)($g['vote0_seat'] ?? 0) === $o ? 'selected' : '' ?>><?= $o ?></option>
+          <?php endfor; ?>
+        </select>
+      </div>
+      <div class="field" style="margin:0;">
+        <label>Его ЛХ (3 места)</label>
+        <div style="display:flex;gap:6px;">
+          <?php foreach (['v0bm1' => 'vote0_bm1', 'v0bm2' => 'vote0_bm2', 'v0bm3' => 'vote0_bm3'] as $f => $col): ?>
+          <select name="<?= $f ?>" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 8px;">
+            <option value="0">—</option>
+            <?php for ($o = 1; $o <= $maxSeat; $o++): ?>
+              <option value="<?= $o ?>" <?= (int)($g[$col] ?? 0) === $o ? 'selected' : '' ?>><?= $o ?></option>
+            <?php endfor; ?>
+          </select>
+          <?php endforeach; ?>
+        </div>
       </div>
     </div>
 
