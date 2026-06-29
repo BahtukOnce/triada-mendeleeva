@@ -625,7 +625,7 @@ function render_player_stats(int $id, bool $own = false): void
             echo '</div>';
 
             uasort($teammates, fn($a, $b) => [$b['wins'], $b['games']] <=> [$a['wins'], $a['games']]);
-            echo '<div class="grid-2"><div class="card"><h2 style="margin-top:0;">В одном цвете: больше всего побед</h2>';
+            echo '<div class="grid-2eq"><div class="card"><h2 style="margin-top:0;">В одном цвете: больше всего побед</h2>';
             $topMates = array_slice($teammates, 0, 12, true);
             if ($topMates) {
                 echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Вместе</th><th class="num">Побед</th><th class="num">Винрейт</th></tr>';
