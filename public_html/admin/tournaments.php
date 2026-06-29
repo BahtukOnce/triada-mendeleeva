@@ -133,12 +133,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Throwable $e) {
             }
         }
-        // При переходе в «Идёт» — автоматическая рассадка, если её ещё нет
+        // При переходе в «Идёт» — автоматически создать игры и рассадку, если их ещё нет
         if ($status === 'live') {
-            $sc = db()->prepare('SELECT COUNT(*) FROM tournament_seating WHERE tournament_id = ?');
+            $sc = db()->prepare("SELECT COUNT(*) FROM games WHERE tournament_id = ?");
             $sc->execute([$id]);
             if ((int)$sc->fetchColumn() === 0) {
-                tournament_generate_seating($id);
+                tournament_generate_games($id);
             }
         }
         log_action((int)$u['id'], 'tournament_save', ['id' => $id]);
@@ -190,8 +190,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'gen_seating' && $id) {
-        $n = tournament_generate_seating($id);
-        flash_set($n > 0 ? 'ok' : 'err', $n > 0 ? ('Рассадка сгенерирована: ' . $n . ' игроков по столам') : 'Нет подтверждённых участников для рассадки');
+        $n = tournament_generate_games($id);
+        // если пересоздавали поверх уже сыгранных игр — почистить их след в рейтинге/ELO
+        rating_recompute_all_safe();
+        require_once ROOT . '/inc/elo.php';
+        elo_recompute();
+        flash_set($n > 0 ? 'ok' : 'err', $n > 0 ? ('Создано игр: ' . $n . ' (рассадка по кругам готова — вноси результаты на странице турнира)') : 'Нет подтверждённых участников для рассадки');
         redirect('/admin/tournaments.php?edit=' . $id);
     }
     redirect('/admin/tournaments.php');
@@ -203,28 +207,63 @@ function rating_recompute_all_safe(): void
     rating_recompute_all();
 }
 
-// Случайная рассадка подтверждённых участников по столам (равномерно, место в столе — случайно).
-function tournament_generate_seating(int $tid): int
+// Ротационная рассадка: создаёт игры (столов × кругов) и распределяет подтверждённых
+// участников по местам с ротацией — каждый круг другие места/столы. Игры создаются
+// черновиками (status='draft'); результаты потом вносятся протоколами. Возвращает число игр.
+function tournament_generate_games(int $tid): int
 {
-    $tq = db()->prepare('SELECT tables_count FROM tournaments WHERE id = ?');
+    $tq = db()->prepare('SELECT tables_count, rounds FROM tournaments WHERE id = ?');
     $tq->execute([$tid]);
-    $nt = max(1, (int)($tq->fetchColumn() ?: 1));
+    $tr = $tq->fetch();
+    if (!$tr) {
+        return 0;
+    }
+    $T = max(1, (int)$tr['tables_count']);
+    $R = max(1, (int)$tr['rounds']);
     $pq = db()->prepare("SELECT player_id FROM tournament_participants WHERE tournament_id = ? AND state = 'confirmed'");
     $pq->execute([$tid]);
     $players = array_map('intval', $pq->fetchAll(PDO::FETCH_COLUMN));
     shuffle($players);
-    db()->prepare('DELETE FROM tournament_seating WHERE tournament_id = ?')->execute([$tid]);
-    if (!$players) {
+    $n = count($players);
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    // снести прежние игры турнира (каскадом — их места) и старую разовую рассадку
+    $pdo->prepare('DELETE FROM games WHERE tournament_id = ?')->execute([$tid]);
+    $pdo->prepare('DELETE FROM tournament_seating WHERE tournament_id = ?')->execute([$tid]);
+    if ($n < 1) {
+        $pdo->commit();
         return 0;
     }
-    $ins = db()->prepare('INSERT INTO tournament_seating (tournament_id, table_no, seat_no, player_id) VALUES (?,?,?,?)');
-    $seatNo = array_fill(1, $nt, 0);
-    foreach ($players as $i => $pid) {
-        $table = ($i % $nt) + 1;       // равномерно «по кругу» между столами
-        $seatNo[$table]++;             // место — порядок попадания (случаен из-за shuffle)
-        $ins->execute([$tid, $table, $seatNo[$table], $pid]);
+    // шаг ротации, взаимно простой с числом игроков (чтобы каждый круг был перестановкой)
+    $gcd = function (int $a, int $b): int { while ($b) { [$a, $b] = [$b, $a % $b]; } return $a; };
+    $step = 7;
+    while ($n > 1 && $gcd($step, $n) !== 1) {
+        $step++;
     }
-    return count($players);
+    $cap = $T * 10;          // вместимость: столов × 10 мест
+    $fill = min($cap, $n);   // если игроков меньше — часть мест пустует; если больше — лишние отдыхают по очереди
+    $insG = $pdo->prepare("INSERT INTO games (context, tournament_id, table_no, game_no, status) VALUES ('tournament', ?, ?, ?, 'draft')");
+    $insS = $pdo->prepare("INSERT INTO game_seats (game_id, seat, player_id, role) VALUES (?,?,?,'civ')");
+    $made = 0;
+    for ($r = 0; $r < $R; $r++) {
+        $byTable = []; // стол => [место => player_id]
+        for ($s = 0; $s < $fill; $s++) {
+            $tb = intdiv($s, 10) + 1;
+            $seat = ($s % 10) + 1;
+            $byTable[$tb][$seat] = $players[($s + $r * $step) % $n];
+        }
+        foreach ($byTable as $tb => $seatMap) {
+            $insG->execute([$tid, $tb, $r + 1]);
+            $gid = (int)$pdo->lastInsertId();
+            foreach ($seatMap as $seat => $pid) {
+                $insS->execute([$gid, $seat, $pid]);
+            }
+            $made++;
+        }
+    }
+    $pdo->commit();
+    return $made;
 }
 
 $editId = (int)($_GET['edit'] ?? 0);
@@ -454,18 +493,25 @@ if ($edit) {
     }
     echo '</div>';
 
-    // ── Рассадка по столам ──
-    $scq = db()->prepare('SELECT COUNT(*) FROM tournament_seating WHERE tournament_id = ?');
-    $scq->execute([$tid]);
-    $seatCount = (int)$scq->fetchColumn();
-    echo '<div class="card"><h2 style="margin-top:0;">🎲 Рассадка по столам</h2>';
-    echo '<p style="color:var(--tx2);margin-top:0;">Случайно распределяет подтверждённых участников по столам и местам. Создаётся автоматически при переходе турнира в статус <b style="color:var(--ac);">«Идёт»</b> — здесь можно пересоздать вручную.</p>';
-    if ($seatCount > 0) {
-        echo '<p style="color:var(--ok);margin:0 0 10px;">Готова: ' . $seatCount . ' игроков. <a href="/tournament.php?id=' . $tid . '#seating" style="color:var(--ac);">посмотреть на странице турнира →</a></p>';
+    // ── Игры и рассадка (ротация по кругам) ──
+    $T = max(1, (int)($edit['tables_count'] ?? 1));
+    $R = max(1, (int)($edit['rounds'] ?? 1));
+    $gc = db()->prepare("SELECT COUNT(*) total, SUM(status='finished') fin FROM games WHERE tournament_id = ?");
+    $gc->execute([$tid]);
+    $grow = $gc->fetch();
+    $gTotal = (int)($grow['total'] ?? 0);
+    $gFin = (int)($grow['fin'] ?? 0);
+    echo '<div class="card"><h2 style="margin-top:0;">🎲 Игры и рассадка</h2>';
+    echo '<p style="color:var(--tx2);margin-top:0;">Создаёт <b>' . $T . ' × ' . $R . ' = ' . ($T * $R) . '</b> игр (столов × кругов) и рассаживает подтверждённых участников <b>с ротацией</b> — каждый круг другие места и столы. Вместимость: <b>' . ($T * 10) . '</b> игроков, подтверждено: <b>' . $confirmedN . '</b>.</p>';
+    if ($gTotal > 0) {
+        echo '<p style="color:var(--ok);margin:0 0 10px;">Создано игр: <b>' . $gTotal . '</b> (внесено результатов: ' . $gFin . '). <a href="/tournament.php?id=' . $tid . '" style="color:var(--ac);">открыть турнир и вносить результаты →</a></p>';
     }
-    echo '<form method="post" action="/admin/tournaments.php" onsubmit="return confirm(\'Сгенерировать рассадку заново? Текущая будет заменена.\');">' . csrf_field();
+    $warn = $gFin > 0
+        ? 'Внимание: уже внесены результаты (' . $gFin . ') — они будут УДАЛЕНЫ. Пересоздать заново?'
+        : 'Создать игры и рассадку заново? Текущая рассадка будет заменена.';
+    echo '<form method="post" action="/admin/tournaments.php" onsubmit="return confirm(\'' . $warn . '\');">' . csrf_field();
     echo '<input type="hidden" name="id" value="' . $tid . '"><input type="hidden" name="form" value="gen_seating">';
-    echo '<button class="btn" type="submit">🎲 ' . ($seatCount > 0 ? 'Пересоздать рассадку' : 'Сгенерировать рассадку') . '</button>';
+    echo '<button class="btn" type="submit">🎲 ' . ($gTotal > 0 ? 'Пересоздать игры и рассадку' : 'Сгенерировать игры и рассадку') . '</button>';
     echo '</form></div>';
 }
 

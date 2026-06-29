@@ -102,9 +102,11 @@ if (!empty($t['logo'])) {
     echo '<h1>' . esc($t['title']) . '</h1>';
 }
 
-// ── Итоговая таблица — НАВЕРХУ, считается вживую по уже внесённым играм ──
+// ── Итоговая таблица — НАВЕРХУ, считается вживую по уже СЫГРАННЫМ играм ──
+// Черновики (созданная рассадка без результата, status≠finished) в таблицу не идут.
 // ELO в таблице — на момент турнира (входной ELO участника), а не текущий.
-$enterElo = event_entry_elo(array_column($games, 'id'));
+$finishedGames = array_values(array_filter($games, fn($g) => ($g['status'] ?? '') === 'finished'));
+$enterElo = event_entry_elo(array_column($finishedGames, 'id'));
 if ($enterElo) {
     foreach ($seatsByGame as &$seatsRef) {
         foreach ($seatsRef as &$s) {
@@ -117,7 +119,7 @@ if ($enterElo) {
     }
     unset($seatsRef);
 }
-$standing = standings_from_games($games, $seatsByGame);
+$standing = standings_from_games($finishedGames, $seatsByGame);
 if ($standing) {
     echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2>';
     echo '<table class="tbl rating-tbl" style="font-size:13px;">';
@@ -541,18 +543,31 @@ foreach ($byTable as $tableNo => $tGames) {
     }
     foreach ($tGames as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
-        $totals = game_display_totals($g, $seats);
+        $isFin = ($g['status'] ?? '') === 'finished';
+        $totals = $isFin ? game_display_totals($g, $seats) : [];
         echo '<div class="card' . ($multi ? ' card-compact' : '') . '" id="game-' . (int)$g['id'] . '">';
-        echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
+        echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">' . ($multi ? 'Круг ' : 'Игра ') . (int)$g['game_no'] . '</h2>';
         if ($g['winner']) {
             echo '<span class="tag ' . ($g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'draw' ? 'tag-draw' : 'tag-black')) . '">'
                 . esc($winLabel[$g['winner']]) . '</span>';
+        } elseif (!$isFin) {
+            echo '<span class="tag" style="opacity:.7;">ждёт результата</span>';
         }
         echo '</div>';
         if (!$multi && $g['judge_nick']) {
             echo '<p style="color:var(--tx2);font-size:13px;margin:2px 0 6px;">судья: ' . esc($g['judge_nick']) . '</p>';
         }
         echo '<div style="overflow-x:auto;"><table class="tbl"' . ($multi ? ' style="font-size:12.5px;"' : '') . '>';
+        if (!$isFin) {
+            // черновик — показываем только рассадку (места), ролей/итогов ещё нет
+            echo '<tr><th>#</th><th>Игрок</th></tr>';
+            foreach ($seats as $s) {
+                echo '<tr><td>' . (int)$s['seat'] . '</td>'
+                    . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a></td></tr>';
+            }
+            echo '</table></div></div>';
+            continue;
+        }
         if ($multi) {
             echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">Итог</th></tr>';
         } else {
