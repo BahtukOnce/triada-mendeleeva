@@ -581,6 +581,9 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<span class="tag" style="opacity:.7;">ждёт результата</span>';
         }
         if ($canManageT) {
+            if (!$isFin) {
+                echo ' <a class="btn" style="padding:3px 9px;font-size:12px;" href="/admin/tournament_live.php?game=' . (int)$g['id'] . '">▶ Вести игру</a>';
+            }
             echo ' <a class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" href="/admin/tournament_protocol.php?game=' . (int)$g['id'] . '">'
                 . ($isFin ? 'Изменить' : 'Внести результат') . '</a>';
         }
