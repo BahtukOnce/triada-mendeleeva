@@ -101,6 +101,67 @@ if (!empty($t['logo'])) {
 } else {
     echo '<h1>' . esc($t['title']) . '</h1>';
 }
+
+// ── Итоговая таблица — НАВЕРХУ, считается вживую по уже внесённым играм ──
+// ELO в таблице — на момент турнира (входной ELO участника), а не текущий.
+$enterElo = event_entry_elo(array_column($games, 'id'));
+if ($enterElo) {
+    foreach ($seatsByGame as &$seatsRef) {
+        foreach ($seatsRef as &$s) {
+            $pid = (int)$s['player_id'];
+            if (isset($enterElo[$pid])) {
+                $s['elo'] = $enterElo[$pid];
+            }
+        }
+        unset($s);
+    }
+    unset($seatsRef);
+}
+$standing = standings_from_games($games, $seatsByGame);
+if ($standing) {
+    echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2>';
+    echo '<table class="tbl rating-tbl" style="font-size:13px;">';
+    echo '<thead>'
+        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
+        . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
+        . '<tr>'
+        . '<th>#</th><th>Игрок</th><th class="num c-elo" title="ELO на момент турнира">ELO</th>'
+        . '<th class="num">~Σ</th><th class="num">Σ</th>'
+        . '<th class="num">Σ+</th><th class="num">Игр</th><th class="num">ПУ</th><th class="num">ЛХ</th>'
+        . '<th class="num">Допы</th><th class="num c-club">ср.доп</th><th class="num">−</th><th class="num">Ci</th>'
+        . '<th class="c-cards c-cards-first">Общ</th><th class="c-cards">Мир</th>'
+        . '<th class="c-cards">Маф</th><th class="c-cards">Шер</th><th class="c-cards">Дон</th>'
+        . '</tr></thead><tbody>';
+    $pos = 0;
+    foreach ($standing as $row) {
+        $pos++;
+        $w = (int)$row['w_civ'] + (int)$row['w_maf'] + (int)$row['w_sher'] + (int)$row['w_don'];
+        $avgDop = (int)$row['games'] ? (float)$row['dop_sum'] / (int)$row['games'] : 0;
+        echo '<tr' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . '>';
+        echo '<td>' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>';
+        echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['pid'] . '" style="color:var(--tx);">'
+            . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
+            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
+        echo '<td class="num c-elo"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
+        echo '<td class="num">' . number_format((float)$row['avg_total'], 2) . '</td>';
+        echo '<td class="num">' . number_format((float)$row['sum'], 2) . '</td>';
+        echo '<td class="num">' . number_format((float)$row['sum_plus'], 2) . '</td>';
+        echo '<td class="num">' . (int)$row['games'] . '</td>';
+        echo '<td class="num">' . (int)$row['pu_count'] . '</td>';
+        echo '<td class="num">' . number_format((float)$row['lh_sum'], 1) . '</td>';
+        echo '<td class="num">' . number_format((float)$row['dop_sum'], 1) . '</td>';
+        echo '<td class="num c-club"><b>' . number_format($avgDop, 2) . '</b></td>';
+        echo '<td class="num">' . number_format((float)$row['minus_sum'], 1) . '</td>';
+        echo '<td class="num">' . number_format((float)$row['ci_sum'], 2) . '</td>';
+        echo str_replace('c-cards"', 'c-cards c-cards-first"', wr_cell($w, (int)$row['games']));
+        echo wr_cell((int)$row['w_civ'], (int)$row['g_civ']);
+        echo wr_cell((int)$row['w_maf'], (int)$row['g_maf']);
+        echo wr_cell((int)$row['w_sher'], (int)$row['g_sher']);
+        echo wr_cell((int)$row['w_don'], (int)$row['g_don']);
+        echo '</tr>';
+    }
+    echo '</tbody></table></div>';
+}
 $participants = [];
 foreach ($seatsByGame as $seats) {
     foreach ($seats as $s) {
@@ -332,7 +393,7 @@ if ($rosterRows || $regOpen) {
         echo '<div style="overflow-x:auto;"><table class="tbl tp-tbl"><tr>'
             . '<th class="num">#</th><th class="tp-name-col">Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
             . '<th>Любимая карта</th>'
-            . '<th>Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;">'
+            . '<th style="text-align:center;">Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;">'
             . '<span style="color:#e8332a;">мир</span><span style="color:var(--tx3);">маф</span><span style="color:#e6b13a;">шер</span><span style="color:var(--tx3);">дон</span></span></th>'
             . '<th class="num">Клубный рейтинг</th></tr>';
         $pos = 0;
@@ -353,7 +414,7 @@ if ($rosterRows || $regOpen) {
                 . '<td class="num">' . ($g ?: '—') . '</td>'
                 . '<td class="num">' . $wr . '</td>'
                 . '<td>' . $favCell . '</td>'
-                . '<td style="white-space:nowrap;">' . $roleDopCell((int)$r['player_id']) . '</td>'
+                . '<td style="white-space:nowrap;text-align:center;">' . $roleDopCell((int)$r['player_id']) . '</td>'
                 . '<td class="num">' . $score . '</td></tr>';
         }
         echo '</table></div>';
@@ -372,24 +433,7 @@ if ($rosterRows || $regOpen) {
     echo '</div>';
 }
 
-// ELO в итоговой таблице — на момент турнира (входной ELO участника), а не текущий
-$enterElo = event_entry_elo(array_column($games, 'id'));
-if ($enterElo) {
-    foreach ($seatsByGame as &$seatsRef) {
-        foreach ($seatsRef as &$s) {
-            $pid = (int)$s['player_id'];
-            if (isset($enterElo[$pid])) {
-                $s['elo'] = $enterElo[$pid];
-            }
-        }
-        unset($s);
-    }
-    unset($seatsRef);
-}
-
-// Итоговая таблица турнира — полный агрегат (как в общем рейтинге)
-$standing = standings_from_games($games, $seatsByGame);
-
+// Номинации турнира (итоговая таблица отрисована выше, у шапки; $standing уже посчитан)
 if ($standing) {
     // ── Номинации турнира: всё по сумме допов (плюсы − минусы) ──
     $roleNet = [];
@@ -452,48 +496,7 @@ if ($standing) {
     echo $nomCard('🎩 Лучший дон', $topBy('don', 'gdon'), 'don', 'gdon', 'доном', 'rgba(90,90,100,0.6)');
     echo '</div>';
 
-    echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Итоговая таблица</h2>';
-    echo '<table class="tbl rating-tbl" style="font-size:13px;">';
-    echo '<thead>'
-        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo">ELO</th>'
-        . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
-        . '<tr>'
-        . '<th>#</th><th>Игрок</th><th class="num c-elo" title="ELO на момент турнира">ELO</th>'
-        . '<th class="num">~Σ</th><th class="num">Σ</th>'
-        . '<th class="num">Σ+</th><th class="num">Игр</th><th class="num">ПУ</th><th class="num">ЛХ</th>'
-        . '<th class="num">Допы</th><th class="num c-club">ср.доп</th><th class="num">−</th><th class="num">Ci</th>'
-        . '<th class="c-cards c-cards-first">Общ</th><th class="c-cards">Мир</th>'
-        . '<th class="c-cards">Маф</th><th class="c-cards">Шер</th><th class="c-cards">Дон</th>'
-        . '</tr></thead><tbody>';
-    $pos = 0;
-    foreach ($standing as $row) {
-        $pos++;
-        $w = (int)$row['w_civ'] + (int)$row['w_maf'] + (int)$row['w_sher'] + (int)$row['w_don'];
-        $avgDop = (int)$row['games'] ? (float)$row['dop_sum'] / (int)$row['games'] : 0;
-        echo '<tr' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . '>';
-        echo '<td>' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>';
-        echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['pid'] . '" style="color:var(--tx);">'
-            . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
-        echo '<td class="num c-elo"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
-        echo '<td class="num">' . number_format((float)$row['avg_total'], 2) . '</td>';
-        echo '<td class="num">' . number_format((float)$row['sum'], 2) . '</td>';
-        echo '<td class="num">' . number_format((float)$row['sum_plus'], 2) . '</td>';
-        echo '<td class="num">' . (int)$row['games'] . '</td>';
-        echo '<td class="num">' . (int)$row['pu_count'] . '</td>';
-        echo '<td class="num">' . number_format((float)$row['lh_sum'], 1) . '</td>';
-        echo '<td class="num">' . number_format((float)$row['dop_sum'], 1) . '</td>';
-        echo '<td class="num c-club"><b>' . number_format($avgDop, 2) . '</b></td>';
-        echo '<td class="num">' . number_format((float)$row['minus_sum'], 1) . '</td>';
-        echo '<td class="num">' . number_format((float)$row['ci_sum'], 2) . '</td>';
-        echo str_replace('c-cards"', 'c-cards c-cards-first"', wr_cell($w, (int)$row['games']));
-        echo wr_cell((int)$row['w_civ'], (int)$row['g_civ']);
-        echo wr_cell((int)$row['w_maf'], (int)$row['g_maf']);
-        echo wr_cell((int)$row['w_sher'], (int)$row['g_sher']);
-        echo wr_cell((int)$row['w_don'], (int)$row['g_don']);
-        echo '</tr>';
-    }
-    echo '</tbody></table></div>';
+    // итоговая таблица перенесена в начало страницы (отрисована сразу после заголовка)
 }
 
 $tablePlaces = [];
