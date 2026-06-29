@@ -7,8 +7,9 @@ declare(strict_types=1);
 const ROLE_RED = ['civ', 'sheriff'];
 const ROLE_BLACK = ['maf', 'don'];
 
-// Бонус ЛХ: сколько из 3 кандидатов оказались мафией → 0.1 / 0.3 / 0.6
-function bm_bonus_for_game(array $seats, array $game): float
+// Бонус ЛХ по трём названным местам: сколько из них оказались чёрными → 0.1 / 0.3 / 0.6.
+// Возвращает −1, если ЛХ не заполнен (ни одного места).
+function bm_bonus_for(array $seats, int $s1, int $s2, int $s3): float
 {
     $rolesBySeat = [];
     foreach ($seats as $s) {
@@ -16,8 +17,7 @@ function bm_bonus_for_game(array $seats, array $game): float
     }
     $hits = 0;
     $given = 0;
-    foreach (['bm_seat1', 'bm_seat2', 'bm_seat3'] as $k) {
-        $seatNo = (int)($game[$k] ?? 0);
+    foreach ([$s1, $s2, $s3] as $seatNo) {
         if ($seatNo >= 1 && $seatNo <= 10) {
             $given++;
             if (in_array($rolesBySeat[$seatNo] ?? '', ROLE_BLACK, true)) {
@@ -29,6 +29,12 @@ function bm_bonus_for_game(array $seats, array $game): float
         return -1.0; // ЛХ не заполнен
     }
     return [0 => 0.0, 1 => 0.1, 2 => 0.3, 3 => 0.6][$hits];
+}
+
+// ЛХ первоубиенного (bm_seat1..3) — обёртка над bm_bonus_for.
+function bm_bonus_for_game(array $seats, array $game): float
+{
+    return bm_bonus_for($seats, (int)($game['bm_seat1'] ?? 0), (int)($game['bm_seat2'] ?? 0), (int)($game['bm_seat3'] ?? 0));
 }
 
 // Ci — компенсация первоубиенному (мирный/шериф, при заполненном ЛХ с бонусом > 0).
@@ -59,8 +65,8 @@ function seat_total(array $seat, ?string $winner, bool $isPu, float $bmBonus, fl
         $total = $plus - $minus + $ci;
     } elseif ($winner === 'draw') {
         $total = $ci + $plus - $minus;
-        if ($isPu && $bmBonus > 0) {
-            $total += $bmBonus; // при ничьей ПУ получает ЛХ независимо от роли
+        if ($isPu && in_array($role, ROLE_RED, true) && $bmBonus > 0) {
+            $total += $bmBonus; // ЛХ только красным/шерифу (чёрные с ЛХ ничего не получают)
         }
     } else {
         $winTeam = $winner === 'black' ? ROLE_BLACK : ROLE_RED;
@@ -138,19 +144,25 @@ function rating_recompute(int $ratingId): void
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $winner = $g['winner'];
-        $bm = bm_bonus_for_game($seats, $g);
-        $bmBonus = max(0.0, $bm);
-        $lhSeat = (int)($g['lh_seat'] ?? 0) ?: (int)$g['first_killed_seat']; // ЛХ-мейкер: по умолчанию = ПУ
+        // Два независимых ЛХ: первоубиенного ночью (bm_seat) и заголосованного на 0-м круге (vote0_bm).
+        $bonusPu = max(0.0, bm_bonus_for($seats, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0)));
+        $bonusV0 = max(0.0, bm_bonus_for($seats, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0)));
+        $puSeat = (int)$g['first_killed_seat'];
+        $v0Seat = (int)($g['vote0_seat'] ?? 0);
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
+            $seatNo = (int)$s['seat'];
             $agg[$pid] = $agg[$pid] ?? $blank;
             $a = &$agg[$pid];
-            $isPu = (int)$g['first_killed_seat'] === (int)$s['seat']; // ПУ (ночной) — для Ci
-            $isLh = $lhSeat === (int)$s['seat'];                       // ЛХ-мейкер — для бонуса ЛХ
+            $isRed = in_array($s['role'], ROLE_RED, true);
+            $isPu = $puSeat > 0 && $seatNo === $puSeat;   // ночной первоубиен — для Ci
+            $isV0 = $v0Seat > 0 && $seatNo === $v0Seat;   // заголосован на 0-м круге
+            $isLhMaker = $isPu || $isV0;                  // делал ЛХ (любое из двух событий)
+            $seatBonus = $isPu ? $bonusPu : ($isV0 ? $bonusV0 : 0.0);
             $ci = $isPu
-                ? ci_value($s['role'], $winner, $puTotal[$pid] ?? 0, $gamesTotal[$pid] ?? 0, $bmBonus)
+                ? ci_value($s['role'], $winner, $puTotal[$pid] ?? 0, $gamesTotal[$pid] ?? 0, $bonusPu)
                 : 0.0;
-            $total = seat_total($s, $winner, $isLh, $bmBonus, $ci);
+            $total = seat_total($s, $winner, $isLhMaker, $seatBonus, $ci);
             $dayId = (int)$g['day_id'];
             $eveSum[$dayId][$pid] = ($eveSum[$dayId][$pid] ?? 0.0) + $total;
 
@@ -163,16 +175,12 @@ function rating_recompute(int $ratingId): void
                 + 0.6 * (int)($s['big_tech'] ?? 0);
             $a['tech_count'] += (int)$s['tech_fouls'];
             $a['ci_sum'] += $ci;
-            if ($isPu && in_array($s['role'], ROLE_RED, true)) {
+            if ($isPu && $isRed) {
                 $a['pu_count']++; // ПУ-счётчик = i для Ci (первоубиен ночью за красного/шерифа)
             }
-            if ($isLh) {
-                $gotLh = $winner === 'draw'
-                    ? $bmBonus > 0
-                    : ($bmBonus > 0 && in_array($s['role'], ROLE_RED, true));
-                if ($gotLh) {
-                    $a['lh_sum'] += $bmBonus;
-                }
+            // ЛХ начисляется только красным/шерифу (чёрные с ЛХ ничего не получают)
+            if ($isLhMaker && $isRed && $seatBonus > 0) {
+                $a['lh_sum'] += $seatBonus;
             }
             $rk = $roleKey[$s['role']];
             $a['g_' . $rk]++;
@@ -283,22 +291,27 @@ function game_display_totals(array $game, array $seats, ?array $distTotals = nul
     }
     // дистанция для Ci: переданная (турнир — свои игры) либо основной рейтинг (вечера/одиночная игра)
     $totals = $distTotals ?? $mainTotals;
-    $bm = bm_bonus_for_game($seats, $game);
-    $bmBonus = max(0.0, $bm);
-    $lhSeat = (int)($game['lh_seat'] ?? 0) ?: (int)$game['first_killed_seat'];
+    $bonusPu = max(0.0, bm_bonus_for($seats, (int)($game['bm_seat1'] ?? 0), (int)($game['bm_seat2'] ?? 0), (int)($game['bm_seat3'] ?? 0)));
+    $bonusV0 = max(0.0, bm_bonus_for($seats, (int)($game['vote0_bm1'] ?? 0), (int)($game['vote0_bm2'] ?? 0), (int)($game['vote0_bm3'] ?? 0)));
+    $puSeat = (int)$game['first_killed_seat'];
+    $v0Seat = (int)($game['vote0_seat'] ?? 0);
     $out = [];
     foreach ($seats as $s) {
         $pid = (int)$s['player_id'];
-        $isPu = (int)$game['first_killed_seat'] === (int)$s['seat'];
-        $isLh = $lhSeat === (int)$s['seat'];
+        $seatNo = (int)$s['seat'];
+        $isRed = in_array($s['role'], ROLE_RED, true);
+        $isPu = $puSeat > 0 && $seatNo === $puSeat;
+        $isV0 = $v0Seat > 0 && $seatNo === $v0Seat;
+        $isLhMaker = $isPu || $isV0;
+        $seatBonus = $isPu ? $bonusPu : ($isV0 ? $bonusV0 : 0.0);
         $ci = $isPu
-            ? ci_value($s['role'], $game['winner'], $totals['pu'][$pid] ?? 0, $totals['games'][$pid] ?? 0, $bmBonus)
+            ? ci_value($s['role'], $game['winner'], $totals['pu'][$pid] ?? 0, $totals['games'][$pid] ?? 0, $bonusPu)
             : 0.0;
-        $out[(int)$s['seat']] = [
-            'total' => seat_total($s, $game['winner'], $isLh, $bmBonus, $ci),
+        $out[$seatNo] = [
+            'total' => seat_total($s, $game['winner'], $isLhMaker, $seatBonus, $ci),
             'ci' => $ci,
             'is_pu' => $isPu,
-            'is_lh' => $isLh,
+            'lh' => ($isLhMaker && $isRed && $seatBonus > 0) ? $seatBonus : 0.0,
         ];
     }
     return $out;
@@ -342,7 +355,6 @@ function standings_from_games(array $games, array $seatsByGame): array
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats, $distTotals);
-        $bmBonus = max(0.0, bm_bonus_for_game($seats, $g));
         $winner = $g['winner'];
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
@@ -364,15 +376,10 @@ function standings_from_games(array $games, array $seatsByGame): array
             $r['plus'] += (float)$s['plus'];
             $r['minus_sum'] += (float)$s['minus'] + ((int)$s['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$s['tech_fouls'] + 0.6 * (int)($s['big_tech'] ?? 0);
             $r['ci_sum'] += (float)$tt['ci'];
-            if (!empty($tt['is_pu'])) {
+            if (!empty($tt['is_pu']) && in_array($s['role'], ROLE_RED, true)) {
                 $r['pu_count']++;
             }
-            if (!empty($tt['is_lh'])) {
-                $gotLh = $winner === 'draw' ? $bmBonus > 0 : ($bmBonus > 0 && in_array($s['role'], ROLE_RED, true));
-                if ($gotLh) {
-                    $r['lh_sum'] += $bmBonus;
-                }
-            }
+            $r['lh_sum'] += (float)($tt['lh'] ?? 0); // ЛХ уже начислен только красным/шерифу
             $rk = $roleKey[$s['role']] ?? null;
             if ($rk) {
                 $r['g_' . $rk]++;

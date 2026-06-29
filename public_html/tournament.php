@@ -128,6 +128,7 @@ if ($enterElo) {
 $standing = standings_from_games($finishedGames, $seatsByGame);
 $canManageT = user_can_judge(current_user()); // судья видит таблицу всегда и может скрыть её от игроков
 $standingsHidden = (int)($t['standings_hidden'] ?? 0);
+$resultsHidden = $standingsHidden && !$canManageT; // скрытый режим: игроки не видят ни таблицу, ни итоги игр
 if ($standing && (!$standingsHidden || $canManageT)) {
     echo '<div class="card" style="overflow-x:auto;">';
     echo '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">';
@@ -404,7 +405,8 @@ foreach ($rConfirmed as $r) {
 }
 $regOpen = ($t['reg_mode'] ?? 'open') === 'open' && ($t['status'] ?? '') === 'reg_open';
 
-if ($rosterRows || $regOpen) {
+// Карточка «Участники» нужна до начала турнира; когда идёт/сверяется/завершён — прячем
+if (!$isRunning && ($rosterRows || $regOpen)) {
     echo '<div class="card"><h2 style="margin-top:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Участники'
         . ($rConfirmed ? ' <span style="color:var(--tx3);font-weight:400;font-size:15px;">(' . count($rConfirmed) . ')</span>' : '')
         . ($avgElo ? ' <span style="background:var(--acsf);color:var(--ac);font-size:13px;font-weight:700;padding:4px 11px;border-radius:20px;">средний ELO ' . $avgElo . '</span>' : '')
@@ -475,7 +477,7 @@ if ($rosterRows || $regOpen) {
 }
 
 // Номинации турнира (итоговая таблица отрисована выше, у шапки; $standing уже посчитан)
-if ($standing) {
+if ($standing && !$resultsHidden) {
     // ── Номинации турнира: всё по сумме допов (плюсы − минусы) ──
     $roleNet = [];
     foreach ($seatsByGame as $seats) {
@@ -579,14 +581,15 @@ foreach ($byTable as $tableNo => $tGames) {
     foreach ($tGames as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $isFin = ($g['status'] ?? '') === 'finished';
-        $totals = $isFin ? game_display_totals($g, $seats) : [];
+        $reveal = $isFin && !$resultsHidden; // в скрытом режиме игроки не видят итогов игр
+        $totals = $reveal ? game_display_totals($g, $seats) : [];
         $winCss = '';
-        if ($g['winner'] === 'red') { $winCss = 'border-color:rgba(232,51,42,.6);background:rgba(232,51,42,.07);'; }
-        elseif ($g['winner'] === 'black') { $winCss = 'border-color:rgba(130,130,145,.55);background:rgba(8,8,12,.55);'; }
-        elseif ($g['winner'] === 'draw') { $winCss = 'border-color:rgba(150,150,160,.55);background:rgba(140,140,150,.08);'; }
+        if ($reveal && $g['winner'] === 'red') { $winCss = 'border-color:rgba(232,51,42,.6);background:rgba(232,51,42,.07);'; }
+        elseif ($reveal && $g['winner'] === 'black') { $winCss = 'border-color:rgba(130,130,145,.55);background:rgba(8,8,12,.55);'; }
+        elseif ($reveal && $g['winner'] === 'draw') { $winCss = 'border-color:rgba(150,150,160,.55);background:rgba(140,140,150,.08);'; }
         echo '<div class="card' . ($multi ? ' card-compact' : '') . '" id="game-' . (int)$g['id'] . '" style="' . $winCss . '">';
         echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
-        if ($g['winner']) {
+        if ($g['winner'] && $reveal) {
             $wc = $g['winner'] === 'red' ? '#e8332a' : ($g['winner'] === 'draw' ? '#aab' : '#f0f0f5');
             $wbg = $g['winner'] === 'red' ? 'rgba(232,51,42,.2)' : ($g['winner'] === 'draw' ? 'rgba(150,150,160,.2)' : 'rgba(0,0,0,.8)');
             echo '<span style="display:inline-block;font-weight:700;font-size:12.5px;padding:4px 13px;border-radius:20px;background:'
@@ -606,8 +609,8 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<p style="color:var(--tx2);font-size:13px;margin:2px 0 6px;">судья: ' . esc($g['judge_nick']) . '</p>';
         }
         echo '<div style="overflow-x:auto;"><table class="tbl"' . ($multi ? ' style="font-size:12.5px;"' : '') . '>';
-        if (!$isFin) {
-            // черновик — показываем только рассадку (места), ролей/итогов ещё нет
+        if (!$reveal) {
+            // черновик или скрытый режим — показываем только рассадку (без ролей/итогов)
             echo '<tr><th>#</th><th>Игрок</th></tr>';
             foreach ($seats as $s) {
                 echo '<tr><td>' . (int)$s['seat'] . '</td>'
