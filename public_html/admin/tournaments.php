@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dressCode = trim((string)($_POST['dress_code'] ?? '')) ?: null;
         $status = in_array($_POST['status'] ?? '', ['draft', 'announced', 'reg_open', 'live', 'finished'], true) ? $_POST['status'] : 'draft';
         $tables = max(1, min(6, (int)($_POST['tables_count'] ?? 1)));
+        $rounds = max(1, min(20, (int)($_POST['rounds'] ?? 1)));
         $regMode = (($_POST['reg_mode'] ?? 'open') === 'closed') ? 'closed' : 'open';
 
         // Места столов: позиционный массив длиной tables_count (индекс = стол − 1)
@@ -87,11 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($id) {
-            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, dress_code=?, status=?, tables_count=?, table_places=?, main_judge_player_id=?, table_judges=?, reg_mode=? WHERE id=?')
-                ->execute([$title, $df, $dt, $loc, $desc, $dressCode, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode, $id]);
+            db()->prepare('UPDATE tournaments SET title=?, date_from=?, date_to=?, location=?, description=?, dress_code=?, status=?, tables_count=?, rounds=?, table_places=?, main_judge_player_id=?, table_judges=?, reg_mode=? WHERE id=?')
+                ->execute([$title, $df, $dt, $loc, $desc, $dressCode, $status, $tables, $rounds, $placesJson, $mainJudge, $judgesJson, $regMode, $id]);
         } else {
-            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, dress_code, status, tables_count, table_places, main_judge_player_id, table_judges, reg_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-                ->execute([$title, $df, $dt, $loc, $desc, $dressCode, $status, $tables, $placesJson, $mainJudge, $judgesJson, $regMode]);
+            db()->prepare('INSERT INTO tournaments (title, date_from, date_to, location, description, dress_code, status, tables_count, rounds, table_places, main_judge_player_id, table_judges, reg_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$title, $df, $dt, $loc, $desc, $dressCode, $status, $tables, $rounds, $placesJson, $mainJudge, $judgesJson, $regMode]);
             $id = (int)db()->lastInsertId();
         }
         $cropped = (string)($_POST['logo_cropped'] ?? '');
@@ -243,6 +244,33 @@ $statusLabel = ['draft' => 'Черновик', 'announced' => 'Анонс', 'reg
 page_head('Админка — турниры', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Турниры</h1>';
 
+// Список турниров — сверху (чтобы «Назад»/«Отмена» вели к списку, а не в пустую форму создания).
+// Форма создания при этом прячется в раскрывашку «＋ Новый турнир».
+$collapseNew = (!$edit && $list);
+if ($collapseNew) {
+    echo '<div class="card" style="overflow-x:auto;"><h2 style="margin-top:0;">Все турниры</h2><table class="tbl">';
+    echo '<tr><th>Лого</th><th>Турнир</th><th>Статус</th><th class="num">Столов</th><th class="num">Кругов</th><th></th></tr>';
+    foreach ($list as $t) {
+        echo '<tr><td>' . (!empty($t['logo']) ? '<img src="' . esc($t['logo']) . '" style="width:32px;height:32px;object-fit:contain;border-radius:6px;">' : '—') . '</td>';
+        echo '<td><a href="/tournament.php?id=' . (int)$t['id'] . '">' . esc($t['title']) . '</a></td>';
+        echo '<td><span class="tag">' . ($statusLabel[$t['status']] ?? $t['status']) . '</span></td>';
+        echo '<td class="num">' . (int)$t['tables_count'] . '</td>';
+        echo '<td class="num">' . (int)($t['rounds'] ?? 1) . '</td>';
+        echo '<td>';
+        if ($canEditT($t)) {
+            echo '<a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/tournaments.php?edit=' . (int)$t['id'] . '">Изменить</a> ';
+            echo '<form method="post" action="/admin/tournaments.php" style="display:inline;" onsubmit="return confirm(\'Удалить турнир и все его игры?\');">' . csrf_field();
+            echo '<input type="hidden" name="form" value="delete"><input type="hidden" name="id" value="' . (int)$t['id'] . '">';
+            echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
+        } else {
+            echo '<a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/tournament.php?id=' . (int)$t['id'] . '">Открыть</a>';
+        }
+        echo '</td></tr>';
+    }
+    echo '</table></div>';
+    echo '<details style="margin-bottom:16px;"><summary style="cursor:pointer;display:inline-block;font-weight:600;color:var(--ac);padding:8px 2px;">＋ Новый турнир</summary>';
+}
+
 echo '<div class="card"><h2 style="margin-top:0;">' . ($edit ? 'Редактировать: ' . esc($edit['title']) : 'Новый турнир') . '</h2>';
 echo '<form method="post" action="/admin/tournaments.php" enctype="multipart/form-data">' . csrf_field();
 echo '<input type="hidden" name="form" value="save"><input type="hidden" name="id" value="' . (int)($edit['id'] ?? 0) . '">';
@@ -264,7 +292,8 @@ echo '</select>';
 echo '<input type="text" name="location_other" id="loc-other" placeholder="Своё место" value="' . ($locOther ? esc($loc) : '') . '" style="margin-top:8px;' . ($locOther ? '' : 'display:none;') . '">';
 echo '<script>(function(){var s=document.getElementById("loc-sel"),o=document.getElementById("loc-other");if(!s||!o)return;s.addEventListener("change",function(){o.style.display=s.value==="__other"?"":"none";});})();</script>';
 echo '</div>';
-echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" id="tables-count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"></div>';
+echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" id="tables-count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">вместимость: столов × 10 игроков</span></div>';
+echo '<div class="field"><label>Кругов</label><input type="number" name="rounds" id="rounds-count" min="1" max="20" value="' . (int)($edit['rounds'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">партий на игрока (= игр на каждом столе)</span></div>';
 echo '</div>';
 
 $rmode = (string)($edit['reg_mode'] ?? 'open');
@@ -337,6 +366,9 @@ if ($edit) {
     echo '<a class="btn btn-ghost" href="/admin/tournaments.php">Отмена</a>';
 }
 echo '</div></form></div>';
+if ($collapseNew) {
+    echo '</details>';
+}
 
 // ── Состав участников (редактор) — доступен у сохранённого турнира ──
 if ($edit) {
@@ -437,27 +469,7 @@ if ($edit) {
     echo '</form></div>';
 }
 
-if ($list && !$edit) {
-    echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
-    echo '<tr><th>Лого</th><th>Турнир</th><th>Статус</th><th class="num">Столов</th><th></th></tr>';
-    foreach ($list as $t) {
-        echo '<tr><td>' . (!empty($t['logo']) ? '<img src="' . esc($t['logo']) . '" style="width:32px;height:32px;object-fit:contain;border-radius:6px;">' : '—') . '</td>';
-        echo '<td><a href="/tournament.php?id=' . (int)$t['id'] . '">' . esc($t['title']) . '</a></td>';
-        echo '<td><span class="tag">' . ($statusLabel[$t['status']] ?? $t['status']) . '</span></td>';
-        echo '<td class="num">' . (int)$t['tables_count'] . '</td>';
-        echo '<td>';
-        if ($canEditT($t)) {
-            echo '<a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/tournaments.php?edit=' . (int)$t['id'] . '">Изменить</a> ';
-            echo '<form method="post" action="/admin/tournaments.php" style="display:inline;" onsubmit="return confirm(\'Удалить турнир и все его игры?\');">' . csrf_field();
-            echo '<input type="hidden" name="form" value="delete"><input type="hidden" name="id" value="' . (int)$t['id'] . '">';
-            echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
-        } else {
-            echo '<a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/tournament.php?id=' . (int)$t['id'] . '">Открыть</a>';
-        }
-        echo '</td></tr>';
-    }
-    echo '</table></div>';
-}
+// (список турниров теперь рисуется сверху — см. $collapseNew выше)
 ?>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
 <div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;align-items:center;justify-content:center;padding:16px;">
