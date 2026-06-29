@@ -108,6 +108,31 @@ if (!empty($t['logo'])) {
     echo '<h1>' . esc($t['title']) . '</h1>';
 }
 
+// ── Главный судья — отдельной плашкой в самом верху страницы ──
+$mjId = (int)($t['main_judge_player_id'] ?? 0);
+if ($mjId) {
+    $mjq = db()->prepare('SELECT nickname, avatar, elo,
+        (SELECT COUNT(*) FROM games gg WHERE gg.judge_player_id = players.id) AS judged
+        FROM players WHERE id = ?');
+    $mjq->execute([$mjId]);
+    $mj = $mjq->fetch();
+    if ($mj) {
+        $sub = [];
+        if ($mj['elo'] !== null) {
+            $sub[] = 'ЭЛО ' . (int)round((float)$mj['elo']);
+        }
+        if ((int)($mj['judged'] ?? 0) > 0) {
+            $sub[] = '<a href="/my_judged.php?id=' . $mjId . '" style="color:var(--ac);">судил игр: ' . (int)$mj['judged'] . '</a>';
+        }
+        echo '<div class="judge-hero" style="margin:6px 0 16px;">'
+            . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
+            . '<div><div class="jh-label">⚖ Главный судья</div>'
+            . '<a class="jh-name" href="/player.php?id=' . $mjId . '">' . esc($mj['nickname']) . '</a>'
+            . ($sub ? '<div class="jh-sub">' . implode(' · ', $sub) . '</div>' : '')
+            . '</div></div>';
+    }
+}
+
 // ── Итоговая таблица — НАВЕРХУ, считается вживую по уже СЫГРАННЫМ играм ──
 // Черновики (созданная рассадка без результата, status≠finished) в таблицу не идут.
 // ELO в таблице — на момент турнира (входной ELO участника), а не текущий.
@@ -143,10 +168,10 @@ if ($standing && (!$standingsHidden || $canManageT)) {
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
     echo '<thead>'
         . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo"></th>'
-        . '<th colspan="11">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
+        . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
         . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num" title="ELO на момент турнира">ELO</th>'
-        . '<th class="num c-club" data-type="num">~Σ×Σ</th><th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
+        . '<th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
         . '<th class="c-cards c-cards-first" data-type="num">Общ</th><th class="c-cards" data-type="num">Мир</th>'
@@ -163,7 +188,6 @@ if ($standing && (!$standingsHidden || $canManageT)) {
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
             . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
-        echo '<td class="num c-club" data-sort="' . (float)$row['club_score'] . '"><b>' . number_format((float)$row['club_score'], 2) . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . number_format((float)$row['avg_total'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['sum'] . '">' . number_format((float)$row['sum'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['sum_plus'] . '">' . number_format((float)$row['sum_plus'], 2) . '</td>';
@@ -182,7 +206,7 @@ if ($standing && (!$standingsHidden || $canManageT)) {
         echo '</tr>';
     }
     echo '</tbody></table>';
-    echo '<p style="color:var(--tx2);font-size:12.5px;margin:8px 2px 0;">~Σ×Σ — клубный счёт; Σ — сумма итогов; Σ+ — допы + ЛХ + Ci; ~Σ — средний балл; ПУ — первоубиенный; ЛХ — лучший ход; Ci — компенсации. Клик по заголовку — сортировка.</p>';
+    echo '<p style="color:var(--tx2);font-size:12.5px;margin:8px 2px 0;">Σ — сумма итогов; Σ+ — допы + ЛХ + Ci; ~Σ — средний балл; ПУ — первоубиенный; ЛХ — лучший ход; Ci — компенсации. Клик по заголовку — сортировка.</p>';
     echo '</div>';
 } elseif ($standing && $standingsHidden && !$canManageT) {
     echo '<div class="card"><p style="margin:0;color:var(--tx2);">📊 Итоговая таблица временно скрыта судьёй — будет открыта позже.</p></div>';
@@ -273,24 +297,15 @@ if (!$isRunning && !empty($t['date_from'])) {
 if (!$isRunning && !empty($t['location'])) {
     $blocks[] = '<div class="info-block"><span class="ib-ic">📍</span><div style="min-width:0;"><div class="ib-label">Место</div><div class="ib-val">' . esc((string)$t['location']) . '</div></div></div>';
 }
-if ($mainJudgeId && isset($judgeMap[$mainJudgeId])) {
-    $mj = $judgeMap[$mainJudgeId];
-    $jhSub = [];
-    if ($mj['elo'] !== null) { $jhSub[] = 'ЭЛО ' . (int)round((float)$mj['elo']); }
-    if ((int)($mj['judged'] ?? 0) > 0) { $jhSub[] = '<a href="/my_judged.php?id=' . $mainJudgeId . '" style="color:var(--ac);">судил игр: ' . (int)$mj['judged'] . '</a>'; }
-    $blocks[] = '<div class="judge-hero">'
-        . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
-        . '<div><div class="jh-label">⚖ Главный судья</div>'
-        . '<a class="jh-name" href="/player.php?id=' . $mainJudgeId . '">' . esc($mj['nickname']) . '</a>'
-        . ($jhSub ? '<div class="jh-sub">' . implode(' · ', $jhSub) . '</div>' : '')
-        . '</div></div>';
-}
+// главный судья теперь рисуется отдельной плашкой в самом верху (см. выше)
 if (!$isRunning && !empty($t['dress_code'])) {
     $blocks[] = '<div class="info-block accent"><span class="ib-ic">👔</span>'
         . '<div style="min-width:0;"><div class="ib-label">Дресс-код</div>'
         . '<div class="ib-val">' . esc($t['dress_code']) . '</div></div></div>';
 }
-echo '<div class="t-inforow">' . implode('', $blocks) . '</div>';
+if ($blocks) {
+    echo '<div class="t-inforow">' . implode('', $blocks) . '</div>';
+}
 
 // судьи столов 2+ (до начала турнира; когда идёт+ — оставляем только главного судью)
 if (!$isRunning && $mainJudgeId && isset($judgeMap[$mainJudgeId])) {
@@ -315,35 +330,6 @@ if (!empty($t['description'])) {
     echo '<p style="color:var(--tx2);max-width:680px;line-height:1.6;">' . nl2br(esc($t['description'])) . '</p>';
 }
 
-// ── Общая рассадка по кругам (из созданных игр) — кто за каким местом в каждой игре ──
-$byRound = [];
-foreach ($games as $g) {
-    $byRound[(int)$g['game_no']][] = $g;
-}
-ksort($byRound);
-if ($byRound) {
-    echo '<div class="card" id="seating"><h2 style="margin-top:0;">🎲 Рассадка по кругам</h2>';
-    echo '<p style="color:var(--tx2);margin:0 0 10px;font-size:13px;">Кто за каким местом в каждой игре (ротация). Не зависит от внесённых результатов.</p>';
-    echo '<div class="tables-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));">';
-    foreach ($byRound as $rn => $rgames) {
-        echo '<div class="card card-compact" style="margin:0;"><h3 style="margin:0 0 8px;font-size:14px;">Игра ' . (int)$rn . '</h3>';
-        foreach ($rgames as $rg) {
-            $rseats = $seatsByGame[(int)$rg['id']] ?? [];
-            if ($nT > 1) {
-                echo '<div style="font-size:12px;color:var(--tx3);margin:4px 0 3px;">Стол ' . (int)$rg['table_no'] . '</div>';
-            }
-            echo '<div style="display:flex;flex-direction:column;gap:3px;">';
-            foreach ($rseats as $s) {
-                echo '<div style="display:flex;gap:7px;font-size:12.5px;align-items:center;">'
-                    . '<span style="width:16px;text-align:right;color:var(--tx3);flex:none;">' . (int)$s['seat'] . '</span>'
-                    . '<a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);overflow-wrap:anywhere;">' . esc($s['nickname']) . '</a></div>';
-            }
-            echo '</div>';
-        }
-        echo '</div>';
-    }
-    echo '</div></div>';
-}
 if (user_can_judge(current_user())) {
     echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
         . '<a class="btn btn-ghost" href="/admin/tournaments.php">Все турниры / создать</a></p>';
@@ -550,6 +536,19 @@ if (!empty($t['table_places'])) {
     }
 }
 
+// дистанция турнира для Ci в карточках игр — как в итоговой таблице (игры/красные-ПУ этого турнира)
+$tDistGames = [];
+$tDistPu = [];
+foreach ($finishedGames as $fg) {
+    foreach ($seatsByGame[(int)$fg['id']] ?? [] as $s) {
+        $pid = (int)$s['player_id'];
+        $tDistGames[$pid] = ($tDistGames[$pid] ?? 0) + 1;
+        if ((int)$fg['first_killed_seat'] === (int)$s['seat'] && in_array($s['role'], ROLE_RED, true)) {
+            $tDistPu[$pid] = ($tDistPu[$pid] ?? 0) + 1;
+        }
+    }
+}
+$tDistTotals = ['games' => $tDistGames, 'pu' => $tDistPu];
 $byTable = [];
 foreach ($games as $g) {
     $byTable[(int)$g['table_no']][] = $g;
@@ -582,25 +581,17 @@ foreach ($byTable as $tableNo => $tGames) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $isFin = ($g['status'] ?? '') === 'finished';
         $reveal = $isFin && !$resultsHidden; // в скрытом режиме игроки не видят итогов игр
-        $totals = $reveal ? game_display_totals($g, $seats) : [];
+        $totals = $reveal ? game_display_totals($g, $seats, $tDistTotals) : [];
         $winCss = '';
         if ($reveal && $g['winner'] === 'red') { $winCss = 'border-color:rgba(232,51,42,.6);background:rgba(232,51,42,.07);'; }
         elseif ($reveal && $g['winner'] === 'black') { $winCss = 'border-color:rgba(130,130,145,.55);background:rgba(8,8,12,.55);'; }
         elseif ($reveal && $g['winner'] === 'draw') { $winCss = 'border-color:rgba(150,150,160,.55);background:rgba(140,140,150,.08);'; }
         echo '<div class="card' . ($multi ? ' card-compact' : '') . '" id="game-' . (int)$g['id'] . '" style="' . $winCss . '">';
         echo '<div class="section-head"><h2 style="margin:0;font-size:15px;">Игра ' . (int)$g['game_no'] . '</h2>';
-        if ($g['winner'] && $reveal) {
-            $wc = $g['winner'] === 'red' ? '#e8332a' : ($g['winner'] === 'draw' ? '#aab' : '#f0f0f5');
-            $wbg = $g['winner'] === 'red' ? 'rgba(232,51,42,.2)' : ($g['winner'] === 'draw' ? 'rgba(150,150,160,.2)' : 'rgba(0,0,0,.8)');
-            echo '<span style="display:inline-block;font-weight:700;font-size:12.5px;padding:4px 13px;border-radius:20px;background:'
-                . $wbg . ';color:' . $wc . ';border:1px solid ' . $wc . '66;">победа: ' . esc($winLabel[$g['winner']]) . '</span>';
-        } elseif (!$isFin) {
+        if (!$g['winner'] && !$isFin) {
             echo '<span class="tag" style="opacity:.7;">ждёт результата</span>';
         }
         if ($canManageT) {
-            if (!$isFin) {
-                echo ' <a class="btn" style="padding:3px 9px;font-size:12px;" href="/admin/tournament_live.php?game=' . (int)$g['id'] . '">▶ Вести игру</a>';
-            }
             echo ' <a class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" href="/admin/tournament_protocol.php?game=' . (int)$g['id'] . '">'
                 . ($isFin ? 'Изменить' : 'Внести результат') . '</a>';
         }
@@ -624,7 +615,9 @@ foreach ($byTable as $tableNo => $tGames) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
-                . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
+                . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
+                . (!empty($tt['lh']) ? ' <span class="tag" style="background:var(--oksf);color:var(--ok);">ЛХ +' . number_format((float)$tt['lh'], 1) . '</span>' : '')
+                . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'
                 . '<td class="num">' . ((float)$s['minus'] ? number_format((float)$s['minus'], 1) : '') . '</td>';

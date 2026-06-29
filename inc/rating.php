@@ -15,20 +15,18 @@ function bm_bonus_for(array $seats, int $s1, int $s2, int $s3): float
     foreach ($seats as $s) {
         $rolesBySeat[(int)$s['seat']] = $s['role'];
     }
-    $hits = 0;
-    $given = 0;
-    foreach ([$s1, $s2, $s3] as $seatNo) {
-        if ($seatNo >= 1 && $seatNo <= 10) {
-            $given++;
-            if (in_array($rolesBySeat[$seatNo] ?? '', ROLE_BLACK, true)) {
-                $hits++;
-            }
-        }
-    }
-    if ($given === 0) {
+    // только различные места 1..10 (одно место, названное дважды, не считается дважды)
+    $given = array_values(array_unique(array_filter([$s1, $s2, $s3], fn($n) => $n >= 1 && $n <= 10)));
+    if (!$given) {
         return -1.0; // ЛХ не заполнен
     }
-    return [0 => 0.0, 1 => 0.1, 2 => 0.3, 3 => 0.6][$hits];
+    $hits = 0;
+    foreach ($given as $seatNo) {
+        if (in_array($rolesBySeat[$seatNo] ?? '', ROLE_BLACK, true)) {
+            $hits++;
+        }
+    }
+    return [0 => 0.0, 1 => 0.1, 2 => 0.3, 3 => 0.6][$hits] ?? 0.6;
 }
 
 // ЛХ первоубиенного (bm_seat1..3) — обёртка над bm_bonus_for.

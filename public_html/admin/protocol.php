@@ -266,7 +266,7 @@ page_head('Ведение игры — ' . $day['title'], '');
     </div>
 
     <div id="dop-pad" style="margin-top:10px;padding:9px 11px;background:var(--sf2);border-radius:9px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <span style="font-size:12px;color:var(--tx2);">Быстрый доп → <b id="dop-target" style="color:var(--ac);">кликни в поле «+»</b>:</span>
+      <span style="font-size:12px;color:var(--tx2);">Быстрый ввод → <b id="dop-target" style="color:var(--ac);">кликни поле «+» или «−»</b>:</span>
       <?php for ($d = 1; $d <= 15; $d++): $vv = number_format($d / 10, 1, '.', ''); ?>
         <button type="button" class="btn btn-ghost dop-b" data-v="<?= $vv ?>" style="padding:3px 9px;font-size:12.5px;"><?= $vv ?></button>
       <?php endfor; ?>
@@ -420,27 +420,31 @@ page_head('Ведение игры — ' . $day['title'], '');
   document.getElementById('game-form').addEventListener('change', recompute);
   recompute();
 
-  // ── Быстрые кнопки допов (применяются к последнему выбранному полю «+») ──
-  var lastPlus = null, dopTarget = document.getElementById('dop-target');
-  document.querySelectorAll('.f-plus').forEach(function (inp) {
-    inp.addEventListener('focus', function () {
-      lastPlus = inp;
-      var tr = inp.closest('tr[data-seat]');
-      if (dopTarget && tr) {
-        var ni = tr.querySelector('input[name^="nick"]');
-        var nick = ni ? ni.value.trim() : '';
-        dopTarget.textContent = 'место ' + tr.dataset.seat + (nick ? ' · ' + nick : '');
-      }
+  // ── Быстрые кнопки (применяются к последнему выбранному полю «+» или «−») ──
+  var lastField = null, dopTarget = document.getElementById('dop-target');
+  function bindQuick(sel, kind) {
+    document.querySelectorAll(sel).forEach(function (inp) {
+      inp.addEventListener('focus', function () {
+        lastField = inp;
+        var tr = inp.closest('tr[data-seat]');
+        if (dopTarget && tr) {
+          var ni = tr.querySelector('input[name^="nick"]');
+          var nick = ni ? ni.value.trim() : '';
+          dopTarget.textContent = kind + ' · место ' + tr.dataset.seat + (nick ? ' · ' + nick : '');
+        }
+      });
     });
-  });
+  }
+  bindQuick('.f-plus', 'доп +');
+  bindQuick('.f-minus', 'минус −');
   document.querySelectorAll('.dop-b').forEach(function (b) {
     b.addEventListener('mousedown', function (e) { e.preventDefault(); });
     b.addEventListener('click', function () {
-      if (!lastPlus) return;
+      if (!lastField) return;
       var v = b.getAttribute('data-v');
-      lastPlus.value = (v === '0') ? '' : v;
-      lastPlus.dispatchEvent(new Event('input', { bubbles: true }));
-      lastPlus.focus();
+      lastField.value = (v === '0') ? '' : v;
+      lastField.dispatchEvent(new Event('input', { bubbles: true }));
+      lastField.focus();
     });
   });
 })();

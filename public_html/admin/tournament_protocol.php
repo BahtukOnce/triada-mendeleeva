@@ -62,6 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $v = (int)($_POST[$k] ?? 0);
             $v0bm[] = ($v >= 1 && $v <= 10) ? $v : null;
         }
+        // нельзя называть одно и то же место дважды в ЛХ
+        $bf = array_filter($bm, fn($v) => $v !== null);
+        $vf = array_filter($v0bm, fn($v) => $v !== null);
+        if (count($bf) !== count(array_unique($bf)) || count($vf) !== count(array_unique($vf))) {
+            flash_set('err', 'В ЛХ нельзя указывать одно и то же место дважды.');
+            redirect('/admin/tournament_protocol.php?game=' . $gid);
+        }
 
         // существующие места этой игры (игроки зафиксированы рассадкой)
         $sq = db()->prepare('SELECT seat FROM game_seats WHERE game_id = ? ORDER BY seat');
@@ -81,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'big_tech' => max(0, min(2, (int)($_POST["bigtech$i"] ?? 0))),
                 'plus' => max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0'))),
                 'minus' => max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0'))),
-                'out_order' => (int)($_POST["out$i"] ?? 0) ?: null,
             ];
         }
         if (!$winner) {
@@ -103,10 +109,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
                 $vote0, $v0bm[0], $v0bm[1], $v0bm[2],
                 trim((string)($_POST['comment'] ?? '')) ?: null, $gid]);
-        $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, plus=?, minus=?, out_order=?
+        $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, plus=?, minus=?
             WHERE game_id=? AND seat=?');
         foreach ($upd as $seat => $s) {
-            $us->execute([$s['role'], $s['fouls'], $s['tech_fouls'], $s['big_tech'], $s['plus'], $s['minus'], $s['out_order'], $gid, $seat]);
+            $us->execute([$s['role'], $s['fouls'], $s['tech_fouls'], $s['big_tech'], $s['plus'], $s['minus'], $gid, $seat]);
         }
         $pdo->commit();
 
@@ -172,7 +178,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       <table class="tbl protocol-tbl">
         <tr>
           <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2">Бол.<br>тех</th>
-          <th>+</th><th>−</th><th class="num">Итог</th><th>Выб.</th>
+          <th>+</th><th>−</th><th class="num">Итог</th>
         </tr>
         <?php foreach ($seats as $es): $i = (int)$es['seat']; ?>
         <tr data-seat="<?= $i ?>">
@@ -199,17 +205,13 @@ page_head('Протокол — ' . $g['t_title'], '');
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
               value="<?= (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 2, '.', ''), '0'), '.') : '' ?>" style="width:46px;"></td>
           <td class="num"><b class="f-total">0</b></td>
-          <td><select name="out<?= $i ?>" style="width:48px;"><option value="0">—</option>
-            <?php for ($o = 1; $o <= 10; $o++): ?>
-              <option value="<?= $o ?>" <?= (int)($es['out_order'] ?? 0) === $o ? 'selected' : '' ?>><?= $o ?></option>
-            <?php endfor; ?></select></td>
         </tr>
         <?php endforeach; ?>
       </table>
     </div>
 
     <div id="dop-pad" style="margin-top:10px;padding:9px 11px;background:var(--sf2);border-radius:9px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <span style="font-size:12px;color:var(--tx2);">Быстрый доп → <b id="dop-target" style="color:var(--ac);">кликни в поле «+»</b>:</span>
+      <span style="font-size:12px;color:var(--tx2);">Быстрый ввод → <b id="dop-target" style="color:var(--ac);">кликни поле «+» или «−»</b>:</span>
       <?php for ($d = 1; $d <= 15; $d++): $vv = number_format($d / 10, 1, '.', ''); ?>
         <button type="button" class="btn btn-ghost dop-b" data-v="<?= $vv ?>" style="padding:3px 9px;font-size:12.5px;"><?= $vv ?></button>
       <?php endfor; ?>
@@ -357,26 +359,31 @@ page_head('Протокол — ' . $g['t_title'], '');
   document.getElementById('game-form').addEventListener('change', recompute);
   recompute();
 
-  // ── Быстрые кнопки допов (применяются к последнему выбранному полю «+») ──
-  var lastPlus = null, dopTarget = document.getElementById('dop-target');
-  document.querySelectorAll('.f-plus').forEach(function (inp) {
-    inp.addEventListener('focus', function () {
-      lastPlus = inp;
-      var tr = inp.closest('tr[data-seat]');
-      if (dopTarget && tr) {
-        var nm = ((tr.querySelector('td:nth-child(2)') || {}).textContent || '').trim();
-        dopTarget.textContent = 'место ' + tr.dataset.seat + (nm ? ' · ' + nm : '');
-      }
+  // ── Быстрые кнопки (применяются к последнему выбранному полю «+» или «−») ──
+  var lastField = null, dopTarget = document.getElementById('dop-target');
+  function bindQuick(sel, kind) {
+    document.querySelectorAll(sel).forEach(function (inp) {
+      inp.addEventListener('focus', function () {
+        lastField = inp;
+        var tr = inp.closest('tr[data-seat]');
+        if (dopTarget && tr) {
+          var ni = tr.querySelector('input[name^="nick"]');
+          var nm = ni ? ni.value.trim() : ((tr.querySelector('td:nth-child(2)') || {}).textContent || '').trim();
+          dopTarget.textContent = kind + ' · место ' + tr.dataset.seat + (nm ? ' · ' + nm : '');
+        }
+      });
     });
-  });
+  }
+  bindQuick('.f-plus', 'доп +');
+  bindQuick('.f-minus', 'минус −');
   document.querySelectorAll('.dop-b').forEach(function (b) {
-    b.addEventListener('mousedown', function (e) { e.preventDefault(); }); // не терять фокус поля «+»
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); }); // не терять фокус поля
     b.addEventListener('click', function () {
-      if (!lastPlus) return;
+      if (!lastField) return;
       var v = b.getAttribute('data-v');
-      lastPlus.value = (v === '0') ? '' : v;
-      lastPlus.dispatchEvent(new Event('input', { bubbles: true }));
-      lastPlus.focus();
+      lastField.value = (v === '0') ? '' : v;
+      lastField.dispatchEvent(new Event('input', { bubbles: true }));
+      lastField.focus();
     });
   });
 })();
