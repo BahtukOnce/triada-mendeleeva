@@ -521,6 +521,7 @@ if (!empty($t['table_places'])) {
     }
 }
 
+$canManageT = user_can_judge(current_user()); // показывать кнопки «внести результат»
 $byTable = [];
 foreach ($games as $g) {
     $byTable[(int)$g['table_no']][] = $g;
@@ -552,6 +553,10 @@ foreach ($byTable as $tableNo => $tGames) {
                 . esc($winLabel[$g['winner']]) . '</span>';
         } elseif (!$isFin) {
             echo '<span class="tag" style="opacity:.7;">ждёт результата</span>';
+        }
+        if ($canManageT) {
+            echo ' <a class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" href="/admin/tournament_protocol.php?game=' . (int)$g['id'] . '">'
+                . ($isFin ? 'Изменить' : 'Внести результат') . '</a>';
         }
         echo '</div>';
         if (!$multi && $g['judge_nick']) {
