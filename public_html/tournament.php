@@ -499,12 +499,12 @@ if ($standing && !$resultsHidden) {
                     'all' => 0.0, 'civ' => 0.0, 'sheriff' => 0.0, 'maf' => 0.0, 'don' => 0.0,
                     'gall' => 0, 'gciv' => 0, 'gsheriff' => 0, 'gmaf' => 0, 'gdon' => 0];
             }
-            $net = (float)$s['plus'] - (float)$s['minus'];
-            $roleNet[$pid]['all'] += $net;
+            $dop = (float)$s['plus']; // номинации — по сумме ДОПОВ (плюсов), без минусов
+            $roleNet[$pid]['all'] += $dop;
             $roleNet[$pid]['gall']++;
             $rl = $s['role'];
             if (isset($roleNet[$pid][$rl])) {
-                $roleNet[$pid][$rl] += $net;
+                $roleNet[$pid][$rl] += $dop;
                 $roleNet[$pid]['g' . $rl]++;
             }
         }
@@ -541,7 +541,7 @@ if ($standing && !$resultsHidden) {
             . '</div></div>';
     };
     echo '<h2 style="margin:16px 0 4px;">Номинации турнира</h2>';
-    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">всё по сумме допов за турнир (плюсы − минусы)</p>';
+    echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">по сумме допов за турнир (только плюсы, без минусов)</p>';
     echo '<div class="noms-grid">';
     echo $nomCard('🏆 MVP турнира', $topBy('all', 'gall'), 'all', 'gall', 'весь турнир', 'rgba(232,184,48,0.5)');
     echo $nomCard('🔴 Лучший красный', $topBy('civ', 'gciv'), 'civ', 'gciv', 'мирным', 'rgba(232,51,42,0.45)');
@@ -629,7 +629,7 @@ foreach ($byTable as $tableNo => $tGames) {
         if (!$multi && $g['judge_nick']) {
             echo '<p style="color:var(--tx2);font-size:13px;margin:2px 0 6px;">судья: ' . esc($g['judge_nick']) . '</p>';
         }
-        echo '<div style="overflow-x:auto;"><table class="tbl"' . ($multi ? ' style="font-size:12.5px;"' : '') . '>';
+        echo '<div style="overflow-x:auto;"><table class="tbl" style="width:auto;' . ($multi ? 'font-size:12.5px;' : '') . '">';
         if (!$reveal) {
             // черновик или скрытый режим — показываем только рассадку (без ролей/итогов)
             echo '<tr><th>#</th><th>Игрок</th></tr>';
@@ -640,7 +640,10 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '</table></div></div>';
             continue;
         }
-        echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">+</th><th class="num">−</th><th class="num">ЛХ</th><th class="num">Ci</th><th class="num">Итог</th></tr>';
+        echo '<tr><th style="width:42px">#</th><th>Игрок</th><th style="width:140px">Роль</th>'
+            . '<th class="num" style="width:82px">+</th><th class="num" style="width:82px">−</th>'
+            . '<th class="num" style="width:82px">ЛХ</th><th class="num" style="width:82px">Ci</th>'
+            . '<th class="num" style="width:90px">Итог</th></tr>';
         foreach ($seats as $s) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
