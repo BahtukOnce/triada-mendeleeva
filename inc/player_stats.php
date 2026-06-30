@@ -650,6 +650,35 @@ function render_player_stats(int $id, bool $own = false): void
             } else { echo '<p style="color:var(--tx2);">Пока мало совместных игр для расчёта.</p>'; }
             echo '</div></div>';
 
+            // ── В разном цвете: соперники (кого обыгрывали / кому проигрывали) ──
+            $beat = $opponents;
+            uasort($beat, fn($a, $b) => [$b['beat'], $b['games']] <=> [$a['beat'], $a['games']]);
+            $lostTo = $opponents;
+            uasort($lostTo, fn($a, $b) => [$b['lost'], $b['games']] <=> [$a['lost'], $a['games']]);
+            echo '<div class="grid-2eq">';
+            echo '<div class="card"><h2 style="margin-top:0;">В разном цвете: кого чаще обыгрывали</h2>';
+            $topBeat = array_slice(array_filter($beat, fn($m) => $m['beat'] > 0), 0, 12, true);
+            if ($topBeat) {
+                echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Игр против</th><th class="num">Обыграли</th><th class="num">%</th></tr>';
+                foreach ($topBeat as $opid => $m) {
+                    echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num">' . $m['games']
+                        . '</td><td class="num" style="color:var(--ok);">' . $m['beat'] . '</td><td class="num">' . $wr($m['beat'], $m['games']) . '</td></tr>';
+                }
+                echo '</table>';
+            } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+            echo '</div>';
+            echo '<div class="card"><h2 style="margin-top:0;">В разном цвете: кому чаще проигрывали</h2>';
+            $topLost = array_slice(array_filter($lostTo, fn($m) => $m['lost'] > 0), 0, 12, true);
+            if ($topLost) {
+                echo '<table class="tbl"><tr><th>Игрок</th><th class="num">Игр против</th><th class="num">Проиграли</th><th class="num">%</th></tr>';
+                foreach ($topLost as $opid => $m) {
+                    echo '<tr><td>' . $pcell($opid, $m['nick']) . '</td><td class="num">' . $m['games']
+                        . '</td><td class="num" style="color:var(--ac);">' . $m['lost'] . '</td><td class="num">' . $wr($m['lost'], $m['games']) . '</td></tr>';
+                }
+                echo '</table>';
+            } else { echo '<p style="color:var(--tx2);">Нет данных.</p>'; }
+            echo '</div></div>';
+
         }
 
         // ── Достижения (ачивки) ──
