@@ -29,14 +29,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id) {
             flash_set('err', 'Запись на этот турнир сейчас недоступна');
         }
     }
-    // Судья скрывает/открывает итоговую таблицу для игроков
-    if ($act === 'toggle_standings' && user_can_judge($cu)) {
+    // Управление турниром (скрытие таблицы, пересадка) — админ или НАЗНАЧЕННЫЙ на турнир судья
+    if (in_array($act, ['toggle_standings', 'reseat'], true)) {
+        $tm = db()->prepare('SELECT main_judge_player_id, table_judges FROM tournaments WHERE id = ?');
+        $tm->execute([$id]);
+        if (!tournament_can_manage($cu, $tm->fetch() ?: null)) {
+            flash_set('err', 'Управлять турниром может админ или назначенный на него судья');
+            redirect('/tournament.php?id=' . $id);
+        }
+    }
+    // Скрыть/открыть итоговую таблицу для игроков
+    if ($act === 'toggle_standings') {
         $cur = (int)(db()->query('SELECT standings_hidden FROM tournaments WHERE id = ' . $id)->fetchColumn() ?: 0);
         db()->prepare('UPDATE tournaments SET standings_hidden = ? WHERE id = ?')->execute([$cur ? 0 : 1, $id]);
         flash_set('ok', $cur ? 'Таблица снова видна игрокам' : 'Таблица скрыта от игроков');
     }
-    // Судья пересаживает КОНКРЕТНУЮ несыгранную игру случайным образом (ручная, только по кнопке)
-    if ($act === 'reseat' && user_can_judge($cu)) {
+    // Пересадка КОНКРЕТНОЙ несыгранной игры случайным образом (ручная, только по кнопке)
+    if ($act === 'reseat') {
         $gid = (int)($_POST['game_id'] ?? 0);
         $gq = db()->prepare("SELECT id FROM games WHERE id = ? AND tournament_id = ? AND status = 'draft'");
         $gq->execute([$gid, $id]);
@@ -176,7 +185,7 @@ if ($enterElo) {
     unset($seatsRef);
 }
 $standing = standings_from_games($finishedGames, $seatsByGame);
-$canManageT = user_can_judge(current_user()); // судья видит таблицу всегда и может скрыть её от игроков
+$canManageT = tournament_can_manage(current_user(), $t); // админ/владелец или назначенный на турнир судья
 $standingsHidden = (int)($t['standings_hidden'] ?? 0);
 $resultsHidden = $standingsHidden && !$canManageT; // скрытый режим: игроки не видят ни таблицу, ни итоги игр
 if ($standing && (!$standingsHidden || $canManageT)) {
@@ -356,8 +365,11 @@ if (!empty($t['description'])) {
 }
 
 if (user_can_judge(current_user())) {
-    echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> '
-        . '<a class="btn btn-ghost" href="/admin/tournaments.php">Все турниры / создать</a></p>';
+    echo '<p style="margin:0 0 12px;">';
+    if ($canManageT) {
+        echo '<a class="btn" href="/admin/tournaments.php?edit=' . $id . '">Редактировать турнир</a> ';
+    }
+    echo '<a class="btn btn-ghost" href="/admin/tournaments.php">Все турниры / создать</a></p>';
 }
 
 // ── Состав участников (заявка/приглашения) ──

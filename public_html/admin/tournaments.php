@@ -13,17 +13,9 @@ if (db_ready()) {
     $mp->execute([(int)$u['id']]);
     $myPid = (int)($mp->fetchColumn() ?: 0);
 }
-$canEditT = function (?array $t): bool {
-    return true; // любой судья/админ
-    // Вариант «только назначенные судьи»:
-    // if ($GLOBALS['__isAdmin'] ?? false) return true;
-    // if (!$t) return true;
-    // $pid = (int)($GLOBALS['__myPid'] ?? 0);
-    // if ($pid < 1) return false;
-    // if ((int)($t['main_judge_player_id'] ?? 0) === $pid) return true;
-    // $tj = json_decode((string)($t['table_judges'] ?? ''), true);
-    // return is_array($tj) && in_array($pid, array_map('intval', $tj), true);
-};
+// Редактировать турнир может админ/владелец или НАЗНАЧЕННЫЙ на него судья
+// (главный судья или судья любого стола). Новый турнир — любой судья.
+$canEditT = fn(?array $t): bool => tournament_can_manage($u, $t);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -32,11 +24,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Любые операции над существующим турниром — только тому, кто вправе его редактировать
     if ($id) {
-        $gate = db()->prepare('SELECT main_judge_player_id FROM tournaments WHERE id = ?');
+        $gate = db()->prepare('SELECT main_judge_player_id, table_judges FROM tournaments WHERE id = ?');
         $gate->execute([$id]);
         $gateRow = $gate->fetch();
         if ($gateRow && !$canEditT($gateRow)) {
-            flash_set('err', 'Редактировать этот турнир может только его главный судья');
+            flash_set('err', 'Редактировать этот турнир может админ или назначенный на него судья');
             redirect('/tournament.php?id=' . $id);
         }
     }
@@ -74,6 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $judges[] = (int)($tj[$i] ?? 0) ?: null;
         }
         $mainJudge = $judges[0] ?? null;
+        // Судья создаёт турнир и не указал главного судью → назначаем его самого (иначе потеряет доступ)
+        if (!$id && !$isAdmin && !$mainJudge && $myPid > 0) {
+            $judges[0] = $myPid;
+            $mainJudge = $myPid;
+        }
         $judgesJson = array_filter($judges) ? json_encode($judges) : null;
 
         // судьи, назначенные ДО сохранения — чтобы уведомить только новоназначенных

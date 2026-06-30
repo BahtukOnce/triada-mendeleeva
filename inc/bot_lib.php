@@ -212,6 +212,38 @@ function bot_is_admin(int $tgId): bool
     return false;
 }
 
+// ── Аккаунт на сайте и сброс пароля через бота ────────────
+// Аккаунт сайта (логин = ник), к которому привязан игрок. null — если аккаунта нет.
+function bot_site_account(array $player): ?array
+{
+    $uid = (int)($player['user_id'] ?? 0);
+    if ($uid < 1) {
+        return null;
+    }
+    $st = db()->prepare('SELECT id, nickname FROM users WHERE id = ? LIMIT 1');
+    $st->execute([$uid]);
+    return $st->fetch() ?: null;
+}
+
+// Сбросить пароль аккаунта на временный (8 симв.), вернуть его. Безопасно: вызывается
+// только для аккаунта привязанного к боту игрока — личность подтверждает Telegram.
+function bot_reset_password(int $userId): string
+{
+    $alphabet = 'abcdefghkmnpqrstuvwxyz23456789';
+    $temp = '';
+    for ($i = 0; $i < 8; $i++) {
+        $temp .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+    }
+    db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+        ->execute([password_hash($temp, PASSWORD_DEFAULT), $userId]);
+    try {
+        db()->prepare('INSERT INTO logs (user_id, action, details, ip) VALUES (?,?,?,NULL)')
+            ->execute([$userId, 'password_reset_bot', json_encode(['via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
+    } catch (Throwable $e) {
+    }
+    return $temp;
+}
+
 // ── Данные статистики (схема как у старого бота) ──────────
 function bot_stats_data(): array
 {

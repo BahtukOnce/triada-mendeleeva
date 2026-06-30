@@ -101,6 +101,47 @@ function require_judge(): array
     return $u;
 }
 
+// Может ли пользователь управлять турниром (настройки/рассадка/итоги/скрытие):
+// админ/владелец — всегда; судья — если он НАЗНАЧЕН на этот турнир (главный судья
+// либо судья любого стола). $tRow должен содержать main_judge_player_id и table_judges (JSON).
+// Для нового турнира ($tRow === null) — любой судья (создавать может каждый).
+function tournament_can_manage(?array $u, ?array $tRow): bool
+{
+    if (!user_can_judge($u)) {
+        return false;
+    }
+    if (role_level($u['role']) >= 3) {
+        return true;
+    }
+    if ($tRow === null) {
+        return true;
+    }
+    static $pidByUser = [];
+    $uid = (int)$u['id'];
+    if (!array_key_exists($uid, $pidByUser)) {
+        $st = db()->prepare('SELECT id FROM players WHERE user_id = ? LIMIT 1');
+        $st->execute([$uid]);
+        $pidByUser[$uid] = (int)($st->fetchColumn() ?: 0);
+    }
+    $pid = $pidByUser[$uid];
+    if ($pid < 1) {
+        return false;
+    }
+    $assigned = [];
+    if (!empty($tRow['main_judge_player_id'])) {
+        $assigned[] = (int)$tRow['main_judge_player_id'];
+    }
+    $tj = json_decode((string)($tRow['table_judges'] ?? ''), true);
+    if (is_array($tj)) {
+        foreach ($tj as $j) {
+            if ((int)$j) {
+                $assigned[] = (int)$j;
+            }
+        }
+    }
+    return in_array($pid, $assigned, true);
+}
+
 function require_photo(): array
 {
     $u = require_login();

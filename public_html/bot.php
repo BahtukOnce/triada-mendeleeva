@@ -174,6 +174,16 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             bot_set_notify($userId, true);
             send_menu($chatId, $userId, "🔔 Уведомления включены.");
             return;
+        case '/password':
+        case '/parol':
+        case '/pass':
+            if ((int)$chatId !== $userId) { // только в личке — иначе пароль увидит вся группа
+                reply($chatId, "🔒 Сброс пароля доступен только в личном чате с ботом. Напишите мне в личку: /password");
+                return;
+            }
+            [$pt, $pm] = account_view($userId);
+            send($chatId, $pt, $pm);
+            return;
     }
 
     if ($isCmd) {
@@ -277,6 +287,33 @@ function handle_callback(array $cb): void
         return;
     }
 
+    // Сброс пароля от сайта — только для аккаунта своего привязанного ника
+    if ($data === 'pwreset') {
+        // Раскрываем пароль только в личном чате (в ЛС chat.id == user.id), чтобы он не попал в группу
+        if ((int)$chatId !== $userId) {
+            edit_msg($chatId, $msgId, "🔒 Сброс пароля доступен только в личном чате с ботом.\nНапишите мне в личные сообщения: /password");
+            return;
+        }
+        $acc = bot_site_account($cbPlayer);
+        if (!$acc) {
+            [$at, $am] = account_view($userId);
+            edit_text($chatId, $msgId, $at, $am);
+            return;
+        }
+        $temp = bot_reset_password((int)$acc['id']);
+        $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+        $t = "✅ <b>Пароль сброшен</b>\n\n"
+            . "Логин (ваш ник): <b>" . bot_esc((string)$acc['nickname']) . "</b>\n"
+            . "Новый пароль: <code>" . bot_esc($temp) . "</code>\n\n"
+            . "Войдите на сайте и сразу смените пароль в личном кабинете.";
+        $markup = json_encode(['inline_keyboard' => [
+            [['text' => '🔗 Войти на сайте', 'url' => $base . '/login.php']],
+            [['text' => '◀ Меню', 'callback_data' => 'menu']],
+        ]], JSON_UNESCAPED_UNICODE);
+        edit_text($chatId, $msgId, $t, $markup);
+        return;
+    }
+
     // Отвязать ник (только админ)
     if (str_starts_with($data, 'unbind:')) {
         if (bot_is_admin($userId)) {
@@ -326,6 +363,10 @@ function handle_callback(array $cb): void
                 edit_menu($chatId, $msgId, $userId, help_text());
             }
             break;
+        case 'account':
+            [$at, $am] = account_view($userId);
+            edit_text($chatId, $msgId, $at, $am);
+            break;
         case 'notify':
             [$nt, $nm] = notify_view($userId);
             edit_text($chatId, $msgId, $nt, $nm);
@@ -365,7 +406,20 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
             . "\n\nПроверьте написание или попросите администратора добавить вас в клуб.");
         return;
     }
-    bot_link($userId, $from, (int)$matched['player_id']);
+    // Запрет «угона» привязки: если ник уже привязан к ДРУГОМУ Telegram — отказываем.
+    // Иначе любой мог бы привязаться к чужому нику и (через «Пароль на сайт») захватить аккаунт.
+    // Сменить привязку (новый телефон) можно только через админа: Админка → Участники бота → Отвязать.
+    $pid = (int)$matched['player_id'];
+    $stTg = db()->prepare('SELECT tg_user_id FROM players WHERE id = ?');
+    $stTg->execute([$pid]);
+    $existingTg = (int)($stTg->fetchColumn() ?: 0);
+    if ($existingTg && $existingTg !== $userId) {
+        reply($chatId, "🔒 Ник «" . bot_esc($matched['name']) . "» уже привязан к другому Telegram.\n\n"
+            . "Если это вы и сменили аккаунт — попросите администратора снять старую привязку "
+            . "(Админка → 👥 Участники бота → «Отвязать»), затем привяжитесь заново.");
+        return;
+    }
+    bot_link($userId, $from, $pid);
     try {
         db()->prepare('INSERT INTO logs (user_id, action, details, ip) VALUES (NULL, ?, ?, NULL)')
             ->execute(['tg_link', json_encode(['player' => $matched['name'], 'tg_user_id' => $userId, 'via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
@@ -424,7 +478,8 @@ function help_text(): string
         . "• <b>🎖 Номинации</b> — текущие номинации\n"
         . "• <b>⚖ Судьи</b> — судьи клуба (нажмите — увидите статистику)\n"
         . "• <b>🔍 Найти игрока</b> — затем пришлите имя\n"
-        . "• <b>🔔 Уведомления</b> — вкл/выкл оповещения о вечерах и результатах";
+        . "• <b>🔔 Уведомления</b> — вкл/выкл оповещения о вечерах и результатах\n"
+        . "• <b>🔑 Пароль на сайт</b> — узнать логин и сбросить пароль от личного кабинета";
 }
 
 function stats_text(string $query): string
@@ -650,6 +705,38 @@ function day_view(int $userId): array
     return [$t, $markup];
 }
 
+// ── Аккаунт на сайте: логин и сброс пароля ────────────────
+function account_view(int $userId): array
+{
+    $player = bot_player_by_tg($userId);
+    if (!$player) {
+        return ["Вы ещё не привязаны. Введите свой ник, как в таблице рейтинга — одним сообщением.",
+            menu_markup($userId)];
+    }
+    $acc = bot_site_account($player);
+    if (!$acc) {
+        $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+        $t = "🔑 <b>Аккаунт на сайте</b>\n\n"
+            . "У вашего ника <b>" . bot_esc((string)$player['nickname']) . "</b> ещё нет аккаунта на сайте — "
+            . "вы привязаны к боту, но не регистрировались.\n\n"
+            . "Зарегистрируйтесь под тем же ником, чтобы входить в личный кабинет.";
+        $markup = json_encode(['inline_keyboard' => [
+            [['text' => '🔗 Регистрация на сайте', 'url' => $base . '/login.php']],
+            [['text' => '◀ Меню', 'callback_data' => 'menu']],
+        ]], JSON_UNESCAPED_UNICODE);
+        return [$t, $markup];
+    }
+    $t = "🔑 <b>Аккаунт на сайте</b>\n\n"
+        . "Логин (ваш ник): <b>" . bot_esc((string)$acc['nickname']) . "</b>\n\n"
+        . "Забыли пароль? Нажмите «Сбросить пароль» — пришлю новый временный прямо сюда. "
+        . "После входа смените его в личном кабинете.";
+    $markup = json_encode(['inline_keyboard' => [
+        [['text' => '🔁 Сбросить пароль', 'callback_data' => 'pwreset']],
+        [['text' => '◀ Меню', 'callback_data' => 'menu']],
+    ]], JSON_UNESCAPED_UNICODE);
+    return [$t, $markup];
+}
+
 // ── Уведомления: статус и переключатель ───────────────────
 function notify_view(int $userId): array
 {
@@ -678,7 +765,7 @@ function menu_markup(int $userId = 0): string
         [['text' => '📅 Запись на игру', 'callback_data' => 'day']],
         [['text' => '🏆 Топ', 'callback_data' => 'top'], ['text' => '🎖 Номинации', 'callback_data' => 'nom']],
         [['text' => '⚖ Судьи', 'callback_data' => 'judges'], ['text' => '🔍 Найти игрока', 'callback_data' => 'find']],
-        [['text' => '🔔 Уведомления', 'callback_data' => 'notify']],
+        [['text' => '🔔 Уведомления', 'callback_data' => 'notify'], ['text' => '🔑 Пароль на сайт', 'callback_data' => 'account']],
     ];
     if ($userId && bot_is_admin($userId)) {
         $rows[] = [['text' => '🛠 Админка', 'callback_data' => 'admin']];
