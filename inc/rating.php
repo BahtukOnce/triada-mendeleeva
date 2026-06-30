@@ -395,8 +395,8 @@ function standings_from_games(array $games, array $seatsByGame): array
         $r['club_score'] = $r['avg_total'] * $r['sum'];
     }
     unset($r);
-    // Рейтинг турнира — по Σ (сумме итогов); тай-брейк по ~Σ×Σ
-    uasort($rows, fn($a, $b) => [$b['sum'], $b['club_score']] <=> [$a['sum'], $a['club_score']]);
+    // Рейтинг турнира — строго по Σ (сумме баллов за все игры); тай-брейк по Σ+ (бонусным баллам)
+    uasort($rows, fn($a, $b) => [$b['sum'], $b['sum_plus']] <=> [$a['sum'], $a['sum_plus']]);
     return $rows;
 }
 
