@@ -230,7 +230,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       </div>
       <div class="field" style="margin:0;">
         <label>ЛХ первоубиенного (3 места)</label>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;align-items:center;">
           <?php foreach (['bm1' => 'bm_seat1', 'bm2' => 'bm_seat2', 'bm3' => 'bm_seat3'] as $f => $col): ?>
           <select name="<?= $f ?>" class="f-bm" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 8px;">
             <option value="0">—</option>
@@ -239,6 +239,7 @@ page_head('Протокол — ' . $g['t_title'], '');
             <?php endfor; ?>
           </select>
           <?php endforeach; ?>
+          <span id="bm-readout" style="margin-left:4px;font-size:13px;font-weight:600;white-space:nowrap;color:var(--tx3);">—</span>
         </div>
       </div>
       <div class="field" style="margin:0;">
@@ -264,7 +265,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       </div>
       <div class="field" style="margin:0;">
         <label>Его ЛХ (3 места)</label>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;align-items:center;">
           <?php foreach (['v0bm1' => 'vote0_bm1', 'v0bm2' => 'vote0_bm2', 'v0bm3' => 'vote0_bm3'] as $f => $col): ?>
           <select name="<?= $f ?>" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 8px;">
             <option value="0">—</option>
@@ -273,6 +274,7 @@ page_head('Протокол — ' . $g['t_title'], '');
             <?php endfor; ?>
           </select>
           <?php endforeach; ?>
+          <span id="v0-readout" style="margin-left:4px;font-size:13px;font-weight:600;white-space:nowrap;color:var(--tx3);">—</span>
         </div>
       </div>
     </div>
@@ -328,6 +330,15 @@ page_head('Протокол — ' . $g['t_title'], '');
     if (given === 0) return 0;
     return { 1: 0.1, 2: 0.3, 3: 0.6 }[hits] || 0;
   }
+  // Живой индикатор у блока ЛХ: бонус + идёт ли он в зачёт (ЛХ только красным/шерифу)
+  function setReadout(elId, seatVal, bonus, role) {
+    var el = document.getElementById(elId); if (!el) return;
+    if (!seatVal || seatVal === '0') { el.textContent = '—'; el.style.color = 'var(--tx3)'; return; }
+    if (bonus <= 0) { el.textContent = 'ЛХ +0'; el.style.color = 'var(--tx3)'; return; }
+    var red = RED.indexOf(role) >= 0;
+    el.textContent = 'ЛХ +' + bonus.toFixed(1) + (red ? '' : ' · чёрный — не в зачёт');
+    el.style.color = red ? 'var(--ok)' : 'var(--ac)';
+  }
   function recompute() {
     var winner = document.getElementById('f-winner').value;
     var puSeat = document.getElementById('f-pu').value;
@@ -362,6 +373,10 @@ page_head('Протокол — ' . $g['t_title'], '');
       total -= 0.6 * bigtech;
       tr.querySelector('.f-total').textContent = Math.round(total * 100) / 100;
     });
+    // Оба ЛХ показываем одновременно — рядом со своими блоками
+    var rsR = roles();
+    setReadout('bm-readout', puSeat, puBonus, rsR[puSeat]);
+    setReadout('v0-readout', v0Seat, v0Bonus, rsR[v0Seat]);
   }
   document.getElementById('game-form').addEventListener('input', recompute);
   document.getElementById('game-form').addEventListener('change', recompute);
