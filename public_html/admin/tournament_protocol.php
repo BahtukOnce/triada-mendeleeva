@@ -317,10 +317,12 @@ page_head('Протокол — ' . $g['t_title'], '');
   // ── Живой подсчёт итога (как на вечерах) ──
   var RED = ['civ', 'sheriff'], BLACK = ['maf', 'don'];
   function roles() { var r = {}; document.querySelectorAll('tr[data-seat]').forEach(function (tr) { r[tr.dataset.seat] = tr.querySelector('.f-role').value; }); return r; }
-  function bmBonus() {
+  // Бонус ЛХ по тройке названных мест (names — имена трёх select-ов): сколько из них чёрные → 0.1/0.3/0.6
+  function lhBonus(names) {
     var rs = roles(), hits = 0, given = 0;
-    ['bm1', 'bm2', 'bm3'].forEach(function (n) {
-      var v = document.querySelector('[name=' + n + ']').value;
+    names.forEach(function (n) {
+      var el = document.querySelector('[name=' + n + ']');
+      var v = el ? el.value : '0';
       if (v !== '0') { given++; if (BLACK.indexOf(rs[v]) >= 0) hits++; }
     });
     if (given === 0) return 0;
@@ -328,8 +330,12 @@ page_head('Протокол — ' . $g['t_title'], '');
   }
   function recompute() {
     var winner = document.getElementById('f-winner').value;
-    var pu = document.getElementById('f-pu').value;
-    var bonus = bmBonus();
+    var puSeat = document.getElementById('f-pu').value;
+    var v0el = document.querySelector('[name=vote0_seat]');
+    var v0Seat = v0el ? v0el.value : '0';
+    // Два независимых ЛХ: первоубиенного ночью и заголосованного на 0-м круге — оба учитываются сразу
+    var puBonus = lhBonus(['bm1', 'bm2', 'bm3']);
+    var v0Bonus = lhBonus(['v0bm1', 'v0bm2', 'v0bm3']);
     document.querySelectorAll('tr[data-seat]').forEach(function (tr) {
       var seat = tr.dataset.seat;
       var role = tr.querySelector('.f-role').value;
@@ -338,14 +344,16 @@ page_head('Протокол — ' . $g['t_title'], '');
       var fouls = parseInt(tr.querySelector('.f-fouls').value, 10) || 0;
       var tech = parseInt(tr.querySelector('.f-tech').value, 10) || 0;
       var bigtech = parseInt((tr.querySelector('.f-bigtech') || {}).value, 10) || 0;
-      var isPu = (pu === seat);
+      var isPu = (puSeat === seat), isV0 = (v0Seat !== '0' && v0Seat === seat);
+      var lh = isPu ? puBonus : (isV0 ? v0Bonus : 0);
+      var lhCounts = (isPu || isV0) && RED.indexOf(role) >= 0 && lh > 0; // ЛХ — только красным/шерифу
       var total = 0;
       if (winner === 'draw') {
-        total = plus - minus + (isPu && bonus > 0 ? bonus : 0);
+        total = plus - minus + (lhCounts ? lh : 0);
       } else if (winner === 'red' || winner === 'black') {
         var team = winner === 'black' ? BLACK : RED;
         total = (team.indexOf(role) >= 0 ? 1 : 0) + plus - minus;
-        if (isPu && RED.indexOf(role) >= 0 && bonus > 0) total += bonus;
+        if (lhCounts) total += lh;
       } else {
         total = plus - minus;
       }
