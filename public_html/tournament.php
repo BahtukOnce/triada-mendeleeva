@@ -610,17 +610,18 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '</table></div></div>';
             continue;
         }
-        echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">+</th><th class="num">−</th><th class="num">Итог</th></tr>';
+        echo '<tr><th>#</th><th>Игрок</th><th>Роль</th><th class="num">+</th><th class="num">−</th><th class="num">ЛХ</th><th class="num">Ci</th><th class="num">Итог</th></tr>';
         foreach ($seats as $s) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
-                . (!empty($tt['lh']) ? ' <span class="tag" style="background:var(--oksf);color:var(--ok);">ЛХ +' . number_format((float)$tt['lh'], 1) . '</span>' : '')
                 . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'
                 . '<td class="num">' . ((float)$s['minus'] ? number_format((float)$s['minus'], 1) : '') . '</td>';
+            echo '<td class="num" style="color:var(--ok);">' . (!empty($tt['lh']) ? '+' . number_format((float)$tt['lh'], 1) : '') . '</td>';
+            echo '<td class="num">' . ((float)($tt['ci'] ?? 0) ? number_format((float)$tt['ci'], 2) : '') . '</td>';
             echo '<td class="num"><b>' . number_format($tt['total'], 2) . '</b></td></tr>';
         }
         echo '</table></div></div>';
