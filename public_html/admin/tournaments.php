@@ -3,8 +3,9 @@ require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require_once ROOT . '/inc/bot_lib.php';
 $u = require_judge();
 
-// Право редактировать турнир: владелец/админ — всегда; судья — только если он
-// главный судья этого турнира (его игрок == судья стола 1 == main_judge_player_id).
+// Право редактировать турнир: открыто ВСЕМ судьям и админам (страница уже под require_judge).
+// Привязка main_judge_player_id/table_judges сохраняется для отображения и как задел —
+// при желании доступ можно сузить только на назначенных судей (см. закомментированный вариант).
 $isAdmin = role_level($u['role']) >= 3;
 $myPid = 0;
 if (db_ready()) {
@@ -12,14 +13,16 @@ if (db_ready()) {
     $mp->execute([(int)$u['id']]);
     $myPid = (int)($mp->fetchColumn() ?: 0);
 }
-$canEditT = function (?array $t) use ($isAdmin, $myPid): bool {
-    if ($isAdmin) {
-        return true;
-    }
-    if (!$t) {
-        return true; // новый турнир может создать любой судья
-    }
-    return $myPid > 0 && (int)($t['main_judge_player_id'] ?? 0) === $myPid;
+$canEditT = function (?array $t): bool {
+    return true; // любой судья/админ
+    // Вариант «только назначенные судьи»:
+    // if ($GLOBALS['__isAdmin'] ?? false) return true;
+    // if (!$t) return true;
+    // $pid = (int)($GLOBALS['__myPid'] ?? 0);
+    // if ($pid < 1) return false;
+    // if ((int)($t['main_judge_player_id'] ?? 0) === $pid) return true;
+    // $tj = json_decode((string)($t['table_judges'] ?? ''), true);
+    // return is_array($tj) && in_array($pid, array_map('intval', $tj), true);
 };
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
