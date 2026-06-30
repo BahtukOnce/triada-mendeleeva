@@ -171,7 +171,7 @@ if ($standing && (!$standingsHidden || $canManageT)) {
         . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
         . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num" title="ELO на момент турнира">ELO</th>'
-        . '<th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
+        . '<th class="num" data-type="num">Σ</th><th class="num" data-type="num">~Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
         . '<th class="c-cards c-cards-first" data-type="num">Общ</th><th class="c-cards" data-type="num">Мир</th>'
@@ -188,8 +188,8 @@ if ($standing && (!$standingsHidden || $canManageT)) {
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
             . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
-        echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . number_format((float)$row['avg_total'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['sum'] . '">' . number_format((float)$row['sum'], 2) . '</td>';
+        echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . number_format((float)$row['avg_total'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['sum_plus'] . '">' . number_format((float)$row['sum_plus'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (int)$row['games'] . '">' . (int)$row['games'] . '</td>';
         echo '<td class="num" data-sort="' . (int)$row['pu_count'] . '">' . (int)$row['pu_count'] . '</td>';
