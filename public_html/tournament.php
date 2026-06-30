@@ -35,6 +35,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id) {
         db()->prepare('UPDATE tournaments SET standings_hidden = ? WHERE id = ?')->execute([$cur ? 0 : 1, $id]);
         flash_set('ok', $cur ? 'Таблица снова видна игрокам' : 'Таблица скрыта от игроков');
     }
+    // Судья пересаживает КОНКРЕТНУЮ несыгранную игру случайным образом (ручная, только по кнопке)
+    if ($act === 'reseat' && user_can_judge($cu)) {
+        $gid = (int)($_POST['game_id'] ?? 0);
+        $gq = db()->prepare("SELECT id FROM games WHERE id = ? AND tournament_id = ? AND status = 'draft'");
+        $gq->execute([$gid, $id]);
+        if ($gq->fetchColumn()) {
+            $sq = db()->prepare('SELECT player_id FROM game_seats WHERE game_id = ? ORDER BY seat');
+            $sq->execute([$gid]);
+            $pids = array_map('intval', $sq->fetchAll(PDO::FETCH_COLUMN));
+            if ($pids) {
+                shuffle($pids);
+                $pdo = db();
+                $pdo->beginTransaction();
+                $pdo->prepare('DELETE FROM game_seats WHERE game_id = ?')->execute([$gid]);
+                $insR = $pdo->prepare("INSERT INTO game_seats (game_id, seat, player_id, role) VALUES (?,?,?,'civ')");
+                foreach ($pids as $i => $pid) {
+                    $insR->execute([$gid, $i + 1, $pid]);
+                }
+                $pdo->commit();
+                flash_set('ok', 'Игра пересажена случайным образом');
+            }
+        } else {
+            flash_set('err', 'Пересадить можно только несыгранную игру этого турнира');
+        }
+    }
     redirect('/tournament.php?id=' . $id);
 }
 
@@ -594,6 +619,11 @@ foreach ($byTable as $tableNo => $tGames) {
         if ($canManageT) {
             echo ' <a class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" href="/admin/tournament_protocol.php?game=' . (int)$g['id'] . '">'
                 . ($isFin ? 'Изменить' : 'Внести результат') . '</a>';
+            if (!$isFin) {
+                echo ' <form method="post" action="/tournament.php?id=' . $id . '" style="display:inline;" onsubmit="return confirm(\'Пересадить эту игру случайным образом?\');">' . csrf_field()
+                    . '<input type="hidden" name="act" value="reseat"><input type="hidden" name="game_id" value="' . (int)$g['id'] . '">'
+                    . '<button class="btn btn-ghost" style="padding:3px 9px;font-size:12px;" type="submit">🎲 Пересадить</button></form>';
+            }
         }
         echo '</div>';
         if (!$multi && $g['judge_nick']) {
