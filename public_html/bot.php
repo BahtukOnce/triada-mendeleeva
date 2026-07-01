@@ -84,6 +84,23 @@ function bot_news_from_channel(array $post): void
         return; // пост из другого чата
     }
     $text  = trim((string)($post['text'] ?? ($post['caption'] ?? '')));
+    // Скрытые ссылки Telegram (text_link — URL спрятан под текстом) лежат в entities и не
+    // видны в самом тексте; добавим их URL в конец, чтобы они отображались в посте на сайте.
+    $ents = $post['entities'] ?? ($post['caption_entities'] ?? []);
+    if (is_array($ents)) {
+        $extra = [];
+        foreach ($ents as $e) {
+            if (($e['type'] ?? '') === 'text_link' && !empty($e['url'])) {
+                $url = trim((string)$e['url']);
+                if ($url !== '' && mb_strpos($text, $url) === false && !in_array($url, $extra, true)) {
+                    $extra[] = $url;
+                }
+            }
+        }
+        if ($extra) {
+            $text = trim($text . "\n" . implode("\n", $extra));
+        }
+    }
     $msgId = (int)($post['message_id'] ?? 0);
     if ($text === '' || !$msgId) {
         return; // нет текста или id — пропускаем
