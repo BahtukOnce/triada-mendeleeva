@@ -714,17 +714,22 @@ foreach ($byTable as $tableNo => $tGames) {
         $puSeat = (int)($g['first_killed_seat'] ?? 0);
         $chipsPu = lh_seats_colored($rbs, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0));
         if ($chipsPu !== '' && $puSeat > 0) {
-            $lhBlocks[] = ['nick' => $nickBySeat[$puSeat] ?? '', 'seat' => $puSeat, 'chips' => $chipsPu];
+            $lhBlocks[] = ['nick' => $nickBySeat[$puSeat] ?? '', 'seat' => $puSeat, 'chips' => $chipsPu,
+                'kind' => 'ПУ', 'kindTitle' => 'первоубиенный ночью', 'kindBg' => 'rgba(232,51,42,.7)'];
         }
         $v0Seat = (int)($g['vote0_seat'] ?? 0);
         $chipsV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
         if ($chipsV0 !== '' && $v0Seat > 0) {
-            $lhBlocks[] = ['nick' => $nickBySeat[$v0Seat] ?? '', 'seat' => $v0Seat, 'chips' => $chipsV0];
+            $lhBlocks[] = ['nick' => $nickBySeat[$v0Seat] ?? '', 'seat' => $v0Seat, 'chips' => $chipsV0,
+                'kind' => 'заголосован', 'kindTitle' => 'заголосован на 0-м круге', 'kindBg' => 'rgba(120,110,220,.7)'];
         }
         $lhBlockHtml = function (array $b): string {
             return '<div style="background:var(--sf2);border-radius:8px;padding:8px 10px;margin-top:8px;">'
                 . '<div style="color:var(--tx3);font-size:11px;margin-bottom:6px;">🌟 ЛХ <b style="color:var(--tx);">'
-                . esc($b['nick']) . '</b> · место ' . (int)$b['seat'] . '</div>'
+                . esc($b['nick']) . '</b> · место ' . (int)$b['seat']
+                . ' <span title="' . esc($b['kindTitle']) . '" style="display:inline-block;font-size:10px;font-weight:700;'
+                . 'padding:2px 6px;border-radius:5px;background:' . $b['kindBg'] . ';color:#fff;margin-left:4px;vertical-align:middle;">'
+                . $b['kind'] . '</span></div>'
                 . '<div style="display:flex;gap:5px;flex-wrap:wrap;">' . $b['chips'] . '</div></div>';
         };
         if (!$multi) {
