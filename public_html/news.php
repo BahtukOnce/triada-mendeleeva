@@ -190,7 +190,7 @@ if ($list) {
         $imgs = $imgsOf($n);
         $cover = $imgs[0] ?? '';
         echo '<a class="ncard" href="/news.php?id=' . (int)$n['id'] . '" data-id="' . (int)$n['id'] . '">';
-        echo '<span class="ncard-cover">';
+        echo '<span class="ncard-cover"' . ($cover !== '' ? ' style="--cover:url(\'' . esc($cover) . '\')"' : '') . '>';
         if ($cover !== '') {
             echo '<img class="ncard-img" src="' . esc($cover) . '" alt="" loading="lazy">';
         } else {

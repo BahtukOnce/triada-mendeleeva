@@ -336,16 +336,18 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 .ncard { display: flex; flex-direction: column; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; overflow: hidden; text-decoration: none; transition: border-color .15s ease, transform .1s ease; }
 .ncard:hover { border-color: var(--ac); }
 .ncard:active { transform: scale(0.995); }
-.ncard .ncard-img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; background: var(--sf2); }
-.ncard .ncard-noimg { width: 100%; aspect-ratio: 16 / 10; background: linear-gradient(135deg, var(--sf2), var(--bg)); display: flex; align-items: center; justify-content: center; color: var(--ac); opacity: .65; }
+.ncard .ncard-img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: contain; display: block; }
+.ncard .ncard-noimg { width: 100%; height: 100%; background: linear-gradient(135deg, var(--sf2), var(--bg)); display: flex; align-items: center; justify-content: center; color: var(--ac); opacity: .65; }
 .ncard .ncard-body { padding: 14px 16px 15px; display: flex; flex-direction: column; flex: 1; }
 .ncard .ncard-ttl { font-size: 16px; line-height: 1.36; font-weight: 600; color: var(--tx); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .ncard .ncard-meta { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ncard .ncard-date { font-size: 12.5px; color: var(--tx2); }
 .ncard .ncard-more { font-size: 13px; color: var(--ac); white-space: nowrap; }
 @media (max-width: 680px) { .news-cards { grid-template-columns: 1fr; } }
-.ncard-cover { position: relative; display: block; }
-.ncard-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.ncard-cover { position: relative; display: block; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; background: var(--sf2); }
+/* размытый фон из того же фото (как в Telegram), само фото сверху целиком (contain) */
+.ncard-cover::before { content: ""; position: absolute; inset: 0; background: var(--cover, none) center / cover no-repeat; filter: blur(22px) brightness(.5); transform: scale(1.25); }
+.ncard-play { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .ncard-play::before { content: ""; width: 0; height: 0; border-top: 9px solid transparent; border-bottom: 9px solid transparent; border-left: 14px solid #fff; margin-left: 3px; }
 .post-tgvideo { display: inline-flex; align-items: center; gap: 11px; margin: 8px 0 2px; padding: 9px 16px 9px 9px; border-radius: 12px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx); font-weight: 600; text-decoration: none; transition: background .15s ease, border-color .15s ease; }
 .post-tgvideo:hover { background: var(--sf); border-color: var(--ac); color: var(--tx); }
