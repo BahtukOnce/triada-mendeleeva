@@ -428,10 +428,13 @@ function render_player_stats(int $id, bool $own = false): void
         $eloNote = $season !== 'all'
             ? '<div style="font-size:11.5px;color:var(--tx3);margin:-4px 0 8px;">за всю историю — ELO по сезонам не делится</div>'
             : '';
-        echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Динамика ELO · сейчас ' . $elo
+        echo '<div class="card"><div class="section-head" style="margin-bottom:4px;">'
+            . '<h2 style="margin:0;font-size:15px;">Динамика ELO · сейчас ' . $elo
             . ' <span style="color:var(--ac);font-size:13px;">· ' . esc(elo_tier_name((float)$elo)) . '</span></h2>'
+            . '<button type="button" id="elo-zoom-reset" class="btn btn-ghost" style="display:none;padding:3px 9px;font-size:11.5px;">⟲ сброс</button></div>'
             . $eloNote
-            . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div></div>';
+            . '<div style="position:relative;height:210px;"><canvas id="ch-elo"></canvas></div>'
+            . '<div id="elo-zoom-hint" style="display:none;font-size:11px;color:var(--tx3);margin-top:6px;">колёсико мыши — зум · потянуть — прокрутка по времени · на телефоне — пинч</div></div>';
         echo '<div class="card"><h2 style="margin-top:0;font-size:15px;">Исходы игр</h2>'
             . '<div style="position:relative;height:210px;"><canvas id="ch-results"></canvas></div></div>';
         echo '</div>';
@@ -740,11 +743,15 @@ function render_player_stats(int $id, bool $own = false): void
         // ── Chart.js: ELO с уровнями + исходы по командам ──
         echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>';
         echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>';
+        echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>';
+        echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>';
         $js = <<<JS
 <script>(function(){
 var D = $chartData;
 if (typeof Chart === 'undefined') return;
 if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+var _zoomPlugin = window.ChartZoom || window['chartjs-plugin-zoom'];
+if (_zoomPlugin) { try { Chart.register(_zoomPlugin); } catch(e){} }
 Chart.defaults.set('plugins.datalabels', {display:false});
 var pctLabel={display:true,color:'#fff',font:{weight:'600',size:11},formatter:function(v,ctx){var s=ctx.dataset.data.reduce(function(a,b){return a+(+b||0);},0);return s&&v?Math.round(v/s*100)+'%':'';}};
 var grid='rgba(255,255,255,0.08)', tx='#9c9ca6', red='#e8332a';
@@ -798,17 +805,21 @@ var eloMax=Math.max.apply(null,D.elo), eloNextTier=null;
 for(var ti=0;ti<TIERS.length;ti++){ if(TIERS[ti].v>eloMax){ eloNextTier=TIERS[ti].v; break; } }
 var topTierV=TIERS[TIERS.length-1].v;
 var eloSMax=eloNextTier?(eloNextTier+180):Math.max(eloMax+120,topTierV+260);
-new Chart(document.getElementById('ch-elo'),{type:'line',
+var eloResetBtn=document.getElementById('elo-zoom-reset');
+function zoomActive(){if(eloResetBtn)eloResetBtn.style.display='inline-block';}
+var eloChart=new Chart(document.getElementById('ch-elo'),{type:'line',
   data:{labels:D.eloDates,
     datasets:[{data:D.elo,borderColor:red,backgroundColor:'rgba(232,51,42,0.10)',fill:true,tension:0.25,pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:red,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2}]},
   options:{interaction:{intersect:false,mode:'index',axis:'x'},
     onClick:function(e,els){if(els&&els.length){var u=D.eloLinks[els[0].index];if(u){location.href=u;}}},
     onHover:function(e,els){if(e.native&&e.native.target){e.native.target.style.cursor=(els&&els.length&&D.eloLinks[els[0].index])?'pointer':'default';}},
-    plugins:{legend:{display:false},tooltip:{animation:false,displayColors:false,callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
+    plugins:{zoom:{pan:{enabled:true,mode:'x',onPan:zoomActive},zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',onZoom:zoomActive},limits:{x:{minRange:4}}},legend:{display:false},tooltip:{animation:false,displayColors:false,callbacks:{title:function(items){return items&&items[0]?items[0].label:'';},
     label:function(c){var i=c.dataIndex,L=['ELO '+Math.round(c.parsed.y)+' · '+tierName(c.parsed.y)];
       if(i>0){var dl=Math.round(c.parsed.y-D.elo[i-1]);L.push((dl>0?'▲ +':(dl<0?'▼ ':'')) + dl + ' с прошлой игры');}else{L.push('старт');}return L;}}}},
     scales:{x:{display:true,grid:{display:false},ticks:{color:tx,font:{size:10},maxTicksLimit:6,autoSkip:true,maxRotation:0}},y:{min:800,max:eloSMax,grid:{display:false},afterBuildTicks:function(s){s.ticks=TIERS.filter(function(t){return t.v>=s.min&&t.v<=s.max;}).map(function(t){return {value:t.v};});}}},maintainAspectRatio:false},
   plugins:[tierBands,startLine]});
+if(eloResetBtn)eloResetBtn.addEventListener('click',function(){eloChart.resetZoom();eloResetBtn.style.display='none';});
+var eloHint=document.getElementById('elo-zoom-hint');if(eloHint&&D.elo.length>=25)eloHint.style.display='block';
 new Chart(document.getElementById('ch-results'),{type:'doughnut',
   data:{labels:['Победа красным','Победа чёрным','Поражение красным','Поражение чёрным','Ничья'],
     datasets:[{data:D.outcomes,backgroundColor:['#2fa45c','#1f7a45','#e8332a','#8c2420','#888'],borderWidth:0}]},
