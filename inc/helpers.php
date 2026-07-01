@@ -535,32 +535,48 @@ function player_mention_index(): array
     if ($cache !== null) {
         return $cache;
     }
-    $map = [];
+    $map = [];      // строчный ник => id (точное совпадение)
+    $stemMap = [];  // строчная основа => id (для склоняемых длинных ников)
     $names = [];
     if (db_ready()) {
         try {
             foreach (db()->query('SELECT id, nickname FROM players') as $p) {
                 $nick = trim((string)$p['nickname']);
-                if (mb_strlen($nick) < 4) {
-                    continue; // слишком короткие ники не трогаем (шум)
+                if (mb_strlen($nick) < 3) {
+                    continue; // 1–2 символа — шум
                 }
                 $low = mb_strtolower($nick);
                 if (isset($map[$low])) {
                     continue;
                 }
                 $map[$low] = (int)$p['id'];
-                $names[] = $nick;
+                $names[] = ['nick' => $nick, 'id' => (int)$p['id']];
             }
         } catch (Throwable $e) {
         }
     }
-    usort($names, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a)); // длинные ники — раньше
-    $regex = '';
-    if ($names) {
-        $alt = implode('|', array_map(fn($n) => preg_quote($n, '~'), $names));
-        $regex = '~(?<![\p{L}\p{N}_])(' . $alt . ')(?![\p{L}\p{N}_])~u';
+    usort($names, fn($a, $b) => mb_strlen($b['nick']) <=> mb_strlen($a['nick'])); // длинные ники — раньше
+    $endings = 'аяуюыиеёойь'; // падежные окончания
+    $pats = [];
+    foreach ($names as $n) {
+        $nick = $n['nick'];
+        // Склонение: длинные (≥5) ники на гласную/ь/й матчим по основе + окончание (Улитка→Улитку/Улитки).
+        if (mb_strlen($nick) >= 5 && mb_strpos('аяьйое', mb_strtolower(mb_substr($nick, -1))) !== false) {
+            $stem = mb_substr($nick, 0, -1);
+            if (mb_strlen($stem) >= 4) {
+                $stemMap[mb_strtolower($stem)] = $n['id'];
+                $pats[] = preg_quote($stem, '~') . '[' . $endings . ']{0,2}';
+                continue;
+            }
+        }
+        $pats[] = preg_quote($nick, '~');
     }
-    $cache = [$regex, $map];
+    $regex = '';
+    if ($pats) {
+        // ui: регистронезависимо (s1lence↔S1lence); границы слова — по буквам/цифрам
+        $regex = '~(?<![\p{L}\p{N}_])(' . implode('|', $pats) . ')(?![\p{L}\p{N}_])~ui';
+    }
+    $cache = [$regex, $map, $stemMap];
     return $cache;
 }
 
@@ -612,7 +628,7 @@ function render_post_body(?string $raw): string
     if ($raw === '') {
         return '';
     }
-    [$regex, $map] = player_mention_index();
+    [$regex, $map, $stemMap] = player_mention_index();
     $parts = preg_split('~(https?://[^\s<]+)~u', $raw, -1, PREG_SPLIT_DELIM_CAPTURE);
     $out = '';
     foreach ($parts as $i => $part) {
@@ -629,9 +645,23 @@ function render_post_body(?string $raw): string
         } else {
             $esc = esc($part);
             if ($regex !== '') {
-                $esc = preg_replace_callback($regex, function ($m) use ($map) {
-                    $id = $map[mb_strtolower($m[1])] ?? 0;
-                    return $id ? '<a class="pl-mention" href="/player.php?id=' . $id . '">' . $m[1] . '</a>' : $m[1];
+                $esc = preg_replace_callback($regex, function ($m) use ($map, $stemMap) {
+                    $low = mb_strtolower($m[1]);
+                    $id = $map[$low] ?? 0;
+                    if (!$id) { // склонённая форма → ищем по основе (снимаем 1–2 буквы окончания)
+                        for ($k = 1; $k <= 2 && !$id; $k++) {
+                            $id = $stemMap[mb_substr($low, 0, -$k)] ?? 0;
+                        }
+                    }
+                    if (!$id) {
+                        return $m[1];
+                    }
+                    // линкуем только совпадения с заглавной буквы — имя игрока, а не обычное слово
+                    $first = mb_substr($m[1], 0, 1);
+                    if (mb_strtolower($first) === $first) {
+                        return $m[1];
+                    }
+                    return '<a class="pl-mention" href="/player.php?id=' . $id . '">' . $m[1] . '</a>';
                 }, $esc);
             }
             $out .= tg_emojify($esc);
