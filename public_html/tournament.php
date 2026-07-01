@@ -704,16 +704,38 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<td class="num"><b>' . number_format($tt['total'], 2) . '</b></td></tr>';
         }
         echo '</table></div>';
+        // ЛХ: кто сделал (ник + место) и раскрашенные номера названных мест
+        $rbs = []; $nickBySeat = [];
+        foreach ($seats as $s2) {
+            $rbs[(int)$s2['seat']] = $s2['role'];
+            $nickBySeat[(int)$s2['seat']] = (string)$s2['nickname'];
+        }
+        $lhBlocks = [];
+        $puSeat = (int)($g['first_killed_seat'] ?? 0);
+        $chipsPu = lh_seats_colored($rbs, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0));
+        if ($chipsPu !== '' && $puSeat > 0) {
+            $lhBlocks[] = ['nick' => $nickBySeat[$puSeat] ?? '', 'seat' => $puSeat, 'chips' => $chipsPu];
+        }
+        $v0Seat = (int)($g['vote0_seat'] ?? 0);
+        $chipsV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
+        if ($chipsV0 !== '' && $v0Seat > 0) {
+            $lhBlocks[] = ['nick' => $nickBySeat[$v0Seat] ?? '', 'seat' => $v0Seat, 'chips' => $chipsV0];
+        }
+        $lhBlockHtml = function (array $b): string {
+            return '<div style="background:var(--sf2);border-radius:8px;padding:8px 10px;margin-top:8px;">'
+                . '<div style="color:var(--tx3);font-size:11px;margin-bottom:6px;">🌟 ЛХ <b style="color:var(--tx);">'
+                . esc($b['nick']) . '</b> · место ' . (int)$b['seat'] . '</div>'
+                . '<div style="display:flex;gap:5px;flex-wrap:wrap;">' . $b['chips'] . '</div></div>';
+        };
         if (!$multi) {
             // Сводка по игре
-            $redSum = $blackSum = 0.0; $mvpNick = ''; $mvpVal = null; $puNick = ''; $lhList = [];
+            $redSum = $blackSum = 0.0; $mvpNick = ''; $mvpVal = null; $puNick = '';
             foreach ($seats as $s) {
                 $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false, 'lh' => 0];
                 $tot = (float)$tt['total'];
                 if (in_array($s['role'], ['civ', 'sheriff'], true)) { $redSum += $tot; } else { $blackSum += $tot; }
                 if ($mvpVal === null || $tot > $mvpVal) { $mvpVal = $tot; $mvpNick = (string)$s['nickname']; }
                 if (!empty($tt['is_pu'])) { $puNick = (string)$s['nickname']; }
-                if (!empty($tt['lh'])) { $lhList[] = ['nick' => (string)$s['nickname'], 'v' => (float)$tt['lh']]; }
             }
             echo '<div style="flex:1;min-width:220px;">';
             if (isset($wmap[$g['winner']])) {
@@ -725,27 +747,13 @@ foreach ($byTable as $tableNo => $tGames) {
             echo $mini('⚫ Итог чёрных', number_format($blackSum, 1));
             if ($mvpNick !== '') { echo $mini('⭐ Лучший', esc($mvpNick) . ' · ' . number_format((float)$mvpVal, 2), 'var(--ok)'); }
             if ($puNick !== '') { echo $mini('🔪 Первоубитый', esc($puNick)); }
-            foreach ($lhList as $lh) { echo $mini('🌟 ЛХ', esc($lh['nick']) . ' +' . number_format($lh['v'], 1), 'var(--ok)'); }
             echo '</div>'; // grid
+            foreach ($lhBlocks as $b) { echo $lhBlockHtml($b); } // ЛХ — в панель, подписью по нику/месту
             echo '</div>'; // stats-col
             echo '</div>'; // flex-row
-        }
-        // ЛХ: раскрашенные номера названных мест (красный чип — место за красных, тёмный — за чёрных)
-        $rbs = [];
-        foreach ($seats as $s2) {
-            $rbs[(int)$s2['seat']] = $s2['role'];
-        }
-        $lhLines = [];
-        $lhPu = lh_seats_colored($rbs, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0));
-        if ($lhPu !== '') {
-            $lhLines[] = 'ЛХ ПУ: ' . $lhPu;
-        }
-        $lhV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
-        if ($lhV0 !== '') {
-            $lhLines[] = 'ЛХ заголос.: ' . $lhV0;
-        }
-        if ($lhLines) {
-            echo '<p style="color:var(--tx2);font-size:12px;margin:10px 0 0;line-height:2;">' . implode(' &nbsp;·&nbsp; ', $lhLines) . '</p>';
+        } elseif ($lhBlocks) {
+            // многостольный вид — боковой панели нет, показываем ЛХ под таблицей
+            foreach ($lhBlocks as $b) { echo $lhBlockHtml($b); }
         }
         echo '</div>'; // card
     }
