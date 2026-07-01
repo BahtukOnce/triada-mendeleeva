@@ -152,6 +152,55 @@ function role_dot(string $role): string
     return '<span class="hist-dot" style="background:' . role_color($role) . ';"></span>';
 }
 
+// Компактные бейджи штрафов игрока в протоколе игры (удаление, 4 фола, тех.фолы, бол.тех).
+// Работают со строкой game_seats ($s).
+function penalty_badges(array $s): string
+{
+    $chip = function (string $txt, string $bg, string $bd): string {
+        return ' <span style="display:inline-block;font-size:10px;font-weight:700;line-height:1;padding:2px 5px;'
+            . 'border-radius:5px;background:' . $bg . ';color:#fff;border:1px solid ' . $bd . ';vertical-align:middle;white-space:nowrap;">'
+            . $txt . '</span>';
+    };
+    $out = '';
+    $rem = (int)($s['removal'] ?? 0);
+    if ($rem === 2) {
+        $out .= $chip('удал! −1.2', 'rgba(232,51,42,.85)', 'var(--ac)');
+    } elseif ($rem === 1) {
+        $out .= $chip('удал −0.6', 'rgba(232,51,42,.6)', 'var(--ac)');
+    }
+    if ((int)($s['fouls'] ?? 0) >= 4) {
+        $out .= $chip('4 фола −0.6', 'rgba(232,51,42,.32)', 'rgba(232,51,42,.5)');
+    }
+    $tech = (int)($s['tech_fouls'] ?? 0);
+    if ($tech > 0) {
+        $out .= $chip('тех ×' . $tech, 'rgba(140,140,150,.3)', 'rgba(140,140,150,.5)');
+    }
+    $big = (int)($s['big_tech'] ?? 0);
+    if ($big > 0) {
+        $out .= $chip('бол.тех ×' . $big, 'rgba(140,140,150,.5)', 'rgba(140,140,150,.65)');
+    }
+    return $out;
+}
+
+// Номера мест, названных в ЛХ, чипами: красный чип — место было за красных, тёмный — за чёрных.
+// $rolesBySeat: [seat => role]. Возвращает '' если ни одного места не названо.
+function lh_seats_colored(array $rolesBySeat, int $s1, int $s2, int $s3): string
+{
+    $parts = [];
+    foreach ([$s1, $s2, $s3] as $n) {
+        if ($n < 1) {
+            continue;
+        }
+        $isBlack = in_array($rolesBySeat[$n] ?? '', ['maf', 'don'], true);
+        $bg = $isBlack ? '#17171d' : 'rgba(232,51,42,.85)';
+        $bd = $isBlack ? '#43434d' : 'var(--ac)';
+        $tc = $isBlack ? '#e8e8ee' : '#fff';
+        $parts[] = '<span style="display:inline-block;min-width:18px;text-align:center;font-weight:700;font-size:12px;'
+            . 'padding:1px 5px;border-radius:5px;background:' . $bg . ';border:1px solid ' . $bd . ';color:' . $tc . ';">' . $n . '</span>';
+    }
+    return implode(' ', $parts);
+}
+
 // Медаль за место (1–3) или само место
 function rank_medal(int $pos): string
 {

@@ -280,22 +280,30 @@ if ($games) {
             echo '<tr' . ($isMe ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')
-                . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . ($isMe ? me_badge() : '') . '</td>'
+                . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . penalty_badges($s) . ($isMe ? me_badge() : '') . '</td>'
                 . '<td style="white-space:nowrap;">' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
                 . '<td class="num" style="font-size:11.5px;">' . $edHtml . '</td></tr>';
         }
         echo '</table>';
-        $bm = array_filter([(int)$g['bm_seat1'], (int)$g['bm_seat2'], (int)$g['bm_seat3']]);
+        $rbs = [];
+        foreach ($seats as $s2) {
+            $rbs[(int)$s2['seat']] = $s2['role'];
+        }
         $meta = [];
         if ($g['first_killed_seat']) {
-            $meta[] = 'ПУ: ' . (int)$g['first_killed_seat'];
+            $meta[] = 'ПУ: место ' . (int)$g['first_killed_seat'];
         }
-        if ($bm) {
-            $meta[] = 'ЛХ: ' . implode(', ', $bm);
+        $lhPu = lh_seats_colored($rbs, (int)$g['bm_seat1'], (int)$g['bm_seat2'], (int)$g['bm_seat3']);
+        if ($lhPu !== '') {
+            $meta[] = 'ЛХ ПУ: ' . $lhPu;
+        }
+        $lhV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
+        if ($lhV0 !== '') {
+            $meta[] = 'ЛХ заголос.: ' . $lhV0;
         }
         if ($meta) {
-            echo '<p style="color:var(--tx2);font-size:12px;margin:8px 0 0;">' . implode(' · ', $meta) . '</p>';
+            echo '<p style="color:var(--tx2);font-size:12px;margin:8px 0 0;line-height:2;">' . implode(' &nbsp;·&nbsp; ', $meta) . '</p>';
         }
         echo '</div>';
     }

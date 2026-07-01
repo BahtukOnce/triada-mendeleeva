@@ -70,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'fouls' => max(0, min(4, (int)($_POST["fouls$i"] ?? 0))),
                 'tech_fouls' => max(0, min(2, (int)($_POST["tech$i"] ?? 0))),
                 'big_tech' => max(0, min(2, (int)($_POST["bigtech$i"] ?? 0))),
+                'removal' => max(0, min(2, (int)($_POST["removal$i"] ?? 0))),
                 'plus' => max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0'))),
                 'minus' => max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0'))),
                 'out_order' => (int)($_POST["out$i"] ?? 0) ?: null,
@@ -120,11 +121,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $gid = (int)$pdo->lastInsertId();
         }
         $insS = $pdo->prepare('INSERT INTO game_seats
-            (game_id, seat, player_id, role, fouls, tech_fouls, big_tech, plus, minus, out_order)
-            VALUES (?,?,?,?,?,?,?,?,?,?)');
+            (game_id, seat, player_id, role, fouls, tech_fouls, big_tech, removal, plus, minus, out_order)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         foreach ($seats as $seat => $s) {
             $insS->execute([$gid, $seat, $s['player_id'], $s['role'], $s['fouls'],
-                $s['tech_fouls'], $s['big_tech'], $s['plus'], $s['minus'], $s['out_order']]);
+                $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $s['out_order']]);
         }
         $pdo->commit();
 
@@ -228,6 +229,7 @@ page_head('Ведение игры — ' . $day['title'], '');
       <table class="tbl protocol-tbl">
         <tr>
           <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2">Бол.<br>тех</th>
+          <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th>+</th><th>−</th><th class="num">Итог</th><th>Выб.</th>
         </tr>
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
@@ -251,6 +253,11 @@ page_head('Ведение игры — ' . $day['title'], '');
           <td><select name="bigtech<?= $i ?>" class="f-bigtech"><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['big_tech'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
+          <td><select name="removal<?= $i ?>" class="f-removal" title="удаление / на критический круг">
+            <option value="0" <?= (int)($es['removal'] ?? 0) === 0 ? 'selected' : '' ?>>—</option>
+            <option value="1" <?= (int)($es['removal'] ?? 0) === 1 ? 'selected' : '' ?>>уд</option>
+            <option value="2" <?= (int)($es['removal'] ?? 0) === 2 ? 'selected' : '' ?>>уд!</option>
+          </select></td>
           <td><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal"
               value="<?= $es && (float)$es['plus'] ? rtrim(rtrim(number_format((float)$es['plus'], 1, '.', ''), '0'), '.') : '' ?>" style="width:42px;"></td>
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
@@ -398,6 +405,7 @@ page_head('Ведение игры — ' . $day['title'], '');
       var fouls = parseInt(tr.querySelector('.f-fouls').value, 10) || 0;
       var tech = parseInt(tr.querySelector('.f-tech').value, 10) || 0;
       var bigtech = parseInt((tr.querySelector('.f-bigtech') || {}).value, 10) || 0;
+      var removal = parseInt((tr.querySelector('.f-removal') || {}).value, 10) || 0;
       var isPu = (pu === seat);
       var total = 0;
       if (winner === 'draw') {
@@ -412,6 +420,7 @@ page_head('Ведение игры — ' . $day['title'], '');
       if (fouls >= 4) total -= 0.6;
       total -= 0.3 * tech;
       total -= 0.6 * bigtech;
+      if (removal === 1) total -= 0.6; else if (removal === 2) total -= 1.2;
       var nick = tr.querySelector('[name=nick' + seat + ']').value.trim();
       tr.querySelector('.f-total').textContent = nick ? (Math.round(total * 100) / 100) : '0';
     });

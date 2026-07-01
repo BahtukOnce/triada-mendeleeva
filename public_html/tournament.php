@@ -693,6 +693,7 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<tr' . ($isMeSeat ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
+                . penalty_badges($s)
                 . ($isMeSeat ? me_badge() : '')
                 . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
@@ -728,6 +729,23 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '</div>'; // grid
             echo '</div>'; // stats-col
             echo '</div>'; // flex-row
+        }
+        // ЛХ: раскрашенные номера названных мест (красный чип — место за красных, тёмный — за чёрных)
+        $rbs = [];
+        foreach ($seats as $s2) {
+            $rbs[(int)$s2['seat']] = $s2['role'];
+        }
+        $lhLines = [];
+        $lhPu = lh_seats_colored($rbs, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0));
+        if ($lhPu !== '') {
+            $lhLines[] = 'ЛХ ПУ: ' . $lhPu;
+        }
+        $lhV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
+        if ($lhV0 !== '') {
+            $lhLines[] = 'ЛХ заголос.: ' . $lhV0;
+        }
+        if ($lhLines) {
+            echo '<p style="color:var(--tx2);font-size:12px;margin:10px 0 0;line-height:2;">' . implode(' &nbsp;·&nbsp; ', $lhLines) . '</p>';
         }
         echo '</div>'; // card
     }

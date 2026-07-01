@@ -86,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'fouls' => max(0, min(4, (int)($_POST["fouls$i"] ?? 0))),
                 'tech_fouls' => max(0, min(2, (int)($_POST["tech$i"] ?? 0))),
                 'big_tech' => max(0, min(2, (int)($_POST["bigtech$i"] ?? 0))),
+                'removal' => max(0, min(2, (int)($_POST["removal$i"] ?? 0))),
                 'plus' => max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0'))),
                 'minus' => max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0'))),
             ];
@@ -109,10 +110,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
                 $vote0, $v0bm[0], $v0bm[1], $v0bm[2],
                 trim((string)($_POST['comment'] ?? '')) ?: null, $gid]);
-        $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, plus=?, minus=?
+        $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, removal=?, plus=?, minus=?
             WHERE game_id=? AND seat=?');
         foreach ($upd as $seat => $s) {
-            $us->execute([$s['role'], $s['fouls'], $s['tech_fouls'], $s['big_tech'], $s['plus'], $s['minus'], $gid, $seat]);
+            $us->execute([$s['role'], $s['fouls'], $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $gid, $seat]);
         }
         $pdo->commit();
 
@@ -178,6 +179,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       <table class="tbl protocol-tbl">
         <tr>
           <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2">Бол.<br>тех</th>
+          <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th>+</th><th>−</th><th class="num">Итог</th>
         </tr>
         <?php foreach ($seats as $es): $i = (int)$es['seat']; ?>
@@ -200,6 +202,11 @@ page_head('Протокол — ' . $g['t_title'], '');
           <td><select name="bigtech<?= $i ?>" class="f-bigtech"><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['big_tech'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
+          <td><select name="removal<?= $i ?>" class="f-removal" title="удаление / на критический круг">
+            <option value="0" <?= (int)($es['removal'] ?? 0) === 0 ? 'selected' : '' ?>>—</option>
+            <option value="1" <?= (int)($es['removal'] ?? 0) === 1 ? 'selected' : '' ?>>уд</option>
+            <option value="2" <?= (int)($es['removal'] ?? 0) === 2 ? 'selected' : '' ?>>уд!</option>
+          </select></td>
           <td><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal"
               value="<?= (float)$es['plus'] ? rtrim(rtrim(number_format((float)$es['plus'], 2, '.', ''), '0'), '.') : '' ?>" style="width:46px;"></td>
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
@@ -355,6 +362,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       var fouls = parseInt(tr.querySelector('.f-fouls').value, 10) || 0;
       var tech = parseInt(tr.querySelector('.f-tech').value, 10) || 0;
       var bigtech = parseInt((tr.querySelector('.f-bigtech') || {}).value, 10) || 0;
+      var removal = parseInt((tr.querySelector('.f-removal') || {}).value, 10) || 0;
       var isPu = (puSeat === seat), isV0 = (v0Seat !== '0' && v0Seat === seat);
       var lh = isPu ? puBonus : (isV0 ? v0Bonus : 0);
       var lhCounts = (isPu || isV0) && RED.indexOf(role) >= 0 && lh > 0; // ЛХ — только красным/шерифу
@@ -371,6 +379,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       if (fouls >= 4) total -= 0.6;
       total -= 0.3 * tech;
       total -= 0.6 * bigtech;
+      if (removal === 1) total -= 0.6; else if (removal === 2) total -= 1.2;
       tr.querySelector('.f-total').textContent = Math.round(total * 100) / 100;
     });
     // Оба ЛХ показываем одновременно — рядом со своими блоками

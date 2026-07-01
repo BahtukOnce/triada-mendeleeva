@@ -80,6 +80,12 @@ function seat_total(array $seat, ?string $winner, bool $isPu, float $bmBonus, fl
     }
     $total -= 0.3 * (int)$seat['tech_fouls'];
     $total -= 0.6 * (int)($seat['big_tech'] ?? 0); // большой тех.фол: −0.6 каждый (макс 2)
+    $rem = (int)($seat['removal'] ?? 0);
+    if ($rem === 1) {
+        $total -= 0.6; // удаление
+    } elseif ($rem === 2) {
+        $total -= 1.2; // удаление на критический круг
+    }
     return $total;
 }
 
@@ -170,7 +176,8 @@ function rating_recompute(int $ratingId): void
             $a['minus_sum'] += (float)$s['minus']
                 + ((int)$s['fouls'] >= 4 ? 0.6 : 0)
                 + 0.3 * (int)$s['tech_fouls']
-                + 0.6 * (int)($s['big_tech'] ?? 0);
+                + 0.6 * (int)($s['big_tech'] ?? 0)
+                + ((int)($s['removal'] ?? 0) === 1 ? 0.6 : ((int)($s['removal'] ?? 0) === 2 ? 1.2 : 0));
             $a['tech_count'] += (int)$s['tech_fouls'];
             $a['ci_sum'] += $ci;
             if ($isPu && $isRed) {
