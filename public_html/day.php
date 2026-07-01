@@ -146,6 +146,10 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
     echo '</div>';
 }
 
+// «Вы» для подсветки своей строки/места в рейтинге вечера и протоколах
+$mp = current_player();
+$mePid = $mp ? (int)$mp['id'] : 0;
+
 // ── Рейтинг вечера ──
 if ($games) {
     $standing = [];
@@ -197,12 +201,13 @@ if ($games) {
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
-        echo '<tr' . ($pos <= 3 ? ' class="rt-top"' : '') . '>'
+        $isMe = $mePid && (int)$pid === $mePid;
+        echo '<tr' . ($pos <= 3 ? ' class="rt-top"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>'
             . '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>'
             . '<td><a href="/player.php?id=' . $pid . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 24, 'margin-right:7px;')
             . '<span style="vertical-align:middle;">' . esc($row['nick'])
-            . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a></td>'
+            . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a>' . ($isMe ? me_badge() : '') . '</td>'
             . '<td class="num" data-sort="' . $row['games'] . '">' . $row['games'] . '</td>'
             . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td>'
             . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td>'
@@ -271,10 +276,11 @@ if ($games) {
                     ? '<span style="color:var(--ok);">+' . number_format($ed, 1) . '</span>'
                     : '<span style="color:var(--ac);">' . number_format($ed, 1) . '</span>';
             }
-            echo '<tr><td>' . (int)$s['seat'] . '</td>'
+            $isMe = $mePid && (int)$s['player_id'] === $mePid;
+            echo '<tr' . ($isMe ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')
-                . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
+                . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . ($isMe ? me_badge() : '') . '</td>'
                 . '<td style="white-space:nowrap;">' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
                 . '<td class="num" style="font-size:11.5px;">' . $edHtml . '</td></tr>';

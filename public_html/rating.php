@@ -148,16 +148,19 @@ if ($rows) {
         . '<th class="c-cards c-cards-first" data-type="num">Общ</th><th class="c-cards" data-type="num">Мир</th>'
         . '<th class="c-cards" data-type="num">Маф</th><th class="c-cards" data-type="num">Шер</th><th class="c-cards" data-type="num">Дон</th>'
         . '</tr></thead><tbody>';
+    $mp = current_player();
+    $mePid = $mp ? (int)$mp['id'] : 0;
     $pos = 0;
     foreach ($rows as $row) {
         $pos++;
         $w = $row['w_civ'] + $row['w_maf'] + $row['w_sher'] + $row['w_don'];
         $medal = $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : ''));
-        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . '>';
+        $isMe = $mePid && (int)$row['player_id'] === $mePid;
+        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
         echo '<td data-sort="' . $pos . '">' . ($medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nickname']) . casper_ghost($row['nickname']) . '</span></a></td>';
+            . '<span>' . esc($row['nickname']) . casper_ghost($row['nickname']) . '</span></a>' . ($isMe ? me_badge() : '') . '</td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num c-club" data-sort="' . (float)$row['club_score'] . '"><b>' . ($row['club_score'] !== null ? number_format((float)$row['club_score'], 2) : '—') . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . ($row['avg_total'] !== null ? number_format((float)$row['avg_total'], 2) : '—') . '</td>';

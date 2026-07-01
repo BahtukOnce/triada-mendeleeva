@@ -211,16 +211,19 @@ if ($standing && (!$standingsHidden || $canManageT)) {
         . '<th class="c-cards c-cards-first" data-type="num">Общ</th><th class="c-cards" data-type="num">Мир</th>'
         . '<th class="c-cards" data-type="num">Маф</th><th class="c-cards" data-type="num">Шер</th><th class="c-cards" data-type="num">Дон</th>'
         . '</tr></thead><tbody>';
+    $mpT = current_player();
+    $mePid = $mpT ? (int)$mpT['id'] : 0;
     $pos = 0;
     foreach ($standing as $row) {
         $pos++;
         $w = (int)$row['w_civ'] + (int)$row['w_maf'] + (int)$row['w_sher'] + (int)$row['w_don'];
         $avgDop = (int)$row['games'] ? (float)$row['dop_sum'] / (int)$row['games'] : 0;
-        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . '>';
+        $isMe = $mePid && (int)$row['pid'] === $mePid;
+        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
         echo '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['pid'] . '" style="color:var(--tx);">'
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
+            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a>' . ($isMe ? me_badge() : '') . '</td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['sum'] . '">' . number_format((float)$row['sum'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . number_format((float)$row['avg_total'], 2) . '</td>';
@@ -686,9 +689,11 @@ foreach ($byTable as $tableNo => $tGames) {
             . '<th class="num" style="width:78px">Итог</th></tr>';
         foreach ($seats as $s) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
-            echo '<tr><td>' . (int)$s['seat'] . '</td>'
+            $isMeSeat = $myPid && (int)$s['player_id'] === $myPid;
+            echo '<tr' . ($isMeSeat ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
+                . ($isMeSeat ? me_badge() : '')
                 . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'

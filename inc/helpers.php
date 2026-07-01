@@ -786,6 +786,18 @@ function current_player(): ?array
     return $p;
 }
 
+// Подсветка строки текущего игрока («это вы») в таблицах и протоколах
+function me_row_style(): string
+{
+    return 'background:var(--acsf);box-shadow:inset 3px 0 0 var(--ac);';
+}
+// Метка «ВЫ» рядом с ником текущего игрока
+function me_badge(): string
+{
+    return ' <span style="display:inline-block;font-size:10px;font-weight:800;line-height:1;padding:3px 5px;'
+        . 'border-radius:5px;background:var(--ac);color:#fff;vertical-align:middle;letter-spacing:.4px;">ВЫ</span>';
+}
+
 function avatar_html(?array $player, int $size = 30, string $style = ''): string
 {
     $letter = mb_strtoupper(mb_substr($player['nickname'] ?? '?', 0, 1));
