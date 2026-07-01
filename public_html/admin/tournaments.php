@@ -281,7 +281,7 @@ $list = db_ready() ? db()->query('SELECT * FROM tournaments ORDER BY date_from D
 $statusLabel = ['draft' => 'Черновик', 'announced' => 'Анонс', 'reg_open' => 'Регистрация', 'live' => 'Идёт', 'review' => 'Сверка результатов', 'finished' => 'Завершён'];
 
 page_head('Админка — турниры', '');
-echo '<p><a href="/admin/">← Админка</a></p><h1>Турниры</h1>';
+echo '<p><a href="/tournaments.php">← Турниры</a> &nbsp;·&nbsp; <a href="/admin/">Админка</a></p><h1>Турниры</h1>';
 
 // Список турниров — сверху (чтобы «Назад»/«Отмена» вели к списку, а не в пустую форму создания).
 // Форма создания при этом прячется в раскрывашку «＋ Новый турнир».
