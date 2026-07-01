@@ -131,6 +131,11 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
     switch ($cmd) {
         case '/start':
         case '/help':
+            if ($cmd === '/start' && $arg === 'password') { // диплинк со страницы входа: сразу к сбросу пароля
+                [$pt, $pm] = account_view($userId);
+                send($chatId, $pt, $pm);
+                return;
+            }
             send_menu($chatId, $userId, help_text());
             return;
         case '/me':

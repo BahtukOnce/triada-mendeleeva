@@ -46,6 +46,20 @@ page_head('Вход', '');
     </form>
   </div>
   <div class="form-foot">Нет аккаунта? <a href="/register.php">Зарегистрироваться</a></div>
-  <div class="form-foot" style="font-size:12.5px;">Забыли пароль? Его сбросит любой администратор клуба — обратитесь к ним.</div>
+  <?php $botUser = setting('bot_username'); ?>
+  <div class="form-foot" style="font-size:12.5px;line-height:1.55;">
+    <b>Забыли пароль?</b><br>
+    <?php if ($botUser): ?>
+      Сбросьте сами через нашего Telegram-бота — он пришлёт новый временный пароль вам в личку
+      (нужно, чтобы Telegram был привязан к аккаунту).
+      <a class="btn btn-block btn-ghost" style="margin:8px 0;" target="_blank" rel="noopener"
+         href="https://t.me/<?= esc($botUser) ?>?start=password">🔑 Сбросить пароль через бота</a>
+      В самом боте: «🔑 Пароль на сайт» → «🔁 Сбросить пароль». Либо попросите любого
+      администратора клуба сбросить вручную.
+    <?php else: ?>
+      Его сбросит любой администратор клуба — обратитесь к ним. Либо через нашего Telegram-бота
+      командой <code>/password</code> (если ваш Telegram привязан к аккаунту).
+    <?php endif; ?>
+  </div>
 </div>
 <?php page_foot(); ?>
