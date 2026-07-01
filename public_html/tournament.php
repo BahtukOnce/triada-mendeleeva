@@ -521,45 +521,55 @@ if ($standing && !$resultsHidden) {
             }
         }
     }
-    $topBy = function (string $key, string $gkey) use ($roleNet) {
-        $best = null;
-        foreach ($roleNet as $r) {
-            if ($r[$gkey] < 1) { continue; }
-            if ($best === null || $r[$key] > $best[$key]
-                || ($r[$key] === $best[$key] && $r[$gkey] > $best[$gkey])) {
-                $best = $r;
-            }
-        }
-        return $best;
+    // Топ-3 по номинации: только сыгравшие роль и с ненулевой суммой допов (нули не показываем)
+    $topN = function (string $key, string $gkey) use ($roleNet): array {
+        $rows = array_filter($roleNet, fn($r) => $r[$gkey] >= 1 && (float)$r[$key] > 0);
+        usort($rows, fn($a, $b) => [(float)$b[$key], $b[$gkey]] <=> [(float)$a[$key], $a[$gkey]]);
+        return array_slice(array_values($rows), 0, 3);
     };
     $plg = function (int $n): string {
         $w = ($n % 10 === 1 && $n % 100 !== 11) ? 'игра'
             : ((in_array($n % 10, [2, 3, 4], true) && !in_array($n % 100, [12, 13, 14], true)) ? 'игры' : 'игр');
         return $n . ' ' . $w;
     };
-    $nomCard = function (string $title, ?array $r, string $key, string $gkey, string $sub, string $brd) use ($plg): string {
-        if (!$r) {
-            return '<div class="card mate-card"><div class="mate-ttl">' . $title . '</div>'
-                . '<p style="color:var(--tx2);margin:0;">Нет данных.</p></div>';
-        }
+    // Строка призёра (2-е/3-е место) — компактно под крупным первым
+    $runner = function (array $r, int $pos, string $key, string $gkey) use ($plg): string {
         $val = (float)$r[$key];
-        $col = $val > 0 ? 'var(--ok)' : ($val < 0 ? 'var(--ac)' : 'var(--tx2)');
-        return '<div class="card mate-card" style="border-color:' . $brd . ';">'
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 2px 0;border-top:1px solid var(--bd);margin-top:8px;">'
+            . '<span style="width:16px;text-align:center;color:var(--tx3);font-weight:800;">' . $pos . '</span>'
+            . avatar_html(['nickname' => $r['nick'], 'avatar' => $r['avatar']], 28, '')
+            . '<a href="/player.php?id=' . (int)$r['pid'] . '" style="flex:1;color:var(--tx);font-weight:600;text-decoration:none;">' . esc($r['nick']) . '</a>'
+            . '<span style="color:var(--tx3);font-size:12px;white-space:nowrap;">' . $plg((int)$r[$gkey]) . '</span>'
+            . '<b style="color:var(--ok);min-width:44px;text-align:right;">+' . number_format($val, 1) . '</b>'
+            . '</div>';
+    };
+    $nomCard = function (string $title, array $rows, string $key, string $gkey, string $sub, string $brd) use ($plg, $runner): string {
+        if (!$rows) {
+            return '<div class="card mate-card"><div class="mate-ttl">' . $title . '</div>'
+                . '<p style="color:var(--tx2);margin:0;">Нет отличившихся.</p></div>';
+        }
+        $r = $rows[0];
+        $val = (float)$r[$key];
+        $h = '<div class="card mate-card" style="border-color:' . $brd . ';">'
             . '<div class="mate-ttl">' . $title . '</div><div class="mate-body">'
             . avatar_html(['nickname' => $r['nick'], 'avatar' => $r['avatar']], 52, 'background:var(--acsf);color:var(--ac);')
             . '<div class="mate-info"><a class="mate-name" href="/player.php?id=' . (int)$r['pid'] . '">' . esc($r['nick']) . '</a>'
             . '<div class="mate-sub">' . $sub . ' · ' . $plg((int)$r[$gkey]) . '</div></div>'
-            . '<div class="mate-wr" style="color:' . $col . ';">' . ($val > 0 ? '+' : '') . number_format($val, 1) . '<span>допов</span></div>'
-            . '</div></div>';
+            . '<div class="mate-wr" style="color:var(--ok);">+' . number_format($val, 1) . '<span>допов</span></div>'
+            . '</div>';
+        for ($i = 1; $i < count($rows); $i++) {
+            $h .= $runner($rows[$i], $i + 1, $key, $gkey);
+        }
+        return $h . '</div>';
     };
     echo '<h2 style="margin:16px 0 4px;">Номинации турнира</h2>';
     echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 10px;">по сумме допов за турнир (только плюсы, без минусов)</p>';
     echo '<div class="noms-grid">';
-    echo $nomCard('🏆 MVP турнира', $topBy('all', 'gall'), 'all', 'gall', 'весь турнир', 'rgba(232,184,48,0.5)');
-    echo $nomCard('🔴 Лучший красный', $topBy('civ', 'gciv'), 'civ', 'gciv', 'мирным', 'rgba(232,51,42,0.45)');
-    echo $nomCard('⭐ Лучший шериф', $topBy('sheriff', 'gsheriff'), 'sheriff', 'gsheriff', 'шерифом', 'rgba(230,177,58,0.45)');
-    echo $nomCard('⚫ Лучший чёрный', $topBy('maf', 'gmaf'), 'maf', 'gmaf', 'мафией', 'rgba(140,140,150,0.5)');
-    echo $nomCard('🎩 Лучший дон', $topBy('don', 'gdon'), 'don', 'gdon', 'доном', 'rgba(90,90,100,0.6)');
+    echo $nomCard('🏆 MVP турнира', $topN('all', 'gall'), 'all', 'gall', 'весь турнир', 'rgba(232,184,48,0.5)');
+    echo $nomCard('🔴 Лучший красный', $topN('civ', 'gciv'), 'civ', 'gciv', 'мирным', 'rgba(232,51,42,0.45)');
+    echo $nomCard('⭐ Лучший шериф', $topN('sheriff', 'gsheriff'), 'sheriff', 'gsheriff', 'шерифом', 'rgba(230,177,58,0.45)');
+    echo $nomCard('⚫ Лучший чёрный', $topN('maf', 'gmaf'), 'maf', 'gmaf', 'мафией', 'rgba(140,140,150,0.5)');
+    echo $nomCard('🎩 Лучший дон', $topN('don', 'gdon'), 'don', 'gdon', 'доном', 'rgba(90,90,100,0.6)');
     echo '</div>';
 
     // итоговая таблица перенесена в начало страницы (отрисована сразу после заголовка)
