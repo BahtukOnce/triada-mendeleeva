@@ -611,6 +611,17 @@ if ($canManageT && $draftLeft > 0) {
         . '(проставь роли и победителя). Итоговая таблица наверху пересчитывается сразу. Осталось внести: ' . $draftLeft . '.</div>';
 }
 
+// Мини-карточка статистики игры (подпись + значение)
+$mini = function (string $label, string $val, string $col = 'var(--tx)'): string {
+    return '<div style="background:var(--sf2);border-radius:8px;padding:7px 10px;min-width:0;">'
+        . '<div style="color:var(--tx3);font-size:11px;">' . $label . '</div>'
+        . '<div style="font-weight:700;color:' . $col . ';overflow:hidden;text-overflow:ellipsis;">' . $val . '</div></div>';
+};
+$wmap = [
+    'red' => ['🔴 Победа красных', 'rgba(232,51,42,.16)', 'rgba(232,51,42,.5)'],
+    'black' => ['⚫ Победа чёрных', 'rgba(130,130,145,.16)', 'rgba(130,130,145,.5)'],
+    'draw' => ['⚖ Ничья', 'rgba(150,150,160,.12)', 'rgba(150,150,160,.4)'],
+];
 if ($multi) {
     echo '<div class="tables-grid" style="grid-template-columns:repeat(' . count($byTable) . ',minmax(0,1fr));">';
 }
@@ -651,10 +662,10 @@ foreach ($byTable as $tableNo => $tGames) {
         if (!$multi && $g['judge_nick']) {
             echo '<p style="color:var(--tx2);font-size:13px;margin:2px 0 6px;">судья: ' . esc($g['judge_nick']) . '</p>';
         }
-        echo '<div style="overflow-x:auto;"><table class="tbl" style="width:auto;' . ($multi ? 'font-size:12.5px;' : '') . '">';
+        // Черновик/скрытый режим — только рассадка (ширина по контенту)
         if (!$reveal) {
-            // черновик или скрытый режим — показываем только рассадку (без ролей/итогов)
-            echo '<tr><th>#</th><th>Игрок</th></tr>';
+            echo '<div style="overflow-x:auto;"><table class="tbl" style="width:auto;' . ($multi ? 'font-size:12.5px;' : '') . '">';
+            echo '<tr><th style="width:42px">#</th><th>Игрок</th></tr>';
             foreach ($seats as $s) {
                 echo '<tr><td>' . (int)$s['seat'] . '</td>'
                     . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a></td></tr>';
@@ -662,10 +673,17 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '</table></div></div>';
             continue;
         }
-        echo '<tr><th style="width:42px">#</th><th>Игрок</th><th style="width:140px">Роль</th>'
-            . '<th class="num" style="width:82px">+</th><th class="num" style="width:82px">−</th>'
-            . '<th class="num" style="width:82px">ЛХ</th><th class="num" style="width:82px">Ci</th>'
-            . '<th class="num" style="width:90px">Итог</th></tr>';
+        // Раскрытая игра. Фикс. ширины колонок → игры выровнены строго друг под другом.
+        // В одностольном виде рядом с таблицей — панель статистики игры (заполняет пустое место справа).
+        $tblStyle = $multi ? 'table-layout:fixed;width:100%;font-size:12.5px;' : 'table-layout:fixed;width:620px;';
+        if (!$multi) {
+            echo '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">';
+        }
+        echo '<div style="overflow-x:auto;"><table class="tbl" style="' . $tblStyle . '">';
+        echo '<tr><th style="width:40px">#</th><th>Игрок</th><th style="width:112px">Роль</th>'
+            . '<th class="num" style="width:54px">+</th><th class="num" style="width:54px">−</th>'
+            . '<th class="num" style="width:58px">ЛХ</th><th class="num" style="width:58px">Ci</th>'
+            . '<th class="num" style="width:78px">Итог</th></tr>';
         foreach ($seats as $s) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             echo '<tr><td>' . (int)$s['seat'] . '</td>'
@@ -679,7 +697,34 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<td class="num">' . ((float)($tt['ci'] ?? 0) ? number_format((float)$tt['ci'], 2) : '') . '</td>';
             echo '<td class="num"><b>' . number_format($tt['total'], 2) . '</b></td></tr>';
         }
-        echo '</table></div></div>';
+        echo '</table></div>';
+        if (!$multi) {
+            // Сводка по игре
+            $redSum = $blackSum = 0.0; $mvpNick = ''; $mvpVal = null; $puNick = ''; $lhList = [];
+            foreach ($seats as $s) {
+                $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false, 'lh' => 0];
+                $tot = (float)$tt['total'];
+                if (in_array($s['role'], ['civ', 'sheriff'], true)) { $redSum += $tot; } else { $blackSum += $tot; }
+                if ($mvpVal === null || $tot > $mvpVal) { $mvpVal = $tot; $mvpNick = (string)$s['nickname']; }
+                if (!empty($tt['is_pu'])) { $puNick = (string)$s['nickname']; }
+                if (!empty($tt['lh'])) { $lhList[] = ['nick' => (string)$s['nickname'], 'v' => (float)$tt['lh']]; }
+            }
+            echo '<div style="flex:1;min-width:220px;">';
+            if (isset($wmap[$g['winner']])) {
+                $wb = $wmap[$g['winner']];
+                echo '<div style="padding:8px 12px;border-radius:9px;font-weight:700;background:' . $wb[1] . ';border:1px solid ' . $wb[2] . ';margin-bottom:8px;">' . $wb[0] . '</div>';
+            }
+            echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+            echo $mini('🔴 Итог красных', number_format($redSum, 1));
+            echo $mini('⚫ Итог чёрных', number_format($blackSum, 1));
+            if ($mvpNick !== '') { echo $mini('⭐ Лучший', esc($mvpNick) . ' · ' . number_format((float)$mvpVal, 2), 'var(--ok)'); }
+            if ($puNick !== '') { echo $mini('🔪 Первоубитый', esc($puNick)); }
+            foreach ($lhList as $lh) { echo $mini('🌟 ЛХ', esc($lh['nick']) . ' +' . number_format($lh['v'], 1), 'var(--ok)'); }
+            echo '</div>'; // grid
+            echo '</div>'; // stats-col
+            echo '</div>'; // flex-row
+        }
+        echo '</div>'; // card
     }
     echo $multi ? '</div>' : '';
 }
