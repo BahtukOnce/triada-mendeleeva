@@ -24,8 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $gid = (int)($_POST['game_id'] ?? 0);
         db()->prepare('DELETE FROM games WHERE id = ? AND day_id = ?')->execute([$gid, $dayId]);
         log_action((int)$u['id'], 'game_delete', ['game_id' => $gid]);
-        rating_recompute_all();
-        elo_recompute();
+        recompute_all_locked();
         flash_set('ok', 'Игра удалена, рейтинг пересчитан');
         redirect('/admin/protocol.php?day=' . $dayId);
     }
@@ -129,8 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $pdo->commit();
 
-        rating_recompute_all();
-        elo_recompute();
+        recompute_all_locked();
         log_action((int)$u['id'], 'game_save', ['game_id' => $gid, 'day_id' => $dayId]);
         flash_set('ok', 'Игра сохранена, рейтинг обновлён');
         redirect('/admin/protocol.php?day=' . $dayId);

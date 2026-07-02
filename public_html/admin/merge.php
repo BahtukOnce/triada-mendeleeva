@@ -84,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
     } catch (Throwable $e) {
     }
 
-    rating_recompute_all();
-    elo_recompute();
+    require_once ROOT . '/inc/rating.php';
+    recompute_all_locked();
     log_action((int)$u['id'], 'players_merge', ['src' => $src['nickname'], 'dst' => $dst['nickname']]);
     flash_set('ok', 'Слито: «' . $src['nickname'] . '» → «' . $dst['nickname'] . '». Рейтинг и ELO пересчитаны.'
         . ($bothAccts ? ' Аккаунт ника-источника отвязан (при необходимости удалите его в «Пользователи»).' : ''));

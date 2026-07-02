@@ -274,6 +274,30 @@ function rating_recompute_all(): void
     }
 }
 
+// Пересчёт рейтинга + ELO под именованной блокировкой (GET_LOCK): одновременные
+// сохранения нескольких судей (по столам турнира) не сталкиваются — пересчёты
+// выполняются строго по очереди, без гонок и затирания данных.
+function recompute_all_locked(): void
+{
+    $pdo = db();
+    $got = false;
+    try {
+        $got = ((int)$pdo->query("SELECT GET_LOCK('triada_recompute', 20)")->fetchColumn()) === 1;
+        rating_recompute_all();
+        if (is_file(ROOT . '/inc/elo.php')) {
+            require_once ROOT . '/inc/elo.php';
+            elo_recompute();
+        }
+    } finally {
+        if ($got) {
+            try {
+                $pdo->query("SELECT RELEASE_LOCK('triada_recompute')");
+            } catch (Throwable $e) {
+            }
+        }
+    }
+}
+
 // Итоги по местам для отображения протокола одной игры.
 // Использует тотальные счётчики основного рейтинга для Ci (как в таблице).
 function game_display_totals(array $game, array $seats, ?array $distTotals = null): array

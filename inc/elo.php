@@ -18,6 +18,13 @@ const ELO_FLOOR = 100.0;        // нижний предел
 function elo_recompute(): void
 {
     $pdo = db();
+    // Атомарно (транзакция): пока идёт пересчёт, читатели видят старое состояние,
+    // а при ошибке/обрыве — откат. Иначе при одновременных сохранениях у всех
+    // временно оставался ELO = 1000 (гонка reset+rebuild).
+    $ownTx = !$pdo->inTransaction();
+    if ($ownTx) {
+        $pdo->beginTransaction();
+    }
     $pdo->exec('UPDATE players SET elo = ' . ELO_START);
     $pdo->exec('DELETE FROM elo_history');
 
@@ -28,6 +35,9 @@ function elo_recompute(): void
         WHERE g.status = 'finished' AND g.winner IS NOT NULL
         ORDER BY COALESCE(d.date, t.date_from) IS NULL, COALESCE(d.date, t.date_from), g.id")->fetchAll();
     if (!$games) {
+        if ($ownTx) {
+            $pdo->commit();
+        }
         return;
     }
 
@@ -106,5 +116,8 @@ function elo_recompute(): void
     $upd = $pdo->prepare('UPDATE players SET elo = ? WHERE id = ?');
     foreach ($elo as $pid => $val) {
         $upd->execute([round($val, 1), $pid]);
+    }
+    if ($ownTx) {
+        $pdo->commit();
     }
 }

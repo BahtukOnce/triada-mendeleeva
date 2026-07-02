@@ -117,8 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $pdo->commit();
 
-        rating_recompute_all();
-        elo_recompute();
+        recompute_all_locked();
         log_action((int)$u['id'], 'tournament_game_save', ['game_id' => $gid, 'tournament_id' => $tid]);
         flash_set('ok', 'Результат сохранён, таблица турнира и ELO обновлены');
         redirect('/tournament.php?id=' . $tid . '#game-' . $gid);

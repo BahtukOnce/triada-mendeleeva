@@ -191,10 +191,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($form === 'gen_seating' && $id) {
         $n = tournament_generate_games($id);
-        // если пересоздавали поверх уже сыгранных игр — почистить их след в рейтинге/ELO
+        // если пересоздавали поверх уже сыгранных игр — почистить их след в рейтинге/ELO (под блокировкой)
         rating_recompute_all_safe();
-        require_once ROOT . '/inc/elo.php';
-        elo_recompute();
         flash_set($n > 0 ? 'ok' : 'err', $n > 0 ? ('Создано игр: ' . $n . ' (рассадка по кругам готова — вноси результаты на странице турнира)') : 'Нет подтверждённых участников для рассадки');
         redirect('/admin/tournaments.php?edit=' . $id);
     }
@@ -204,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function rating_recompute_all_safe(): void
 {
     require_once ROOT . '/inc/rating.php';
-    rating_recompute_all();
+    recompute_all_locked();
 }
 
 // Ротационная рассадка: создаёт игры (столов × кругов) и распределяет подтверждённых
