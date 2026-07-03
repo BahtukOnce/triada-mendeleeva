@@ -87,8 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'tech_fouls' => max(0, min(2, (int)($_POST["tech$i"] ?? 0))),
                 'big_tech' => max(0, min(2, (int)($_POST["bigtech$i"] ?? 0))),
                 'removal' => max(0, min(2, (int)($_POST["removal$i"] ?? 0))),
-                'plus' => max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0'))),
-                'minus' => max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0'))),
+                // Верхний предел — защита от опечатки (15 вместо 1.5)
+                'plus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0')))),
+                'minus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0')))),
             ];
         }
         if (!$winner) {

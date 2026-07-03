@@ -40,7 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id) {
     }
     // Скрыть/открыть итоговую таблицу для игроков
     if ($act === 'toggle_standings') {
-        $cur = (int)(db()->query('SELECT standings_hidden FROM tournaments WHERE id = ' . $id)->fetchColumn() ?: 0);
+        $cs = db()->prepare('SELECT standings_hidden FROM tournaments WHERE id = ?');
+        $cs->execute([$id]);
+        $cur = (int)($cs->fetchColumn() ?: 0);
         db()->prepare('UPDATE tournaments SET standings_hidden = ? WHERE id = ?')->execute([$cur ? 0 : 1, $id]);
         flash_set('ok', $cur ? 'Таблица снова видна игрокам' : 'Таблица скрыта от игроков');
     }
@@ -80,6 +82,11 @@ if ($id && db_ready()) {
     $st = db()->prepare('SELECT * FROM tournaments WHERE id = ?');
     $st->execute([$id]);
     $t = $st->fetch() ?: null;
+    // Черновик виден только тем, кто может управлять турниром (админ/судья);
+    // остальным по прямой ссылке — «не найден», пока турнир не анонсирован.
+    if ($t && ($t['status'] ?? '') === 'draft' && !tournament_can_manage(current_user(), $t)) {
+        $t = null;
+    }
     if ($t && !empty($t['legacy_rating_id'])) {
         // исторический турнир без сыгранных игр — открываем его итоговую таблицу
         header('Location: /rating.php?r=' . (int)$t['legacy_rating_id'], true, 302);
@@ -505,8 +512,19 @@ if (!$isRunning && ($rosterRows || $regOpen)) {
 // Номинации турнира (итоговая таблица отрисована выше, у шапки; $standing уже посчитан)
 if ($standing && !$resultsHidden) {
     // ── Номинации турнира: всё по сумме допов (плюсы − минусы) ──
+    // Только сыгранные игры: у черновых рассадок plus=0, но они накручивали бы
+    // счётчики «игр» в номинациях.
+    $finishedGid = [];
+    foreach ($games as $gg) {
+        if (($gg['status'] ?? '') === 'finished') {
+            $finishedGid[(int)$gg['id']] = true;
+        }
+    }
     $roleNet = [];
-    foreach ($seatsByGame as $seats) {
+    foreach ($seatsByGame as $sgid => $seats) {
+        if (!isset($finishedGid[(int)$sgid])) {
+            continue;
+        }
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
             if (!isset($roleNet[$pid])) {
