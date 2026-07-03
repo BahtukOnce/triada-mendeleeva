@@ -18,6 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'reset') {
+        // Пароль админов и руководителей сбрасывает только руководитель —
+        // иначе админ сбросит пароль владельца и (без Telegram) увидит его в открытом виде.
+        if (!$isOwner && in_array($target['role'], ['owner', 'admin'], true)) {
+            flash_set('err', 'Пароль админов и руководителей сбрасывает только руководитель');
+            redirect('/admin/users.php');
+        }
         $alphabet = 'abcdefghkmnpqrstuvwxyz23456789';
         $temp = '';
         for ($i = 0; $i < 8; $i++) {
@@ -71,10 +77,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'role') {
-        // Менять роли может любой админ/руководитель. Руководителей может быть несколько.
+        // Обычный админ может повышать игрока до админа, но роль «руководитель»
+        // и роли других админов/руководителей меняет только руководитель —
+        // иначе админ сделает себя владельцем или разжалует настоящего.
         $newRole = (string)($_POST['role'] ?? '');
         if (!in_array($newRole, ['player', 'admin', 'owner'], true)) {
             flash_set('err', 'Неизвестная роль');
+            redirect('/admin/users.php');
+        }
+        $targetPriv = in_array($target['role'], ['owner', 'admin'], true);
+        if (!$isOwner && ($newRole === 'owner' || $targetPriv)) {
+            flash_set('err', 'Роль «руководитель» и роли админов меняет только руководитель');
             redirect('/admin/users.php');
         }
         if ($target['role'] === 'owner' && $newRole !== 'owner') {
@@ -126,7 +139,7 @@ if ($onlyTg) {
 $params = [];
 if ($q !== '') {
     $sql .= ' WHERE us.nickname LIKE ?';
-    $params[] = '%' . $q . '%';
+    $params[] = '%' . like_escape($q) . '%';
 }
 $sql .= ' ORDER BY FIELD(us.role, \'owner\',\'admin\',\'judge\',\'player\'), us.nickname LIMIT 200';
 $st = db()->prepare($sql);
@@ -202,27 +215,36 @@ foreach ($list as $row) {
         echo cap_btn($rid, 'judge', !empty($row['is_judge']), 'судья');
         echo cap_btn($rid, 'photo', !empty($row['is_photographer']), 'фотограф');
     }
-    if (true) {
+    $canEditRole = $isOwner || !$isAdminRow; // роли админов/руководителей меняет только руководитель
+    {
         echo '<form method="post" action="/admin/users.php" style="display:inline;">' . csrf_field();
         echo '<input type="hidden" name="form" value="role"><input type="hidden" name="user_id" value="' . $rid . '">';
-        echo '<select name="role" onchange="if(confirm(\'Сменить роль?\'))this.form.submit();" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;font-size:12px;">';
+        echo '<select name="role" ' . ($canEditRole ? 'onchange="if(confirm(\'Сменить роль?\'))this.form.submit();"' : 'disabled title="только руководитель"')
+            . ' style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;font-size:12px;">';
         foreach ($roles as $rk => $rl) {
+            if ($rk === 'owner' && !$isOwner && $row['role'] !== 'owner') {
+                continue; // роль «руководитель» назначает только руководитель
+            }
             echo '<option value="' . $rk . '"' . ($row['role'] === $rk ? ' selected' : '') . '>' . $rl . '</option>';
         }
         echo '</select></form>';
     }
     echo '</td>';
     $hasTg = !empty($row['tg_user_id']);
+    $canReset = $isOwner || !$isAdminRow; // пароль админов/руководителей сбрасывает только руководитель
     $resetLabel = $hasTg ? 'Сбросить → в Telegram' : 'Сбросить пароль';
     $resetConfirm = $hasTg
-        ? 'Сбросить пароль ' . esc($row['nickname']) . '? Новый пароль придёт ему в личку бота.'
-        : 'Сбросить пароль ' . esc($row['nickname']) . '? Telegram не привязан — пароль покажется тебе.';
-    echo '<td><form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'' . $resetConfirm . '\');">' . csrf_field();
-    echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
-    echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . esc($resetLabel) . '</button></form>';
+        ? 'Сбросить пароль ' . esc(addslashes($row['nickname'])) . '? Новый пароль придёт ему в личку бота.'
+        : 'Сбросить пароль ' . esc(addslashes($row['nickname'])) . '? Telegram не привязан — пароль покажется тебе.';
+    echo '<td>';
+    if ($canReset) {
+        echo '<form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'' . $resetConfirm . '\');">' . csrf_field();
+        echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
+        echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . esc($resetLabel) . '</button></form>';
+    }
     $canDelete = $rid !== (int)$u['id'] && ($isOwner || !in_array($row['role'], ['owner', 'admin'], true));
     if ($canDelete) {
-        echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc($row['nickname']) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
+        echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc(addslashes($row['nickname'])) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
             . '<input type="hidden" name="form" value="delete_user"><input type="hidden" name="user_id" value="' . $rid . '">'
             . '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
     }

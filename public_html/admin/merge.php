@@ -37,7 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge')
 
     $pdo = db();
     $pdo->beginTransaction();
-    // Игровые данные
+    // Игровые данные.
+    // Если оба ника оказались в ОДНОЙ игре (на разных местах) — место источника
+    // убираем, иначе после слияния у игрока станет два места в одной игре
+    // (двойной счёт в статистике/рейтинге).
+    $pdo->prepare('DELETE s1 FROM game_seats s1
+        JOIN game_seats s2 ON s2.game_id = s1.game_id AND s2.player_id = ?
+        WHERE s1.player_id = ?')->execute([$dstId, $srcId]);
     $pdo->prepare('UPDATE game_seats SET player_id = ? WHERE player_id = ?')->execute([$dstId, $srcId]);
     $pdo->prepare('UPDATE games SET judge_player_id = ? WHERE judge_player_id = ?')->execute([$dstId, $srcId]);
     // Записи на вечера: дубликаты по уникальному ключу убираем у источника
@@ -213,7 +219,7 @@ if ($pairs) {
         echo '<td><span style="display:inline-flex;align-items:center;gap:8px;">' . avatar_html(['nickname' => $b['nickname'], 'avatar' => $b['avatar']], 24) . '<span>' . esc($b['nickname']) . ' <span style="color:var(--tx3);font-size:12px;">(' . (int)$b['games'] . ' игр' . ($b['user_id'] ? ', аккаунт' : '') . ')</span></span></span></td>';
         // Меньший по играм — источник по умолчанию
         [$srcP, $dstP] = ((int)$a['games'] <= (int)$b['games']) ? [$a, $b] : [$b, $a];
-        echo '<td><form method="post" action="/admin/merge.php" style="display:inline;" onsubmit="return confirm(\'Слить «' . esc($srcP['nickname']) . '» в «' . esc($dstP['nickname']) . '»?\');">' . csrf_field();
+        echo '<td><form method="post" action="/admin/merge.php" style="display:inline;" onsubmit="return confirm(\'Слить «' . esc(addslashes($srcP['nickname'])) . '» в «' . esc(addslashes($dstP['nickname'])) . '»?\');">' . csrf_field();
         echo '<input type="hidden" name="form" value="merge"><input type="hidden" name="src" value="' . (int)$srcP['id'] . '"><input type="hidden" name="dst" value="' . (int)$dstP['id'] . '">';
         echo '<button class="btn btn-ghost" style="padding:4px 12px;font-size:12px;" type="submit">«' . esc($srcP['nickname']) . '» → «' . esc($dstP['nickname']) . '»</button></form>';
         echo ' <form method="post" action="/admin/merge.php" style="display:inline;" title="не предлагать эту пару">' . csrf_field()

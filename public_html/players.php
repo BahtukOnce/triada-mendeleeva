@@ -34,7 +34,7 @@ if (db_ready()) {
     $params = [$seasonStart, $seasonEnd];
     if ($q !== '') {
         $sql .= ' AND p.nickname LIKE ?';
-        $params[] = '%' . $q . '%';
+        $params[] = '%' . like_escape($q) . '%';
     }
     $sql .= ' ORDER BY p.nickname LIMIT 400';
     $st = db()->prepare($sql);

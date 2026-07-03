@@ -11,6 +11,13 @@ function esc(?string $s): string
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
+// Экранирование спецсимволов LIKE (% и _ и \) для поиска по подстроке.
+// Использовать с параметром: WHERE col LIKE ? (escape-символ по умолчанию '\').
+function like_escape(string $s): string
+{
+    return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
+}
+
 // Границы текущего игрового сезона (1 сентября — 31 августа).
 // Возвращает [дата_начала, дата_конца, 'Сезон YYYY/YYYY']; отсчёт по $on (или «сейчас»).
 function current_season_bounds(?string $on = null): array

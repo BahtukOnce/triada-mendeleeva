@@ -14,10 +14,17 @@ if (!is_file($configFile)) {
 $GLOBALS['cfg'] = require $configFile;
 
 session_name('triada_sess');
+// На Beget TLS обрывается на прокси, поэтому $_SERVER['HTTPS'] часто пуст —
+// тогда флаг Secure не ставился и куку сессии можно было перехватить по HTTP.
+// Дополнительно смотрим заголовки прокси (X-Forwarded-Proto / -SSL) и порт 443.
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '')) === 'on')
+    || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443');
 session_set_cookie_params([
     'lifetime' => 60 * 60 * 24 * 30,
     'path'     => '/',
-    'secure'   => !empty($_SERVER['HTTPS']),
+    'secure'   => $isHttps,
     'httponly' => true,
     'samesite' => 'Lax',
 ]);

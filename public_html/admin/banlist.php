@@ -25,7 +25,7 @@ $q = trim((string)($_GET['q'] ?? ''));
 $found = [];
 if ($q !== '') {
     $st = db()->prepare('SELECT id, nickname, avatar FROM players WHERE banned_at IS NULL AND nickname LIKE ? ORDER BY nickname LIMIT 20');
-    $st->execute(['%' . $q . '%']);
+    $st->execute(['%' . like_escape($q) . '%']);
     $found = $st->fetchAll();
 }
 $banned = db()->query('SELECT p.id, p.nickname, p.avatar, p.banned_at, p.ban_reason, u.nickname AS by_nick
