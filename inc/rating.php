@@ -403,7 +403,8 @@ function standings_from_games(array $games, array $seatsByGame): array
             $r['sum'] += (float)$tt['total'];
             $r['dop_sum'] += (float)$s['plus'];
             $r['plus'] += (float)$s['plus'];
-            $r['minus_sum'] += (float)$s['minus'] + ((int)$s['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$s['tech_fouls'] + 0.6 * (int)($s['big_tech'] ?? 0);
+            $r['minus_sum'] += (float)$s['minus'] + ((int)$s['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$s['tech_fouls'] + 0.6 * (int)($s['big_tech'] ?? 0)
+                + ((int)($s['removal'] ?? 0) === 1 ? 0.6 : ((int)($s['removal'] ?? 0) === 2 ? 1.2 : 0));
             $r['ci_sum'] += (float)$tt['ci'];
             if (!empty($tt['is_pu']) && in_array($s['role'], ROLE_RED, true)) {
                 $r['pu_count']++;
@@ -427,7 +428,7 @@ function standings_from_games(array $games, array $seatsByGame): array
     }
     unset($r);
     // Рейтинг турнира — строго по Σ (сумме баллов за все игры); тай-брейк по Σ+ (бонусным баллам)
-    uasort($rows, fn($a, $b) => [$b['sum'], $b['sum_plus']] <=> [$a['sum'], $a['sum_plus']]);
+    uasort($rows, fn($a, $b) => [round($b['sum'], 2), round($b['sum_plus'], 2)] <=> [round($a['sum'], 2), round($a['sum_plus'], 2)]);
     return $rows;
 }
 

@@ -88,6 +88,39 @@ $eloChip = function (?float $d): string {
         . $sign . number_format($d, 1) . ' ELO</span>';
 };
 
+// Дистанция Ci для турнирных игр считается по ВСЕМ играм турнира (как в итоговой
+// таблице турнира). Без этого game_display_totals берёт дистанцию основного рейтинга
+// (вечеров), и «Итог» здесь расходится со страницей турнира.
+$tourDistCache = [];
+$tournamentDist = function (int $tid) use (&$tourDistCache): array {
+    if (isset($tourDistCache[$tid])) {
+        return $tourDistCache[$tid];
+    }
+    $dist = ['games' => [], 'pu' => []];
+    $gq = db()->prepare("SELECT id, first_killed_seat FROM games
+        WHERE tournament_id = ? AND status = 'finished' AND winner IS NOT NULL");
+    $gq->execute([$tid]);
+    $tgames = $gq->fetchAll();
+    if ($tgames) {
+        $fk = [];
+        foreach ($tgames as $gg) {
+            $fk[(int)$gg['id']] = (int)$gg['first_killed_seat'];
+        }
+        $tids = array_keys($fk);
+        $tin = implode(',', array_fill(0, count($tids), '?'));
+        $sq = db()->prepare("SELECT game_id, player_id, seat, role FROM game_seats WHERE game_id IN ($tin)");
+        $sq->execute($tids);
+        foreach ($sq->fetchAll() as $row) {
+            $rpid = (int)$row['player_id'];
+            $dist['games'][$rpid] = ($dist['games'][$rpid] ?? 0) + 1;
+            if ($fk[(int)$row['game_id']] === (int)$row['seat'] && in_array($row['role'], ROLE_RED, true)) {
+                $dist['pu'][$rpid] = ($dist['pu'][$rpid] ?? 0) + 1;
+            }
+        }
+    }
+    return $tourDistCache[$tid] = $dist;
+};
+
 // Группировка по событию
 $groups = [];
 foreach ($myGames as $g) {
@@ -133,7 +166,8 @@ foreach ($groups as $grp) {
     echo '<div class="tables-grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:10px;">';
     foreach ($grp['games'] as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
-        $totals = game_display_totals($g, $seats);
+        $dist = $g['context'] === 'day' ? null : $tournamentDist((int)$g['tournament_id']);
+        $totals = game_display_totals($g, $seats, $dist);
         $winTag = $g['winner'] === 'red' ? 'tag-red' : ($g['winner'] === 'black' ? 'tag-black' : 'tag-draw');
         $d = $eloDelta[(int)$g['id']] ?? null;
 

@@ -85,7 +85,7 @@ function render_player_stats(int $id, bool $own = false): void
         $seasonArgs = [$season];
     }
 
-    $st = db()->prepare("SELECT gs.role, gs.plus, gs.minus, gs.fouls, gs.tech_fouls, gs.big_tech,
+    $st = db()->prepare("SELECT gs.role, gs.plus, gs.minus, gs.fouls, gs.tech_fouls, gs.big_tech, gs.removal,
             g.id AS game_id, g.game_no, g.winner, g.first_killed_seat, gs.seat,
             g.context, d.id AS day_id, d.title AS day_title, d.date AS day_date,
             t.id AS t_id, t.title AS t_title
@@ -219,7 +219,9 @@ function render_player_stats(int $id, bool $own = false): void
         $rcArgs[] = ((int)$frid->fetchColumn()) ?: -1;
     }
     $rcSt = db()->prepare("SELECT COALESCE(SUM(sum_total),0) sum_total, COALESCE(SUM(sum_plus),0) sum_plus,
-            COALESCE(SUM(dop_sum),0) dop_sum, COALESCE(SUM(ci_sum),0) ci_sum, COALESCE(SUM(games),0) rgames
+            COALESCE(SUM(dop_sum),0) dop_sum, COALESCE(SUM(ci_sum),0) ci_sum, COALESCE(SUM(games),0) rgames,
+            COALESCE(SUM(lh_sum),0) lh_sum, COALESCE(SUM(minus_sum),0) minus_sum,
+            COALESCE(SUM(tech_count),0) tech_count, COALESCE(SUM(mvp_evenings),0) mvp_evenings
         FROM rating_cache WHERE player_id = ?" . $rcWhere);
     $rcSt->execute($rcArgs);
     $rc = $rcSt->fetch() ?: [];
@@ -234,7 +236,9 @@ function render_player_stats(int $id, bool $own = false): void
         'w_don' => (int)($aw['w_don'] ?? 0), 'g_don' => (int)($aw['g_don'] ?? 0),
         'pu_count' => (int)($aw['pu_count'] ?? 0),
         'sum_total' => $sumTotal, 'sum_plus' => (float)($rc['sum_plus'] ?? 0),
-        'dop_sum' => (float)($rc['dop_sum'] ?? 0), 'ci_sum' => (float)($rc['ci_sum'] ?? 0), 'lh_sum' => 0.0,
+        'dop_sum' => (float)($rc['dop_sum'] ?? 0), 'ci_sum' => (float)($rc['ci_sum'] ?? 0),
+        'lh_sum' => (float)($rc['lh_sum'] ?? 0), 'minus_sum' => (float)($rc['minus_sum'] ?? 0),
+        'tech_count' => (int)($rc['tech_count'] ?? 0), 'mvp_evenings' => (int)($rc['mvp_evenings'] ?? 0),
         'avg_total' => $rGames > 0 ? round($sumTotal / $rGames, 4) : null,
         'club_score' => $rGames > 0 ? round(($sumTotal / $rGames) * $sumTotal, 4) : null,
     ];
@@ -855,7 +859,8 @@ JS;
                 : ($won ? '<span class="tag tag-ok">победа</span>' : '<span class="tag">поражение</span>');
             $date = $h['day_date'] ? date('d.m.Y', strtotime($h['day_date'])) : '';
             $plus = (float)$h['plus'];
-            $minus = (float)$h['minus'] + ((int)$h['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$h['tech_fouls'] + 0.6 * (int)($h['big_tech'] ?? 0);
+            $minus = (float)$h['minus'] + ((int)$h['fouls'] >= 4 ? 0.6 : 0) + 0.3 * (int)$h['tech_fouls'] + 0.6 * (int)($h['big_tech'] ?? 0)
+                + ((int)($h['removal'] ?? 0) === 1 ? 0.6 : ((int)($h['removal'] ?? 0) === 2 ? 1.2 : 0));
             $dl = $eloByGame[(int)$h['game_id']] ?? null;
             $dlHtml = $dl === null ? '<span style="color:var(--tx3);">—</span>'
                 : '<span style="color:' . ($dl > 0 ? 'var(--ok)' : ($dl < 0 ? 'var(--ac)' : 'var(--tx2)')) . ';">' . ($dl > 0 ? '+' : '') . number_format($dl, 1) . '</span>';

@@ -12,6 +12,13 @@ if (!is_file($cfgFile)) {
 $GLOBALS['cfg'] = require $cfgFile;
 $cfg = $GLOBALS['cfg'];
 
+// Пустой секрет = HMAC с пустым ключом, который может подделать кто угодно,
+// зная тело запроса → произвольный git reset + миграции. Отказываем.
+if ((string)($cfg['deploy_secret'] ?? '') === '') {
+    http_response_code(503);
+    exit('deploy_secret not configured');
+}
+
 $raw = (string)file_get_contents('php://input');
 $sig = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
 $expected = 'sha256=' . hash_hmac('sha256', $raw, (string)$cfg['deploy_secret']);
