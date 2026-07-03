@@ -39,7 +39,8 @@ function bm_bonus_for_game(array $seats, array $game): float
 // Официальная формула 8.6.1:  Ci = i·0.4 / B при i ≤ B;  Ci = 0.4 при i > B.
 //   i ($puTotal) — сколько раз игрок был первоубиен ночью за красного/шерифа на дистанции;
 //   B — 40% сыгранных на дистанции игр ($gamesTotal), округлённое, но не менее 4.
-// ($winner в формуле не участвует — оставлен в сигнатуре для совместимости вызовов.)
+// Исход игры: при победе чёрных Ci даётся полностью, при победе красных — половина
+// (команда первоубиенного и так взяла победный балл).
 function ci_value(string $role, ?string $winner, int $puTotal, int $gamesTotal, float $bmBonus): float
 {
     if (!in_array($role, ROLE_RED, true) || $bmBonus <= 0 || $gamesTotal <= 0) {
@@ -47,7 +48,11 @@ function ci_value(string $role, ?string $winner, int $puTotal, int $gamesTotal, 
     }
     $i = (float)$puTotal;
     $B = max(4, (int)round($gamesTotal * 0.4));
-    return $i <= $B ? ($i * 0.4) / $B : 0.4;
+    $ci = $i <= $B ? ($i * 0.4) / $B : 0.4;
+    if ($winner === 'red') {
+        $ci /= 2;
+    }
+    return $ci;
 }
 
 // Итог игрока за игру (без Ci и ЛХ — они передаются отдельно)
