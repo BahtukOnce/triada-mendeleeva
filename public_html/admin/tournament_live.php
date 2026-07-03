@@ -38,7 +38,7 @@ if (!$canEdit) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['form'] ?? '') === 'save_chrono') {
     csrf_check();
     $chronoRaw = (string)($_POST['chronology'] ?? '');
-    if (!is_array(json_decode($chronoRaw, true))) {
+    if (strlen($chronoRaw) > 60000 || !is_array(json_decode($chronoRaw, true))) {
         flash_set('err', 'Не удалось разобрать хронологию.');
         redirect('/admin/tournament_live.php?game=' . $gid);
     }
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['form'] ?? '') === 
     foreach ($outRaw as $s => $ord) {
         $s = (int)$s;
         $ord = (int)$ord;
-        if ($s >= 1 && $s <= 10 && $ord >= 1) {
+        if ($s >= 1 && $s <= 10 && $ord >= 1 && $ord <= 10) {
             $us->execute([$ord, $gid, $s]);
         }
     }
@@ -119,7 +119,7 @@ page_head('Ведение игры — ' . $g['t_title'], '');
 
 <script>
 (function () {
-  var PL = <?= json_encode($players, JSON_UNESCAPED_UNICODE) ?>;
+  var PL = <?= json_encode($players, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
   var SEATS = PL.map(function (p) { return p.s; });
   var nickOf = {}; PL.forEach(function (p) { nickOf[p.s] = p.n; });
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
