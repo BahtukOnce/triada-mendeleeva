@@ -46,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!is_dir($dir)) {
                         @mkdir($dir, 0755, true);
                     }
+                    uploads_harden();
                     $rel = '/uploads/photos/' . $base . '.' . ($ext === 'mov' ? 'mp4' : $ext);
                     if (!move_uploaded_file($one['tmp_name'], ROOT . '/public_html' . $rel)) {
                         continue;

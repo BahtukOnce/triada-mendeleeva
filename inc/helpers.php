@@ -18,6 +18,25 @@ function like_escape(string $s): string
     return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
 }
 
+// Запрет исполнения кода в каталоге загрузок (эшелонированная защита на случай,
+// если валидацию картинки удастся обойти). Идемпотентно: один .htaccess в корне
+// uploads/ действует на все подпапки. Вызывать после создания папки загрузок.
+function uploads_harden(): void
+{
+    $guard = ROOT . '/public_html/uploads/.htaccess';
+    if (is_file($guard) || !is_dir(dirname($guard))) {
+        return;
+    }
+    @file_put_contents($guard,
+        "# автогенерируется: в загрузках нельзя исполнять код\n"
+        . "php_flag engine off\n"
+        . "<FilesMatch \"\\.(php|php3|php4|php5|php7|phtml|pht|cgi|pl|py)$\">\n"
+        . "  Require all denied\n"
+        . "</FilesMatch>\n"
+        . "Options -ExecCGI -Indexes\n"
+        . "AddType text/plain .php .phtml .pht\n");
+}
+
 // Границы текущего игрового сезона (1 сентября — 31 августа).
 // Возвращает [дата_начала, дата_конца, 'Сезон YYYY/YYYY']; отсчёт по $on (или «сейчас»).
 function current_season_bounds(?string $on = null): array
@@ -944,6 +963,7 @@ function save_image_upload(array $file, string $subdir, string $name, int $maxSi
     if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
         return 'Не удалось создать папку загрузок (' . $subdir . ')';
     }
+    uploads_harden();
     $extByType = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
 
     // Резерв: сохранить оригинал (если GD недоступен или обработка не удалась)

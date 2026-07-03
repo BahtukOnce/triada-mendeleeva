@@ -192,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!is_dir($dir)) {
                     @mkdir($dir, 0775, true);
                 }
+                uploads_harden();
                 $base = 'p' . (int)$player['id'] . '_' . time();
                 $rel = '/uploads/avatars/' . $base . '.jpg';
                 if (@file_put_contents($dir . '/' . $base . '.jpg', $bin) !== false) {
