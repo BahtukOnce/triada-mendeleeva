@@ -282,7 +282,14 @@ function recompute_all_locked(): void
     $pdo = db();
     $got = false;
     try {
-        $got = ((int)$pdo->query("SELECT GET_LOCK('triada_recompute', 20)")->fetchColumn()) === 1;
+        // Ждём блокировку (до 2×20с). Если так и не получили — не оставляем рейтинг
+        // устаревшим: пересчитываем без блокировки, но фиксируем это в лог для диагностики.
+        for ($attempt = 0; $attempt < 2 && !$got; $attempt++) {
+            $got = ((int)$pdo->query("SELECT GET_LOCK('triada_recompute', 20)")->fetchColumn()) === 1;
+        }
+        if (!$got && function_exists('app_log_error')) {
+            app_log_error('WARN', 'recompute_all_locked: GET_LOCK не получен — пересчёт идёт без блокировки', __FILE__, __LINE__);
+        }
         rating_recompute_all();
         if (is_file(ROOT . '/inc/elo.php')) {
             require_once ROOT . '/inc/elo.php';

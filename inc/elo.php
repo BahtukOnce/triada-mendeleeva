@@ -25,6 +25,23 @@ function elo_recompute(): void
     if ($ownTx) {
         $pdo->beginTransaction();
     }
+    try {
+        elo_recompute_body($pdo);
+        if ($ownTx) {
+            $pdo->commit();
+        }
+    } catch (Throwable $e) {
+        // Иначе исключение (дедлок, lock wait timeout, FK) оставляло бы транзакцию
+        // открытой, а вызывающий код (импорт) её глотал и продолжал на той же коннекции.
+        if ($ownTx && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+function elo_recompute_body(PDO $pdo): void
+{
     $pdo->exec('UPDATE players SET elo = ' . ELO_START);
     $pdo->exec('DELETE FROM elo_history');
 
@@ -35,9 +52,6 @@ function elo_recompute(): void
         WHERE g.status = 'finished' AND g.winner IS NOT NULL
         ORDER BY COALESCE(d.date, t.date_from) IS NULL, COALESCE(d.date, t.date_from), g.id")->fetchAll();
     if (!$games) {
-        if ($ownTx) {
-            $pdo->commit();
-        }
         return;
     }
 
@@ -116,8 +130,5 @@ function elo_recompute(): void
     $upd = $pdo->prepare('UPDATE players SET elo = ? WHERE id = ?');
     foreach ($elo as $pid => $val) {
         $upd->execute([round($val, 1), $pid]);
-    }
-    if ($ownTx) {
-        $pdo->commit();
     }
 }

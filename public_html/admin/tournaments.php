@@ -31,6 +31,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Редактировать этот турнир может админ или назначенный на него судья');
             redirect('/tournament.php?id=' . $id);
         }
+        // Разрушительные операции (удаление турнира, пересоздание рассадки со стиранием
+        // сыгранных игр) — только админ или ГЛАВНЫЙ судья, не судья отдельного стола.
+        if ($gateRow && in_array($form, ['delete', 'gen_seating'], true) && role_level($u['role']) < 3) {
+            $mp = db()->prepare('SELECT id FROM players WHERE user_id = ? LIMIT 1');
+            $mp->execute([(int)$u['id']]);
+            $myPid = (int)($mp->fetchColumn() ?: 0);
+            $mainPid = (int)($gateRow['main_judge_player_id'] ?? 0);
+            if (!$myPid || $myPid !== $mainPid) {
+                flash_set('err', 'Удалять турнир и пересоздавать рассадку может только админ или главный судья');
+                redirect('/tournament.php?id=' . $id);
+            }
+        }
     }
 
     if ($form === 'save') {
