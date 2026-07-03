@@ -17,8 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['form'] ?? '', ['da
         $st = db()->prepare("SELECT id FROM game_days WHERE id = ? AND status = 'reg_open'");
         $st->execute([$id]);
         if ($st->fetch()) {
-            $tf = preg_match('/^\d{2}:\d{2}$/', (string)($_POST['time_from'] ?? '')) ? $_POST['time_from'] : null;
-            $tt = preg_match('/^\d{2}:\d{2}$/', (string)($_POST['time_to'] ?? '')) ? $_POST['time_to'] : null;
+            // Строгая проверка часов/минут: иначе «99:99» валит INSERT (MySQL TIME) в 500
+            $tf = preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string)($_POST['time_from'] ?? '')) ? $_POST['time_from'] : null;
+            $tt = preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string)($_POST['time_to'] ?? '')) ? $_POST['time_to'] : null;
             db()->prepare('INSERT INTO day_registrations (day_id, player_id, time_from, time_to, comment)
                 VALUES (?,?,?,?,?)
                 ON DUPLICATE KEY UPDATE time_from = VALUES(time_from), time_to = VALUES(time_to),
@@ -45,6 +46,10 @@ if ($id && db_ready()) {
     $st = db()->prepare('SELECT * FROM game_days WHERE id = ?');
     $st->execute([$id]);
     $day = $st->fetch() ?: null;
+    // Черновик вечера виден по прямой ссылке только судьям/админам
+    if ($day && ($day['status'] ?? '') === 'draft' && !user_can_judge(current_user())) {
+        $day = null;
+    }
     if ($day) {
         $st = db()->prepare("SELECT g.*, jp.nickname AS judge_nick, jp.id AS judge_id
             FROM games g LEFT JOIN players jp ON jp.id = g.judge_player_id
@@ -158,12 +163,15 @@ if ($games) {
         $tt = game_display_totals($g, $seats);
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
-            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'flair' => $s['flair'] ?? '', 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0];
+            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'flair' => $s['flair'] ?? '', 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0, 'sum_plus' => 0.0];
+            $cell = $tt[(int)$s['seat']] ?? [];
             $standing[$pid]['games']++;
-            $standing[$pid]['sum'] += $tt[(int)$s['seat']]['total'] ?? 0;
+            $standing[$pid]['sum'] += $cell['total'] ?? 0;
+            $standing[$pid]['sum_plus'] += (float)$s['plus'] + (float)($cell['lh'] ?? 0) + (float)($cell['ci'] ?? 0);
         }
     }
-    uasort($standing, fn($a, $b) => $b['sum'] <=> $a['sum']);
+    // Рейтинг вечера — по Σ; тай-брейк по Σ+ (бонусным баллам), с округлением для стабильности
+    uasort($standing, fn($a, $b) => [round($b['sum'], 2), round($b['sum_plus'], 2)] <=> [round($a['sum'], 2), round($a['sum_plus'], 2)]);
     // ELO в рейтинге вечера — на момент того вечера (входной ELO игрока), а не текущий
     $enterElo = event_entry_elo(array_column($games, 'id'));
     foreach ($standing as $pid => &$rowE) {

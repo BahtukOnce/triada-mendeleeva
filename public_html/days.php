@@ -35,17 +35,21 @@ $season = isset($_GET['season']) ? (string)$_GET['season'] : 'cur';
 if (db_ready()) {
     $seasons = db()->query("SELECT DISTINCT season FROM game_days WHERE season IS NOT NULL ORDER BY season DESC")
         ->fetchAll(PDO::FETCH_COLUMN);
+    $conds = [];
+    $params = [];
     if ($season === 'all') {
-        $where = '';
-        $params = [];
+        // без фильтра по сезону
     } elseif ($season !== 'cur' && in_array($season, $seasons, true)) {
-        $where = 'WHERE d.season = ?';
-        $params = [$season];
+        $conds[] = 'd.season = ?';
+        $params[] = $season;
     } else {
         $season = 'cur';
-        $where = 'WHERE d.season IS NULL';
-        $params = [];
+        $conds[] = 'd.season IS NULL';
     }
+    if (!$canEdit) {
+        $conds[] = "d.status <> 'draft'"; // черновики видят только судьи/админы
+    }
+    $where = $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
     $st = db()->prepare('SELECT d.*,
             (SELECT COUNT(*) FROM games g WHERE g.day_id = d.id) AS games_cnt
         FROM game_days d
