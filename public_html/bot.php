@@ -136,6 +136,11 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             reply($chatId, welcome_text());
             return;
         }
+        // Ожидается пароль сайта для подтверждения привязки (не команда) — проверяем его
+        if (!$isCmd && ($pending = bind_pending_get($userId)) !== null) {
+            handle_bind_password($chatId, $userId, $text, $from, $pending);
+            return;
+        }
         if ($isCmd && $cmd !== '/reg' && $cmd !== '/register') {
             reply($chatId, "🔒 Чтобы пользоваться ботом, сначала привяжитесь.\nВведите свой ник, как он записан в таблице рейтинга — просто отправьте его сообщением.");
             return;
@@ -412,6 +417,101 @@ function handle_callback(array $cb): void
 // ============================================================
 //                      РЕГИСТРАЦИЯ
 // ============================================================
+
+// ── Ожидание подтверждения привязки паролем сайта (состояние в settings) ──
+// Ключ на tg-пользователя; TTL 15 минут; максимум 5 попыток ввода пароля.
+function bind_pending_get(int $userId): ?array
+{
+    $st = db()->prepare('SELECT v FROM settings WHERE k = ?');
+    $st->execute(['bot_bind_pending_' . $userId]);
+    $raw = (string)($st->fetchColumn() ?: '');
+    if ($raw === '') {
+        return null;
+    }
+    $d = json_decode($raw, true);
+    if (!is_array($d) || (time() - (int)($d['ts'] ?? 0)) > 900) {
+        bind_pending_clear($userId);
+        return null;
+    }
+    return $d;
+}
+
+function bind_pending_set(int $userId, array $d): void
+{
+    db()->prepare('INSERT INTO settings (k, v) VALUES (?,?) ON DUPLICATE KEY UPDATE v = VALUES(v)')
+        ->execute(['bot_bind_pending_' . $userId, json_encode($d, JSON_UNESCAPED_UNICODE)]);
+}
+
+function bind_pending_clear(int $userId): void
+{
+    db()->prepare('DELETE FROM settings WHERE k = ?')->execute(['bot_bind_pending_' . $userId]);
+}
+
+// Аккаунт сайта, привязанный к игроку (для подтверждения владения ником)
+function bind_site_account(int $pid): ?array
+{
+    $st = db()->prepare('SELECT u.id, u.password_hash FROM users u
+        JOIN players p ON p.user_id = u.id WHERE p.id = ? LIMIT 1');
+    $st->execute([$pid]);
+    $row = $st->fetch();
+    return ($row && (string)$row['password_hash'] !== '') ? $row : null;
+}
+
+// Завершение привязки: линк + лог + меню + дослать приглашения
+function finish_bind($chatId, int $userId, ?array $from, int $pid, string $name): void
+{
+    // Ник могли привязать к другому Telegram, пока вводился пароль
+    $stTg = db()->prepare('SELECT tg_user_id FROM players WHERE id = ?');
+    $stTg->execute([$pid]);
+    $curTg = (int)($stTg->fetchColumn() ?: 0);
+    if ($curTg && $curTg !== $userId) {
+        reply($chatId, "🔒 Ник «" . bot_esc($name) . "» уже привязан к другому Telegram. Обратитесь к администратору.");
+        return;
+    }
+    bot_link($userId, $from, $pid);
+    try {
+        db()->prepare('INSERT INTO logs (user_id, action, details, ip) VALUES (NULL, ?, ?, NULL)')
+            ->execute(['tg_link', json_encode(['player' => $name, 'tg_user_id' => $userId, 'via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
+    } catch (Throwable $e) {
+    }
+    send_menu($chatId, $userId, "✅ Готово! Вы привязаны к игроку <b>" . bot_esc($name) . "</b>.\nВыбирайте кнопкой 👇");
+    bot_deliver_pending_invites($pid); // дослать приглашения, отправленные до привязки
+}
+
+// Ввод пароля сайта для подтверждения привязки (состояние bind_pending)
+function handle_bind_password($chatId, int $userId, string $text, ?array $from, array $pending): void
+{
+    if ((int)$chatId !== $userId) {
+        reply($chatId, "🔒 Подтверждение привязки — только в личном чате с ботом.");
+        return;
+    }
+    $pid = (int)($pending['pid'] ?? 0);
+    $name = (string)($pending['nick'] ?? '');
+    $acct = $pid ? bind_site_account($pid) : null;
+    if (!$acct) { // аккаунт исчез/отвязан — подтверждать нечего
+        bind_pending_clear($userId);
+        if ($pid) {
+            finish_bind($chatId, $userId, $from, $pid, $name);
+        }
+        return;
+    }
+    if (password_verify($text, (string)$acct['password_hash'])) {
+        bind_pending_clear($userId);
+        finish_bind($chatId, $userId, $from, $pid, $name);
+        return;
+    }
+    $attempts = (int)($pending['attempts'] ?? 0) + 1;
+    if ($attempts >= 5) {
+        bind_pending_clear($userId);
+        reply($chatId, "🚫 Слишком много неверных попыток. Попробуйте позже или попросите администратора клуба помочь с привязкой.");
+        return;
+    }
+    $pending['attempts'] = $attempts;
+    bind_pending_set($userId, $pending);
+    reply($chatId, "❌ Пароль не подошёл (попытка $attempts из 5). Отправьте пароль от сайта ещё раз.\n\n"
+        . "Забыли пароль — попросите администратора сбросить его. Привязать другой ник: /reg ник");
+}
+
 function do_register($chatId, int $userId, string $nick, ?array $from): void
 {
     $nick = trim($nick);
@@ -441,14 +541,21 @@ function do_register($chatId, int $userId, string $nick, ?array $from): void
             . "(Админка → 👥 Участники бота → «Отвязать»), затем привяжитесь заново.");
         return;
     }
-    bot_link($userId, $from, $pid);
-    try {
-        db()->prepare('INSERT INTO logs (user_id, action, details, ip) VALUES (NULL, ?, ?, NULL)')
-            ->execute(['tg_link', json_encode(['player' => $matched['name'], 'tg_user_id' => $userId, 'via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
-    } catch (Throwable $e) {
+    // Подтверждение владения: если у ника есть аккаунт на сайте — просим пароль сайта.
+    // Иначе первый написавший чужой ник становился этим игроком и через «Сбросить пароль»
+    // получал его аккаунт (а с ником владельца — ещё и права админа бота).
+    if (bind_site_account($pid)) {
+        if ((int)$chatId !== $userId) {
+            reply($chatId, "🔒 У ника «" . bot_esc($matched['name']) . "» есть аккаунт на сайте — привязка только в личном чате с ботом.");
+            return;
+        }
+        bind_pending_set($userId, ['pid' => $pid, 'nick' => (string)$matched['name'], 'attempts' => 0, 'ts' => time()]);
+        reply($chatId, "🔐 У ника «" . bot_esc($matched['name']) . "» есть аккаунт на сайте.\n\n"
+            . "Чтобы подтвердить, что это вы, отправьте <b>пароль от сайта</b> одним сообщением.\n\n"
+            . "Забыли пароль — попросите администратора сбросить его. Привязать другой ник: /reg ник");
+        return;
     }
-    send_menu($chatId, $userId, "✅ Готово! Вы привязаны к игроку <b>" . bot_esc($matched['name']) . "</b>.\nВыбирайте кнопкой 👇");
-    bot_deliver_pending_invites((int)$matched['player_id']); // дослать приглашения, отправленные до привязки
+    finish_bind($chatId, $userId, $from, $pid, (string)$matched['name']);
 }
 
 // ============================================================
