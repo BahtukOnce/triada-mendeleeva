@@ -718,7 +718,10 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'
                 . '<td class="num">' . ((float)$s['minus'] ? number_format((float)$s['minus'], 1) : '') . '</td>';
             echo '<td class="num" style="color:var(--ok);">' . (!empty($tt['lh']) ? '+' . number_format((float)$tt['lh'], 1) : '') . '</td>';
-            echo '<td class="num">' . ((float)($tt['ci'] ?? 0) ? number_format((float)$tt['ci'], 2) : '') . '</td>';
+            echo '<td class="num">' . ((float)($tt['ci'] ?? 0)
+                ? number_format((float)$tt['ci'], 2)
+                    . (!empty($tt['ci_half']) ? '<span style="color:var(--tx3);font-size:10.5px;" title="Компенсация ПУ урезана вдвое — команда первоубиенного победила">×½</span>' : '')
+                : '') . '</td>';
             echo '<td class="num"><b>' . number_format($tt['total'], 2) . '</b></td></tr>';
         }
         echo '</table></div>';

@@ -351,6 +351,7 @@ function game_display_totals(array $game, array $seats, ?array $distTotals = nul
         $out[$seatNo] = [
             'total' => seat_total($s, $game['winner'], $isLhMaker, $seatBonus, $ci),
             'ci' => $ci,
+            'ci_half' => $ci > 0 && $game['winner'] === 'red', // Ci урезан вдвое: команда ПУ победила
             'is_pu' => $isPu,
             'lh' => ($isLhMaker && $isRed && $seatBonus > 0) ? $seatBonus : 0.0,
         ];

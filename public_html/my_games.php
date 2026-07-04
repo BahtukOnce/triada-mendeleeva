@@ -187,7 +187,8 @@ foreach ($groups as $grp) {
                 : '<a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . player_label($s) . '</a>';
             echo '<tr' . ($isMe ? ' style="background:var(--acsf);"' : '') . '>'
                 . '<td>' . (int)$s['seat'] . '</td>'
-                . '<td>' . $nameCell . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '') . '</td>'
+                . '<td>' . $nameCell . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
+                . (!empty($t['ci_half']) ? ' <span class="tag" title="Компенсация ПУ урезана вдвое — команда первоубиенного победила">Ci ×½</span>' : '') . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td></tr>';
         }
