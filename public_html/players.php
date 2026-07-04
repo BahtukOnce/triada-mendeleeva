@@ -68,9 +68,12 @@ page_head('Игроки', 'players');
 echo '<h1>Игроки</h1>';
 echo '<p style="color:var(--tx2);font-size:13px;margin:-6px 0 14px;">Статистика за ' . esc(current_season_bounds()[2]) . ' · вся история — в профиле игрока</p>';
 
-echo '<form method="get" action="/players.php" style="max-width:340px;margin-bottom:14px;">';
+echo '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">';
+echo '<form method="get" action="/players.php" style="max-width:340px;flex:1;min-width:220px;">';
 echo '<div class="field" style="margin:0;"><input type="search" id="pl-search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
 echo '</form>';
+echo '<a class="tag" href="/versus.php" title="Очные встречи двух игроков, соратники и немезиды">⚔️ Дуэль</a>';
+echo '</div>';
 
 if ($list) {
     $roleLbl = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
