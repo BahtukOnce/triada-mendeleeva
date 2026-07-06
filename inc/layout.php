@@ -66,10 +66,30 @@ function page_head(string $title, string $active = '', array $meta = []): void
         $ogUrl = $base . '/' . ltrim($ogUrl, '/');
     }
 
+    // Canonical: у страницы должен быть единственный «главный» адрес, иначе поисковик
+    // считает ?utm=…/дубли отдельными страницами и размывает вес. Берём переданный url
+    // либо текущий путь, очищенный от трекинговых параметров.
+    $canonical = $ogUrl;
+    if ($canonical === '') {
+        $reqUri = (string)($_SERVER['REQUEST_URI'] ?? '/');
+        [$cPath, $cQs] = array_pad(explode('?', $reqUri, 2), 2, '');
+        if ($cQs !== '') {
+            parse_str($cQs, $cParams);
+            foreach (array_keys($cParams) as $ck) {
+                if (preg_match('/^(utm_|fbclid|gclid|yclid|ysclid|_ga|from)/i', (string)$ck)) {
+                    unset($cParams[$ck]);
+                }
+            }
+            $cQs = http_build_query($cParams);
+        }
+        $canonical = $base . $cPath . ($cQs !== '' ? '?' . $cQs : '');
+    }
+
     echo '<!doctype html><html lang="ru" data-theme="dark"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
     echo $robots;
-    echo '<title>' . esc($title) . ' — Триада Менделеева</title>';
+    $titleTag = trim((string)($meta['title_tag'] ?? '')) ?: ($title . ' — Триада Менделеева');
+    echo '<title>' . esc($titleTag) . '</title>';
     echo '<meta name="description" content="' . esc($desc) . '">';
     echo '<meta property="og:title" content="' . esc($ogTitle) . '">';
     echo '<meta property="og:site_name" content="Триада Менделеева">';
@@ -79,7 +99,17 @@ function page_head(string $title, string $active = '', array $meta = []): void
     if ($ogUrl !== '') {
         echo '<meta property="og:url" content="' . esc($ogUrl) . '">';
     }
+    echo '<link rel="canonical" href="' . esc($canonical) . '">';
     echo '<meta name="twitter:card" content="' . esc($card) . '">';
+    // Подтверждение прав в Google Search Console / Яндекс.Вебмастере (токены из config).
+    $gsv = trim((string)cfg('google_site_verification', ''));
+    if ($gsv !== '') {
+        echo '<meta name="google-site-verification" content="' . esc($gsv) . '">';
+    }
+    $yv = trim((string)cfg('yandex_verification', ''));
+    if ($yv !== '') {
+        echo '<meta name="yandex-verification" content="' . esc($yv) . '">';
+    }
     echo '<link rel="icon" href="/assets/img/favicon.png?v=3" type="image/png">';
     echo '<link rel="manifest" href="/manifest.webmanifest?v=1">';
     echo '<meta name="theme-color" content="#0e0e11">';
@@ -88,6 +118,47 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
     echo '<link rel="stylesheet" href="/assets/css/style.css?v=87">';
+
+    // Structured data (schema.org): помогает Google/Яндексу понять, что это за
+    // организация, показать её как единый бренд и построить sitelinks-поиск.
+    if ($env === 'prod') {
+        $vk = trim((string)cfg('vk_url', 'https://vk.com/triada_mendeleev'));
+        $sameAs = [];
+        if ($vk !== '') {
+            $sameAs[] = $vk;
+        }
+        $graph = [
+            [
+                '@type'         => 'SportsOrganization',
+                '@id'           => $base . '/#org',
+                'name'          => 'Триада Менделеева',
+                'alternateName' => 'Клуб спортивной мафии «Триада Менделеева»',
+                'url'           => $base . '/',
+                'logo'          => $base . '/assets/img/icon-192.png',
+                'description'   => 'Клуб спортивной мафии при РХТУ им. Д. И. Менделеева: игровые вечера, турниры, клубный рейтинг и статистика игроков.',
+                'sport'         => 'Спортивная мафия',
+            ],
+            [
+                '@type'           => 'WebSite',
+                '@id'             => $base . '/#website',
+                'url'             => $base . '/',
+                'name'            => 'Триада Менделеева',
+                'inLanguage'      => 'ru',
+                'publisher'       => ['@id' => $base . '/#org'],
+                'potentialAction' => [
+                    '@type'       => 'SearchAction',
+                    'target'      => ['@type' => 'EntryPoint', 'urlTemplate' => $base . '/players.php?q={search_term_string}'],
+                    'query-input' => 'required name=search_term_string',
+                ],
+            ],
+        ];
+        if ($sameAs) {
+            $graph[0]['sameAs'] = $sameAs;
+        }
+        echo '<script type="application/ld+json">'
+            . json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            . '</script>';
+    }
     echo '</head><body>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';

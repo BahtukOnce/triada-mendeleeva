@@ -34,4 +34,13 @@ return [
     // Бота нужно добавить АДМИНИСТРАТОРОМ канала, и переустановить вебхук
     // (/setup_webhook.php?key=<deploy_secret>&go=1). Пусто — автоимпорт выключен.
     'news_channel_id' => '',
+
+    // ── SEO / поисковики ──
+    // Подтверждение прав на сайт (метод «HTML-тег»). Вставь только сам код (content=…):
+    //   Google Search Console → «Добавить ресурс» → HTML-тег → скопируй значение content.
+    'google_site_verification' => '',
+    //   Яндекс.Вебмастер → «Добавить сайт» → Метатег → скопируй значение content.
+    'yandex_verification' => '',
+    // Ссылки клуба (идут в structured data как «тот же бренд»). VK — по умолчанию заполнен.
+    'vk_url' => 'https://vk.com/triada_mendeleev',
 ];

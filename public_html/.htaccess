@@ -6,6 +6,7 @@ AddType application/manifest+json .webmanifest
 
 RewriteEngine On
 RewriteRule ^robots\.txt$ robots.php [L]
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
 
 <FilesMatch "\.(log|sql)$">
     Require all denied
