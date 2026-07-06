@@ -45,6 +45,7 @@ $out('/days.php', null, 'weekly', '0.8');
 $out('/tournaments.php', null, 'weekly', '0.8');
 $out('/rating.php', null, 'weekly', '0.9');
 $out('/players.php', null, 'weekly', '0.7');
+$out('/join.php', null, 'monthly', '0.8');
 $out('/versus.php', null, 'monthly', '0.5');
 
 if (db_ready()) {

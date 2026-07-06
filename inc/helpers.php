@@ -734,6 +734,17 @@ function app_notify_all_members(string $text, ?string $link = null): void
     }
 }
 
+// Уведомить всех руководителей (owner) на сайте — колокольчик
+function app_notify_owners(string $text, ?string $link = null): void
+{
+    try {
+        db()->prepare('INSERT INTO notifications (user_id, text, link)
+            SELECT id, ?, ? FROM users WHERE role = ?')
+            ->execute([mb_substr($text, 0, 500), $link, 'owner']);
+    } catch (Throwable $e) {
+    }
+}
+
 function app_notify_unread(int $userId): int
 {
     if ($userId <= 0) {

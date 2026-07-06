@@ -66,7 +66,7 @@ page_head('Главная', 'index', [
     <p class="guest-sub">Клуб спортивной мафии РХТУ. Игровые вечера, турниры, клубный рейтинг
       с подробной статистикой по каждому игроку.</p>
     <div class="guest-cta">
-      <a class="btn" href="/register.php">Присоединиться к клубу</a>
+      <a class="btn" href="/join.php">Вступить в клуб</a>
       <a class="btn btn-ghost" href="/login.php">Войти</a>
     </div>
     <div class="guest-stats">
@@ -75,8 +75,8 @@ page_head('Главная', 'index', [
       <a href="/days.php"><b><?= $stats['days'] ?></b><span>вечеров</span></a>
       <a href="/tournaments.php"><b><?= $stats['tournaments'] ?></b><span>турниров</span></a>
     </div>
-    <p class="guest-hint">Уже играли в клубе? Зарегистрируйтесь под своим ником — вся ваша
-      статистика и история игр подтянутся автоматически.</p>
+    <p class="guest-hint">Уже играли в клубе? <a href="/register.php">Зарегистрируйтесь</a> под своим ником —
+      вся ваша статистика и история игр подтянутся автоматически.</p>
     <div class="guest-social">
       <a href="https://t.me/triada_mendeleeva" rel="noopener" target="_blank">Telegram</a>
       <a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>
