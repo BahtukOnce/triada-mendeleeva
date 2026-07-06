@@ -212,6 +212,17 @@ a.stat:hover { color: var(--tx); }
 .elo-ex-bar i { display: block; height: 100%; border-radius: 6px; }
 .elo-ex-v { color: var(--tx2); font-size: 12.5px; white-space: nowrap; text-align: right; }
 @media (max-width: 560px) { .elo-ex-row { grid-template-columns: 1fr auto; } .elo-ex-bar { grid-column: 1 / -1; } }
+/* точная формула ELO */
+.elo-sub { font-weight: 700; color: var(--tx); margin: 20px 0 6px; font-size: 15.5px; }
+.elo-step-ttl { font-weight: 650; color: var(--ac); margin: 16px 0 4px; font-size: 13.5px; }
+.elo-formula { background: var(--sf2); border: 1px solid var(--bd); border-radius: 8px; padding: 11px 13px; margin: 8px 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.75; color: var(--tx); overflow-x: auto; white-space: pre; }
+.elo-consts { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 10px 0 4px; }
+.elo-consts span { background: var(--sf2); border: 1px solid var(--bd); border-radius: 6px; padding: 3px 9px; color: var(--tx2); font-size: 12px; }
+.elo-consts b { color: var(--tx); }
+.elo-tbl-wrap { overflow-x: auto; margin: 8px 0; }
+table.elo-worked { min-width: 440px; font-size: 12.5px; }
+table.elo-worked th { color: var(--tx2); font-weight: 600; text-align: left; }
+table.elo-worked td, table.elo-worked th { padding: 5px 8px; border-bottom: 1px solid var(--bd); }
 
 .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 

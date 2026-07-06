@@ -12,11 +12,12 @@ function nav_items(bool $authed = true): array
         'players'     => ['players.php', 'Игроки'],
         'records'     => ['records.php', 'Зал славы'],
     ];
-    // Фото и Тесты — только для вошедших; Правила переехали в Новости (кнопкой)
-    if ($authed) {
-        $items['photos'] = ['photos.php', 'Фото'];
-        $items['tests'] = ['tests.php', 'Тесты'];
-    }
+    // Фото и Тесты временно убраны из меню (по просьбе — пока не нужны). Страницы живы,
+    // вернуть = раскомментировать. Правила — кнопкой в Новостях.
+    // if ($authed) {
+    //     $items['photos'] = ['photos.php', 'Фото'];
+    //     $items['tests'] = ['tests.php', 'Тесты'];
+    // }
     return $items;
 }
 
@@ -118,7 +119,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=93">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=94">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
