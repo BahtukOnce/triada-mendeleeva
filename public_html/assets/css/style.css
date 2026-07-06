@@ -193,6 +193,26 @@ a.stat:hover { color: var(--tx); }
 .stat-help-body li { margin: 5px 0; }
 .stat-help-body b { color: var(--tx); }
 
+/* ELO простыми словами — сворачиваемая объяснялка на странице рейтинга */
+.elo-explain { margin: 4px 0 18px; border: 1px solid var(--bd); border-radius: 12px; background: var(--sf); overflow: hidden; }
+.elo-explain > summary { list-style: none; cursor: pointer; padding: 12px 16px; font-size: 14.5px; color: var(--tx); font-weight: 650; user-select: none; }
+.elo-explain > summary::-webkit-details-marker { display: none; }
+.elo-explain > summary::after { content: '⌄'; float: right; font-size: 16px; transition: transform 0.2s ease; }
+.elo-explain[open] > summary::after { transform: rotate(180deg); }
+.elo-explain > summary:hover { color: var(--ac); }
+.elo-explain-body { padding: 4px 16px 16px; font-size: 14px; line-height: 1.6; color: var(--tx2); border-top: 1px solid var(--bd); }
+.elo-explain-body b { color: var(--tx); }
+.elo-steps { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.elo-step { display: flex; gap: 12px; align-items: flex-start; }
+.elo-step-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--acsf); color: var(--ac); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.elo-ex { background: var(--sf2); border: 1px solid var(--bd); border-radius: 10px; padding: 12px 14px; margin: 14px 0; }
+.elo-ex-ttl { font-weight: 650; color: var(--tx); margin-bottom: 8px; font-size: 13.5px; }
+.elo-ex-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 1.6fr auto; gap: 10px; align-items: center; padding: 4px 0; font-size: 13px; }
+.elo-ex-bar { background: rgba(255,255,255,0.06); border-radius: 6px; height: 12px; overflow: hidden; }
+.elo-ex-bar i { display: block; height: 100%; border-radius: 6px; }
+.elo-ex-v { color: var(--tx2); font-size: 12.5px; white-space: nowrap; text-align: right; }
+@media (max-width: 560px) { .elo-ex-row { grid-template-columns: 1fr auto; } .elo-ex-bar { grid-column: 1 / -1; } }
+
 .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 
 table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }

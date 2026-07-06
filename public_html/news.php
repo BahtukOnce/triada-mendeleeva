@@ -129,64 +129,13 @@ page_head('Новости', 'news');
 echo '<h1>Новости</h1>';
 echo '<p style="margin-top:-6px;display:flex;gap:8px;flex-wrap:wrap;">'
     . '<a class="btn btn-ghost" href="/rules.php">📖 Правила игры</a>'
+    . '<a class="btn btn-ghost" href="/records.php">🏆 Рекорды и достижения</a>'
     . '<a class="btn btn-ghost" href="/suggest.php">💡 Предложить идею</a></p>';
 
-// ── Рекорды клуба ──
-$recs = $dbok ? club_records() : [];
-if ($recs) {
-    echo '<h2 style="margin:20px 0 4px;">Рекорды клуба</h2>';
-    echo '<div class="records-grid">';
-    foreach ($recs as [$ic, $title, $recList, $type]) {
-        echo '<div class="rec-card"><div class="rec-head"><span class="rec-ic">' . $ic . '</span><span class="rec-title">' . esc($title) . '</span></div><div class="rec-rows">';
-        $rank = 0;
-        foreach ($recList as $item) {
-            $rank++;
-            $row = $item['row'];
-            $medal = $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : '🥉');
-            echo '<a class="rec-row" href="/player.php?id=' . (int)$row['pid'] . '">'
-                . '<span class="rec-rank">' . $medal . '</span>' . avatar_html($row, 24)
-                . '<span class="rec-name">' . player_label($row) . '</span>'
-                . '<span class="rec-v">' . esc(records_fmt($item['val'], $type)) . '</span></a>';
-        }
-        echo '</div></div>';
-    }
-    echo '</div>';
-}
+// Рекорды и достижения переехали в отдельную вкладку «Зал славы» (/records.php) —
+// в новостях остаются только новости.
 
-// ── Достижения ──
-echo '<h2 style="margin:20px 0 4px;">Достижения</h2>';
-echo '<p style="color:var(--tx2);font-size:13px;margin:0 0 6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Наведи курсор на ачивку — справа появятся все, кто её получил.</p>';
-$earners = $dbok ? achievement_earners() : [];
-$byGroup = [];
-foreach (achievements_catalog() as $k => $info) {
-    if (!empty($info[4])) { // скрытые ачивки в общем списке не показываем
-        continue;
-    }
-    [$ic, $t, $d, $grp] = $info;
-    $byGroup[$grp][$k] = [$ic, $t, $d];
-}
-echo '<div class="ach-wrap"><div class="ach-main">';
-foreach ($byGroup as $grp => $items) {
-    echo '<div style="font-size:11.5px;color:var(--tx2);text-transform:uppercase;letter-spacing:0.6px;margin:12px 0 6px;">' . esc($grp) . '</div>';
-    echo '<div class="ach-grid">';
-    foreach ($items as $k => [$ic, $t, $d]) {
-        $who = $earners[$k] ?? [];
-        $cnt = count($who);
-        $whoJson = esc(json_encode(array_slice($who, 0, 200), JSON_UNESCAPED_UNICODE));
-        echo '<div class="ach' . ($cnt > 0 ? ' ach-on' : '') . '" data-who="' . $whoJson . '" data-title="' . esc($t) . '">'
-            . '<div class="ach-ic">' . $ic . '</div><div class="ach-t">' . esc($t) . '</div>'
-            . '<div class="ach-d">' . esc($d) . '</div><div class="ach-cnt">' . $cnt . ' получ.</div></div>';
-    }
-    echo '</div>';
-}
-echo '</div>'; // .ach-main
-echo '<aside class="ach-side" id="ach-side"><div class="ach-side-inner">'
-    . '<div class="ach-side-empty"><span class="ach-side-ic">🏆</span><span>Наведи курсор на любую ачивку —<br>и здесь появятся все, кто её получил</span></div>'
-    . '</div></aside>';
-echo '</div>'; // .ach-wrap
-
-// ── Лента новостей (внизу страницы): превью-карточки, полный текст по кнопке ──
-echo '<h2 style="margin:26px 0 12px;">Лента новостей</h2>';
+// ── Лента новостей: превью-карточки, полный текст по кнопке ──
 if ($list) {
     echo '<div class="news-cards">';
     foreach ($list as $n) {

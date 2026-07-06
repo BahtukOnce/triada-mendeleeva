@@ -38,6 +38,39 @@ if (db_ready()) {
 page_head('Рейтинг', 'rating');
 echo '<h1>Рейтинг</h1>';
 
+// ── ELO простыми словами (сворачиваемо, разворачивается по ссылке #elo) ──
+echo <<<'HTML'
+<details class="elo-explain" id="elo">
+  <summary>❓ Как считается ELO — простыми словами</summary>
+  <div class="elo-explain-body">
+    <p><b>ELO — это «сила» игрока одним числом.</b> У всех старт — <b>1000</b>. Побеждаешь — растёт, проигрываешь — падает. Но не на фиксированную величину: система смотрит, <b>кого</b> ты обыграл и <b>как</b> сыграл лично.</p>
+    <div class="elo-steps">
+      <div class="elo-step"><span class="elo-step-n">1</span><div><b>Команда на команду.</b> 🔴 Красные (мир + шериф) против ⚫ чёрных (мафия + дон). Система сравнивает среднюю силу двух команд.</div></div>
+      <div class="elo-step"><span class="elo-step-n">2</span><div><b>Ждали или нет.</b> От сильной команды ждут победы: обыграть заведомо слабых — очков мало, а проиграть им — обидно и дорого. Обыграть тех, кто сильнее, — <b>жирный плюс</b>.</div></div>
+      <div class="elo-step"><span class="elo-step-n">3</span><div><b>Личный вклад.</b> Командный «приз» делится не поровну. Больше получает тот, кто <b>наиграл больше баллов</b> за игру и лично сидел против более сильных соперников.</div></div>
+      <div class="elo-step"><span class="elo-step-n">4</span><div><b>Поражения — мягче.</b> За проигрыш теряешь меньше, чем получил бы за такую же победу. Один неудачный вечер не обрушит рейтинг.</div></div>
+      <div class="elo-step"><span class="elo-step-n">5</span><div><b>Ниже 100 не упасть.</b> У ELO есть пол — совсем в минус уйти нельзя.</div></div>
+    </div>
+    <div class="elo-ex">
+      <div class="elo-ex-ttl">Одна и та же победа стоит по-разному</div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">Обыграли команду <b>сильнее</b> вашей</span><span class="elo-ex-bar"><i style="width:100%;background:var(--ok);"></i></span><span class="elo-ex-v">＋ много</span></div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">Обыграли <b>равных</b></span><span class="elo-ex-bar"><i style="width:60%;background:var(--ok);"></i></span><span class="elo-ex-v">＋ средне</span></div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">Обыграли <b>слабее</b> вас</span><span class="elo-ex-bar"><i style="width:32%;background:var(--ok);"></i></span><span class="elo-ex-v">＋ немного</span></div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">Проиграли <b>слабым</b> (сенсация)</span><span class="elo-ex-bar"><i style="width:55%;background:var(--ac);"></i></span><span class="elo-ex-v">－ заметно</span></div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">Проиграли <b>сильным</b></span><span class="elo-ex-bar"><i style="width:22%;background:var(--ac);"></i></span><span class="elo-ex-v">－ чуть-чуть</span></div>
+    </div>
+    <div class="elo-ex">
+      <div class="elo-ex-ttl">Внутри победившей команды приз делят по вкладу</div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">🅰️ активная игра, +2 балла, против сильных</span><span class="elo-ex-bar"><i style="width:92%;background:var(--ok);"></i></span><span class="elo-ex-v">＋ больше</span></div>
+      <div class="elo-ex-row"><span class="elo-ex-lbl">🅱️ тихая игра, 0 баллов</span><span class="elo-ex-bar"><i style="width:45%;background:var(--ok);"></i></span><span class="elo-ex-v">＋ меньше</span></div>
+      <p style="margin:8px 0 0;color:var(--tx3);font-size:12px;">Оба в плюсе — команда победила. Но А наградили сильнее за вклад. Числа здесь — для интуиции; в реальной игре они зависят от всех участников за столом.</p>
+    </div>
+    <p style="color:var(--tx3);font-size:12.5px;margin-bottom:2px;">ELO пересчитывается по всем сыгранным играм в хронологическом порядке — включая перенесённые исторические. Поэтому рейтинг «живой»: добавили старую игру — картина может немного сдвинуться.</p>
+  </div>
+</details>
+<script>if(location.hash==='#elo'){var d=document.getElementById('elo');if(d){d.open=true;d.scrollIntoView({block:'start'});}}</script>
+HTML;
+
 if (count($ratings) > 1) {
     echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">';
     foreach ($ratings as $r) {
