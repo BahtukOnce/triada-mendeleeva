@@ -212,10 +212,10 @@ if ($games) {
         $isMe = $mePid && (int)$pid === $mePid;
         echo '<tr' . ($pos <= 3 ? ' class="rt-top"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>'
             . '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>'
-            . '<td><a href="/player.php?id=' . $pid . '" style="color:var(--tx);">'
+            . '<td><a href="/player.php?id=' . $pid . '" style="' . me_nick_style($isMe) . '">'
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 24, 'margin-right:7px;')
             . '<span style="vertical-align:middle;">' . esc($row['nick'])
-            . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a>' . ($isMe ? me_badge() : '') . '</td>'
+            . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a></td>'
             . '<td class="num" data-sort="' . $row['games'] . '">' . $row['games'] . '</td>'
             . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td>'
             . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td>'
@@ -286,11 +286,11 @@ if ($games) {
             }
             $isMe = $mePid && (int)$s['player_id'] === $mePid;
             echo '<tr' . ($isMe ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
-                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
+                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMe) . '">' . esc($s['nickname']) . '</a>'
                 . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')
                 . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . (!empty($t['ci_half']) ? ' <span class="tag" title="Компенсация ПУ урезана вдвое — команда первоубиенного победила">Ci ×½</span>' : '')
-                . penalty_badges($s) . ($isMe ? me_badge() : '') . '</td>'
+                . penalty_badges($s) . '</td>'
                 . '<td style="white-space:nowrap;">' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
                 . '<td class="num" style="font-size:11.5px;">' . $edHtml . '</td></tr>';

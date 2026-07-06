@@ -141,13 +141,40 @@ if (!$t) {
     exit;
 }
 
-if (!empty($t['logo'])) {
-    echo '<div style="display:flex;align-items:center;gap:16px;">'
-        . '<img src="' . esc($t['logo']) . '" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:50%;border:2px solid var(--bd);flex:none;">'
-        . '<h1 style="margin:0;">' . esc($t['title']) . '</h1></div>';
-} else {
-    echo '<h1>' . esc($t['title']) . '</h1>';
+// ── Широкая «геройская» шапка турнира ──
+$hDates = '';
+if (!empty($t['date_from'])) {
+    $hDates = date('d.m.Y', strtotime((string)$t['date_from']));
+    if (!empty($t['date_to']) && $t['date_to'] !== $t['date_from']) {
+        $hDates .= ' — ' . date('d.m.Y', strtotime((string)$t['date_to']));
+    }
 }
+$hMeta = array_filter([$hDates, !empty($t['location']) ? esc($t['location']) : '']);
+echo '<style>'
+    . '.t-hero{position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--bd);'
+    . 'background:linear-gradient(135deg,#17171c 0%,#211d26 55%,#2a1c1c 100%);'
+    . 'padding:26px 26px 24px;margin:0 0 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;}'
+    . '.t-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--ac);z-index:2;}'
+    . '.t-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.12;filter:blur(7px) saturate(1.2);transform:scale(1.1);z-index:0;}'
+    . '.t-hero>*{position:relative;z-index:1;}'
+    . '.t-hero-logo{width:92px;height:92px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.16);'
+    . 'flex:none;box-shadow:0 6px 26px rgba(0,0,0,.45);}'
+    . '.t-hero-title{margin:0;font-size:30px;line-height:1.08;font-weight:800;letter-spacing:.4px;}'
+    . '.t-hero-meta{margin-top:9px;color:var(--tx2);font-size:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}'
+    . '@media(max-width:560px){.t-hero{padding:20px 18px;gap:16px;}.t-hero-logo{width:64px;height:64px;}.t-hero-title{font-size:22px;}}'
+    . '</style>';
+echo '<div class="t-hero">';
+if (!empty($t['logo'])) {
+    echo '<div class="t-hero-bg" style="background-image:url(\'' . esc($t['logo']) . '\');"></div>';
+    echo '<img class="t-hero-logo" src="' . esc($t['logo']) . '" alt="">';
+} else {
+    echo '<div class="t-hero-logo" style="display:flex;align-items:center;justify-content:center;font-size:44px;background:rgba(255,255,255,.05);">🏆</div>';
+}
+echo '<div style="min-width:0;flex:1;">';
+echo '<h1 class="t-hero-title">' . esc($t['title']) . '</h1>';
+echo '<div class="t-hero-meta">' . tournament_status_chip($t['status'] ?? null)
+    . ($hMeta ? '<span>' . implode(' · ', $hMeta) . '</span>' : '') . '</div>';
+echo '</div></div>';
 
 // ── Главный судья — отдельной плашкой в самом верху страницы ──
 $mjId = (int)($t['main_judge_player_id'] ?? 0);
@@ -228,9 +255,9 @@ if ($standing && (!$standingsHidden || $canManageT)) {
         $isMe = $mePid && (int)$row['pid'] === $mePid;
         echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
         echo '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>';
-        echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['pid'] . '" style="color:var(--tx);">'
+        echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['pid'] . '" style="' . me_nick_style($isMe) . '">'
             . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a>' . ($isMe ? me_badge() : '') . '</td>';
+            . '<span>' . esc($row['nick']) . casper_ghost($row['nick']) . '</span></a></td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['sum'] . '">' . number_format((float)$row['sum'], 2) . '</td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . number_format((float)$row['avg_total'], 2) . '</td>';
@@ -709,10 +736,9 @@ foreach ($byTable as $tableNo => $tGames) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             $isMeSeat = $myPid && (int)$s['player_id'] === $myPid;
             echo '<tr' . ($isMeSeat ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
-                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a>'
+                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMeSeat) . '">' . esc($s['nickname']) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . penalty_badges($s)
-                . ($isMeSeat ? me_badge() : '')
                 . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'

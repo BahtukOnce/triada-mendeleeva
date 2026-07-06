@@ -138,7 +138,7 @@ page_head('Главная', 'index', [
           $wcol = $wpct === null ? 'var(--tx3)' : ($wpct >= 55 ? 'var(--ok)' : ($wpct <= 45 ? 'var(--ac)' : 'var(--tx)')); ?>
       <tr data-href="/player.php?id=<?= (int)$t5['player_id'] ?>"<?= $medal !== '' ? ' class="rt-top"' : '' ?><?= $isMe ? ' style="' . me_row_style() . '"' : '' ?>>
         <td><?= $medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos ?></td>
-        <td><?= avatar_html(['nickname' => $t5['nickname'], 'avatar' => $t5['avatar']], 26, 'margin-right:8px;') ?><span style="vertical-align:middle;"><?= player_label($t5) ?></span><?= $isMe ? me_badge() : '' ?></td>
+        <td><?= avatar_html(['nickname' => $t5['nickname'], 'avatar' => $t5['avatar']], 26, 'margin-right:8px;') ?><span style="vertical-align:middle;<?= $isMe ? 'color:var(--ac);font-weight:700;' : '' ?>"><?= player_label($t5) ?></span></td>
         <td class="num"><?= $g ?></td>
         <td class="num"><?= $wpct === null ? '<span style="color:var(--tx3);">—</span>' : '<b style="color:' . $wcol . ';">' . $wpct . '%</b><span style="color:var(--tx2);font-size:11px;"> ' . $w . '/' . $g . '</span>' ?></td>
         <td class="num"><b><?= number_format((float)$t5['club_score'], 1) ?></b></td>

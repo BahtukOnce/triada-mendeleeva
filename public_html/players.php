@@ -10,7 +10,7 @@ if (db_ready()) {
     // Игры и победы — за ТЕКУЩИЙ сезон (1 сент–31 авг), включая турниры (sagg).
     // В списке остаётся каждый, кто когда-либо играл ИЛИ зарегистрирован (agg_all — для фильтра).
     $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo,
-            sagg.games, sagg.wins
+            sagg.games, sagg.wins, agg_all.games AS all_games, agg_all.wins AS all_wins
         FROM players p
         LEFT JOIN (
             SELECT gs.player_id,
@@ -25,7 +25,9 @@ if (db_ready()) {
             GROUP BY gs.player_id
         ) sagg ON sagg.player_id = p.id
         LEFT JOIN (
-            SELECT gs.player_id, COUNT(*) AS games
+            SELECT gs.player_id, COUNT(*) AS games,
+                SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
+                          OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS wins
             FROM game_seats gs JOIN games g ON g.id = gs.game_id
             WHERE g.status = 'finished' AND g.winner IS NOT NULL
             GROUP BY gs.player_id
@@ -80,8 +82,12 @@ if ($list) {
     echo '<p id="pl-count" style="color:var(--tx2);font-size:13px;margin:0 0 10px;">Всего игроков: ' . count($list) . '</p>';
     echo '<div class="player-grid">';
     foreach ($list as $p) {
-        $g = $p['games'] !== null ? (int)$p['games'] : 0;
-        $w = (int)$p['wins'];
+        // За текущий сезон; если в нём не играл — показываем за всё время (чтобы у
+        // легенд/легаси не висело «0 игр»), с пометкой «всего».
+        $sg = $p['games'] !== null ? (int)$p['games'] : 0;
+        $allTime = $sg === 0;
+        $g = $allTime ? (int)($p['all_games'] ?? 0) : $sg;
+        $w = $allTime ? (int)($p['all_wins'] ?? 0) : (int)$p['wins'];
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
         echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" href="/player.php?id=' . (int)$p['id'] . '">';
@@ -110,7 +116,7 @@ if ($list) {
                 . '</div></a>';
         } else {
             echo '<div class="pc-stats">'
-                . '<div><b>' . $g . '</b><span>игр</span></div>'
+                . '<div><b>' . $g . '</b><span>игр' . ($allTime && $g > 0 ? ' · всего' : '') . '</span></div>'
                 . '<div><b>' . ($wr !== null ? $wr . '%' : '—') . '</b><span>винрейт</span></div>'
                 . '<div><b>' . $elo . '</b><span>ELO</span></div>'
                 . '</div></a>';

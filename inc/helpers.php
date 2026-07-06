@@ -913,16 +913,25 @@ function current_player(): ?array
     return $p;
 }
 
-// Подсветка строки текущего игрока («это вы») в таблицах и протоколах
+// Текущий игрок теперь помечается только красным ником (me_nick_style), без фоновой
+// подсветки строки — по просьбе владельца «просто красным ник». Возвращаем пусто,
+// чтобы не править все места вызова.
 function me_row_style(): string
 {
-    return 'background:var(--acsf);box-shadow:inset 3px 0 0 var(--ac);';
+    return '';
 }
-// Метка «ВЫ» рядом с ником текущего игрока
+// Раньше здесь была метка «ВЫ». Теперь текущий игрок подсвечивается просто красным
+// ником (me_nick_style), а метка отключена — возвращаем пустую строку, чтобы не
+// править все места вызова.
 function me_badge(): string
 {
-    return ' <span style="display:inline-block;font-size:10px;font-weight:800;line-height:1;padding:3px 5px;'
-        . 'border-radius:5px;background:var(--ac);color:#fff;vertical-align:middle;letter-spacing:.4px;">ВЫ</span>';
+    return '';
+}
+
+// Стиль ника текущего игрока: красный и жирный вместо метки «ВЫ»
+function me_nick_style(bool $isMe): string
+{
+    return $isMe ? 'color:var(--ac);font-weight:700;' : 'color:var(--tx);';
 }
 
 function avatar_html(?array $player, int $size = 30, string $style = ''): string

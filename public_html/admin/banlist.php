@@ -31,6 +31,8 @@ if ($q !== '') {
 $banned = db()->query('SELECT p.id, p.nickname, p.avatar, p.banned_at, p.ban_reason, u.nickname AS by_nick
     FROM players p LEFT JOIN users u ON u.id = p.banned_by
     WHERE p.banned_at IS NOT NULL ORDER BY p.banned_at DESC')->fetchAll();
+// Все никнеймы (не забаненные) — для подсказок в поиске
+$allNicks = db()->query('SELECT nickname FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll(PDO::FETCH_COLUMN);
 
 $inp = 'background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;';
 
@@ -40,7 +42,12 @@ echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">Доступн
 
 echo '<div class="card"><h2 style="margin-top:0;">Забанить игрока</h2>';
 echo '<form method="get" action="/admin/banlist.php" style="max-width:340px;margin-bottom:10px;">';
-echo '<div class="field" style="margin:0;"><input type="search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
+echo '<div class="field" style="margin:0;"><input type="search" name="q" list="ban-nicks" placeholder="Поиск по нику — начните вводить" value="' . esc($q) . '" autocomplete="off"></div>';
+echo '<datalist id="ban-nicks">';
+foreach ($allNicks as $n) {
+    echo '<option value="' . esc((string)$n) . '">';
+}
+echo '</datalist>';
 echo '</form>';
 if ($q !== '') {
     if ($found) {
