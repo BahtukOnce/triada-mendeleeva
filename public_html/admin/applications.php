@@ -33,34 +33,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('/admin/applications.php');
     }
 
-    if ($form === 'make_player') {
+    if ($form === 'approve') {
         $nick = nickname_clean((string)$app['nickname']);
         if ($nick === '') {
             flash_set('err', 'Пустой ник — исправьте заявку');
             redirect('/admin/applications.php');
         }
-        // Ник уже есть? Не создаём дубль (слияние — только вручную и осознанно).
-        $c = db()->prepare('SELECT id FROM players WHERE LOWER(nickname) = LOWER(?)');
+        // Игрок с таким ником уже есть? С аккаунтом — активация не нужна. Без аккаунта —
+        // привязываемся к нему («своя история»). Иначе создаём нового игрока.
+        $c = db()->prepare('SELECT id, user_id FROM players WHERE LOWER(nickname) = LOWER(?)');
         $c->execute([$nick]);
-        $existing = (int)($c->fetchColumn() ?: 0);
-        if ($existing) {
-            flash_set('err', 'Игрок с ником «' . $nick . '» уже есть (id ' . $existing . '). Создавать дубль нельзя — при необходимости свяжите вручную.');
+        $ex = $c->fetch();
+        if ($ex && !empty($ex['user_id'])) {
+            flash_set('err', 'У ника «' . $nick . '» уже есть аккаунт — активация не требуется.');
             redirect('/admin/applications.php');
         }
-        $isRhtu = $app['applicant_status'] !== 'Гость (не из РХТУ)' ? 1 : 0;
-        db()->prepare('INSERT INTO players (nickname, real_name, tg, faculty, study_group, birth_date, status, is_rhtu, joined_at)
-            VALUES (?,?,?,?,?,?,?,?, CURDATE())')
-            ->execute([
-                $nick, $app['full_name'] ?: null, $app['tg_username'] ? '@' . ltrim((string)$app['tg_username'], '@') : null,
-                $app['faculty'] ?: null, $app['study_group'] ?: null, $app['birth_date'] ?: null,
-                $app['applicant_status'] ?: null, $isRhtu,
-            ]);
-        $pid = (int)db()->lastInsertId();
-        db()->prepare('UPDATE club_applications SET state = \'approved\', player_id = ?, processed_by = ?, processed_at = NOW() WHERE id = ?')
-            ->execute([$pid, (int)$u['id'], $id]);
-        log_action((int)$u['id'], 'application_make_player', ['id' => $id, 'player_id' => $pid, 'nick' => $nick]);
-        flash_set('ok', 'Игрок «' . $nick . '» создан. Заявка помечена принятой.');
-        redirect('/player.php?id=' . $pid);
+        if ($ex) {
+            $pid = (int)$ex['id']; // существующий игрок (история) — аккаунт привяжется к нему
+        } else {
+            $isRhtu = $app['applicant_status'] !== 'Гость (не из РХТУ)' ? 1 : 0;
+            db()->prepare('INSERT INTO players (nickname, real_name, tg, faculty, study_group, birth_date, status, is_rhtu, joined_at)
+                VALUES (?,?,?,?,?,?,?,?, CURDATE())')
+                ->execute([
+                    $nick, $app['full_name'] ?: null, $app['tg_username'] ? '@' . ltrim((string)$app['tg_username'], '@') : null,
+                    $app['faculty'] ?: null, $app['study_group'] ?: null, $app['birth_date'] ?: null,
+                    $app['applicant_status'] ?: null, $isRhtu,
+                ]);
+            $pid = (int)db()->lastInsertId();
+        }
+        $token = bin2hex(random_bytes(20));
+        db()->prepare('UPDATE club_applications SET state = \'approved\', player_id = ?, activation_token = ?, activated_at = NULL, processed_by = ?, processed_at = NOW() WHERE id = ?')
+            ->execute([$pid, $token, (int)$u['id'], $id]);
+        log_action((int)$u['id'], 'application_approve', ['id' => $id, 'player_id' => $pid, 'nick' => $nick, 'existing' => (bool)$ex]);
+        flash_set('ok', 'Заявка принята. Отправьте новичку ссылку активации из карточки — по ней он задаст пароль и войдёт.');
+        redirect('/admin/applications.php');
     }
     redirect('/admin/applications.php');
 }
@@ -78,7 +84,7 @@ $stateTag = ['new' => 'tag-open', 'approved' => 'tag-ok', 'rejected' => ''];
 
 page_head('Админка — заявки в клуб', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Заявки на вступление' . ($newCount ? ' <span class="tag tag-open">новых: ' . $newCount . '</span>' : '') . '</h1>';
-echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Анкеты новых жителей с формы <a href="/join.php">«Вступить в клуб»</a>. Можно принять и сразу создать игрока, отклонить или оставить заметку.</p>';
+echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Анкеты новых жителей с формы <a href="/join.php">«Вступить в клуб»</a>. «Принять» → создаётся игрок и ссылка активации: отправьте её новичку, он задаст пароль и войдёт.</p>';
 
 if (!$list) {
     empty_state('Заявок пока нет', 'Когда кто-то заполнит форму вступления, анкета появится здесь.');
@@ -117,6 +123,19 @@ foreach ($list as $a) {
     echo $row('Дата рождения:', $a['birth_date'] ? date('d.m.Y', strtotime((string)$a['birth_date'])) : '');
     echo '</div>';
 
+    // Ссылка активации (после принятия) — отправить новичку, чтобы задал пароль
+    if ($a['state'] === 'approved' && !empty($a['activation_token']) && empty($a['activated_at'])) {
+        $actLink = rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . '/activate.php?token=' . $a['activation_token'];
+        echo '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;margin-bottom:10px;">'
+            . '<div style="font-size:13px;color:var(--tx2);margin-bottom:6px;">🔗 Ссылка активации — отправьте новичку (по ней он задаст пароль и войдёт):</div>'
+            . '<input readonly value="' . esc($actLink) . '" onclick="this.select();try{document.execCommand(\'copy\');}catch(e){}" '
+            . 'title="кликните, чтобы выделить и скопировать" '
+            . 'style="width:100%;box-sizing:border-box;background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;font-size:12.5px;cursor:pointer;">'
+            . '</div>';
+    } elseif (!empty($a['activated_at'])) {
+        echo '<div style="font-size:13px;color:var(--ok);margin-bottom:10px;">✓ Аккаунт активирован ' . date('d.m.Y', strtotime((string)$a['activated_at'])) . '</div>';
+    }
+
     // Действия
     echo '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--bd);padding-top:10px;">';
     echo '<form method="post" action="/admin/applications.php" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:1;min-width:260px;">' . csrf_field();
@@ -129,10 +148,10 @@ foreach ($list as $a) {
     echo '<input type="text" name="admin_note" placeholder="заметка (необязательно)" value="' . esc((string)$a['admin_note']) . '" style="flex:1;min-width:160px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;">';
     echo '<button class="btn" style="padding:6px 14px;font-size:13px;" type="submit">Сохранить</button>';
     echo '</form>';
-    if (!$a['player_id']) {
-        echo '<form method="post" action="/admin/applications.php" onsubmit="return confirm(\'Создать игрока «' . esc(addslashes((string)$a['nickname'])) . '» из этой заявки?\');">' . csrf_field()
-            . '<input type="hidden" name="form" value="make_player"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
-            . '<button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;color:var(--ok);" type="submit">✓ Принять и создать игрока</button></form>';
+    if ($a['state'] !== 'approved') {
+        echo '<form method="post" action="/admin/applications.php" onsubmit="return confirm(\'Принять заявку «' . esc(addslashes((string)$a['nickname'])) . '»? Будет создан игрок и ссылка активации аккаунта.\');">' . csrf_field()
+            . '<input type="hidden" name="form" value="approve"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
+            . '<button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;color:var(--ok);" type="submit">✓ Принять заявку</button></form>';
     }
     echo '<form method="post" action="/admin/applications.php" onsubmit="return confirm(\'Удалить заявку?\');">' . csrf_field()
         . '<input type="hidden" name="form" value="delete"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'

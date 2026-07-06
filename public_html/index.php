@@ -75,8 +75,8 @@ page_head('Главная', 'index', [
       <a href="/days.php"><b><?= $stats['days'] ?></b><span>вечеров</span></a>
       <a href="/tournaments.php"><b><?= $stats['tournaments'] ?></b><span>турниров</span></a>
     </div>
-    <p class="guest-hint">Уже играли в клубе? <a href="/register.php">Зарегистрируйтесь</a> под своим ником —
-      вся ваша статистика и история игр подтянутся автоматически.</p>
+    <p class="guest-hint">Уже играли в клубе? <a href="/join.php">Подайте заявку</a> под своим прежним ником —
+      после подтверждения вся ваша статистика и история игр подтянутся.</p>
     <div class="guest-social">
       <a href="https://t.me/triada_mendeleeva" rel="noopener" target="_blank">Telegram</a>
       <a href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank">VK</a>

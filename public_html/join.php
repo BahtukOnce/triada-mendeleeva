@@ -60,11 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (is_casper($vals['nickname'])) {
         $errors['nickname'] = 'Этот ник принадлежит призраку клуба 👻 — выберите другой';
     } else {
-        // Ник должен быть свободен — новичок не может взять уже используемый ник
-        $exN = db()->prepare('SELECT 1 FROM players WHERE LOWER(nickname) = LOWER(?) LIMIT 1');
+        // Ник, у которого уже ЕСТЬ аккаунт, занять нельзя. Ник существующего игрока
+        // без аккаунта — можно: это «заберу свою историю», руководитель свяжет при приёме.
+        $exN = db()->prepare('SELECT user_id FROM players WHERE LOWER(nickname) = LOWER(?) LIMIT 1');
         $exN->execute([$vals['nickname']]);
-        if ($exN->fetchColumn()) {
-            $errors['nickname'] = 'Этот ник уже занят игроком клуба — выберите другой';
+        $exRow = $exN->fetch();
+        if ($exRow && !empty($exRow['user_id'])) {
+            $errors['nickname'] = 'У этого ника уже есть аккаунт — если это вы, просто войдите';
         }
     }
     if (!in_array($vals['applicant_status'], JOIN_STATUS, true)) {
@@ -175,9 +177,13 @@ if ($done) {
     echo '<h1 style="margin:0 0 8px;">Заявка принята!</h1>';
     echo '<p style="color:var(--tx2);font-size:15px;line-height:1.6;margin:0;">Отлично! Дело за малым. В ближайшее время вам отпишутся и пригласят в логово.</p>';
     echo '<p style="color:var(--tx3);font-style:italic;margin:14px 0 0;">Триада засыпает…</p>';
-    echo '<div style="margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">';
-    echo '<a class="btn" href="/">На главную</a>';
-    echo '<a class="btn btn-ghost" href="https://t.me/triada_mendeleeva" target="_blank" rel="noopener">Наш Telegram</a>';
+    $botUser = ltrim((string)setting('bot_username', ''), '@');
+    echo '<p style="color:var(--tx2);font-size:14px;line-height:1.6;margin:18px 0 0;">Пока заявку смотрят — подпишитесь на бота клуба. Он пришлёт приглашение, а после принятия поможет со входом.</p>';
+    echo '<div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">';
+    if ($botUser !== '') {
+        echo '<a class="btn" href="https://t.me/' . esc($botUser) . '" target="_blank" rel="noopener">🤖 Привязать бота</a>';
+    }
+    echo '<a class="btn btn-ghost" href="/">На главную</a>';
     echo '</div></div>';
     page_foot();
     exit;
@@ -265,7 +271,7 @@ echo '<div class="field"><label>Дата рождения <span style="color:var
     . '<div class="join-hint">Нужна для своевременных поздравлений 🎂</div></div>';
 
 echo '<button class="btn" type="submit" style="width:100%;padding:13px;font-size:16px;margin-top:6px;">Отправить заявку</button>';
-echo '<p style="font-size:13px;color:var(--tx2);text-align:center;margin:12px 0 0;">Уже играли в клубе и хотите аккаунт под своим ником? <a href="/register.php">Зарегистрируйтесь здесь</a>.</p>';
+echo '<p style="font-size:13px;color:var(--tx2);text-align:center;margin:12px 0 0;">Уже играли в клубе? Укажите в анкете свой прежний ник — привяжем к вашей истории. Уже есть аккаунт? <a href="/login.php">Войдите</a>.</p>';
 echo '</form>';
 echo '</div>';
 ?>

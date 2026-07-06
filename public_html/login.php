@@ -45,7 +45,7 @@ page_head('Вход', '');
       <button class="btn btn-block" type="submit">Войти</button>
     </form>
   </div>
-  <div class="form-foot">Нет аккаунта? <a href="/register.php">Зарегистрироваться</a></div>
+  <div class="form-foot">Ещё не в клубе? <a href="/join.php">Подать заявку на вступление</a></div>
   <?php $botUser = setting('bot_username'); ?>
   <div class="form-foot" style="font-size:12.5px;line-height:1.55;">
     <b>Забыли пароль?</b><br>
