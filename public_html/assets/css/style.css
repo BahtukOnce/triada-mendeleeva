@@ -327,7 +327,13 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 .post-card .post-imgs.n3 img:first-child { grid-row: 1 / 3; }
 /* 4 фото — 2×2 */
 .post-card .post-imgs.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 1 / 1; }
-/* 5+ фото — сетка по 3 в ряд, квадраты */
+/* 5 фото — телеграм-мозаика: 2 сверху (по половине) + 3 снизу (по трети), ряды равной высоты */
+.post-card .post-imgs.n5 { grid-template-columns: repeat(6, 1fr); grid-template-rows: 1fr 1fr; aspect-ratio: 3 / 2; }
+.post-card .post-imgs.n5 img:nth-child(-n+2) { grid-column: span 3; }
+.post-card .post-imgs.n5 img:nth-child(n+3) { grid-column: span 2; }
+/* 6 фото — ровная сетка 3×2 */
+.post-card .post-imgs.n6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 3 / 2; }
+/* 7+ фото — сетка по 3 в ряд, квадраты */
 .post-card .post-imgs.nmore { grid-template-columns: 1fr 1fr 1fr; }
 .post-card .post-imgs.nmore img { height: auto; aspect-ratio: 1; }
 .post-card .post-main { padding: 13px 16px 14px; }
