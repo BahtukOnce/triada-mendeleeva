@@ -46,7 +46,7 @@ $renderPost = function (array $n) use ($imgsOf, $newsChan, $meId, $csrf): string
         }
         if ($gallery) {
             $cnt = count($gallery);
-            $cls = $cnt === 1 ? 'n1' : ($cnt === 2 ? 'n2' : ($cnt === 3 ? 'n3' : 'nmore'));
+            $cls = $cnt === 1 ? 'n1' : ($cnt === 2 ? 'n2' : ($cnt === 3 ? 'n3' : ($cnt === 4 ? 'n4' : 'nmore')));
             $h .= '<div class="post-imgs ' . $cls . '">';
             foreach ($gallery as $src) {
                 $h .= '<img src="' . esc($src) . '" alt="" loading="lazy">';

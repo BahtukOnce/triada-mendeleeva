@@ -153,6 +153,15 @@ for ($p = 0; $p < $pages; $p++) {
         // «мусорными» fallback-символами (напр. 💬💬💬 вместо ролевых значков) — вырезаем их целиком.
         $raw = (string)preg_replace('~<tg-emoji\b[^>]*>.*?</tg-emoji>~is', '', (string)$raw);
         $raw = preg_replace('/<br\s*\/?>/i', "\n", $raw);
+        // Сохранить гиперссылки как markdown [текст](url) — иначе strip_tags их потеряет.
+        $raw = (string)preg_replace_callback('~<a\b[^>]*\bhref="([^"]+)"[^>]*>(.*?)</a>~is', function ($m) {
+            $url = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $txt = trim(html_entity_decode(strip_tags($m[2]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($txt === '' || strncmp($url, 'http', 4) !== 0) {
+                return $m[2];
+            }
+            return '[' . $txt . '](' . $url . ')';
+        }, (string)$raw);
         $text = trim(html_entity_decode(strip_tags((string)$raw), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $text = (string)preg_replace('/^[ \t]+/m', '', $text); // убрать отступы, оставшиеся от вырезанных эмодзи
         if ($text === '') {
@@ -163,8 +172,10 @@ for ($p = 0; $p < $pages; $p++) {
         // Защищаемся: при неудаче парсинга берём «сейчас», а не эпоху.
         $parsed = ($dt && $dt->getAttribute('datetime')) ? strtotime($dt->getAttribute('datetime')) : false;
         $ts = $parsed ? date('Y-m-d H:i:s', $parsed) : date('Y-m-d H:i:s');
-        $firstLine = trim((string)strtok($text, "\n"));
-        $title = mb_substr($firstLine !== '' ? $firstLine : $text, 0, 200);
+        // Заголовок — без markdown-разметки ссылок (показываем только текст ссылки).
+        $plainTitle = (string)preg_replace('~\[([^\]\n]+)\]\(https?://[^)\s]+\)~u', '$1', $text);
+        $firstLine = trim((string)strtok($plainTitle, "\n"));
+        $title = mb_substr($firstLine !== '' ? $firstLine : $plainTitle, 0, 200);
 
         // Картинки поста (альбом) + кадры-постеры видео: скачиваем каждую на сервер один раз.
         $imgs = [];

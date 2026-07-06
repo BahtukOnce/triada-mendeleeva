@@ -18,6 +18,54 @@ function like_escape(string $s): string
     return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
 }
 
+// Доминирующий «акцентный» цвет картинки (для градиента плашки турнира под цвет лого).
+// Усредняем только «цветные» пиксели (насыщенные, не почти-чёрные/белые) — поэтому у
+// золотого лого на чёрном фоне выходит золото, а не чёрный. Кэш; требует GD, иначе null.
+function image_accent_color(?string $relPath): ?string
+{
+    if (!$relPath || !function_exists('imagecreatefromstring')) {
+        return null;
+    }
+    $file = ROOT . '/public_html/' . ltrim($relPath, '/');
+    if (!is_file($file) || @filesize($file) > 6 * 1024 * 1024) {
+        return null;
+    }
+    static $cache = [];
+    if (array_key_exists($file, $cache)) {
+        return $cache[$file];
+    }
+    $data = @file_get_contents($file);
+    $img = $data !== false ? @imagecreatefromstring($data) : false;
+    if (!$img) {
+        return $cache[$file] = null;
+    }
+    $small = imagecreatetruecolor(28, 28);
+    imagecopyresampled($small, $img, 0, 0, 0, 0, 28, 28, imagesx($img), imagesy($img));
+    imagedestroy($img);
+    $rs = $gs = $bs = $n = 0;
+    for ($x = 0; $x < 28; $x++) {
+        for ($y = 0; $y < 28; $y++) {
+            $rgb = imagecolorat($small, $x, $y);
+            $r = ($rgb >> 16) & 0xFF;
+            $g = ($rgb >> 8) & 0xFF;
+            $b = $rgb & 0xFF;
+            $mx = max($r, $g, $b);
+            $sat = $mx > 0 ? ($mx - min($r, $g, $b)) / $mx : 0;
+            if ($mx > 45 && $mx < 245 && $sat > 0.22) { // «цветной» пиксель
+                $rs += $r;
+                $gs += $g;
+                $bs += $b;
+                $n++;
+            }
+        }
+    }
+    imagedestroy($small);
+    if ($n < 4) {
+        return $cache[$file] = null;
+    }
+    return $cache[$file] = sprintf('#%02x%02x%02x', intdiv($rs, $n), intdiv($gs, $n), intdiv($bs, $n));
+}
+
 // Запрет исполнения кода в каталоге загрузок (эшелонированная защита на случай,
 // если валидацию картинки удастся обойти). Идемпотентно: один .htaccess в корне
 // uploads/ действует на все подпапки. Вызывать после создания папки загрузок.
@@ -655,42 +703,59 @@ function render_post_body(?string $raw): string
         return '';
     }
     [$regex, $map, $stemMap] = player_mention_index();
-    $parts = preg_split('~(https?://[^\s<]+)~u', $raw, -1, PREG_SPLIT_DELIM_CAPTURE);
-    $out = '';
-    foreach ($parts as $i => $part) {
-        if ($i % 2 === 1) {
-            $embed = media_embed($part);
-            if ($embed !== null) {
-                $out .= $embed;
+
+    // Рендер обычного сегмента: авто-ссылки на голые URL, упоминания игроков, эмодзи.
+    $renderSeg = function (string $seg) use ($regex, $map, $stemMap): string {
+        $parts = preg_split('~(https?://[^\s<]+)~u', $seg, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $out = '';
+        foreach ($parts as $i => $part) {
+            if ($i % 2 === 1) {
+                $embed = media_embed($part);
+                if ($embed !== null) {
+                    $out .= $embed;
+                } else {
+                    $u = rtrim($part, '.,;:!?）)]」»');
+                    $tail = substr($part, strlen($u));
+                    $disp = mb_strimwidth($u, 0, 56, '…');
+                    $out .= '<a href="' . esc($u) . '" target="_blank" rel="noopener nofollow">' . esc($disp) . '</a>' . esc($tail);
+                }
             } else {
-                $u = rtrim($part, '.,;:!?）)]」»');
-                $tail = substr($part, strlen($u));
-                $disp = mb_strimwidth($u, 0, 56, '…');
-                $out .= '<a href="' . esc($u) . '" target="_blank" rel="noopener nofollow">' . esc($disp) . '</a>' . esc($tail);
-            }
-        } else {
-            $esc = esc($part);
-            if ($regex !== '') {
-                $esc = preg_replace_callback($regex, function ($m) use ($map, $stemMap) {
-                    $low = mb_strtolower($m[1]);
-                    $id = $map[$low] ?? 0;
-                    if (!$id) { // склонённая форма → ищем по основе (снимаем 1–2 буквы окончания)
-                        for ($k = 1; $k <= 2 && !$id; $k++) {
-                            $id = $stemMap[mb_substr($low, 0, -$k)] ?? 0;
+                $esc = esc($part);
+                if ($regex !== '') {
+                    $esc = preg_replace_callback($regex, function ($m) use ($map, $stemMap) {
+                        $low = mb_strtolower($m[1]);
+                        $id = $map[$low] ?? 0;
+                        if (!$id) { // склонённая форма → ищем по основе (снимаем 1–2 буквы окончания)
+                            for ($k = 1; $k <= 2 && !$id; $k++) {
+                                $id = $stemMap[mb_substr($low, 0, -$k)] ?? 0;
+                            }
                         }
-                    }
-                    if (!$id) {
-                        return $m[1];
-                    }
-                    // линкуем только совпадения с заглавной буквы — имя игрока, а не обычное слово
-                    $first = mb_substr($m[1], 0, 1);
-                    if (mb_strtolower($first) === $first) {
-                        return $m[1];
-                    }
-                    return '<a class="pl-mention" href="/player.php?id=' . $id . '">' . $m[1] . '</a>';
-                }, $esc);
+                        if (!$id) {
+                            return $m[1];
+                        }
+                        // линкуем только совпадения с заглавной буквы — имя игрока, а не обычное слово
+                        $first = mb_substr($m[1], 0, 1);
+                        if (mb_strtolower($first) === $first) {
+                            return $m[1];
+                        }
+                        return '<a class="pl-mention" href="/player.php?id=' . $id . '">' . $m[1] . '</a>';
+                    }, $esc);
+                }
+                $out .= tg_emojify($esc);
             }
-            $out .= tg_emojify($esc);
+        }
+        return $out;
+    };
+
+    // Внешний слой: markdown-гиперссылки [текст](url) — так сохраняются ссылки из Telegram,
+    // вставленные в текст (text_link). Внутри текста-ссылки — эмодзи, вокруг — обычный рендер.
+    $mdParts = preg_split('~(\[[^\]\n]+\]\(https?://[^)\s]+\))~u', $raw, -1, PREG_SPLIT_DELIM_CAPTURE);
+    $out = '';
+    foreach ($mdParts as $j => $mp) {
+        if ($j % 2 === 1 && preg_match('~^\[([^\]\n]+)\]\((https?://[^)\s]+)\)$~u', $mp, $m)) {
+            $out .= '<a href="' . esc($m[2]) . '" target="_blank" rel="noopener nofollow">' . tg_emojify(esc($m[1])) . '</a>';
+        } else {
+            $out .= $renderSeg($mp);
         }
     }
     return nl2br($out);

@@ -84,29 +84,16 @@ function bot_news_from_channel(array $post): void
         return; // пост из другого чата
     }
     $text  = trim((string)($post['text'] ?? ($post['caption'] ?? '')));
-    // Скрытые ссылки Telegram (text_link — URL спрятан под текстом) лежат в entities и не
-    // видны в самом тексте; добавим их URL в конец, чтобы они отображались в посте на сайте.
-    $ents = $post['entities'] ?? ($post['caption_entities'] ?? []);
-    if (is_array($ents)) {
-        $extra = [];
-        foreach ($ents as $e) {
-            if (($e['type'] ?? '') === 'text_link' && !empty($e['url'])) {
-                $url = trim((string)$e['url']);
-                if ($url !== '' && mb_strpos($text, $url) === false && !in_array($url, $extra, true)) {
-                    $extra[] = $url;
-                }
-            }
-        }
-        if ($extra) {
-            $text = trim($text . "\n" . implode("\n", $extra));
-        }
-    }
     $msgId = (int)($post['message_id'] ?? 0);
     if ($text === '' || !$msgId) {
         return; // нет текста или id — пропускаем
     }
+    // Заголовок — из «чистого» текста (без markdown), тело — со вшитыми гиперссылками.
     $firstLine = trim((string)strtok($text, "\n"));
     $title = mb_substr($firstLine !== '' ? $firstLine : $text, 0, 200);
+    // Скрытые ссылки Telegram (text_link) вшиваем прямо в текст как [текст](url).
+    $ents = $post['entities'] ?? ($post['caption_entities'] ?? []);
+    $text = tg_entities_md($text, $ents);
     $ts = isset($post['date']) ? date('Y-m-d H:i:s', (int)$post['date']) : date('Y-m-d H:i:s');
     db()->prepare('INSERT INTO news (title, body, published_at, tg_msg_id)
             VALUES (?,?,?,?)

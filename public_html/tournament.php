@@ -154,7 +154,7 @@ echo '<style>'
     . '.t-hero{position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--bd);'
     . 'background:linear-gradient(135deg,#17171c 0%,#211d26 55%,#2a1c1c 100%);'
     . 'padding:26px 26px 24px;margin:0 0 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;}'
-    . '.t-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--ac);z-index:2;}'
+    . '.t-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--hero-accent,var(--ac));z-index:2;}'
     . '.t-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.12;filter:blur(7px) saturate(1.2);transform:scale(1.1);z-index:0;}'
     . '.t-hero>*{position:relative;z-index:1;}'
     . '.t-hero-logo{width:92px;height:92px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.16);'
@@ -163,7 +163,17 @@ echo '<style>'
     . '.t-hero-meta{margin-top:9px;color:var(--tx2);font-size:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}'
     . '@media(max-width:560px){.t-hero{padding:20px 18px;gap:16px;}.t-hero-logo{width:64px;height:64px;}.t-hero-title{font-size:22px;}}'
     . '</style>';
-echo '<div class="t-hero">';
+// Градиент плашки — под цвет лого (доминирующий акцент), затемнённый для читаемости
+// белого текста. Нет лого/GD → остаётся дефолтный градиент из CSS.
+$heroStyle = '';
+$accent = image_accent_color($t['logo'] ?? null);
+if ($accent && sscanf($accent, '#%02x%02x%02x', $ar, $ag, $ab) === 3) {
+    $mk = fn(float $f, int $add): string => sprintf('#%02x%02x%02x',
+        min(255, (int)round($ar * $f) + $add), min(255, (int)round($ag * $f) + $add), min(255, (int)round($ab * $f) + $add));
+    $heroStyle = '--hero-accent:' . $accent . ';background:linear-gradient(120deg,'
+        . $mk(0.36, 6) . ' 0%,' . $mk(0.19, 14) . ' 52%,#141318 100%);';
+}
+echo '<div class="t-hero"' . ($heroStyle ? ' style="' . $heroStyle . '"' : '') . '>';
 if (!empty($t['logo'])) {
     echo '<div class="t-hero-bg" style="background-image:url(\'' . esc($t['logo']) . '\');"></div>';
     echo '<img class="t-hero-logo" src="' . esc($t['logo']) . '" alt="">';

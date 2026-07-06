@@ -49,6 +49,44 @@ function bot_esc(string $s): string
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+// Вшить скрытые ссылки Telegram (text_link) прямо в текст как markdown [текст](url),
+// чтобы на сайте они рендерились гиперссылками по тексту. offset/length у Telegram —
+// в кодовых единицах UTF-16, поэтому режем через UTF-16LE (эмодзи считаются как 2).
+function tg_entities_md(string $text, $entities): string
+{
+    if (!is_array($entities) || $entities === []) {
+        return $text;
+    }
+    $links = [];
+    foreach ($entities as $e) {
+        if (($e['type'] ?? '') === 'text_link' && !empty($e['url'])) {
+            $links[] = ['off' => (int)($e['offset'] ?? 0), 'len' => (int)($e['length'] ?? 0), 'url' => (string)$e['url']];
+        }
+    }
+    if (!$links) {
+        return $text;
+    }
+    usort($links, fn($a, $b) => $a['off'] <=> $b['off']);
+    $u16 = mb_convert_encoding($text, 'UTF-16LE', 'UTF-8');
+    $slice = function (int $start, ?int $length) use ($u16): string {
+        $bytes = $length === null ? substr($u16, $start * 2) : substr($u16, $start * 2, $length * 2);
+        return mb_convert_encoding($bytes === false ? '' : $bytes, 'UTF-8', 'UTF-16LE');
+    };
+    $out = '';
+    $cursor = 0;
+    foreach ($links as $l) {
+        if ($l['off'] < $cursor || $l['len'] <= 0) {
+            continue; // перекрытие или пустой — пропускаем
+        }
+        $out .= $slice($cursor, $l['off'] - $cursor);
+        $disp = $slice($l['off'], $l['len']);
+        $out .= '[' . $disp . '](' . $l['url'] . ')';
+        $cursor = $l['off'] + $l['len'];
+    }
+    $out .= $slice($cursor, null);
+    return $out;
+}
+
 function bot_num($v): string
 {
     $f = (float)$v;
