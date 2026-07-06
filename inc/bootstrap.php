@@ -47,15 +47,47 @@ function app_log_error(string $kind, string $msg, string $file, int $line, strin
     @file_put_contents($dir . '/error.log', $entry, FILE_APPEND | LOCK_EX);
 }
 
+// Стилизованная страница ошибки — самодостаточная (без БД/шаблонов, работает даже когда
+// сломано пол-сайта): встроенные стили, тёмная тема, контакт руководителя в Telegram.
+function render_error_page(int $code, string $title, string $msg): void
+{
+    if (!empty($GLOBALS['err_page_rendered'])) {
+        return; // не рисуем дважды (исключение + shutdown)
+    }
+    $GLOBALS['err_page_rendered'] = true;
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: text/html; charset=utf-8');
+    }
+    $tg = ltrim((string)($GLOBALS['cfg']['contact_tg'] ?? 'triada_mendeleeva'), '@');
+    $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+    echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $e($title) . '</title>'
+        . '<div style="position:fixed;inset:0;z-index:2147483000;background:#0e0e11;color:#e9e9ee;'
+        . 'font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;align-items:center;'
+        . 'justify-content:center;padding:22px;box-sizing:border-box;">'
+        . '<div style="max-width:460px;width:100%;text-align:center;background:#17171c;border:1px solid #2b2b33;'
+        . 'border-radius:18px;padding:36px 26px;box-shadow:0 12px 40px rgba(0,0,0,.5);">'
+        . '<div style="font-size:56px;line-height:1;margin-bottom:14px;">🌙</div>'
+        . '<div style="font-size:23px;font-weight:800;margin-bottom:10px;">' . $e($title) . '</div>'
+        . '<div style="color:#9c9ca6;font-size:15px;margin-bottom:22px;">' . $e($msg) . '</div>'
+        . '<div style="color:#9c9ca6;font-size:14px;margin-bottom:14px;">Что-то срочное или не работает?<br>Напишите руководителю клуба в Telegram:</div>'
+        . '<a href="https://t.me/' . $e($tg) . '" target="_blank" rel="noopener" '
+        . 'style="display:inline-block;background:#e8332a;color:#fff;text-decoration:none;font-weight:700;'
+        . 'padding:12px 24px;border-radius:11px;font-size:15px;">✈️ Написать @' . $e($tg) . '</a>'
+        . '<div style="margin-top:20px;"><a href="/" style="color:#8a8a93;text-decoration:none;font-size:14px;">← Вернуться на главную</a></div>'
+        . '<div style="margin-top:24px;color:#5a5a63;font-size:12px;">Триада Менделеева · клуб спортивной мафии</div>'
+        . '</div></div>';
+}
+
 set_exception_handler(function (Throwable $e): void {
     app_log_error(get_class($e), $e->getMessage(), $e->getFile(), $e->getLine(), $e->getTraceAsString());
-    if (!headers_sent()) {
-        http_response_code(500);
-    }
     if (cfg('env', 'test') !== 'prod') {
+        if (!headers_sent()) {
+            http_response_code(500);
+        }
         echo '<pre style="white-space:pre-wrap;padding:16px;">' . htmlspecialchars((string)$e, ENT_QUOTES) . '</pre>';
     } else {
-        echo 'Что-то пошло не так. Мы уже зафиксировали ошибку и скоро починим.';
+        render_error_page(500, 'Что-то пошло не так', 'Мы уже зафиксировали ошибку и скоро её починим.');
     }
 });
 
@@ -63,6 +95,9 @@ register_shutdown_function(function (): void {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         app_log_error('FATAL', (string)$err['message'], (string)$err['file'], (int)$err['line']);
+        if (cfg('env', 'test') === 'prod') {
+            render_error_page(500, 'Что-то пошло не так', 'Мы уже зафиксировали ошибку и скоро её починим.');
+        }
     }
 });
 

@@ -43,4 +43,8 @@ return [
     'yandex_verification' => '',
     // Ссылки клуба (идут в structured data как «тот же бренд»). VK — по умолчанию заполнен.
     'vk_url' => 'https://vk.com/triada_mendeleev',
+
+    // Telegram-контакт для страниц ошибок/404 («написать руководителю клуба»).
+    // Укажи @username того, кому писать (руководитель клуба). Без @ — тоже ок.
+    'contact_tg' => 'triada_mendeleeva',
 ];
