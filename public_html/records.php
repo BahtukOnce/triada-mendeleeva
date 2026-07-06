@@ -3,9 +3,7 @@ require dirname(__DIR__) . '/inc/bootstrap.php';
 
 page_head('Зал славы', 'records');
 echo '<h1>Зал славы клуба</h1>';
-echo '<p style="margin-top:-6px;display:flex;gap:8px;flex-wrap:wrap;">'
-    . '<a class="btn btn-ghost" href="/vs.php">⚔ Очная ставка — сравнить двух игроков</a>'
-    . '<a class="btn btn-ghost" href="/rating.php#elo">❓ Как считается ELO</a></p>';
+echo '<p style="margin-top:-6px;"><a class="btn btn-ghost" href="/vs.php">⚔ Очная ставка — сравнить двух игроков</a></p>';
 
 if (!db_ready()) {
     empty_state('Нет данных', 'Появится после переноса истории.');
