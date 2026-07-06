@@ -4,6 +4,21 @@
 require dirname(__DIR__) . '/inc/bootstrap.php';
 require_once ROOT . '/inc/bot_lib.php';
 
+// Уже вошёл — значит уже в клубе: показываем это вместо формы (повторная заявка не нужна)
+if ($me = current_user()) {
+    page_head('Вы уже в клубе', '');
+    echo '<div class="form-narrow"><div class="form-card" style="text-align:center;">';
+    echo '<div style="font-size:52px;line-height:1;margin-bottom:10px;">✅</div>';
+    echo '<h1 style="margin:0 0 10px;">Вы уже зарегистрированы</h1>';
+    echo '<p style="color:var(--tx2);line-height:1.65;margin:0 0 22px;">Вы вошли под ником <b style="color:var(--tx);">'
+        . esc($me['nickname']) . '</b> — заявка на вступление больше не нужна.</p>';
+    echo '<a class="btn btn-block" href="/cabinet.php">В личный кабинет</a>';
+    echo '<div style="margin-top:12px;"><a href="/" style="color:var(--tx2);">← На главную</a></div>';
+    echo '</div></div>';
+    page_foot();
+    exit;
+}
+
 // ── Варианты ответов (совпадают с прежней Google-формой) ──
 const JOIN_STATUS = ['Студент', 'Выпускник', 'Сотрудник', 'Гость (не из РХТУ)'];
 const JOIN_FACULTY = ['ЦиТХИн', 'БПЭ', 'ВХК РАН', 'УГН', 'ИМСЭН', 'ИПУР', 'ИХТ', 'НПМ', 'ТНВиВМ', 'ФЕН', 'ХФТ', 'Другое'];

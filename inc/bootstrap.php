@@ -49,6 +49,34 @@ function app_log_error(string $kind, string $msg, string $file, int $line, strin
 
 // Стилизованная страница ошибки — самодостаточная (без БД/шаблонов, работает даже когда
 // сломано пол-сайта): встроенные стили, тёмная тема, контакт руководителя в Telegram.
+/**
+ * Telegram текущего руководителя клуба (owner) — «подтягивается сам» из привязанного
+ * игрока. Используется в страницах ошибок и контактах. Обёрнуто в try/catch: если упала
+ * как раз БД, страница ошибки всё равно нарисуется (fallback на config → дефолт).
+ */
+function club_contact_tg(): string
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    $tg = '';
+    try {
+        if (function_exists('db_ready') && db_ready()) {
+            $st = db()->query("SELECT p.tg FROM users u JOIN players p ON p.user_id = u.id
+                WHERE u.role = 'owner' AND p.tg IS NOT NULL AND TRIM(p.tg) <> ''
+                ORDER BY u.id LIMIT 1");
+            $tg = (string)($st->fetchColumn() ?: '');
+        }
+    } catch (Throwable $e) {
+        // БД недоступна (возможно, это и есть причина ошибки) — молча падаем на fallback
+    }
+    if ($tg === '') {
+        $tg = (string)($GLOBALS['cfg']['contact_tg'] ?? 'triada_mendeleeva');
+    }
+    return $cached = ltrim(trim($tg), '@');
+}
+
 function render_error_page(int $code, string $title, string $msg): void
 {
     if (!empty($GLOBALS['err_page_rendered'])) {
@@ -59,7 +87,7 @@ function render_error_page(int $code, string $title, string $msg): void
         http_response_code($code);
         header('Content-Type: text/html; charset=utf-8');
     }
-    $tg = ltrim((string)($GLOBALS['cfg']['contact_tg'] ?? 'triada_mendeleeva'), '@');
+    $tg = club_contact_tg();
     $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
     echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $e($title) . '</title>'
         . '<div style="position:fixed;inset:0;z-index:2147483000;background:#0e0e11;color:#e9e9ee;'
