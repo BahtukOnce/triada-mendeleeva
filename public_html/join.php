@@ -26,8 +26,8 @@ const JOIN_SOURCE = [
 $vals = ['full_name' => '', 'nickname' => '', 'applicant_status' => '', 'faculty' => '',
     'study_group' => '', 'experience' => '', 'source' => '', 'source_other' => '',
     'tg_username' => '', 'birth_date' => ''];
+$srcSel = [];   // выбранные варианты «как узнали» (мультивыбор)
 $errors = [];
-$done = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -38,10 +38,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     foreach (array_keys($vals) as $k) {
+        if ($k === 'source') {
+            continue; // мультивыбор — читаем отдельно
+        }
         $vals[$k] = trim((string)($_POST[$k] ?? ''));
     }
     $vals['nickname'] = nickname_clean($vals['nickname']);
     $vals['tg_username'] = ltrim($vals['tg_username'], '@ ');
+    // Источники — несколько вариантов
+    $srcSel = array_values(array_intersect(
+        array_map(fn($s) => trim((string)$s), (array)($_POST['source'] ?? [])),
+        JOIN_SOURCE
+    ));
+    $vals['source'] = mb_substr(implode('; ', $srcSel), 0, 500);
 
     if (mb_strlen($vals['full_name']) < 2 || mb_strlen($vals['full_name']) > 150) {
         $errors['full_name'] = 'Укажите ФИО';
@@ -61,20 +70,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($vals['applicant_status'], JOIN_STATUS, true)) {
         $errors['applicant_status'] = 'Выберите статус';
     }
-    if (!in_array($vals['faculty'], JOIN_FACULTY, true)) {
-        $errors['faculty'] = 'Выберите факультет';
+    // Факультет — только для студентов/выпускников; учебная группа — только для студентов
+    $needFaculty = in_array($vals['applicant_status'], ['Студент', 'Выпускник'], true);
+    $isStudent = $vals['applicant_status'] === 'Студент';
+    if ($needFaculty) {
+        if (!in_array($vals['faculty'], JOIN_FACULTY, true)) {
+            $errors['faculty'] = 'Выберите факультет';
+        }
+    } else {
+        $vals['faculty'] = ''; // сотрудник/гость — факультет не нужен
     }
-    if (mb_strlen($vals['study_group']) > 50) {
+    if (!$isStudent) {
+        $vals['study_group'] = ''; // группа только у студентов
+    } elseif (mb_strlen($vals['study_group']) > 50) {
         $vals['study_group'] = mb_substr($vals['study_group'], 0, 50);
     }
     if (!in_array($vals['experience'], JOIN_EXPERIENCE, true)) {
         $errors['experience'] = 'Выберите вариант';
     }
-    if (!in_array($vals['source'], JOIN_SOURCE, true)) {
-        $errors['source'] = 'Выберите вариант';
-    }
-    if ($vals['source'] === 'Другое' && $vals['source_other'] === '') {
-        $errors['source'] = 'Напишите, откуда узнали';
+    if (!$srcSel) {
+        $errors['source'] = 'Выберите хотя бы один вариант';
+    } elseif (in_array('Другое', $srcSel, true) && $vals['source_other'] === '') {
+        $errors['source'] = 'Вы выбрали «Другое» — напишите, откуда узнали';
     }
     if ($vals['tg_username'] === '' || mb_strlen($vals['tg_username']) > 100) {
         $errors['tg_username'] = 'Укажите ник в Telegram';
@@ -97,16 +114,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
+        $isOther = in_array('Другое', $srcSel, true);
         db()->prepare('INSERT INTO club_applications
             (full_name, nickname, applicant_status, faculty, study_group, experience, source, source_other, tg_username, birth_date, ip)
             VALUES (?,?,?,?,?,?,?,?,?,?,?)')
             ->execute([
-                $vals['full_name'], $vals['nickname'], $vals['applicant_status'], $vals['faculty'],
+                $vals['full_name'], $vals['nickname'], $vals['applicant_status'], $vals['faculty'] ?: null,
                 $vals['study_group'] ?: null, $vals['experience'], $vals['source'],
-                $vals['source'] === 'Другое' ? ($vals['source_other'] ?: null) : null,
+                $isOther ? ($vals['source_other'] ?: null) : null,
                 $vals['tg_username'], $vals['birth_date'] ?: null, $ip ?: null,
             ]);
         $appId = (int)db()->lastInsertId();
+
+        // Источник для показа: список + текст «Другое», если был
+        $srcDisplay = $vals['source'];
+        if ($isOther && $vals['source_other'] !== '') {
+            $srcDisplay = str_replace('Другое', 'Другое (' . $vals['source_other'] . ')', $srcDisplay);
+        }
+        // Факультет/группа — только если заданы (у сотрудника/гостя их нет)
+        $eduLine = trim(($vals['faculty'] !== '' ? $vals['faculty'] : '')
+            . ($vals['study_group'] !== '' ? ' · гр. ' . $vals['study_group'] : ''));
 
         // ── Уведомляем: колокольчик — всем админам, Telegram-бот — руководителю ──
         $tgShown = '@' . ltrim($vals['tg_username'], '@');
@@ -116,10 +143,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 . "👤 <b>" . bot_esc($vals['full_name']) . "</b>\n"
                 . "🎭 Ник: <b>" . bot_esc($vals['nickname']) . "</b>\n"
                 . "📱 Telegram: " . bot_esc($tgShown) . "\n"
-                . "🎓 " . bot_esc($vals['applicant_status']) . " · " . bot_esc($vals['faculty'])
-                . ($vals['study_group'] !== '' ? ' · гр. ' . bot_esc($vals['study_group']) : '') . "\n"
+                . "🎓 " . bot_esc($vals['applicant_status']) . ($eduLine !== '' ? ' · ' . bot_esc($eduLine) : '') . "\n"
                 . "🎲 Опыт: " . bot_esc($vals['experience']) . "\n"
-                . "🔎 Узнал(а): " . bot_esc($vals['source'] === 'Другое' ? ($vals['source_other'] ?: 'Другое') : $vals['source'])
+                . "🔎 Узнал(а): " . bot_esc($srcDisplay)
                 . ($vals['birth_date'] !== '' ? "\n🎂 " . bot_esc(date('d.m.Y', strtotime($vals['birth_date']))) : '')
                 . "\n\nОткрыть на сайте: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/applications.php";
             if (bot_token() !== '') {
@@ -158,26 +184,37 @@ if ($done) {
 }
 
 // ── Форма ──
-$radioList = function (string $name, array $options, string $current) : string {
+// Список одиночного выбора (радио) или мультивыбора (чекбоксы) — единый вид.
+$optList = function (string $name, array $options, $selected, bool $multi = false): string {
+    $sel = (array)$selected;
+    $type = $multi ? 'checkbox' : 'radio';
+    $nm = $multi ? $name . '[]' : $name;
     $h = '<div class="join-opts">';
     foreach ($options as $opt) {
-        $on = $current === $opt;
+        $on = in_array($opt, $sel, true);
         $h .= '<label class="join-opt' . ($on ? ' join-opt-on' : '') . '">'
-            . '<input type="radio" name="' . $name . '" value="' . esc($opt) . '"' . ($on ? ' checked' : '') . '>'
+            . '<input type="' . $type . '" name="' . $nm . '" value="' . esc($opt) . '"' . ($on ? ' checked' : '') . '>'
             . '<span>' . esc($opt) . '</span></label>';
     }
     return $h . '</div>';
 };
 $err = fn(string $k): string => isset($errors[$k])
-    ? '<div style="color:var(--ac);font-size:12.5px;margin-top:4px;">' . esc($errors[$k]) . '</div>' : '';
+    ? '<div style="color:var(--ac);font-size:13px;margin-top:5px;">' . esc($errors[$k]) . '</div>' : '';
+
+// Начальное состояние условных полей (без JS / при повторном рендере с ошибкой)
+$curStatus = $vals['applicant_status'];
+$showFac = in_array($curStatus, ['Студент', 'Выпускник'], true);
+$showGrp = $curStatus === 'Студент';
 
 echo '<style>'
-    . '.join-opts{display:flex;flex-direction:column;gap:7px;}'
-    . '.join-opt{display:block;padding:12px 14px;border:1px solid var(--bd);border-radius:9px;cursor:pointer;color:var(--tx2);transition:border-color .15s,background .15s,color .15s;}'
-    . '.join-opt:hover{border-color:var(--tx3);color:var(--tx);}'
-    . '.join-opt-on{border-color:var(--ac);background:var(--acsf);color:var(--tx);font-weight:600;}'
+    . '.join-opts{display:flex;flex-direction:column;gap:8px;}'
+    . '.join-opt{display:block;padding:12px 14px;border:1px solid var(--bd);border-radius:9px;cursor:pointer;color:var(--tx);font-size:14.5px;line-height:1.4;transition:border-color .15s,background .15s;}'
+    . '.join-opt:hover{border-color:var(--tx3);}'
+    . '.join-opt-on{border-color:var(--ac);background:var(--acsf);font-weight:600;}'
     . '.join-opt input{position:absolute;opacity:0;width:0;height:0;margin:0;pointer-events:none;}'
     . '.join-sel{width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:11px 12px;font-size:15px;}'
+    . '.join-hint{font-size:13px;color:var(--tx2);margin-top:6px;line-height:1.5;}'
+    . '.jf label{font-size:14.5px;color:var(--tx);}'
     . '</style>';
 
 echo '<div style="max-width:640px;margin:0 auto;">';
@@ -188,7 +225,7 @@ if (isset($errors['_'])) {
     echo '<div class="flash flash-err">' . esc($errors['_']) . '</div>';
 }
 
-echo '<form method="post" action="/join.php" class="card" autocomplete="off">' . csrf_field();
+echo '<form method="post" action="/join.php" class="card jf" autocomplete="off">' . csrf_field();
 // honeypot (скрыт от людей, ловит ботов)
 echo '<div style="position:absolute;left:-9999px;" aria-hidden="true"><label>Сайт<input type="text" name="site" tabindex="-1" autocomplete="off"></label></div>';
 
@@ -197,58 +234,70 @@ echo '<div class="field"><label>ФИО <span style="color:var(--ac);">*</span></
 
 echo '<div class="field"><label>Игровой ник <span style="color:var(--ac);">*</span></label>'
     . '<input type="text" name="nickname" value="' . esc($vals['nickname']) . '" required maxlength="60" placeholder="как вас звать за столом">'
-    . '<div style="font-size:12px;color:var(--tx3);margin-top:5px;line-height:1.5;">Игровое имя позволяет оставить игровой конфликт в игре и не привязывать его к личности человека. <span style="opacity:.7;">© Госпожа Косатка</span></div>'
+    . '<div class="join-hint">Игровое имя позволяет оставить игровой конфликт в игре и не привязывать его к личности человека. <span style="opacity:.75;">© Госпожа Косатка</span></div>'
     . $err('nickname') . '</div>';
 
-echo '<div class="field"><label>Ваш статус <span style="color:var(--ac);">*</span></label>' . $radioList('applicant_status', JOIN_STATUS, $vals['applicant_status']) . $err('applicant_status') . '</div>';
+echo '<div class="field"><label>Ваш статус <span style="color:var(--ac);">*</span></label>' . $optList('applicant_status', JOIN_STATUS, $curStatus) . $err('applicant_status') . '</div>';
 
-echo '<div class="field"><label>Факультет <span style="color:var(--ac);">*</span></label>'
-    . '<select name="faculty" class="join-sel" required><option value="">— выбрать —</option>';
+echo '<div class="field" id="jf-faculty"' . ($showFac ? '' : ' style="display:none;"') . '><label>Факультет <span style="color:var(--ac);">*</span></label>'
+    . '<select name="faculty" class="join-sel"><option value="">— выбрать —</option>';
 foreach (JOIN_FACULTY as $f) {
     echo '<option value="' . esc($f) . '"' . ($vals['faculty'] === $f ? ' selected' : '') . '>' . esc($f) . '</option>';
 }
 echo '</select>' . $err('faculty') . '</div>';
 
-echo '<div class="field"><label>Учебная группа <span style="color:var(--tx3);font-weight:400;">(при наличии)</span></label>'
+echo '<div class="field" id="jf-group"' . ($showGrp ? '' : ' style="display:none;"') . '><label>Учебная группа</label>'
     . '<input type="text" name="study_group" value="' . esc($vals['study_group']) . '" maxlength="50" placeholder="например, ЦТ-13"></div>';
 
-echo '<div class="field"><label>Опыт игры в спортивную мафию <span style="color:var(--ac);">*</span></label>' . $radioList('experience', JOIN_EXPERIENCE, $vals['experience']) . $err('experience') . '</div>';
+echo '<div class="field"><label>Опыт игры в спортивную мафию <span style="color:var(--ac);">*</span></label>' . $optList('experience', JOIN_EXPERIENCE, $vals['experience']) . $err('experience') . '</div>';
 
-echo '<div class="field"><label>Как узнали про наш клуб? <span style="color:var(--ac);">*</span></label>' . $radioList('source', JOIN_SOURCE, $vals['source']);
+echo '<div class="field"><label>Как узнали про наш клуб? <span style="color:var(--ac);">*</span> <span style="color:var(--tx2);font-weight:400;font-size:13px;">— можно выбрать несколько</span></label>'
+    . $optList('source', JOIN_SOURCE, $srcSel, true);
 echo '<input type="text" name="source_other" id="join-source-other" value="' . esc($vals['source_other']) . '" maxlength="255" placeholder="Расскажите, откуда именно" style="margin-top:8px;'
-    . ($vals['source'] === 'Другое' ? '' : 'display:none;') . '">' . $err('source') . '</div>';
+    . (in_array('Другое', $srcSel, true) ? '' : 'display:none;') . '">' . $err('source') . '</div>';
 
 echo '<div class="field"><label>Ник в Telegram <span style="color:var(--ac);">*</span></label>'
     . '<input type="text" name="tg_username" value="' . esc($vals['tg_username']) . '" required maxlength="100" placeholder="@username">'
-    . '<div style="font-size:12px;color:var(--tx3);margin-top:5px;">Чтобы мы могли позвать вас на игры.</div>' . $err('tg_username') . '</div>';
+    . '<div class="join-hint">Чтобы мы могли позвать вас на игры.</div>' . $err('tg_username') . '</div>';
 
-echo '<div class="field"><label>Дата рождения <span style="color:var(--tx3);font-weight:400;">(необязательно)</span></label>'
+echo '<div class="field"><label>Дата рождения <span style="color:var(--tx2);font-weight:400;font-size:13px;">— необязательно</span></label>'
     . '<input type="date" name="birth_date" value="' . esc($vals['birth_date']) . '" max="' . date('Y-m-d') . '" style="color-scheme:dark;">'
-    . '<div style="font-size:12px;color:var(--tx3);margin-top:5px;">Нужна для своевременных поздравлений 🎂</div></div>';
+    . '<div class="join-hint">Нужна для своевременных поздравлений 🎂</div></div>';
 
 echo '<button class="btn" type="submit" style="width:100%;padding:13px;font-size:16px;margin-top:6px;">Отправить заявку</button>';
-echo '<p style="font-size:12px;color:var(--tx3);text-align:center;margin:12px 0 0;">Уже играли в клубе и хотите аккаунт под своим ником? <a href="/register.php">Зарегистрируйтесь здесь</a>.</p>';
+echo '<p style="font-size:13px;color:var(--tx2);text-align:center;margin:12px 0 0;">Уже играли в клубе и хотите аккаунт под своим ником? <a href="/register.php">Зарегистрируйтесь здесь</a>.</p>';
 echo '</form>';
 echo '</div>';
 ?>
 <script>
 (function () {
-  // Показ поля «Другое» при выборе соответствующего варианта; подсветка выбранной опции
   var other = document.getElementById('join-source-other');
+  // Подсветка выбранных вариантов + показ поля «Другое» (источник — чекбоксы)
   document.querySelectorAll('.join-opts').forEach(function (grp) {
     grp.addEventListener('change', function () {
       grp.querySelectorAll('.join-opt').forEach(function (l) {
-        var inp = l.querySelector('input');
-        l.classList.toggle('join-opt-on', inp.checked);
+        l.classList.toggle('join-opt-on', l.querySelector('input').checked);
       });
-      var picked = grp.querySelector('input[name=source]:checked');
-      if (picked && other) {
-        var isOther = picked.value === 'Другое';
-        other.style.display = isOther ? '' : 'none';
-        if (isOther) other.focus();
+      var otherCb = grp.querySelector('input[value="Другое"]');
+      if (otherCb && other) {
+        other.style.display = otherCb.checked ? '' : 'none';
+        if (otherCb.checked) other.focus();
       }
     });
   });
+  // Условные поля: факультет — студент/выпускник, группа — только студент
+  var fFac = document.getElementById('jf-faculty');
+  var fGrp = document.getElementById('jf-group');
+  function applyStatus() {
+    var r = document.querySelector('input[name=applicant_status]:checked');
+    var st = r ? r.value : '';
+    if (fFac) fFac.style.display = (st === 'Студент' || st === 'Выпускник') ? '' : 'none';
+    if (fGrp) fGrp.style.display = (st === 'Студент') ? '' : 'none';
+  }
+  document.querySelectorAll('input[name=applicant_status]').forEach(function (r) {
+    r.addEventListener('change', applyStatus);
+  });
+  applyStatus();
 })();
 </script>
 <?php

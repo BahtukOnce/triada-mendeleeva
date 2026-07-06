@@ -107,7 +107,13 @@ foreach ($list as $a) {
     echo $row('Статус:', $a['applicant_status']);
     echo $row('Факультет:', $a['faculty'] . ($a['study_group'] ? ' · группа ' . $a['study_group'] : ''));
     echo $row('Опыт игры:', $a['experience']);
-    echo $row('Как узнал(а):', $a['source'] === 'Другое' ? ('Другое — ' . ($a['source_other'] ?: '—')) : $a['source']);
+    $srcTxt = (string)$a['source'];
+    if (!empty($a['source_other'])) {
+        $srcTxt = str_contains($srcTxt, 'Другое')
+            ? str_replace('Другое', 'Другое (' . $a['source_other'] . ')', $srcTxt)
+            : trim($srcTxt . ' · ' . $a['source_other']);
+    }
+    echo $row('Как узнал(а):', $srcTxt);
     echo $row('Дата рождения:', $a['birth_date'] ? date('d.m.Y', strtotime((string)$a['birth_date'])) : '');
     echo '</div>';
 
