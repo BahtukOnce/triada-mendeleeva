@@ -48,6 +48,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($vals['nickname'] === '' || mb_strlen($vals['nickname']) > 60) {
         $errors['nickname'] = 'Укажите игровой ник (без эмодзи)';
+    } elseif (is_casper($vals['nickname'])) {
+        $errors['nickname'] = 'Этот ник принадлежит призраку клуба 👻 — выберите другой';
+    } else {
+        // Ник должен быть свободен — новичок не может взять уже используемый ник
+        $exN = db()->prepare('SELECT 1 FROM players WHERE LOWER(nickname) = LOWER(?) LIMIT 1');
+        $exN->execute([$vals['nickname']]);
+        if ($exN->fetchColumn()) {
+            $errors['nickname'] = 'Этот ник уже занят игроком клуба — выберите другой';
+        }
     }
     if (!in_array($vals['applicant_status'], JOIN_STATUS, true)) {
         $errors['applicant_status'] = 'Выберите статус';
