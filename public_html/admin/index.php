@@ -52,12 +52,10 @@ $groups = [
         ['/admin/errors.php', 'Ошибки', 'технический лог ошибок', false],
     ],
 ];
-// Заявки на вступление видит и обрабатывает только руководитель
-if ($u['role'] === 'owner') {
-    $an = (int)($counts['app_new'] ?? 0);
-    array_unshift($groups['Люди'], ['/admin/applications.php', 'Заявки в клуб',
-        $an ? '⚠ новых: ' . $an : 'вступление новых жителей', $an > 0]);
-}
+// Заявки на вступление — админы и руководитель
+$an = (int)($counts['app_new'] ?? 0);
+array_unshift($groups['Люди'], ['/admin/applications.php', 'Заявки в клуб',
+    $an ? '⚠ новых: ' . $an : 'вступление новых жителей', $an > 0]);
 
 foreach ($groups as $gname => $gitems) {
     echo '<h2 style="margin:18px 0 8px;">' . $gname . '</h2>';

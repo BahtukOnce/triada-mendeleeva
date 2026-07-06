@@ -1,7 +1,7 @@
 <?php
-// Заявки на вступление в клуб — только руководитель (owner).
+// Заявки на вступление в клуб — админы и руководитель (в бот заявка уходит руководителю).
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
-$u = require_role('owner');
+$u = require_role('admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();

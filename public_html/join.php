@@ -99,9 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         $appId = (int)db()->lastInsertId();
 
-        // ── Уведомляем руководителей: колокольчик на сайте + Telegram-бот ──
+        // ── Уведомляем: колокольчик — всем админам, Telegram-бот — руководителю ──
         $tgShown = '@' . ltrim($vals['tg_username'], '@');
-        app_notify_owners('🆕 Новая заявка в клуб: ' . $vals['nickname'] . ' (' . $vals['full_name'] . ')', '/admin/applications.php');
+        app_notify_admins('🆕 Новая заявка в клуб: ' . $vals['nickname'] . ' (' . $vals['full_name'] . ')', '/admin/applications.php');
         try {
             $botText = "🆕 <b>Новая заявка в клуб</b>\n\n"
                 . "👤 <b>" . bot_esc($vals['full_name']) . "</b>\n"
