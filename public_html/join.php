@@ -173,10 +173,10 @@ $err = fn(string $k): string => isset($errors[$k])
 
 echo '<style>'
     . '.join-opts{display:flex;flex-direction:column;gap:7px;}'
-    . '.join-opt{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border:1px solid var(--bd);border-radius:9px;cursor:pointer;transition:border-color .15s,background .15s;}'
-    . '.join-opt:hover{border-color:var(--tx3);}'
-    . '.join-opt-on{border-color:var(--ac);background:var(--acsf);}'
-    . '.join-opt input{width:18px;height:18px;flex:none;margin:1px 0 0;padding:0;background:transparent;border:none;border-radius:50%;accent-color:var(--ac);cursor:pointer;}'
+    . '.join-opt{display:block;padding:12px 14px;border:1px solid var(--bd);border-radius:9px;cursor:pointer;color:var(--tx2);transition:border-color .15s,background .15s,color .15s;}'
+    . '.join-opt:hover{border-color:var(--tx3);color:var(--tx);}'
+    . '.join-opt-on{border-color:var(--ac);background:var(--acsf);color:var(--tx);font-weight:600;}'
+    . '.join-opt input{position:absolute;opacity:0;width:0;height:0;margin:0;pointer-events:none;}'
     . '.join-sel{width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:11px 12px;font-size:15px;}'
     . '</style>';
 
