@@ -178,7 +178,7 @@ foreach ($byGroup as $grp => $items) {
 }
 echo '</div>'; // .ach-main
 echo '<aside class="ach-side" id="ach-side"><div class="ach-side-inner">'
-    . '<div class="ach-side-empty">Наведи на ачивку — здесь появятся те, кто её получил</div>'
+    . '<div class="ach-side-empty"><span class="ach-side-ic">🏆</span><span>Наведи курсор на любую ачивку —<br>и здесь появятся все, кто её получил</span></div>'
     . '</div></aside>';
 echo '</div>'; // .ach-wrap
 

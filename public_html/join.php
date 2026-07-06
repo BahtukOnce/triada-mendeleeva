@@ -123,8 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 . ($vals['birth_date'] !== '' ? "\n🎂 " . bot_esc(date('d.m.Y', strtotime($vals['birth_date']))) : '')
                 . "\n\nОткрыть на сайте: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/applications.php";
             if (bot_token() !== '') {
-                $owners = db()->query("SELECT tg_user_id FROM users WHERE role = 'owner' AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($owners as $tg) {
+                // ВРЕМЕННО (для теста): заявки в бот приходят и админам, и руководителю.
+                // Чтобы вернуть только руководителю — заменить на role = 'owner'.
+                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('owner','admin') AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($recip as $tg) {
                     bot_send((int)$tg, $botText);
                 }
             }
@@ -174,7 +176,7 @@ echo '<style>'
     . '.join-opt{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border:1px solid var(--bd);border-radius:9px;cursor:pointer;transition:border-color .15s,background .15s;}'
     . '.join-opt:hover{border-color:var(--tx3);}'
     . '.join-opt-on{border-color:var(--ac);background:var(--acsf);}'
-    . '.join-opt input{margin-top:2px;flex:none;accent-color:var(--ac);}'
+    . '.join-opt input{width:18px;height:18px;flex:none;margin:1px 0 0;padding:0;background:transparent;border:none;border-radius:50%;accent-color:var(--ac);cursor:pointer;}'
     . '.join-sel{width:100%;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:11px 12px;font-size:15px;}'
     . '</style>';
 

@@ -34,6 +34,9 @@ function render_player_stats(int $id, bool $own = false): void
         echo '<h1 style="margin:16px 0 0;font-size:25px;">Бу! Ты нашёл Каспера</h1>';
         echo '<p style="color:var(--tx2);font-size:15px;line-height:1.7;margin:16px 0;">Его не существует — это клубный призрак, дежурный десятый. '
             . 'Не хватало игрока? Каспер молча садился за стол и первым ловил пулю, чтобы игра состоялась.</p>';
+        echo '<p style="color:var(--tx2);font-size:15px;line-height:1.7;margin:16px 0;">А ещё Каспер — мастер конспирации. '
+            . 'Если кто-то сыграл, но своё имя истории так и не выдал, — по документам это снова был он. '
+            . 'Мы ведь ничьих ников не забываем. Просто Каспер порой работает под прикрытием. 🕵️</p>';
         echo '<p style="font-size:15px;line-height:1.6;margin:0;color:var(--tx);">Статистики у призраков нет. Есть только легенда. 🤍</p>';
         echo '</div>';
         return;
