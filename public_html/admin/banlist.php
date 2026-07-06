@@ -41,14 +41,65 @@ echo '<p><a href="/admin/">← Админка</a></p><h1>Бан-лист</h1>';
 echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">Доступно администраторам и руководителю. Забаненные скрываются из списка игроков.</p>';
 
 echo '<div class="card"><h2 style="margin-top:0;">Забанить игрока</h2>';
-echo '<form method="get" action="/admin/banlist.php" style="max-width:340px;margin-bottom:10px;">';
-echo '<div class="field" style="margin:0;"><input type="search" name="q" list="ban-nicks" placeholder="Поиск по нику — начните вводить" value="' . esc($q) . '" autocomplete="off"></div>';
-echo '<datalist id="ban-nicks">';
-foreach ($allNicks as $n) {
-    echo '<option value="' . esc((string)$n) . '">';
-}
-echo '</datalist>';
+// Ники для подсказок, без мусорных (только из чёрточек/символов, напр. «-----»)
+$sugNicks = array_values(array_filter($allNicks, fn($n) => preg_match('/[\p{L}\p{N}]/u', (string)$n)));
+echo '<style>'
+    . '#ban-search{position:relative;}'
+    . '.ban-sug{position:absolute;left:0;right:0;top:100%;z-index:40;margin-top:4px;background:var(--sf2);'
+    . 'border:1px solid var(--bd);border-radius:8px;max-height:300px;overflow-y:auto;box-shadow:0 10px 28px rgba(0,0,0,.45);}'
+    . '.ban-sug-item{padding:9px 12px;cursor:pointer;color:var(--tx);border-bottom:1px solid var(--bd);font-size:14px;}'
+    . '.ban-sug-item:last-child{border-bottom:none;}'
+    . '.ban-sug-item.active,.ban-sug-item:hover{background:var(--acsf);}'
+    . '</style>';
+echo '<form method="get" action="/admin/banlist.php" id="ban-search" style="max-width:340px;margin-bottom:10px;">';
+echo '<div class="field" style="margin:0;"><input type="search" name="q" id="ban-q" placeholder="Поиск по нику — начните вводить" value="' . esc($q) . '" autocomplete="off"></div>';
+echo '<div id="ban-sug" class="ban-sug" style="display:none;"></div>';
 echo '</form>';
+echo '<script>var BAN_NICKS = ' . json_encode($sugNicks, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ';</script>';
+echo <<<'JS'
+<script>
+(function(){
+  var inp=document.getElementById('ban-q'),box=document.getElementById('ban-sug'),form=document.getElementById('ban-search');
+  if(!inp||!box||!form) return;
+  var nicks=window.BAN_NICKS||[], active=-1, items=[];
+  function render(){
+    var q=inp.value.trim().toLowerCase();
+    box.innerHTML=''; items=[]; active=-1;
+    if(q.length<1){ box.style.display='none'; return; }   // подсказки только при вводе
+    var starts=[],contains=[];
+    for(var i=0;i<nicks.length;i++){
+      var low=(''+nicks[i]).toLowerCase();
+      if(low.indexOf(q)===0) starts.push(nicks[i]);
+      else if(low.indexOf(q)!==-1) contains.push(nicks[i]);
+    }
+    var list=starts.concat(contains).slice(0,12);
+    if(!list.length){ box.style.display='none'; return; }
+    list.forEach(function(n){
+      var el=document.createElement('div');
+      el.className='ban-sug-item'; el.textContent=n; el.dataset.nick=n;
+      box.appendChild(el); items.push(el);
+    });
+    box.style.display='block';
+  }
+  function choose(el){ inp.value=el.dataset.nick; box.style.display='none'; form.submit(); }
+  inp.addEventListener('input',render);
+  inp.addEventListener('focus',function(){ if(inp.value.trim()) render(); });
+  inp.addEventListener('keydown',function(e){
+    if(box.style.display==='none'||!items.length) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); active=(active+1)%items.length; }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); active=(active-1+items.length)%items.length; }
+    else if(e.key==='Enter'&&active>=0){ e.preventDefault(); choose(items[active]); return; }
+    else return;
+    items.forEach(function(el,i){ el.classList.toggle('active',i===active); });
+    items[active].scrollIntoView({block:'nearest'});
+  });
+  box.addEventListener('mousedown',function(e){
+    var it=e.target.closest('.ban-sug-item'); if(!it) return; e.preventDefault(); choose(it);
+  });
+  document.addEventListener('click',function(e){ if(!form.contains(e.target)) box.style.display='none'; });
+})();
+</script>
+JS;
 if ($q !== '') {
     if ($found) {
         echo '<div class="admin-list">';
