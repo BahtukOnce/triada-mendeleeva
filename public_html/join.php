@@ -152,9 +152,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $eduLine = trim(($vals['faculty'] !== '' ? $vals['faculty'] : '')
             . ($vals['study_group'] !== '' ? ' · гр. ' . $vals['study_group'] : ''));
 
-        // ── Уведомляем: колокольчик — всем админам, Telegram-бот — руководителю ──
+        // ── Уведомляем ТОЛЬКО руководителя: колокольчик + Telegram-бот (по просьбе владельца) ──
         $tgShown = '@' . ltrim($vals['tg_username'], '@');
-        app_notify_admins('🆕 Новая заявка в клуб: ' . $vals['nickname'] . ' (' . $vals['full_name'] . ')', '/admin/applications.php');
+        app_notify_owners('🆕 Новая заявка в клуб: ' . $vals['nickname'] . ' (' . $vals['full_name'] . ')', '/admin/applications.php');
         try {
             $botText = "🆕 <b>Новая заявка в клуб</b>\n\n"
                 . "👤 <b>" . bot_esc($vals['full_name']) . "</b>\n"
@@ -166,9 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 . ($vals['birth_date'] !== '' ? "\n🎂 " . bot_esc(date('d.m.Y', strtotime($vals['birth_date']))) : '')
                 . "\n\nОткрыть на сайте: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/applications.php";
             if (bot_token() !== '') {
-                // ВРЕМЕННО (для теста): заявки в бот приходят и админам, и руководителю.
-                // Чтобы вернуть только руководителю — заменить на role = 'owner'.
-                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('owner','admin') AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+                // Заявки в бот приходят только руководителю (owner).
+                $recip = db()->query("SELECT tg_user_id FROM users WHERE role = 'owner' AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($recip as $tg) {
                     bot_send((int)$tg, $botText);
                 }
