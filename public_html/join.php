@@ -116,6 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($vals['birth_date'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $vals['birth_date'])) {
         $vals['birth_date'] = '';
     }
+    // Пароль задаётся сразу в заявке (пароль в открытом виде НЕ храним и НЕ показываем повторно)
+    $pw = (string)($_POST['password'] ?? '');
+    $pw2 = (string)($_POST['password2'] ?? '');
+    if (mb_strlen($pw) < 6) {
+        $errors['password'] = 'Придумайте пароль — минимум 6 символов';
+    } elseif ($pw !== $pw2) {
+        $errors['password'] = 'Пароли не совпадают';
+    }
 
     // Лимит по IP: не больше 5 заявок в час (защита от флуда)
     $ip = mb_substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
@@ -133,13 +141,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$errors) {
         $isOther = in_array('Другое', $srcSel, true);
         db()->prepare('INSERT INTO club_applications
-            (full_name, nickname, applicant_status, faculty, study_group, experience, source, source_other, tg_username, birth_date, ip)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+            (full_name, nickname, applicant_status, faculty, study_group, experience, source, source_other, tg_username, birth_date, ip, password_hash)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
             ->execute([
                 $vals['full_name'], $vals['nickname'], $vals['applicant_status'], $vals['faculty'] ?: null,
                 $vals['study_group'] ?: null, $vals['experience'], $vals['source'],
                 $isOther ? ($vals['source_other'] ?: null) : null,
                 $vals['tg_username'], $vals['birth_date'] ?: null, $ip ?: null,
+                password_hash($pw, PASSWORD_DEFAULT),
             ]);
         $appId = (int)db()->lastInsertId();
 
@@ -190,9 +199,10 @@ if ($done) {
     echo '<div style="font-size:44px;line-height:1;margin-bottom:10px;">🌙</div>';
     echo '<h1 style="margin:0 0 8px;">Заявка принята!</h1>';
     echo '<p style="color:var(--tx2);font-size:15px;line-height:1.6;margin:0;">Отлично! Дело за малым. В ближайшее время вам отпишутся и пригласят в логово.</p>';
+    echo '<p style="color:var(--tx2);font-size:14px;line-height:1.6;margin:12px 0 0;">Как только руководитель примет заявку — сразу входите на сайт под своим ником и паролем, который вы задали. Отдельная активация не нужна.</p>';
     echo '<p style="color:var(--tx3);font-style:italic;margin:14px 0 0;">Триада засыпает…</p>';
     $botUser = ltrim((string)setting('bot_username', ''), '@');
-    echo '<p style="color:var(--tx2);font-size:14px;line-height:1.6;margin:18px 0 0;">Пока заявку смотрят — подпишитесь на бота клуба. Он пришлёт приглашение, а после принятия поможет со входом.</p>';
+    echo '<p style="color:var(--tx2);font-size:14px;line-height:1.6;margin:18px 0 0;">Пока заявку смотрят — подпишитесь на бота клуба, он пришлёт приглашение.</p>';
     echo '<div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">';
     if ($botUser !== '') {
         echo '<a class="btn" href="https://t.me/' . esc($botUser) . '" target="_blank" rel="noopener">🤖 Привязать бота</a>';
@@ -283,6 +293,14 @@ echo '<div class="field"><label>Ник в Telegram <span style="color:var(--ac);
 echo '<div class="field"><label>Дата рождения <span style="color:var(--tx2);font-weight:400;font-size:13px;">— необязательно</span></label>'
     . '<input type="date" name="birth_date" value="' . esc($vals['birth_date']) . '" max="' . date('Y-m-d') . '" style="color-scheme:dark;">'
     . '<div class="join-hint">Нужна для своевременных поздравлений 🎂</div></div>';
+
+echo '<div style="border-top:1px solid var(--bd);margin:18px 0 4px;padding-top:14px;">'
+    . '<div style="font-weight:650;font-size:15px;margin-bottom:2px;">Пароль для входа</div>'
+    . '<div class="join-hint" style="margin-top:2px;">Придумайте пароль сразу — когда руководитель примет заявку, вы войдёте под своим ником и этим паролем. Отдельная активация не нужна.</div></div>';
+echo '<div class="field"><label>Пароль <span style="color:var(--ac);">*</span> <span style="color:var(--tx2);font-weight:400;font-size:13px;">— минимум 6 символов</span></label>'
+    . '<input type="password" name="password" required minlength="6" autocomplete="new-password" placeholder="придумайте пароль">' . $err('password') . '</div>';
+echo '<div class="field"><label>Повторите пароль <span style="color:var(--ac);">*</span></label>'
+    . '<input type="password" name="password2" required minlength="6" autocomplete="new-password" placeholder="ещё раз тот же пароль"></div>';
 
 echo '<button class="btn" type="submit" style="width:100%;padding:13px;font-size:16px;margin-top:6px;">Отправить заявку</button>';
 echo '<p style="font-size:13px;color:var(--tx2);text-align:center;margin:12px 0 0;">Уже играли в клубе? Укажите в анкете свой прежний ник — привяжем к вашей истории. Уже есть аккаунт? <a href="/login.php">Войдите</a>.</p>';

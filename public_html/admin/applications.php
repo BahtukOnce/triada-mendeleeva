@@ -61,6 +61,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             $pid = (int)db()->lastInsertId();
         }
+        // Новый поток: пароль задан прямо в заявке → создаём аккаунт сразу, без активации.
+        if (!empty($app['password_hash'])) {
+            $uid = create_user_for_player($pid, $nick, (string)$app['password_hash']);
+            db()->prepare('UPDATE club_applications SET state = \'approved\', player_id = ?, activation_token = NULL, activated_at = NOW(), password_hash = NULL, processed_by = ?, processed_at = NOW() WHERE id = ?')
+                ->execute([$pid, (int)$u['id'], $id]);
+            log_action((int)$u['id'], 'application_approve', ['id' => $id, 'player_id' => $pid, 'nick' => $nick, 'existing' => (bool)$ex, 'account' => $uid !== null]);
+            flash_set('ok', $uid !== null
+                ? 'Заявка принята. Аккаунт создан — участник входит под своим ником и паролем из заявки.'
+                : 'Игрок принят, но аккаунт с ником «' . $nick . '» уже существовал — попросите войти под ним.');
+            redirect('/admin/applications.php');
+        }
+        // Старый поток (заявка без пароля, до нововведения): ссылка активации.
         $token = bin2hex(random_bytes(20));
         db()->prepare('UPDATE club_applications SET state = \'approved\', player_id = ?, activation_token = ?, activated_at = NULL, processed_by = ?, processed_at = NOW() WHERE id = ?')
             ->execute([$pid, $token, (int)$u['id'], $id]);
@@ -84,7 +96,7 @@ $stateTag = ['new' => 'tag-open', 'approved' => 'tag-ok', 'rejected' => ''];
 
 page_head('Админка — заявки в клуб', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Заявки на вступление' . ($newCount ? ' <span class="tag tag-open">новых: ' . $newCount . '</span>' : '') . '</h1>';
-echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Анкеты новых жителей с формы <a href="/join.php">«Вступить в клуб»</a>. «Принять» → создаётся игрок и ссылка активации: отправьте её новичку, он задаст пароль и войдёт.</p>';
+echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Анкеты новых жителей с формы <a href="/join.php">«Вступить в клуб»</a>. «Принять» → создаётся игрок и сразу аккаунт (пароль человек задал в заявке) — он входит под своим ником и паролем. Членство в клубе отмечается отдельно (тумблером у игрока).</p>';
 
 if (!$list) {
     empty_state('Заявок пока нет', 'Когда кто-то заполнит форму вступления, анкета появится здесь.');
@@ -133,7 +145,7 @@ foreach ($list as $a) {
             . 'style="width:100%;box-sizing:border-box;background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;font-size:12.5px;cursor:pointer;">'
             . '</div>';
     } elseif (!empty($a['activated_at'])) {
-        echo '<div style="font-size:13px;color:var(--ok);margin-bottom:10px;">✓ Аккаунт активирован ' . date('d.m.Y', strtotime((string)$a['activated_at'])) . '</div>';
+        echo '<div style="font-size:13px;color:var(--ok);margin-bottom:10px;">✓ Аккаунт готов — вход по нику и паролю (' . date('d.m.Y', strtotime((string)$a['activated_at'])) . ')</div>';
     }
 
     // Действия
@@ -149,7 +161,7 @@ foreach ($list as $a) {
     echo '<button class="btn" style="padding:6px 14px;font-size:13px;" type="submit">Сохранить</button>';
     echo '</form>';
     if ($a['state'] !== 'approved') {
-        echo '<form method="post" action="/admin/applications.php" onsubmit="return confirm(\'Принять заявку «' . esc(addslashes((string)$a['nickname'])) . '»? Будет создан игрок и ссылка активации аккаунта.\');">' . csrf_field()
+        echo '<form method="post" action="/admin/applications.php" onsubmit="return confirm(\'Принять заявку «' . esc(addslashes((string)$a['nickname'])) . '»? Будет создан игрок и аккаунт (пароль из заявки).\');">' . csrf_field()
             . '<input type="hidden" name="form" value="approve"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
             . '<button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;color:var(--ok);" type="submit">✓ Принять заявку</button></form>';
     }

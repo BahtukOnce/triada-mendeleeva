@@ -821,6 +821,40 @@ function app_notify_admins(string $text, ?string $link = null): void
     }
 }
 
+/**
+ * Создаёт аккаунт (users) под ником игрока и привязывает его к players.user_id.
+ * Возвращает id нового пользователя или null, если аккаунт с таким ником уже есть.
+ * Используется и приёмом заявки (пароль из анкеты), и активацией по ссылке.
+ */
+function create_user_for_player(int $playerId, string $nick, string $passwordHash): ?int
+{
+    $c = db()->prepare('SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)');
+    $c->execute([$nick]);
+    if ($c->fetch()) {
+        return null;
+    }
+    $pdo = db();
+    $own = !$pdo->inTransaction();
+    if ($own) {
+        $pdo->beginTransaction();
+    }
+    try {
+        $pdo->prepare('INSERT INTO users (nickname, password_hash, role) VALUES (?,?,?)')
+            ->execute([$nick, $passwordHash, 'player']);
+        $uid = (int)$pdo->lastInsertId();
+        $pdo->prepare('UPDATE players SET user_id = ? WHERE id = ? AND user_id IS NULL')->execute([$uid, $playerId]);
+        if ($own) {
+            $pdo->commit();
+        }
+        return $uid;
+    } catch (Throwable $e) {
+        if ($own && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
 function app_notify_unread(int $userId): int
 {
     if ($userId <= 0) {
