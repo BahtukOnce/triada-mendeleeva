@@ -10,7 +10,8 @@ if (db_ready()) {
     // Игры и победы — за ТЕКУЩИЙ сезон (1 сент–31 авг), включая турниры (sagg).
     // В списке остаётся каждый, кто когда-либо играл ИЛИ зарегистрирован (agg_all — для фильтра).
     $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo,
-            sagg.games, sagg.wins, agg_all.games AS all_games, agg_all.wins AS all_wins
+            sagg.games, sagg.wins, agg_all.games AS all_games, agg_all.wins AS all_wins,
+            ragg.games AS recent_games
         FROM players p
         LEFT JOIN (
             SELECT gs.player_id,
@@ -32,13 +33,23 @@ if (db_ready()) {
             WHERE g.status = 'finished' AND g.winner IS NOT NULL
             GROUP BY gs.player_id
         ) agg_all ON agg_all.player_id = p.id
+        LEFT JOIN (
+            SELECT gs.player_id, COUNT(*) AS games
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            LEFT JOIN game_days d ON d.id = g.day_id
+            LEFT JOIN tournaments t ON t.id = g.tournament_id
+            WHERE g.status = 'finished' AND g.winner IS NOT NULL
+              AND COALESCE(d.date, t.date_from) >= (CURDATE() - INTERVAL 12 MONTH)
+            GROUP BY gs.player_id
+        ) ragg ON ragg.player_id = p.id
         WHERE p.banned_at IS NULL AND (agg_all.games IS NOT NULL OR p.user_id IS NOT NULL)";
     $params = [$seasonStart, $seasonEnd];
     if ($q !== '') {
         $sql .= ' AND p.nickname LIKE ?';
         $params[] = '%' . like_escape($q) . '%';
     }
-    $sql .= ' ORDER BY p.nickname LIMIT 400';
+    // Сначала активные (кто играл за последний год), внутри — по числу игр; дальше остальные
+    $sql .= ' ORDER BY (ragg.games IS NULL), ragg.games DESC, agg_all.games DESC, p.nickname LIMIT 600';
     $st = db()->prepare($sql);
     $st->execute($params);
     $list = $st->fetchAll();
@@ -70,11 +81,16 @@ page_head('Игроки', 'players');
 echo '<h1>Игроки</h1>';
 echo '<p style="color:var(--tx2);font-size:13px;margin:-6px 0 14px;">Статистика за ' . esc(current_season_bounds()[2]) . ' · вся история — в профиле игрока</p>';
 
-echo '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">';
+echo '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">';
 echo '<form method="get" action="/players.php" style="max-width:340px;flex:1;min-width:220px;">';
 echo '<div class="field" style="margin:0;"><input type="search" id="pl-search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
 echo '</form>';
 echo '<a class="tag" href="/versus.php" title="Очные встречи двух игроков, соратники и немезиды">⚔️ Дуэль</a>';
+echo '</div>';
+// Переключатель: активные (играли за год) / все. Никого не удаляем — просто вид по умолчанию компактнее.
+echo '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">';
+echo '<a class="tag" href="#" data-mode="active" title="Кто играл за последние 12 месяцев">Активные</a>';
+echo '<a class="tag" href="#" data-mode="all">Все игроки' . ($list ? ' · ' . count($list) : '') . '</a>';
 echo '</div>';
 
 if ($list) {
@@ -90,7 +106,8 @@ if ($list) {
         $w = $allTime ? (int)($p['all_wins'] ?? 0) : (int)$p['wins'];
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
-        echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" href="/player.php?id=' . (int)$p['id'] . '">';
+        $isActive = (int)($p['recent_games'] ?? 0) > 0 ? '1' : '0';
+        echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" data-active="' . $isActive . '" href="/player.php?id=' . (int)$p['id'] . '">';
         $casper = is_casper((string)$p['nickname']);
         $favHtml = $casper
             ? '<span style="color:var(--tx3);font-size:11.5px;">👻 призрак клуба</span>'
@@ -137,21 +154,38 @@ if ($list) {
   var cards = [].slice.call(document.querySelectorAll('.player-card[data-nick]'));
   var countEl = document.getElementById('pl-count');
   var emptyEl = document.getElementById('pl-empty');
+  var modeBtns = [].slice.call(document.querySelectorAll('[data-mode]'));
+  var mode = 'active';
+  try { mode = localStorage.getItem('pl-mode') || 'active'; } catch (e) {}
   function apply() {
     var q = input.value.trim().toLowerCase();
     var shown = 0;
     for (var i = 0; i < cards.length; i++) {
-      var ok = !q || cards[i].getAttribute('data-nick').indexOf(q) !== -1;
+      var okQ = !q || cards[i].getAttribute('data-nick').indexOf(q) !== -1;
+      // при поиске режим игнорируем — ищем по всем; иначе показываем по режиму
+      var okMode = q || mode === 'all' || cards[i].getAttribute('data-active') === '1';
+      var ok = okQ && okMode;
       cards[i].style.display = ok ? '' : 'none';
       if (ok) shown++;
     }
-    if (countEl) countEl.textContent = 'Всего игроков: ' + shown;
-    if (emptyEl) emptyEl.style.display = (shown === 0 && q) ? '' : 'none';
+    if (countEl) {
+      countEl.textContent = (q ? 'Найдено: ' : (mode === 'active' ? 'Активных игроков: ' : 'Всего игроков: ')) + shown;
+    }
+    if (emptyEl) emptyEl.style.display = (shown === 0) ? '' : 'none';
   }
+  function setMode(m) {
+    mode = m;
+    try { localStorage.setItem('pl-mode', m); } catch (e) {}
+    modeBtns.forEach(function (b) { b.classList.toggle('tag-open', b.getAttribute('data-mode') === m); });
+    apply();
+  }
+  modeBtns.forEach(function (b) {
+    b.addEventListener('click', function (e) { e.preventDefault(); setMode(b.getAttribute('data-mode')); });
+  });
   input.addEventListener('input', apply);
   var form = input.closest('form');
   if (form) form.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
-  apply();
+  setMode(mode);
 })();
 </script>
 <?php
