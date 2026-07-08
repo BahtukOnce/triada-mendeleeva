@@ -34,12 +34,12 @@ main.container { flex: 1; padding-bottom: 40px; }
   position: sticky; top: 0; z-index: 50;
 }
 .header-inner { width: 100%; padding: 0 24px; }
-.header-row { display: flex; align-items: center; gap: 10px; min-height: 56px; }
-.brand { display: flex; align-items: center; gap: 9px; color: var(--tx); }
+.header-row { display: flex; align-items: center; gap: 10px; min-height: 70px; }
+.brand { display: flex; align-items: center; gap: 11px; color: var(--tx); }
 .brand:hover { color: var(--tx); }
-.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-.brand-text b { font-size: 14px; font-weight: 650; white-space: nowrap; }
-.brand-text i { font-style: normal; font-size: 10.5px; color: var(--tx2); white-space: nowrap; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.18; }
+.brand-text b { font-size: 17px; font-weight: 700; white-space: nowrap; }
+.brand-text i { font-style: normal; font-size: 12px; color: var(--tx2); white-space: nowrap; }
 .logo-svg { display: block; }
 
 .nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
@@ -920,7 +920,7 @@ body::before {
   #crop-img, #crop-modal img { max-height: 48vh; }
 }
 @media (max-width: 400px) {
-  .brand-text b { font-size: 13px; }
+  .brand-text b { font-size: 15px; }
   .user-pill { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pf-name { font-size: 22px; }
   .pf-tiles { gap: 7px; }
