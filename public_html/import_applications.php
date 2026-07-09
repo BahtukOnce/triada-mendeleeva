@@ -101,22 +101,25 @@ $parseTs = function (string $s): ?int {
     return $dt ? $dt->getTimestamp() : null;
 };
 
-// Максимальная метка в таблице (для baseline и продвижения курсора)
-$maxTs = 0;
+// Все метки времени (для baseline и продвижения курсора)
+$allTs = [];
 foreach ($rows as $r) {
     $t = $parseTs((string)($r[0] ?? ''));
-    if ($t !== null && $t > $maxTs) {
-        $maxTs = $t;
+    if ($t !== null) {
+        $allTs[] = $t;
     }
 }
+$maxTs = $allTs ? max($allTs) : 0;
 
 $since = (int)setting('gform_apps_since', '0');
-// Первый запуск: фиксируем baseline, историю НЕ импортируем.
+// Первый запуск: baseline = ПРЕДпоследняя метка, чтобы самая свежая заявка (единственная
+// необработанная) прошла как новая и импортировалась. Дальше — только новее. Историю
+// (всё до предпоследней метки) не трогаем. Не выходим — идём в цикл импорта.
 if ($since === 0) {
-    setting_set('gform_apps_since', (string)$maxTs);
-    $log('Базовая линия установлена: ' . date('d.m.Y H:i', $maxTs) . '. История (' . count($rows)
-        . ' строк) не импортируется — дальше будут подхватываться только новые заявки.');
-    exit;
+    $distinct = array_values(array_unique($allTs));
+    rsort($distinct);
+    $since = isset($distinct[1]) ? (int)$distinct[1] : max(0, $maxTs - 1);
+    $log('Первый запуск: базовая линия ' . date('d.m.Y H:i', $since) . ' — импортирую последнюю заявку и всё новее.');
 }
 
 $cut = fn($s, int $n): string => mb_substr(trim((string)$s), 0, $n);
