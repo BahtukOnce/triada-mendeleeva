@@ -205,6 +205,36 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
         return;
     }
 
+    // «время 17:00-21:00» — уточнить (или сразу записаться с) время на открытый вечер
+    if (preg_match('~^(?:время|time)\s+(\d{1,2})(?::(\d{2}))?\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?$~iu', $text, $tm)) {
+        $day = bot_open_day();
+        if (!$day) {
+            reply($chatId, "Сейчас открытой записи нет — время уточнять не к чему.");
+            return;
+        }
+        $h1 = (int)$tm[1]; $m1 = (int)($tm[2] ?? 0);
+        $h2 = (int)$tm[3]; $m2 = (int)($tm[4] ?? 0);
+        if ($h1 > 23 || $h2 > 23 || $m1 > 59 || $m2 > 59 || ($h1 * 60 + $m1) >= ($h2 * 60 + $m2)) {
+            reply($chatId, "Не понял время. Пример: <code>время 17:00-21:00</code> (от меньшего к большему).");
+            return;
+        }
+        $tf = sprintf('%02d:%02d', $h1, $m1);
+        $tt = sprintf('%02d:%02d', $h2, $m2);
+        $was = bot_day_is_registered((int)$day['id'], (int)$me['id']);
+        db()->prepare("INSERT INTO day_registrations (day_id, player_id, time_from, time_to, source)
+            VALUES (?,?,?,?,'telegram')
+            ON DUPLICATE KEY UPDATE time_from = VALUES(time_from), time_to = VALUES(time_to),
+                cancelled_at = NULL, source = 'telegram'")
+            ->execute([(int)$day['id'], (int)$me['id'], $tf, $tt]);
+        try {
+            bot_notify_admins_day_vote((int)$day['id'], (string)$me['nickname'], $was ? 'time' : 'reg', $tf, $tt);
+        } catch (Throwable $e) {
+        }
+        [$dt, $dm] = day_view($userId);
+        send($chatId, ($was ? "⏰ Время обновлено: $tf–$tt.\n\n" : "✅ Записал вас на $tf–$tt.\n\n") . $dt, $dm);
+        return;
+    }
+
     send_menu($chatId, $userId, stats_text($text));
 }
 
@@ -267,6 +297,11 @@ function handle_callback(array $cb): void
             bot_day_register($dayId, (int)$p['id']);
         } else {
             bot_day_cancel($dayId, (int)$p['id']);
+        }
+        try { // админам — кто проголосовал/переголосовал + «готовый стол»
+            bot_notify_admins_day_vote($dayId, (string)$p['nickname'],
+                str_starts_with($data, 'day_reg:') ? 'reg' : 'cancel');
+        } catch (Throwable $e) {
         }
         [$t, $m] = day_view($userId);
         edit_text($chatId, $msgId, $t, $m);
@@ -805,12 +840,21 @@ function day_view(int $userId): array
     }
     $reg = $p ? bot_day_is_registered((int)$day['id'], (int)$p['id']) : false;
     $cnt = bot_day_count((int)$day['id']);
+    $names = bot_day_names((int)$day['id']);
+    if (count($names) > 30) {
+        $names = array_merge(array_slice($names, 0, 30), ['…']);
+    }
+    $vd = day_table_verdict((int)$day['id']);
     $t = "📅 <b>Запись на игру</b>\n\n"
         . "<b>" . bot_esc((string)$day['title']) . "</b>\n"
         . "🗓 " . bot_date((string)$day['date']) . "\n"
         . ($day['location'] ? "📍 " . bot_esc((string)$day['location']) . "\n" : "")
-        . "👥 Записалось: <b>$cnt</b>\n\n"
-        . ($reg ? "✅ Вы записаны." : "Вы ещё не записаны на этот вечер.");
+        . "👥 Записались (<b>$cnt</b>)" . ($names ? ": " . bot_esc(implode(', ', $names)) : "") . "\n"
+        . ($vd !== '' ? $vd . "\n" : "")
+        . "\n"
+        . ($reg
+            ? "✅ Вы записаны.\n⏰ Уточнить время: отправьте «время 17:00-21:00»"
+            : "Вы ещё не записаны на этот вечер.");
     $btn = $reg
         ? ['text' => '❌ Отписаться', 'callback_data' => 'day_cancel:' . (int)$day['id']]
         : ['text' => '✅ Записаться', 'callback_data' => 'day_reg:' . (int)$day['id']];

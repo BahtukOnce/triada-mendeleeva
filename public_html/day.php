@@ -1,6 +1,7 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
+require_once ROOT . '/inc/bot_lib.php'; // «готовый стол» + уведомления админам о записи
 
 $id = (int)($_GET['id'] ?? 0);
 
@@ -26,6 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['form'] ?? '', ['da
                     comment = VALUES(comment), cancelled_at = NULL')
                 ->execute([$id, (int)$player['id'], $tf, $tt, trim((string)($_POST['comment'] ?? '')) ?: null]);
             log_action((int)$u['id'], 'day_register', ['day_id' => $id]);
+            try {
+                bot_notify_admins_day_vote($id, (string)$player['nickname'], 'reg', $tf, $tt);
+            } catch (Throwable $e) {
+            }
             flash_set('ok', 'Вы записаны!');
         } else {
             flash_set('err', 'Запись на этот вечер закрыта');
@@ -34,6 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['form'] ?? '', ['da
         db()->prepare('UPDATE day_registrations SET cancelled_at = NOW() WHERE day_id = ? AND player_id = ?')
             ->execute([$id, (int)$player['id']]);
         log_action((int)$u['id'], 'day_cancel', ['day_id' => $id]);
+        try {
+            bot_notify_admins_day_vote($id, (string)$player['nickname'], 'cancel');
+        } catch (Throwable $e) {
+        }
         flash_set('ok', 'Запись отменена');
     }
     redirect('/day.php?id=' . $id);
@@ -114,6 +123,13 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
         echo '</div>';
     } else {
         echo '<p style="color:var(--tx2);font-size:14px;margin:8px 0 0;">Пока никто не записался — будьте первым!</p>';
+    }
+    // «Готовый стол»: когда одновременно доступно 12+ игроков и хватает ли 4+ часов
+    if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
+        $vd = day_table_verdict((int)$day['id']);
+        if ($vd !== '') {
+            echo '<p style="margin:10px 0 0;font-size:13.5px;color:var(--tx2);">' . esc($vd) . '</p>';
+        }
     }
     if ($day['status'] === 'reg_open') {
         $me = current_user();

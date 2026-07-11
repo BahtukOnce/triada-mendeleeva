@@ -37,17 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->prepare('UPDATE game_days SET status = ? WHERE id = ?')->execute([$to, $id]);
             log_action((int)$u['id'], 'day_status', ['day_id' => $id, 'to' => $to]);
             // авто-уведомления в Telegram только при реальной смене статуса
+            // (анонс открытия записи НЕ автоматический — кнопка «📣 Разослать анонс»)
             $note = '';
             if ($prev !== $to) {
                 try {
                     $dtt = db()->prepare('SELECT title FROM game_days WHERE id = ?');
                     $dtt->execute([$id]);
                     $dtitle = (string)($dtt->fetchColumn() ?: 'вечер');
-                    if ($to === 'reg_open') {
-                        $n = bot_notify_day_open($id);
-                        app_notify_all_members('📅 Открыта запись на вечер «' . $dtitle . '» — записывайся!', '/days.php');
-                        $note = $n ? " · анонс отправлен ($n)" : '';
-                    } elseif ($to === 'finished') {
+                    if ($to === 'finished') {
                         $n = bot_notify_day_results($id);
                         $pq = db()->prepare('SELECT DISTINCT gs.player_id FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.day_id = ?');
                         $pq->execute([$id]);
@@ -60,6 +57,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             flash_set('ok', 'Статус обновлён' . $note);
+        }
+        redirect('/admin/days.php');
+    }
+
+    // Ручная рассылка анонса записи: в личку бота всем привязанным + колокольчик на сайте
+    if ($form === 'announce') {
+        $id = (int)($_POST['day_id'] ?? 0);
+        $cs = db()->prepare('SELECT title, status FROM game_days WHERE id = ?');
+        $cs->execute([$id]);
+        $day = $cs->fetch();
+        if ($day && $day['status'] === 'reg_open') {
+            $n = 0;
+            try {
+                $n = bot_notify_day_open($id);
+                app_notify_all_members('📅 Открыта запись на вечер «' . (string)$day['title'] . '» — записывайся!', '/days.php');
+            } catch (Throwable $e) {
+            }
+            log_action((int)$u['id'], 'day_announce', ['day_id' => $id, 'sent' => $n]);
+            flash_set('ok', $n ? "Анонс отправлен в Telegram ($n получателей) + уведомления на сайте" : 'Анонс: в Telegram никто не получил (нет привязанных с уведомлениями), уведомления на сайте отправлены');
+        } else {
+            flash_set('err', 'Анонс можно разослать только при открытой записи');
         }
         redirect('/admin/days.php');
     }
@@ -110,6 +128,11 @@ if ($list) {
             echo '<input type="hidden" name="form" value="status"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
             echo '<input type="hidden" name="to" value="' . $to . '">';
             echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . $lbl . '</button></form> ';
+        }
+        if ($d['status'] === 'reg_open') {
+            echo '<form method="post" action="/admin/days.php" style="display:inline;" onsubmit="return confirm(\'Разослать анонс записи всем привязанным к боту?\');">' . csrf_field();
+            echo '<input type="hidden" name="form" value="announce"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
+            echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">📣 Разослать анонс</button></form> ';
         }
         echo '</td></tr>';
     }

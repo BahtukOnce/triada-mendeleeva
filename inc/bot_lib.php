@@ -434,6 +434,141 @@ function bot_day_count(int $dayId): int
     return (int)$st->fetchColumn();
 }
 
+// Ники записавшихся на вечер (в порядке записи)
+function bot_day_names(int $dayId): array
+{
+    $st = db()->prepare('SELECT p.nickname FROM day_registrations r
+        JOIN players p ON p.id = r.player_id
+        WHERE r.day_id = ? AND r.cancelled_at IS NULL ORDER BY r.id');
+    $st->execute([$dayId]);
+    return array_map('strval', $st->fetchAll(PDO::FETCH_COLUMN));
+}
+
+// ── «Готовый стол»: правило клуба — вечер состоится, если 12+ человек
+//    одновременно доступны 4+ часа подряд (запись без времени = весь вечер) ──
+const DAY_TABLE_NEED = 12;
+const DAY_TABLE_MIN_HOURS = 4;
+
+// Активные записи вечера с интервалами доступности
+function bot_day_regs(int $dayId): array
+{
+    $st = db()->prepare('SELECT p.nickname, r.time_from, r.time_to FROM day_registrations r
+        JOIN players p ON p.id = r.player_id
+        WHERE r.day_id = ? AND r.cancelled_at IS NULL ORDER BY r.id');
+    $st->execute([$dayId]);
+    return $st->fetchAll();
+}
+
+// Самое длинное окно, где одновременно доступно >= $need игроков.
+// null-времена = «весь вечер» (00:00–23:59). Возвращает from/to «H:MM», minutes, ok.
+function day_table_window(array $regs, int $need = DAY_TABLE_NEED, int $minHours = DAY_TABLE_MIN_HOURS): array
+{
+    $toMin = function (?string $t, int $def): int {
+        if (!$t || !preg_match('/^(\d{1,2}):(\d{2})/', (string)$t, $m)) {
+            return $def;
+        }
+        return min(1439, max(0, (int)$m[1] * 60 + (int)$m[2]));
+    };
+    $ivals = [];
+    foreach ($regs as $r) {
+        $f = $toMin($r['time_from'] ?? null, 0);
+        $t = $toMin($r['time_to'] ?? null, 1439);
+        if ($t > $f) {
+            $ivals[] = [$f, $t];
+        }
+    }
+    $res = ['total' => count($ivals), 'need' => $need, 'from' => null, 'to' => null,
+        'minutes' => 0, 'ok' => false, 'all_evening' => false];
+    if (count($ivals) < $need) {
+        return $res;
+    }
+    $bounds = [];
+    foreach ($ivals as [$f, $t]) {
+        $bounds[$f] = 1;
+        $bounds[$t] = 1;
+    }
+    $bounds = array_keys($bounds);
+    sort($bounds);
+    // склеиваем подряд идущие сегменты, где стол набирается, ищем самое длинное окно
+    $bestF = null; $bestT = null; $runF = null; $runT = null;
+    for ($i = 0, $n = count($bounds) - 1; $i < $n; $i++) {
+        $a = $bounds[$i];
+        $b = $bounds[$i + 1];
+        $cnt = 0;
+        foreach ($ivals as [$f, $t]) {
+            if ($f <= $a && $t >= $b) {
+                $cnt++;
+            }
+        }
+        if ($cnt >= $need) {
+            $runF = $runF ?? $a;
+            $runT = $b;
+            if ($bestF === null || ($runT - $runF) > ($bestT - $bestF)) {
+                $bestF = $runF;
+                $bestT = $runT;
+            }
+        } else {
+            $runF = null;
+            $runT = null;
+        }
+    }
+    if ($bestF !== null) {
+        $fmt = fn(int $m): string => sprintf('%d:%02d', intdiv($m, 60), $m % 60);
+        $res['from'] = $fmt($bestF);
+        $res['to'] = $fmt($bestT);
+        $res['minutes'] = $bestT - $bestF;
+        $res['ok'] = ($bestT - $bestF) >= $minHours * 60;
+        $res['all_evening'] = ($bestF === 0 && $bestT === 1439);
+    }
+    return $res;
+}
+
+// Строка-вердикт о «готовом столе» (без HTML — годится и для бота, и для сайта)
+function day_table_verdict(int $dayId): string
+{
+    $w = day_table_window(bot_day_regs($dayId));
+    if ($w['total'] === 0) {
+        return '';
+    }
+    if ($w['from'] === null) {
+        return '🎲 Стол ' . $w['need'] . '+: пока не набирается (записались ' . $w['total'] . ')';
+    }
+    $span = $w['all_evening'] ? 'весь вечер' : ($w['from'] . '–' . $w['to']);
+    $hrs = rtrim(rtrim(number_format($w['minutes'] / 60, 1, '.', ''), '0'), '.');
+    return $w['ok']
+        ? '🎲 Стол ' . $w['need'] . '+ собирается: ' . $span . ' (' . $hrs . ' ч) — вечер состоится ✅'
+        : '🎲 Стол ' . $w['need'] . '+: ' . $span . ' (' . $hrs . ' ч) — для вечера нужно ' . DAY_TABLE_MIN_HOURS . '+ часа ⏳';
+}
+
+// Уведомить админов/руководителей (привязанных к боту) о голосе/переголосе записи
+function bot_notify_admins_day_vote(int $dayId, string $nick, string $action, ?string $tf = null, ?string $tt = null): void
+{
+    $st = db()->prepare('SELECT title FROM game_days WHERE id = ?');
+    $st->execute([$dayId]);
+    $title = (string)($st->fetchColumn() ?: 'вечер');
+    $when = ($tf || $tt)
+        ? substr((string)$tf, 0, 5) . '–' . substr((string)$tt, 0, 5)
+        : 'весь вечер';
+    [$icon, $verb] = match ($action) {
+        'cancel' => ['❌', 'отписался(-ась)'],
+        'time'   => ['⏰', 'уточнил(а) время: ' . $when],
+        default  => ['✅', 'записался(-ась) · ' . $when],
+    };
+    $txt = "🗳 <b>Запись: «" . bot_esc($title) . "»</b>\n"
+        . $icon . ' <b>' . bot_esc($nick) . '</b> ' . $verb
+        . "\n👥 Сейчас: <b>" . bot_day_count($dayId) . "</b>";
+    $vd = day_table_verdict($dayId);
+    if ($vd !== '') {
+        $txt .= "\n" . $vd;
+    }
+    $q = db()->query("SELECT p.tg_user_id FROM players p JOIN users u ON u.id = p.user_id
+        WHERE u.role IN ('admin','owner') AND p.tg_user_id IS NOT NULL");
+    foreach ($q->fetchAll(PDO::FETCH_COLUMN) as $tg) {
+        bot_send($tg, $txt, null);
+        usleep(30000);
+    }
+}
+
 // ── Уведомления: вкл/выкл (по умолчанию включены) ─────────
 function bot_notify_enabled(int $tgId): bool
 {
