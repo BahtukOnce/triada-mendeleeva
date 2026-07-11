@@ -362,6 +362,68 @@ function club_records(): array
     $single('🚀', 'Макс. ELO за турнир', "SELECT player_id pid, MAX(s) v FROM (SELECT eh.player_id, g.tournament_id, SUM(eh.delta) s FROM elo_history eh JOIN games g ON g.id = eh.game_id WHERE g.tournament_id IS NOT NULL AND g.status = 'finished' GROUP BY eh.player_id, g.tournament_id) t GROUP BY player_id ORDER BY v DESC LIMIT 3", 'plus');
     $single('💰', 'Макс. доп за игру', "SELECT gs.player_id pid, MAX(gs.plus) v FROM game_seats gs JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished' GROUP BY gs.player_id ORDER BY v DESC LIMIT 3", 'f1');
     $single('⚖️', 'Больше всех судил', "SELECT judge_player_id pid, COUNT(*) v FROM games WHERE status = 'finished' AND judge_player_id IS NOT NULL GROUP BY judge_player_id ORDER BY v DESC LIMIT 3", 'int');
+    // 🎯 Меткий ЛХ: среднее число чёрных, названных в ЛХ (от 3 сделанных ЛХ)
+    try {
+        $lhG = db()->query("SELECT id, bm_seat1, bm_seat2, bm_seat3, vote0_bm1, vote0_bm2, vote0_bm3,
+                first_killed_seat, vote0_seat FROM games
+            WHERE status = 'finished' AND (first_killed_seat IS NOT NULL OR vote0_seat IS NOT NULL)")->fetchAll();
+        $gidsLh = array_column($lhG, 'id');
+        if ($gidsLh) {
+            $inLh = implode(',', array_fill(0, count($gidsLh), '?'));
+            $sq = db()->prepare("SELECT game_id, seat, role, player_id FROM game_seats WHERE game_id IN ($inLh)");
+            $sq->execute($gidsLh);
+            $roleBySeat = [];
+            $pidBySeat = [];
+            foreach ($sq->fetchAll() as $r) {
+                $gg = (int)$r['game_id'];
+                $roleBySeat[$gg][(int)$r['seat']] = $r['role'];
+                $pidBySeat[$gg][(int)$r['seat']] = (int)$r['player_id'];
+            }
+            $acc = []; // pid => ['made'=>N, 'hits'=>M]
+            foreach ($lhG as $g) {
+                $gid = (int)$g['id'];
+                foreach ([['first_killed_seat', 'bm_seat1', 'bm_seat2', 'bm_seat3'],
+                          ['vote0_seat', 'vote0_bm1', 'vote0_bm2', 'vote0_bm3']] as [$sk, $k1, $k2, $k3]) {
+                    $seat = (int)($g[$sk] ?? 0);
+                    if ($seat < 1) {
+                        continue;
+                    }
+                    $given = array_values(array_unique(array_filter(
+                        [(int)$g[$k1], (int)$g[$k2], (int)$g[$k3]], fn($n) => $n >= 1 && $n <= 10)));
+                    if (!$given) {
+                        continue;
+                    }
+                    $pid = $pidBySeat[$gid][$seat] ?? 0;
+                    if (!$pid) {
+                        continue;
+                    }
+                    $hits = 0;
+                    foreach ($given as $sn) {
+                        if (in_array($roleBySeat[$gid][$sn] ?? '', ['maf', 'don'], true)) {
+                            $hits++;
+                        }
+                    }
+                    $acc[$pid]['made'] = ($acc[$pid]['made'] ?? 0) + 1;
+                    $acc[$pid]['hits'] = ($acc[$pid]['hits'] ?? 0) + $hits;
+                }
+            }
+            $lhList = [];
+            foreach ($acc as $pid => $a) {
+                if (($a['made'] ?? 0) >= 3) {
+                    $pl = $plById((int)$pid);
+                    if ($pl) {
+                        $lhList[] = ['row' => $pl, 'val' => $a['hits'] / $a['made']];
+                    }
+                }
+            }
+            usort($lhList, fn($x, $y) => (float)$y['val'] <=> (float)$x['val']);
+            $lhList = array_slice($lhList, 0, 3);
+            if ($lhList) {
+                $recs[] = ['🎯', 'Меткий ЛХ — ср. чёрных из 3 (от 3 ЛХ)', $lhList, 'f1'];
+            }
+        }
+    } catch (Throwable $e) {
+    }
     // анти-рекорды
     $add('🎲', 'Больше всех техфолов', $leader($rows, fn($r) => (int)($r['tech_count'] ?? 0)), 'int');
     $add('➖', 'Больше всех минусов', $leader($rows, fn($r) => (float)$r['minus_sum']), 'f1');

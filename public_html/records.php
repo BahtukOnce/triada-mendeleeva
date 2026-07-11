@@ -35,6 +35,85 @@ foreach ($records as [$ic, $title, $list, $type]) {
 }
 echo '</div>';
 
+// ── Лучшие дуэты клуба: пары одного цвета с лучшим винрейтом (от 6 совместных игр) ──
+try {
+    $rowsP = db()->query("SELECT gs.game_id, gs.player_id, gs.role, g.winner
+        FROM game_seats gs JOIN games g ON g.id = gs.game_id
+        WHERE g.status = 'finished' AND g.winner IN ('red','black')")->fetchAll();
+    $byGame = [];
+    foreach ($rowsP as $r) {
+        $byGame[(int)$r['game_id']][] = $r;
+    }
+    $pairAgg = [];
+    foreach ($byGame as $seats) {
+        $winner = $seats[0]['winner'];
+        $red = [];
+        $blk = [];
+        foreach ($seats as $s) {
+            if (in_array($s['role'], ['civ', 'sheriff'], true)) {
+                $red[] = (int)$s['player_id'];
+            } else {
+                $blk[] = (int)$s['player_id'];
+            }
+        }
+        foreach ([['red', $red], ['black', $blk]] as [$team, $list]) {
+            $won = $winner === $team ? 1 : 0;
+            $n = count($list);
+            for ($i = 0; $i < $n; $i++) {
+                for ($j = $i + 1; $j < $n; $j++) {
+                    $k = min($list[$i], $list[$j]) . '-' . max($list[$i], $list[$j]);
+                    $pairAgg[$k]['g'] = ($pairAgg[$k]['g'] ?? 0) + 1;
+                    $pairAgg[$k]['w'] = ($pairAgg[$k]['w'] ?? 0) + $won;
+                }
+            }
+        }
+    }
+    $bestPairs = [];
+    foreach ($pairAgg as $k => $v) {
+        if ($v['g'] >= 6) {
+            $bestPairs[] = ['k' => $k, 'g' => $v['g'], 'w' => $v['w'], 'wr' => $v['w'] / $v['g']];
+        }
+    }
+    usort($bestPairs, fn($x, $y) => [$y['wr'], $y['g']] <=> [$x['wr'], $x['g']]);
+    $bestPairs = array_slice($bestPairs, 0, 6);
+    if ($bestPairs) {
+        $pids = [];
+        foreach ($bestPairs as $bp) {
+            [$a, $b] = explode('-', $bp['k']);
+            $pids[(int)$a] = 1;
+            $pids[(int)$b] = 1;
+        }
+        $inP = implode(',', array_fill(0, count($pids), '?'));
+        $pq = db()->prepare("SELECT id, nickname, avatar, flair FROM players WHERE id IN ($inP)");
+        $pq->execute(array_keys($pids));
+        $plMap = [];
+        foreach ($pq->fetchAll() as $pl) {
+            $plMap[(int)$pl['id']] = $pl;
+        }
+        echo '<h2 style="margin-top:18px;">🤝 Лучшие дуэты</h2>';
+        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе (от 6 совместных игр) — клик откроет «Дуэль»</p>';
+        echo '<div class="records-grid"><div class="rec-card"><div class="rec-rows">';
+        $rankP = 0;
+        foreach ($bestPairs as $bp) {
+            [$a, $b] = array_map('intval', explode('-', $bp['k']));
+            $pa = $plMap[$a] ?? null;
+            $pb = $plMap[$b] ?? null;
+            if (!$pa || !$pb) {
+                continue;
+            }
+            $rankP++;
+            $medal = $rankP === 1 ? '🥇' : ($rankP === 2 ? '🥈' : ($rankP === 3 ? '🥉' : '·'));
+            echo '<a class="rec-row" href="/versus.php?a=' . $a . '&b=' . $b . '">'
+                . '<span class="rec-rank">' . $medal . '</span>'
+                . avatar_html($pa, 24) . avatar_html($pb, 24)
+                . '<span class="rec-name">' . esc($pa['nickname']) . ' + ' . esc($pb['nickname']) . '</span>'
+                . '<span class="rec-v">' . round($bp['wr'] * 100) . '% · ' . $bp['g'] . ' игр</span></a>';
+        }
+        echo '</div></div></div>';
+    }
+} catch (Throwable $e) {
+}
+
 // ── Достижения (с теми, кто получил) ──
 echo '<h2 style="margin-top:18px;">Достижения</h2>';
 echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Нажми на ачивку — увидишь всех, кто её получил.</p>';

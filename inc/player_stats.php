@@ -487,11 +487,86 @@ function render_player_stats(int $id, bool $own = false): void
         }
         echo '</div></div>';
 
+        // Точность ЛХ и разбивка ПУ по ролям — из сырых протоколов (вся история)
+        $lhMade = 0; $lhHitsSum = 0; $lhTriples = 0; $puByRole = [];
+        try {
+            $lq = db()->prepare("SELECT g.id AS gid, g.bm_seat1, g.bm_seat2, g.bm_seat3,
+                    g.vote0_bm1, g.vote0_bm2, g.vote0_bm3, g.first_killed_seat, g.vote0_seat,
+                    gs.seat AS my_seat, gs.role AS my_role
+                FROM games g JOIN game_seats gs ON gs.game_id = g.id AND gs.player_id = ?
+                WHERE g.status = 'finished' AND (g.first_killed_seat = gs.seat OR g.vote0_seat = gs.seat)");
+            $lq->execute([$id]);
+            $lhGames = $lq->fetchAll();
+            if ($lhGames) {
+                $gids = array_column($lhGames, 'gid');
+                $inG = implode(',', array_fill(0, count($gids), '?'));
+                $rq = db()->prepare("SELECT game_id, seat, role FROM game_seats WHERE game_id IN ($inG)");
+                $rq->execute($gids);
+                $rolesByGame = [];
+                foreach ($rq->fetchAll() as $rr) {
+                    $rolesByGame[(int)$rr['game_id']][(int)$rr['seat']] = $rr['role'];
+                }
+                foreach ($lhGames as $lg) {
+                    $isPuEvt = (int)$lg['first_killed_seat'] === (int)$lg['my_seat'];
+                    if ($isPuEvt) { // разбивка ПУ: за какую роль отстреливали
+                        $puByRole[$lg['my_role']] = ($puByRole[$lg['my_role']] ?? 0) + 1;
+                    }
+                    [$s1, $s2, $s3] = $isPuEvt
+                        ? [(int)$lg['bm_seat1'], (int)$lg['bm_seat2'], (int)$lg['bm_seat3']]
+                        : [(int)$lg['vote0_bm1'], (int)$lg['vote0_bm2'], (int)$lg['vote0_bm3']];
+                    $given = array_values(array_unique(array_filter([$s1, $s2, $s3], fn($n) => $n >= 1 && $n <= 10)));
+                    if (!$given) {
+                        continue; // ЛХ не оставил — в точность не идёт
+                    }
+                    $hits = 0;
+                    foreach ($given as $sn) {
+                        if (in_array($rolesByGame[(int)$lg['gid']][$sn] ?? '', ['maf', 'don'], true)) {
+                            $hits++;
+                        }
+                    }
+                    $lhMade++;
+                    $lhHitsSum += $hits;
+                    if ($hits >= 3) {
+                        $lhTriples++;
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+        }
+        $roleRu2 = ['civ' => 'мирный', 'sheriff' => 'шериф', 'maf' => 'мафия', 'don' => 'дон'];
+        $puParts = [];
+        foreach ($puByRole as $rk2 => $cnt2) {
+            $puParts[] = ($roleRu2[$rk2] ?? $rk2) . ' ' . $cnt2;
+        }
+        $puVal = (int)$stats['pu_count']
+            . ($puParts ? ' <span style="color:var(--tx2);font-size:12px;">(' . implode(' · ', $puParts) . ')</span>' : '');
+        $lhAccVal = $lhMade
+            ? 'ср. <b>' . number_format($lhHitsSum / $lhMade, 1) . '</b> из 3'
+              . ' <span style="color:var(--tx2);font-size:12px;">(' . $lhMade . ' ЛХ' . ($lhTriples ? ' · 3/3 ×' . $lhTriples : '') . ')</span>'
+            : '—';
+        // «Топ X% клуба» по клубному счёту среди попавших в рейтинг
+        $pctileVal = '—';
+        try {
+            if ($stats['club_score'] !== null) {
+                $tt = db()->prepare('SELECT COUNT(*) FROM rating_cache WHERE rating_id = ? AND club_score IS NOT NULL');
+                $tt->execute([$mainId]);
+                $totalRanked = (int)$tt->fetchColumn();
+                $bt = db()->prepare('SELECT COUNT(*) FROM rating_cache WHERE rating_id = ? AND club_score > ?');
+                $bt->execute([$mainId, (float)$stats['club_score']]);
+                if ($totalRanked > 0) {
+                    $pctileVal = 'топ <b>' . max(1, (int)ceil(((int)$bt->fetchColumn() + 1) / $totalRanked * 100)) . '%</b> клуба';
+                }
+            }
+        } catch (Throwable $e) {
+        }
+
         echo '<div class="card"><h2 style="margin-top:0;">Показатели</h2><table class="tbl">';
         foreach ([
             ['Σ+ (допы + ЛХ + Ci)', number_format((float)$stats['sum_plus'], 2)],
-            ['ПУ (первоубиенный)', (int)$stats['pu_count']],
+            ['ПУ (первоубиенный)', $puVal],
             ['ЛХ (бонусы)', number_format((float)$stats['lh_sum'], 1)],
+            ['🎯 Точность ЛХ', $lhAccVal],
+            ['📈 Место в клубе', $pctileVal],
             ['Допы', number_format((float)$stats['dop_sum'], 1)],
             ['Минусы и штрафы', number_format((float)$stats['minus_sum'], 1)],
             ['Техфолы', (int)($stats['tech_count'] ?? 0)],
