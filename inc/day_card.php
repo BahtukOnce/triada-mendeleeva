@@ -48,7 +48,11 @@ function day_card_png(array $d): ?string
     // Шапка
     imagettftext($im, 15, 0, 64, 76, $tx2, $FB, 'ТРИАДА МЕНДЕЛЕЕВА');
     imagettftext($im, 13, 0, 64, 104, $tx3, $F, 'спортивная мафия · итоги вечера');
-    imagettftext($im, 15, 0, 64, 148, $tx2, $F, $d['day_title'] . ' · ' . $d['day_date']);
+    // Название вечера часто совпадает с датой («11 июля») — не дублируем
+    $when = trim((string)$d['day_title']) === trim((string)$d['day_date'])
+        ? (string)$d['day_date']
+        : $d['day_title'] . ' · ' . $d['day_date'];
+    imagettftext($im, 15, 0, 64, 148, $tx2, $F, $when);
 
     // Аватар справа (круглый)
     $avSize = 148;
