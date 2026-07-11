@@ -276,6 +276,9 @@ if (db_ready()) {
 
 page_head('Личный кабинет', '');
 echo '<h1>Личный кабинет</h1>';
+if ($player) {
+    echo '<p style="margin-top:-6px;"><a class="btn btn-ghost" href="/wrapped.php">🎁 Твой год в мафии — итоги сезона</a></p>';
+}
 
 // ── Привязка ника ──
 if (!$player) {

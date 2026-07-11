@@ -7,6 +7,9 @@ $player = current_player();
 
 page_head('Мои игры', '');
 echo '<h1>Мои игры</h1>';
+if ($player) {
+    echo '<p style="margin-top:-6px;"><a class="btn btn-ghost" href="/wrapped.php">🎁 Твой год в мафии — итоги сезона</a></p>';
+}
 
 if (!$player) {
     empty_state('Ник ещё не привязан',
