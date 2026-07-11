@@ -66,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $bf = array_filter($bm, fn($v) => $v !== null);
         $vf = array_filter($v0bm, fn($v) => $v !== null);
         if (count($bf) !== count(array_unique($bf)) || count($vf) !== count(array_unique($vf))) {
+            $_SESSION['tprotocol_old'] = $_POST; // не терять введённое после redirect
             flash_set('err', 'В ЛХ нельзя указывать одно и то же место дважды.');
             redirect('/admin/tournament_protocol.php?game=' . $gid);
         }
@@ -93,10 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
         if (!$winner) {
+            $_SESSION['tprotocol_old'] = $_POST;
             flash_set('err', 'Не указан победитель');
             redirect('/admin/tournament_protocol.php?game=' . $gid);
         }
         if (count($seatNos) === 10 && ($cnt['don'] !== 1 || $cnt['sheriff'] !== 1 || $cnt['maf'] !== 2 || $cnt['civ'] !== 6)) {
+            $_SESSION['tprotocol_old'] = $_POST;
             flash_set('err', 'Неверный расклад ролей: нужно 1 дон, 1 шериф, 2 мафии, 6 мирных (сейчас: дон '
                 . $cnt['don'] . ', шериф ' . $cnt['sheriff'] . ', мафия ' . $cnt['maf'] . ', мирн ' . $cnt['civ'] . ')');
             redirect('/admin/tournament_protocol.php?game=' . $gid);
@@ -130,6 +133,35 @@ $seatsSt = db()->prepare('SELECT gs.*, p.nickname, p.avatar FROM game_seats gs
     JOIN players p ON p.id = gs.player_id WHERE gs.game_id = ? ORDER BY gs.seat');
 $seatsSt->execute([$gid]);
 $seats = $seatsSt->fetchAll();
+
+// Восстановление введённого после ошибки валидации (одноразово, из сессии) —
+// рассадка фиксирована, накладываем только редактируемые поля.
+$old = $_SESSION['tprotocol_old'] ?? null;
+unset($_SESSION['tprotocol_old']);
+if (is_array($old)) {
+    foreach ($seats as &$esRef) {
+        $i = (int)$esRef['seat'];
+        $esRef['role'] = (string)($old["role$i"] ?? $esRef['role']);
+        $esRef['fouls'] = (int)($old["fouls$i"] ?? 0);
+        $esRef['tech_fouls'] = (int)($old["tech$i"] ?? 0);
+        $esRef['big_tech'] = (int)($old["bigtech$i"] ?? 0);
+        $esRef['removal'] = (int)($old["removal$i"] ?? 0);
+        $esRef['plus'] = (float)str_replace(',', '.', (string)($old["plus$i"] ?? '0'));
+        $esRef['minus'] = (float)str_replace(',', '.', (string)($old["minus$i"] ?? '0'));
+    }
+    unset($esRef);
+    $g['judge_player_id'] = (int)($old['judge'] ?? 0);
+    $g['winner'] = (string)($old['winner'] ?? '');
+    $g['first_killed_seat'] = (int)($old['pu'] ?? 0);
+    $g['bm_seat1'] = (int)($old['bm1'] ?? 0);
+    $g['bm_seat2'] = (int)($old['bm2'] ?? 0);
+    $g['bm_seat3'] = (int)($old['bm3'] ?? 0);
+    $g['vote0_seat'] = (int)($old['vote0_seat'] ?? 0);
+    $g['vote0_bm1'] = (int)($old['v0bm1'] ?? 0);
+    $g['vote0_bm2'] = (int)($old['v0bm2'] ?? 0);
+    $g['vote0_bm3'] = (int)($old['v0bm3'] ?? 0);
+    $g['comment'] = (string)($old['comment'] ?? '');
+}
 $allPlayers = db()->query('SELECT id, nickname FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll();
 $roleOpts = ['civ' => 'Мирный', 'maf' => 'Мафия', 'sheriff' => 'Шериф', 'don' => 'Дон'];
 $maxSeat = $seats ? max(array_map(fn($s) => (int)$s['seat'], $seats)) : 10;

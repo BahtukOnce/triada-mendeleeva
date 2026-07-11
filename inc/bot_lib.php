@@ -540,6 +540,39 @@ function day_table_verdict(int $dayId): string
         : '🎲 Стол ' . $w['need'] . '+: ' . $span . ' (' . $hrs . ' ч) — для вечера нужно ' . DAY_TABLE_MIN_HOURS . '+ часа ⏳';
 }
 
+// «Стол собрался»: при первом достижении 12+/4ч — разовое уведомление записавшимся.
+// Флаг table_ready_at ставится атомарно (WHERE IS NULL) — двойной рассылки при гонке не будет.
+function bot_check_table_ready(int $dayId): void
+{
+    $st = db()->prepare('SELECT id, title, date, location, status, table_ready_at FROM game_days WHERE id = ?');
+    $st->execute([$dayId]);
+    $day = $st->fetch();
+    if (!$day || $day['table_ready_at'] !== null || !in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
+        return;
+    }
+    $w = day_table_window(bot_day_regs($dayId));
+    if (!$w['ok']) {
+        return;
+    }
+    $upd = db()->prepare('UPDATE game_days SET table_ready_at = NOW() WHERE id = ? AND table_ready_at IS NULL');
+    $upd->execute([$dayId]);
+    if ($upd->rowCount() === 0) {
+        return; // параллельный запрос уже разослал
+    }
+    $span = $w['all_evening'] ? 'весь вечер' : ($w['from'] . '–' . $w['to']);
+    $txt = "🎲 <b>Стол собрался — вечер состоится!</b>\n\n"
+        . "<b>" . bot_esc((string)$day['title']) . "</b>\n"
+        . "🗓 " . bot_date((string)$day['date']) . "\n"
+        . ($day['location'] ? "📍 " . bot_esc((string)$day['location']) . "\n" : "")
+        . "👥 " . DAY_TABLE_NEED . "+ игроков одновременно: " . $span . "\n\nДо встречи за столом!";
+    $pl = db()->prepare('SELECT player_id FROM day_registrations WHERE day_id = ? AND cancelled_at IS NULL');
+    $pl->execute([$dayId]);
+    foreach ($pl->fetchAll(PDO::FETCH_COLUMN) as $pid) {
+        bot_notify_player((int)$pid, $txt);
+        usleep(40000);
+    }
+}
+
 // Уведомить админов/руководителей (привязанных к боту) о голосе/переголосе записи
 function bot_notify_admins_day_vote(int $dayId, string $nick, string $action, ?string $tf = null, ?string $tt = null): void
 {
@@ -567,6 +600,8 @@ function bot_notify_admins_day_vote(int $dayId, string $nick, string $action, ?s
         bot_send($tg, $txt, null);
         usleep(30000);
     }
+    // Заодно: если после этого голоса стол впервые собрался — разовое уведомление записавшимся
+    bot_check_table_ready($dayId);
 }
 
 // ── Уведомления: вкл/выкл (по умолчанию включены) ─────────

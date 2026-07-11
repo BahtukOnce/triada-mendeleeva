@@ -107,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($errors) {
+            $_SESSION['protocol_old'] = $_POST; // не терять введённое: восстановим форму после redirect
             flash_set('err', implode('; ', $errors));
             redirect('/admin/protocol.php?day=' . $dayId . ($gid ? '&game=' . $gid : ''));
         }
@@ -179,6 +180,34 @@ if ($editGid) {
         foreach ($s->fetchAll() as $row) {
             $editSeats[(int)$row['seat']] = $row;
         }
+    }
+}
+
+// Восстановление введённого после ошибки валидации (одноразово, из сессии) —
+// иначе redirect с flash стирал всю заполненную форму на 10 игроков.
+$old = $_SESSION['protocol_old'] ?? null;
+unset($_SESSION['protocol_old']);
+if (is_array($old)) {
+    $editGame = is_array($editGame) ? $editGame : [];
+    $editGame['judge_player_id'] = (int)($old['judge'] ?? 0);
+    $editGame['winner'] = (string)($old['winner'] ?? '');
+    $editGame['first_killed_seat'] = (int)($old['pu'] ?? 0);
+    $editGame['bm_seat1'] = (int)($old['bm1'] ?? 0);
+    $editGame['bm_seat2'] = (int)($old['bm2'] ?? 0);
+    $editGame['bm_seat3'] = (int)($old['bm3'] ?? 0);
+    $editGame['comment'] = (string)($old['comment'] ?? '');
+    for ($i = 1; $i <= 10; $i++) {
+        $editSeats[$i] = [
+            'nickname' => trim((string)($old["nick$i"] ?? '')),
+            'role' => (string)($old["role$i"] ?? 'civ'),
+            'fouls' => (int)($old["fouls$i"] ?? 0),
+            'tech_fouls' => (int)($old["tech$i"] ?? 0),
+            'big_tech' => (int)($old["bigtech$i"] ?? 0),
+            'removal' => (int)($old["removal$i"] ?? 0),
+            'plus' => (float)str_replace(',', '.', (string)($old["plus$i"] ?? '0')),
+            'minus' => (float)str_replace(',', '.', (string)($old["minus$i"] ?? '0')),
+            'out_order' => (int)($old["out$i"] ?? 0),
+        ];
     }
 }
 
