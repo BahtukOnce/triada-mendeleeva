@@ -43,6 +43,21 @@ function bot_send($chatId, string $text, ?string $markup = null): ?array
     return bot_api('sendMessage', $p);
 }
 
+// Фото с подписью (multipart через CURLFile — bot_api передаёт массив как есть)
+function bot_send_photo($chatId, string $file, string $caption, ?string $markup = null): ?array
+{
+    $p = [
+        'chat_id'    => $chatId,
+        'photo'      => new CURLFile($file, 'image/png', 'card.png'),
+        'caption'    => $caption,
+        'parse_mode' => 'HTML',
+    ];
+    if ($markup !== null) {
+        $p['reply_markup'] = $markup;
+    }
+    return bot_api('sendPhoto', $p);
+}
+
 // ── Утилиты ───────────────────────────────────────────────
 function bot_esc(string $s): string
 {
@@ -707,19 +722,87 @@ function bot_notify_day_results(int $dayId): int
         WHERE g.day_id = ?
         GROUP BY eh.player_id, p.elo');
     $q->execute([$dayId]);
+    $rows = $q->fetchAll();
+    // Роли и победы каждого за вечер + лучший ELO вечера (для шэрибл-карточки)
+    $roleRu = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
+    $rolesBy = [];
+    $winsBy = [];
+    try {
+        $rq = db()->prepare("SELECT gs.player_id, gs.role, COUNT(*) c,
+                SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
+                          OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) w
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            WHERE g.day_id = ? AND g.status = 'finished'
+            GROUP BY gs.player_id, gs.role");
+        $rq->execute([$dayId]);
+        foreach ($rq->fetchAll() as $rr) {
+            $pid0 = (int)$rr['player_id'];
+            $rolesBy[$pid0][$roleRu[$rr['role']] ?? $rr['role']] = (int)$rr['c'];
+            $winsBy[$pid0] = ($winsBy[$pid0] ?? 0) + (int)$rr['w'];
+        }
+    } catch (Throwable $e) {
+    }
+    $bestPid = 0;
+    $bestNet = null;
+    foreach ($rows as $r) {
+        if ($bestNet === null || (float)$r['net'] > $bestNet) {
+            $bestNet = (float)$r['net'];
+            $bestPid = (int)$r['player_id'];
+        }
+    }
+    require_once __DIR__ . '/day_card.php';
+    $avaSt = db()->prepare('SELECT nickname, avatar FROM players WHERE id = ?');
     $sent = 0;
-    foreach ($q->fetchAll() as $r) {
+    foreach ($rows as $r) {
+        $pid = (int)$r['player_id'];
         $net = (float)$r['net'];
         $netStr = ($net > 0 ? '+' : ($net < 0 ? '−' : '±')) . bot_num(abs($net));
         $emoji = $net > 0 ? '📈' : ($net < 0 ? '📉' : '➖');
         $record = ((float)$r['day_peak'] >= (float)$r['all_peak'] - 0.05) && $net > 0;
+        $isTop = $pid === $bestPid && $net > 0;
         $text = "🎲 <b>Итоги вечера</b>\n"
             . "<b>" . bot_esc((string)$day['title']) . "</b> · " . bot_date((string)$day['date']) . "\n\n"
             . "Сыграно игр: <b>" . (int)$r['games'] . "</b>\n"
             . "$emoji ELO: <b>" . bot_num((float)$r['cur']) . "</b> (за вечер $netStr)\n"
             . ($record ? "🏆 Новый личный рекорд ELO!\n" : "")
+            . ($isTop ? "🔥 Лучший ELO вечера!\n" : "")
             . "\nПодробная статистика — /me";
-        if (bot_notify_player((int)$r['player_id'], $text)) {
+        // Личка (уважает mute): фото-карточка с подписью; при сбое — обычный текст
+        $tgSt = db()->prepare('SELECT tg_user_id FROM players WHERE id = ? AND tg_user_id IS NOT NULL AND notify_enabled = 1');
+        $tgSt->execute([$pid]);
+        $tg = $tgSt->fetchColumn();
+        if (!$tg) {
+            continue;
+        }
+        $okSent = false;
+        try {
+            $avaSt->execute([$pid]);
+            $pl = $avaSt->fetch() ?: ['nickname' => '?', 'avatar' => null];
+            $card = day_card_png([
+                'nickname' => (string)$pl['nickname'],
+                'avatar' => $pl['avatar'] ?? null,
+                'day_title' => (string)$day['title'],
+                'day_date' => bot_date((string)$day['date']),
+                'games' => (int)$r['games'],
+                'wins' => (int)($winsBy[$pid] ?? 0),
+                'roles' => $rolesBy[$pid] ?? [],
+                'net' => $net,
+                'elo' => (float)$r['cur'],
+                'record' => $record,
+                'top' => $isTop,
+            ]);
+            if ($card !== null) {
+                $resp = bot_send_photo((int)$tg, $card, $text);
+                $okSent = $resp && !empty($resp['ok']);
+                @unlink($card);
+            }
+        } catch (Throwable $e) {
+        }
+        if (!$okSent) {
+            $resp = bot_send((int)$tg, $text);
+            $okSent = $resp && !empty($resp['ok']);
+        }
+        if ($okSent) {
             $sent++;
         }
         usleep(40000);
