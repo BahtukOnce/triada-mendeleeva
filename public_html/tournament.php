@@ -733,7 +733,8 @@ foreach ($byTable as $tableNo => $tGames) {
         }
         // Раскрытая игра. Фикс. ширины колонок → игры выровнены строго друг под другом.
         // В одностольном виде рядом с таблицей — панель статистики игры (заполняет пустое место справа).
-        $tblStyle = $multi ? 'table-layout:fixed;width:100%;font-size:12.5px;' : 'table-layout:fixed;width:620px;';
+        // width:100%+max-width (не жёсткие 620px): на десктопе игры выровнены, на телефоне таблица сжимается
+        $tblStyle = $multi ? 'table-layout:fixed;width:100%;font-size:12.5px;' : 'table-layout:fixed;width:100%;max-width:620px;';
         if (!$multi) {
             echo '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">';
         }
@@ -804,7 +805,7 @@ foreach ($byTable as $tableNo => $tGames) {
                 $wb = $wmap[$g['winner']];
                 echo '<div style="padding:8px 12px;border-radius:9px;font-weight:700;background:' . $wb[1] . ';border:1px solid ' . $wb[2] . ';margin-bottom:8px;">' . $wb[0] . '</div>';
             }
-            echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+            echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">';
             echo $mini('🔴 Итог красных', number_format($redSum, 1));
             echo $mini('⚫ Итог чёрных', number_format($blackSum, 1));
             if ($mvpNick !== '') { echo $mini('⭐ Лучший', esc($mvpNick) . ' · ' . number_format((float)$mvpVal, 2), 'var(--ok)'); }

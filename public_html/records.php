@@ -148,7 +148,7 @@ try {
         });
         echo '<h2 style="margin-top:18px;">🏛 Битва факультетов</h2>';
         echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">командный зачёт по анкетам игроков (факультет — в личном кабинете); факультеты с <10 играми — вне зачёта</p>';
-        echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
+        echo '<div class="card" style="overflow-x:auto;"><table class="tbl fac-tbl">';
         echo '<tr><th>#</th><th>Факультет</th><th class="num">Игроков</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th><th class="num">Ср. ELO</th><th class="num">Допы</th></tr>';
         $posF = 0;
         foreach ($fac as $f) {

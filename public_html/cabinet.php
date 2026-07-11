@@ -401,14 +401,14 @@ if ($player) {
     echo '<input type="hidden" name="form" value="profile">';
     echo '<div class="field"><label>ФИО <span style="color:var(--tx3);font-weight:400;">— часто нужно для пропусков в университет</span></label>'
         . '<input type="text" name="real_name" value="' . esc($player['real_name']) . '"></div>';
-    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">';
     echo '<div class="field"><label>Telegram</label><input type="text" name="tg" value="' . esc($player['tg']) . '"></div>';
     echo '<div class="field"><label>VK</label><input type="text" name="vk" value="' . esc($player['vk']) . '"></div>';
     echo '</div>';
     $rhtu = !empty($player['is_rhtu']);
     echo '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:4px 0 10px;cursor:pointer;">'
         . '<input type="checkbox" name="is_rhtu" id="rhtu-check" value="1" ' . ($rhtu ? 'checked' : '') . '> Учусь в РХТУ</label>';
-    echo '<div id="rhtu-fields" style="display:' . ($rhtu ? 'grid' : 'none') . ';grid-template-columns:1fr 1fr;gap:10px;">';
+    echo '<div id="rhtu-fields" style="display:' . ($rhtu ? 'grid' : 'none') . ';grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">';
     echo '<div class="field"><label>Факультет</label><input type="text" name="faculty" value="' . esc($player['faculty']) . '"></div>';
     echo '<div class="field"><label>Группа</label><input type="text" name="study_group" value="' . esc($player['study_group']) . '"></div>';
     echo '</div>';

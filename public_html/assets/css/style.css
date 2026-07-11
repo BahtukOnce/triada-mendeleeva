@@ -35,10 +35,10 @@ main.container { flex: 1; padding-bottom: 40px; }
 }
 .header-inner { width: 100%; padding: 0 24px; }
 .header-row { display: flex; align-items: center; gap: 10px; min-height: 70px; }
-.brand { display: flex; align-items: center; gap: 11px; color: var(--tx); }
+.brand { display: flex; align-items: center; gap: 11px; color: var(--tx); min-width: 0; }
 .brand:hover { color: var(--tx); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.18; }
-.brand-text b { font-size: 17px; font-weight: 700; white-space: nowrap; }
+.brand-text b { font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-text i { font-style: normal; font-size: 12px; color: var(--tx2); white-space: nowrap; }
 .logo-svg { display: block; }
 
@@ -225,6 +225,9 @@ table.elo-worked th { color: var(--tx2); font-weight: 600; text-align: left; }
 table.elo-worked td, table.elo-worked th { padding: 5px 8px; border-bottom: 1px solid var(--bd); }
 
 .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+/* Дети сеток/флексов могут сжиматься: min-width:auto распирал страницу на мобильном —
+   карточка росла под nowrap-таблицу вместо её внутреннего скролла */
+.hero > *, .grid-2 > *, .grid-2eq > *, .tables-grid > *, .grid-stats > * { min-width: 0; }
 
 table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl th {
@@ -491,7 +494,7 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .progress > div { height: 100%; background: var(--ac); border-radius: 3px; }
 
 /* ── Панель ведущего ─────────────────────────────── */
-.timer-card { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; position: sticky; top: 56px; z-index: 20; }
+.timer-card { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; position: sticky; top: 72px; z-index: 20; }
 .timer-display {
   font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums;
   min-width: 100px; text-align: center; color: var(--tx); letter-spacing: 1px;
@@ -708,9 +711,9 @@ body::before {
 
 /* ── Очная ставка ───────────────────────────────── */
 .vs-head { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 12px; }
-.vs-player { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 16px; color: var(--tx); text-align: center; }
+.vs-player { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 16px; color: var(--tx); text-align: center; min-width: 0; }
 .vs-player:hover { color: var(--tx); border-color: var(--ac); }
-.vs-name { font-weight: 700; font-size: 17px; }
+.vs-name { font-weight: 700; font-size: 17px; max-width: 100%; overflow-wrap: anywhere; }
 .vs-elo { font-size: 13px; color: var(--tx2); }
 .vs-tbl td { padding: 9px 12px; }
 .vs-tbl .vs-mid { text-align: center; color: var(--tx2); font-size: 12.5px; width: 34%; }
@@ -903,6 +906,25 @@ body::before {
   table.tbl { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
   .container { padding: 0 14px; }
   .vs-head { gap: 8px; }
+  /* Рейтинг: # и «Игрок» прилипают слева — при скролле вправо видно, чья строка */
+  .rating-tbl th:nth-child(1), .rating-tbl td:nth-child(1) { position: sticky; left: 0; background: var(--sf); z-index: 2; min-width: 34px; }
+  .rating-tbl th:nth-child(2), .rating-tbl td:nth-child(2) { position: sticky; left: 44px; background: var(--sf); z-index: 2; }
+  /* Тач-таргеты: пальцу нужно ≥40px */
+  .react-btn { padding: 9px 13px; }
+  .ava-actions button { padding: 8px 12px; font-size: 13px; }
+  .emoji-pick button { padding: 7px 10px !important; }
+  .sortable thead th { padding-top: 12px; padding-bottom: 12px; }
+  .tbl .btn, .tbl .btn-ghost { padding: 8px 12px !important; font-size: 13px !important; }
+  /* iOS зумит страницу при фокусе полей с шрифтом <16px — протоколы и формы */
+  .protocol-tbl input, .protocol-tbl select { font-size: 16px; padding: 9px 8px; }
+  .field input, .field select, .field textarea { font-size: 16px; }
+  /* Панель быстрого ввода допов: липнет к низу экрана, кнопки под палец */
+  #dop-pad { position: sticky; bottom: 8px; z-index: 30; box-shadow: 0 6px 22px rgba(0,0,0,.5); }
+  .dop-b { min-height: 40px; padding: 8px 12px !important; font-size: 14px !important; }
+  /* Таймер судьи: компактнее, кнопки крупнее */
+  .timer-card { gap: 10px; }
+  .timer-display { font-size: 30px; }
+  .tm-btn { padding: 9px 12px; }
 }
 @media (max-width: 560px) {
   .pf-tiles { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -914,9 +936,15 @@ body::before {
   .tp-tbl th, .tp-tbl td { font-size: 12px; padding: 7px 8px; }
   .noms-grid { grid-template-columns: 1fr; }
 }
+@media (max-width: 560px) {
+  /* Битва факультетов: убираем дублирующие колонки (3 Игроков, 5 Побед), имя переносим */
+  .fac-tbl th:nth-child(3), .fac-tbl td:nth-child(3),
+  .fac-tbl th:nth-child(5), .fac-tbl td:nth-child(5) { display: none; }
+  .fac-tbl td:nth-child(2) { white-space: normal; }
+}
 @media (max-width: 480px) {
   .post-modal-panel { padding: 18px 10px; }
-  .post-modal-x { top: 10px; right: 10px; width: 34px; height: 34px; font-size: 14px; }
+  .post-modal-x { top: 10px; right: 10px; font-size: 14px; } /* 40×40 — не уменьшаем тач-таргет */
   #crop-img, #crop-modal img { max-height: 48vh; }
 }
 @media (max-width: 400px) {

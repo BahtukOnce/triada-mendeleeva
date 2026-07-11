@@ -327,7 +327,8 @@ page_head('Протокол — ' . $g['t_title'], '');
       <button class="btn" type="submit">Сохранить результат</button>
       <a class="btn btn-ghost" href="/tournament.php?id=<?= $tid ?>">К турниру</a>
     </div>
-    <p style="font-size:12px;color:var(--tx2);margin:10px 0 0;">Ci (компенсация ПУ) считается автоматически. Итог в таблице — предварительный, без Ci.</p>
+    <p style="font-size:12px;color:var(--tx2);margin:10px 0 0;">Ci (компенсация ПУ) считается автоматически. Итог в таблице — предварительный, без Ci.<br>
+      Штрафы: 4 фола −0.6 · тех −0.3 · бол.тех −0.6 (макс 2) · <b>уд</b> (удаление) −0.6 · <b>уд!</b> (на критический круг) −1.2.</p>
   </div>
 </form>
 
@@ -343,15 +344,18 @@ page_head('Протокол — ' . $g['t_title'], '');
     stop(); remain = sec; render();
     timer = setInterval(function () { remain--; render(); if (remain <= 0) { stop(); try { beepSound(); } catch (e) {} } }, 1000);
   }
+  // AudioContext создаётся в пользовательском жесте — иначе мобильные браузеры глушат звук из setInterval
+  var audioCtx = null;
+  function armAudio() { try { if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); } } catch (e) {} }
   function beepSound() {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = audioCtx; if (!ctx) return;
     var o = ctx.createOscillator(); var gg = ctx.createGain();
     o.connect(gg); gg.connect(ctx.destination); o.frequency.value = 880; o.start();
     gg.gain.setValueAtTime(0.3, ctx.currentTime); gg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
     o.stop(ctx.currentTime + 0.4);
   }
-  document.querySelectorAll('.tm-btn[data-sec]').forEach(function (b) { b.addEventListener('click', function () { start(parseInt(b.dataset.sec, 10)); }); });
-  document.getElementById('tm-add').addEventListener('click', function () { remain += 30; render(); if (!timer) start(remain); });
+  document.querySelectorAll('.tm-btn[data-sec]').forEach(function (b) { b.addEventListener('click', function () { armAudio(); start(parseInt(b.dataset.sec, 10)); }); });
+  document.getElementById('tm-add').addEventListener('click', function () { armAudio(); remain += 30; render(); if (!timer) start(remain); });
   document.getElementById('tm-stop').addEventListener('click', function () { stop(); remain = 0; render(); });
   render();
 
