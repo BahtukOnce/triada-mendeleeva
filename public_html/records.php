@@ -114,6 +114,66 @@ try {
 } catch (Throwable $e) {
 }
 
+// ── Битва факультетов РХТУ: командный зачёт по анкетам ──
+try {
+    $mainIdF = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+    $fq = db()->prepare("SELECT p.faculty, p.elo, rc.games,
+            (COALESCE(rc.w_civ,0) + COALESCE(rc.w_maf,0) + COALESCE(rc.w_sher,0) + COALESCE(rc.w_don,0)) AS wins,
+            COALESCE(rc.dop_sum, 0) AS dops
+        FROM players p
+        LEFT JOIN rating_cache rc ON rc.player_id = p.id AND rc.rating_id = ?
+        WHERE p.faculty IS NOT NULL AND TRIM(p.faculty) <> ''");
+    $fq->execute([$mainIdF]);
+    $fac = [];
+    foreach ($fq->fetchAll() as $r) {
+        $key = mb_strtoupper(trim((string)$r['faculty'])); // нормализация: ИМиХТ = имихт
+        if (!isset($fac[$key])) {
+            $fac[$key] = ['label' => trim((string)$r['faculty']), 'members' => 0, 'games' => 0, 'wins' => 0, 'eloSum' => 0.0, 'eloN' => 0, 'dops' => 0.0];
+        }
+        $fac[$key]['members']++;
+        $fac[$key]['games'] += (int)($r['games'] ?? 0);
+        $fac[$key]['wins'] += (int)$r['wins'];
+        $fac[$key]['dops'] += (float)$r['dops'];
+        if ((int)($r['games'] ?? 0) > 0) {
+            $fac[$key]['eloSum'] += (float)$r['elo'];
+            $fac[$key]['eloN']++;
+        }
+    }
+    $fac = array_filter($fac, fn($f) => $f['games'] > 0);
+    if (count($fac) >= 2) {
+        uasort($fac, function ($a, $b) {
+            $wa = $a['games'] >= 10 ? $a['wins'] / $a['games'] : -1; // <10 игр — вниз
+            $wb = $b['games'] >= 10 ? $b['wins'] / $b['games'] : -1;
+            return [$wb, $b['games']] <=> [$wa, $a['games']];
+        });
+        echo '<h2 style="margin-top:18px;">🏛 Битва факультетов</h2>';
+        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">командный зачёт по анкетам игроков (факультет — в личном кабинете); факультеты с <10 играми — вне зачёта</p>';
+        echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
+        echo '<tr><th>#</th><th>Факультет</th><th class="num">Игроков</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th><th class="num">Ср. ELO</th><th class="num">Допы</th></tr>';
+        $posF = 0;
+        foreach ($fac as $f) {
+            $posF++;
+            $wr = $f['games'] > 0 ? round($f['wins'] / $f['games'] * 100) : 0;
+            $inRace = $f['games'] >= 10;
+            $medalF = !$inRace ? '·' : ($posF === 1 ? '🥇' : ($posF === 2 ? '🥈' : ($posF === 3 ? '🥉' : $posF)));
+            $wrCol = !$inRace ? 'var(--tx3)' : ($wr >= 52 ? 'var(--ok)' : ($wr <= 48 ? 'var(--ac)' : 'var(--tx)'));
+            echo '<tr' . ($inRace ? '' : ' style="opacity:.55;"') . '>'
+                . '<td>' . $medalF . '</td>'
+                . '<td><b>' . esc($f['label']) . '</b></td>'
+                . '<td class="num">' . $f['members'] . '</td>'
+                . '<td class="num">' . $f['games'] . '</td>'
+                . '<td class="num">' . $f['wins'] . '</td>'
+                . '<td class="num"><b style="color:' . $wrCol . ';">' . $wr . '%</b></td>'
+                . '<td class="num">' . ($f['eloN'] ? number_format($f['eloSum'] / $f['eloN'], 0, '.', '') : '—') . '</td>'
+                . '<td class="num">' . number_format($f['dops'], 1) . '</td></tr>';
+        }
+        echo '</table>';
+        echo '<p style="color:var(--tx3);font-size:12px;margin:8px 0 0;">Не видишь свой факультет? Укажи его в <a href="/cabinet.php">личном кабинете</a> — и твои игры пойдут в зачёт.</p>';
+        echo '</div>';
+    }
+} catch (Throwable $e) {
+}
+
 // ── Достижения (с теми, кто получил) ──
 echo '<h2 style="margin-top:18px;">Достижения</h2>';
 echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">Зелёная карточка — ачивку уже кто-то получил, серая — пока никто. Нажми на ачивку — увидишь всех, кто её получил.</p>';
