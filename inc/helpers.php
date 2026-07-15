@@ -877,7 +877,7 @@ function app_notify_admins(string $text, ?string $link = null): void
 {
     try {
         db()->prepare("INSERT INTO notifications (user_id, text, link)
-            SELECT id, ?, ? FROM users WHERE role IN ('admin','owner')")
+            SELECT id, ?, ? FROM users WHERE role IN ('admin','deputy','owner')")
             ->execute([mb_substr($text, 0, 500), $link]);
     } catch (Throwable $e) {
     }

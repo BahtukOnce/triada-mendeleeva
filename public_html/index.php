@@ -44,8 +44,8 @@ if ($dbok) {
         }
         $admins = db()->query("SELECT COALESCE(p.nickname, u.nickname) AS nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar
             FROM users u LEFT JOIN players p ON p.user_id = u.id
-            WHERE u.role IN ('owner','admin') OR u.is_judge = 1 OR u.is_photographer = 1
-            ORDER BY FIELD(u.role,'owner','admin','player'), u.is_judge DESC, u.nickname LIMIT 30")->fetchAll();
+            WHERE u.role IN ('owner','deputy','admin') OR u.is_judge = 1 OR u.is_photographer = 1
+            ORDER BY FIELD(u.role,'owner','deputy','admin','player'), u.is_judge DESC, u.nickname LIMIT 30")->fetchAll();
     } catch (Throwable $e) {
         // каркас не падает из-за БД
     }
@@ -182,7 +182,7 @@ page_head('Главная', 'index', [
     <?php if ($admins): ?>
       <div class="admin-list home-admins" style="flex:1;">
         <?php foreach ($admins as $a):
-            $isLead = $a['role'] === 'owner' || $a['role'] === 'admin';
+            $isLead = in_array($a['role'], ['owner', 'deputy', 'admin'], true);
             $label = implode(' · ', user_role_badges($a));
             $pid = (int)($a['player_id'] ?? 0);
             $tag = $pid ? 'a' : 'div';

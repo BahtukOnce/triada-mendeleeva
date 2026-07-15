@@ -18,10 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'reset') {
-        // Пароль админов и руководителей сбрасывает только руководитель —
+        // Неприкосновенность верхушки: пароль зама/руководителя сбрасывает только руководитель —
         // иначе админ сбросит пароль владельца и (без Telegram) увидит его в открытом виде.
-        if (!$isOwner && in_array($target['role'], ['owner', 'admin'], true)) {
-            flash_set('err', 'Пароль админов и руководителей сбрасывает только руководитель');
+        if (!$isOwner && in_array($target['role'], ['deputy', 'owner'], true)) {
+            flash_set('err', 'Пароль зама и руководителя сбрасывает только руководитель');
             redirect('/admin/users.php');
         }
         $alphabet = 'abcdefghkmnpqrstuvwxyz23456789';
@@ -77,17 +77,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'role') {
-        // Обычный админ может повышать игрока до админа, но роль «руководитель»
-        // и роли других админов/руководителей меняет только руководитель —
+        // Админ может назначать и снимать админов (игрок ↔ админ). Верхушку
+        // (зам, руководитель) назначает и снимает только руководитель —
         // иначе админ сделает себя владельцем или разжалует настоящего.
         $newRole = (string)($_POST['role'] ?? '');
-        if (!in_array($newRole, ['player', 'admin', 'owner'], true)) {
+        if (!in_array($newRole, ['player', 'admin', 'deputy', 'owner'], true)) {
             flash_set('err', 'Неизвестная роль');
             redirect('/admin/users.php');
         }
-        $targetPriv = in_array($target['role'], ['owner', 'admin'], true);
-        if (!$isOwner && ($newRole === 'owner' || $targetPriv)) {
-            flash_set('err', 'Роль «руководитель» и роли админов меняет только руководитель');
+        $topInvolved = in_array($newRole, ['deputy', 'owner'], true)
+            || in_array($target['role'], ['deputy', 'owner'], true);
+        if (!$isOwner && $topInvolved) {
+            flash_set('err', 'Роли «зам руководителя» и «руководитель» меняет только руководитель');
             redirect('/admin/users.php');
         }
         if ($target['role'] === 'owner' && $newRole !== 'owner') {
@@ -104,10 +105,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'delete_user') {
-        // Админ может удалять аккаунты игроков; аккаунты админов/руководителей — только руководитель.
-        $targetPriv = in_array($target['role'], ['owner', 'admin'], true);
-        if (!$isOwner && $targetPriv) {
-            flash_set('err', 'Аккаунты админов и руководителей удаляет только руководитель');
+        // Аккаунты зама/руководителя удаляет только руководитель; остальные — любой админ.
+        $targetTop = in_array($target['role'], ['deputy', 'owner'], true);
+        if (!$isOwner && $targetTop) {
+            flash_set('err', 'Аккаунты зама и руководителя удаляет только руководитель');
             redirect('/admin/users.php');
         }
         if ($targetId === (int)$u['id']) {
@@ -141,7 +142,7 @@ if ($q !== '') {
     $sql .= ' WHERE us.nickname LIKE ?';
     $params[] = '%' . like_escape($q) . '%';
 }
-$sql .= ' ORDER BY FIELD(us.role, \'owner\',\'admin\',\'judge\',\'player\'), us.nickname LIMIT 200';
+$sql .= ' ORDER BY FIELD(us.role, \'owner\',\'deputy\',\'admin\',\'judge\',\'player\'), us.nickname LIMIT 200';
 $st = db()->prepare($sql);
 $st->execute($params);
 $list = $st->fetchAll();
@@ -158,7 +159,33 @@ echo '<div class="stat"><div class="lbl">зарегистрировано</div><
 echo '<div class="stat"><div class="lbl">привязали Telegram</div><div class="val">' . (int)$cnt['tg'] . '</div></div>';
 echo '<div class="stat"><div class="lbl">сейчас в сети</div><div class="val" style="color:var(--ok);">' . (int)$cnt['online'] . '</div></div>';
 echo '</div>';
-echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы и руководители. Руководителей может быть несколько; последнего снять нельзя. Аккаунт игрока может удалить и админ (аккаунты админов/руководителей — только руководитель); игрок и статистика при этом сохраняются.</p>';
+echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы. Замами и руководителями управляет только руководитель; последнего руководителя снять нельзя. При удалении аккаунта игрок и статистика сохраняются.</p>';
+
+// ── Таблица прав ролей ──
+$chk = '<span style="color:var(--ok);font-weight:700;">✓</span>';
+$no = '<span style="color:var(--tx3);">—</span>';
+echo '<details style="margin:0 0 14px;"><summary style="cursor:pointer;color:var(--ac);font-size:14px;">📋 Кто что может — таблица прав ролей</summary>';
+echo '<div class="card" style="overflow-x:auto;margin-top:10px;"><table class="tbl">';
+echo '<tr><th>Право</th><th class="num">Судья</th><th class="num">Админ</th><th class="num">Зам</th><th class="num">Руководитель</th></tr>';
+foreach ([
+    ['Вести протоколы вечеров и турниров', 1, 1, 1, 1],
+    ['Создавать вечера и турниры, анонсы, рассылки', 0, 1, 1, 1],
+    ['Новости, бан-лист, слияние ников, заявки на привязку', 0, 1, 1, 1],
+    ['Назначать судей и фотографов', 0, 1, 1, 1],
+    ['Принимать заявки в клуб (в админке)', 0, 1, 1, 1],
+    ['Назначать и снимать админов', 0, 1, 1, 1],
+    ['Сброс пароля и удаление аккаунтов игроков и админов', 0, 1, 1, 1],
+    ['Бот-уведомления о новых заявках в клуб', 0, 0, 1, 1],
+    ['Назначать и снимать замов и руководителей', 0, 0, 0, 1],
+    ['Сброс пароля и удаление аккаунтов замов и руководителей', 0, 0, 0, 1],
+] as [$right, $j, $a, $d, $o]) {
+    echo '<tr><td>' . $right . '</td>'
+        . '<td class="num">' . ($j ? $chk : $no) . '</td>'
+        . '<td class="num">' . ($a ? $chk : $no) . '</td>'
+        . '<td class="num">' . ($d ? $chk : $no) . '</td>'
+        . '<td class="num">' . ($o ? $chk : $no) . '</td></tr>';
+}
+echo '</table><p style="color:var(--tx3);font-size:12px;margin:8px 0 0;">Последний руководитель неснимаем. Судья и фотограф — флаги поверх роли «игрок»; судья видит только судейские страницы. Контакт клуба на страницах ошибок — руководитель.</p></div></details>';
 
 echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';
 echo '<form method="get" action="/admin/users.php" style="max-width:300px;flex:1;min-width:200px;">';
@@ -167,7 +194,7 @@ echo '<a class="tag ' . ($onlyTg ? 'tag-open' : '') . '" href="/admin/users.php'
     . ($onlyTg ? 'показать всех' : 'только с Telegram') . '</a>';
 echo '</div>';
 
-$roles = ['player' => 'игрок', 'admin' => 'админ', 'owner' => 'руководитель'];
+$roles = ['player' => 'игрок', 'admin' => 'админ', 'deputy' => 'зам руководителя', 'owner' => 'руководитель'];
 
 function cap_btn(int $rid, string $cap, bool $on, string $label): string
 {
@@ -183,7 +210,7 @@ function status_html(array $row): string
 {
     $h = '';
     foreach (user_role_badges($row) as $b) {
-        $red = in_array($b, ['руководитель', 'админ'], true);
+        $red = in_array($b, ['руководитель', 'зам руководителя', 'админ'], true);
         $h .= '<span class="tag" style="margin-right:4px;' . ($red ? 'color:var(--ac);' : '') . '">' . $b . '</span>';
     }
     return $h;
@@ -193,7 +220,8 @@ echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
 echo '<tr><th>Аккаунт</th><th>Имя</th><th>Telegram</th><th>Статус</th><th>Роли</th><th></th></tr>';
 foreach ($list as $row) {
     $rid = (int)$row['id'];
-    $isAdminRow = $row['role'] === 'owner' || $row['role'] === 'admin';
+    $isAdminRow = in_array($row['role'], ['owner', 'deputy', 'admin'], true);
+    $isTopRow = in_array($row['role'], ['owner', 'deputy'], true); // верхушка: трогает только руководитель
     $searchText = mb_strtolower(trim($row['nickname'] . ' ' . ($row['player_nick'] ?? '') . ' ' . ($row['real_name'] ?? '') . ' ' . ($row['tg_username'] ?? '')));
     echo '<tr data-search="' . esc($searchText) . '"><td><div style="display:flex;align-items:center;gap:8px;">' . ($row['online']
         ? '<span title="в сети" style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);"></span>'
@@ -215,15 +243,15 @@ foreach ($list as $row) {
         echo cap_btn($rid, 'judge', !empty($row['is_judge']), 'судья');
         echo cap_btn($rid, 'photo', !empty($row['is_photographer']), 'фотограф');
     }
-    $canEditRole = $isOwner || !$isAdminRow; // роли админов/руководителей меняет только руководитель
+    $canEditRole = $isOwner || !$isTopRow; // роли верхушки (зам/руководитель) меняет только руководитель
     {
         echo '<form method="post" action="/admin/users.php" style="display:inline;">' . csrf_field();
         echo '<input type="hidden" name="form" value="role"><input type="hidden" name="user_id" value="' . $rid . '">';
         echo '<select name="role" ' . ($canEditRole ? 'onchange="if(confirm(\'Сменить роль?\'))this.form.submit();"' : 'disabled title="только руководитель"')
             . ' style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;font-size:12px;">';
         foreach ($roles as $rk => $rl) {
-            if ($rk === 'owner' && !$isOwner && $row['role'] !== 'owner') {
-                continue; // роль «руководитель» назначает только руководитель
+            if (in_array($rk, ['deputy', 'owner'], true) && !$isOwner && $row['role'] !== $rk) {
+                continue; // верхушку назначает только руководитель
             }
             echo '<option value="' . $rk . '"' . ($row['role'] === $rk ? ' selected' : '') . '>' . $rl . '</option>';
         }
@@ -231,7 +259,7 @@ foreach ($list as $row) {
     }
     echo '</td>';
     $hasTg = !empty($row['tg_user_id']);
-    $canReset = $isOwner || !$isAdminRow; // пароль админов/руководителей сбрасывает только руководитель
+    $canReset = $isOwner || !$isTopRow; // пароль зама/руководителя сбрасывает только руководитель
     $resetLabel = $hasTg ? 'Сбросить → в Telegram' : 'Сбросить пароль';
     $resetConfirm = $hasTg
         ? 'Сбросить пароль ' . esc(addslashes($row['nickname'])) . '? Новый пароль придёт ему в личку бота.'
@@ -242,7 +270,7 @@ foreach ($list as $row) {
         echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
         echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . esc($resetLabel) . '</button></form>';
     }
-    $canDelete = $rid !== (int)$u['id'] && ($isOwner || !in_array($row['role'], ['owner', 'admin'], true));
+    $canDelete = $rid !== (int)$u['id'] && ($isOwner || !$isTopRow);
     if ($canDelete) {
         echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc(addslashes($row['nickname'])) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
             . '<input type="hidden" name="form" value="delete_user"><input type="hidden" name="user_id" value="' . $rid . '">'

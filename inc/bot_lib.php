@@ -258,7 +258,7 @@ function bot_is_admin(int $tgId): bool
     if (!empty($p['user_id'])) {
         $st = db()->prepare('SELECT role FROM users WHERE id = ?');
         $st->execute([(int)$p['user_id']]);
-        if (in_array((string)$st->fetchColumn(), ['admin', 'owner'], true)) {
+        if (in_array((string)$st->fetchColumn(), ['admin', 'deputy', 'owner'], true)) {
             return true;
         }
     }
@@ -355,7 +355,7 @@ function bot_judges(): array
 {
     $names = db()->query("SELECT DISTINCT p.nickname FROM players p
         JOIN users u ON u.id = p.user_id
-        WHERE u.is_judge = 1 OR u.role IN ('admin','owner')")->fetchAll(PDO::FETCH_COLUMN);
+        WHERE u.is_judge = 1 OR u.role IN ('admin','deputy','owner')")->fetchAll(PDO::FETCH_COLUMN);
     $played = db()->query("SELECT DISTINCT p.nickname FROM games g
         JOIN players p ON p.id = g.judge_player_id
         WHERE g.judge_player_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
@@ -610,7 +610,7 @@ function bot_notify_admins_day_vote(int $dayId, string $nick, string $action, ?s
         $txt .= "\n" . $vd;
     }
     $q = db()->query("SELECT p.tg_user_id FROM players p JOIN users u ON u.id = p.user_id
-        WHERE u.role IN ('admin','owner') AND p.tg_user_id IS NOT NULL");
+        WHERE u.role IN ('admin','deputy','owner') AND p.tg_user_id IS NOT NULL");
     foreach ($q->fetchAll(PDO::FETCH_COLUMN) as $tg) {
         bot_send($tg, $txt, null);
         usleep(30000);

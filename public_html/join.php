@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 . "\n\nОткрыть на сайте: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/applications.php";
             if (bot_token() !== '') {
                 // Заявки в бот приходят только руководителю (owner).
-                $recip = db()->query("SELECT tg_user_id FROM users WHERE role = 'owner' AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('deputy','owner') AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($recip as $tg) {
                     bot_send((int)$tg, $botText);
                 }

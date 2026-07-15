@@ -53,12 +53,13 @@ function current_user(): ?array
 
 function role_level(?string $role): int
 {
-    return ['player' => 1, 'judge' => 2, 'admin' => 3, 'owner' => 4][$role] ?? 0;
+    return ['player' => 1, 'judge' => 2, 'admin' => 3, 'deputy' => 4, 'owner' => 5][$role] ?? 0;
 }
 
 function role_label(?string $role): string
 {
-    return ['player' => 'игрок', 'judge' => 'судья', 'admin' => 'админ', 'owner' => 'руководитель'][$role] ?? '';
+    return ['player' => 'игрок', 'judge' => 'судья', 'admin' => 'админ',
+        'deputy' => 'зам руководителя', 'owner' => 'руководитель'][$role] ?? '';
 }
 
 function require_login(): array
@@ -157,6 +158,9 @@ function user_role_badges(array $u): array
 {
     if ($u['role'] === 'owner') {
         return ['руководитель'];
+    }
+    if ($u['role'] === 'deputy') {
+        return ['зам руководителя'];
     }
     if ($u['role'] === 'admin') {
         return ['админ'];
