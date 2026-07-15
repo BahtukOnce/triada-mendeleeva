@@ -459,6 +459,95 @@ function bot_day_names(int $dayId): array
     return array_map('strval', $st->fetchAll(PDO::FETCH_COLUMN));
 }
 
+// ── Опрос «Когда играем?»: выбор игрового дня недели (мультивыбор) ──
+function day_poll_active(): ?array
+{
+    $p = db()->query("SELECT * FROM day_polls WHERE status = 'open' ORDER BY id DESC LIMIT 1")->fetch();
+    if (!$p) {
+        return null;
+    }
+    $o = db()->prepare('SELECT o.id, o.date, COUNT(v.id) AS votes
+        FROM day_poll_options o LEFT JOIN day_poll_votes v ON v.option_id = o.id
+        WHERE o.poll_id = ? GROUP BY o.id, o.date ORDER BY o.date');
+    $o->execute([(int)$p['id']]);
+    $p['options'] = $o->fetchAll();
+    return $p;
+}
+
+// Тоггл голоса; вернуть true, если после операции голос стоит
+function day_poll_vote_toggle(int $optionId, int $playerId): bool
+{
+    $st = db()->prepare('SELECT id FROM day_poll_votes WHERE option_id = ? AND player_id = ?');
+    $st->execute([$optionId, $playerId]);
+    $id = $st->fetchColumn();
+    if ($id) {
+        db()->prepare('DELETE FROM day_poll_votes WHERE id = ?')->execute([(int)$id]);
+        return false;
+    }
+    db()->prepare('INSERT IGNORE INTO day_poll_votes (option_id, player_id) VALUES (?,?)')
+        ->execute([$optionId, $playerId]);
+    return true;
+}
+
+function day_poll_weekday(string $ymd): string
+{
+    $wd = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    $t = strtotime($ymd);
+    return $t ? $wd[(int)date('N', $t) - 1] : '';
+}
+
+// Текст + inline-клавиатура опроса для бота ($playerId — чьи галочки показать)
+function day_poll_view(array $poll, int $playerId): array
+{
+    $mine = [];
+    if ($playerId > 0 && $poll['options']) {
+        $ids = array_column($poll['options'], 'id');
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $q = db()->prepare("SELECT option_id FROM day_poll_votes WHERE player_id = ? AND option_id IN ($in)");
+        $q->execute(array_merge([$playerId], $ids));
+        $mine = array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+    $t = "🗳 <b>" . bot_esc((string)$poll['title']) . "</b>\n\n"
+        . "Отметьте все дни, в которые сможете прийти поиграть — можно несколько. "
+        . "Повторное нажатие снимает галочку.";
+    $rows = [];
+    foreach ($poll['options'] as $o) {
+        $sel = in_array((int)$o['id'], $mine, true);
+        $label = ($sel ? '✅ ' : '') . day_poll_weekday((string)$o['date']) . ' ' . date('d.m', strtotime((string)$o['date']))
+            . ' · ' . (int)$o['votes'];
+        $rows[] = [['text' => $label, 'callback_data' => 'dpoll:' . (int)$o['id']]];
+    }
+    $rows[] = [['text' => '◀ Меню', 'callback_data' => 'menu']];
+    return [$t, json_encode(['inline_keyboard' => $rows], JSON_UNESCAPED_UNICODE)];
+}
+
+// Разослать опрос всем подписанным (личка бота). Возвращает число доставленных.
+function bot_broadcast_day_poll(int $pollId): int
+{
+    $p = db()->prepare('SELECT * FROM day_polls WHERE id = ?');
+    $p->execute([$pollId]);
+    $poll = $p->fetch();
+    if (!$poll || $poll['status'] !== 'open') {
+        return 0;
+    }
+    $o = db()->prepare('SELECT o.id, o.date, COUNT(v.id) AS votes
+        FROM day_poll_options o LEFT JOIN day_poll_votes v ON v.option_id = o.id
+        WHERE o.poll_id = ? GROUP BY o.id, o.date ORDER BY o.date');
+    $o->execute([$pollId]);
+    $poll['options'] = $o->fetchAll();
+    $sent = 0;
+    foreach (bot_recipients() as $tg) {
+        $pl = bot_player_by_tg((int)$tg);
+        [$t, $m] = day_poll_view($poll, $pl ? (int)$pl['id'] : 0);
+        $r = bot_send((int)$tg, $t, $m);
+        if ($r && !empty($r['ok'])) {
+            $sent++;
+        }
+        usleep(40000);
+    }
+    return $sent;
+}
+
 // ── «Готовый стол»: правило клуба — вечер состоится, если 12+ человек
 //    одновременно доступны 4+ часа подряд (запись без времени = весь вечер) ──
 const DAY_TABLE_NEED = 12;

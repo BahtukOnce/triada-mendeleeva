@@ -156,6 +156,17 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             [$t, $m] = day_view($userId);
             send($chatId, $t, $m);
             return;
+        case '/kogda':
+        case '/when':
+        case '/opros':
+            $poll = day_poll_active();
+            if ($poll) {
+                [$pt, $pm] = day_poll_view($poll, (int)$me['id']);
+                send($chatId, $pt, $pm);
+            } else {
+                send_menu($chatId, $userId, "Опроса «когда играем?» сейчас нет — как появится, пришлём.");
+            }
+            return;
         case '/top':
             send_menu($chatId, $userId, top_text($arg !== '' ? (int)$arg : 10));
             return;
@@ -332,6 +343,33 @@ function handle_callback(array $cb): void
             edit_text($chatId, $msgId, $msg, $markup);
         } else {
             edit_msg($chatId, $msgId, "Сначала привяжите свой ник — отправьте его одним сообщением.");
+        }
+        return;
+    }
+
+    // Опрос «Когда играем?»: тоггл голоса за день + обновление сообщения
+    if (str_starts_with($data, 'dpoll:')) {
+        $optId = (int)substr($data, 6);
+        $poll = day_poll_active();
+        $belongs = false;
+        if ($poll) {
+            foreach ($poll['options'] as $po) {
+                if ((int)$po['id'] === $optId) {
+                    $belongs = true;
+                    break;
+                }
+            }
+        }
+        if (!$poll || !$belongs) {
+            edit_menu($chatId, $msgId, $userId, "Этот опрос уже закрыт — следите за анонсом вечера!");
+            return;
+        }
+        day_poll_vote_toggle($optId, (int)$cbPlayer['id']);
+        // перечитать счётчики и перерисовать
+        $poll = day_poll_active();
+        if ($poll) {
+            [$pt, $pm] = day_poll_view($poll, (int)$cbPlayer['id']);
+            edit_text($chatId, $msgId, $pt, $pm);
         }
         return;
     }
@@ -835,6 +873,11 @@ function day_view(int $userId): array
     $p = bot_player_by_tg($userId);
     $day = bot_open_day();
     if (!$day) {
+        // записи нет, но идёт опрос «когда играем?» — показываем его
+        $poll = day_poll_active();
+        if ($poll) {
+            return day_poll_view($poll, $p ? (int)$p['id'] : 0);
+        }
         return ["📅 <b>Запись на игру</b>\n\nСейчас открытой записи нет. Анонс ближайшего вечера придёт сюда.",
             menu_markup($userId)];
     }

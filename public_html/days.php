@@ -1,7 +1,37 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/bot_lib.php'; // опрос «Когда играем?» (day_poll_*)
 
 $canEdit = user_can_judge(current_user());
+
+// Голос в опросе «Когда играем?» (тоггл; нужен привязанный ник)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'poll_vote') {
+    require_login();
+    csrf_check();
+    $pl = current_player();
+    if (!$pl) {
+        flash_set('err', 'Сначала привяжите игровой ник в личном кабинете');
+        redirect('/cabinet.php');
+    }
+    $optId = (int)($_POST['option_id'] ?? 0);
+    $poll = day_poll_active();
+    $ok = false;
+    if ($poll) {
+        foreach ($poll['options'] as $po) {
+            if ((int)$po['id'] === $optId) {
+                $ok = true;
+                break;
+            }
+        }
+    }
+    if ($ok) {
+        $now = day_poll_vote_toggle($optId, (int)$pl['id']);
+        flash_set('ok', $now ? 'Голос учтён!' : 'Голос снят.');
+    } else {
+        flash_set('err', 'Опрос уже закрыт');
+    }
+    redirect('/days.php#poll');
+}
 
 // Создание вечера прямо во вкладке «Игры» (судья/админ)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'create_day') {
@@ -66,6 +96,49 @@ $statusLabel = [
 
 page_head('Игровые вечера', 'days');
 echo '<h1>Игровые вечера</h1>';
+
+// ── Опрос «Когда играем?»: мультивыбор дней (тоггл кнопками) ──
+try {
+    $activePoll = day_poll_active();
+} catch (Throwable $e) {
+    $activePoll = null;
+}
+if ($activePoll) {
+    $mePl = current_player();
+    $myVotes = [];
+    if ($mePl && $activePoll['options']) {
+        $oIds = array_column($activePoll['options'], 'id');
+        $inO = implode(',', array_fill(0, count($oIds), '?'));
+        $mv = db()->prepare("SELECT option_id FROM day_poll_votes WHERE player_id = ? AND option_id IN ($inO)");
+        $mv->execute(array_merge([(int)$mePl['id']], $oIds));
+        $myVotes = array_map('intval', $mv->fetchAll(PDO::FETCH_COLUMN));
+    }
+    echo '<div class="card card-accent" id="poll"><h2 style="margin-top:0;">🗳 ' . esc((string)$activePoll['title']) . '</h2>';
+    echo '<p style="color:var(--tx2);font-size:13.5px;margin:-4px 0 12px;">Отметь все дни, в которые сможешь прийти — можно несколько. Повторное нажатие снимает голос.</p>';
+    echo '<div style="display:flex;gap:9px;flex-wrap:wrap;">';
+    foreach ($activePoll['options'] as $o) {
+        $sel = in_array((int)$o['id'], $myVotes, true);
+        $label = day_poll_weekday((string)$o['date']) . ' ' . date('d.m', strtotime((string)$o['date']));
+        if ($mePl) {
+            echo '<form method="post" action="/days.php" style="display:inline;">' . csrf_field()
+                . '<input type="hidden" name="form" value="poll_vote"><input type="hidden" name="option_id" value="' . (int)$o['id'] . '">'
+                . '<button class="btn ' . ($sel ? '' : 'btn-ghost') . '" type="submit" style="min-width:118px;">'
+                . ($sel ? '✅ ' : '') . $label . ' <span style="opacity:.75;font-size:12px;">· ' . (int)$o['votes'] . '</span></button></form>';
+        } else {
+            echo '<span class="btn btn-ghost" style="min-width:118px;opacity:.7;cursor:default;">' . $label
+                . ' <span style="opacity:.75;font-size:12px;">· ' . (int)$o['votes'] . '</span></span>';
+        }
+    }
+    echo '</div>';
+    if (!$mePl) {
+        echo '<p style="color:var(--tx2);font-size:12.5px;margin:10px 0 0;">'
+            . (current_user()
+                ? 'Чтобы голосовать, <a href="/cabinet.php">привяжите игровой ник</a>.'
+                : '<a href="/login.php">Войдите</a>, чтобы проголосовать — или отметьтесь в нашем Telegram-боте.')
+            . '</p>';
+    }
+    echo '</div>';
+}
 
 if ($canEdit) {
     echo '<div class="card"><h2 style="margin-top:0;">Создать вечер</h2>';
