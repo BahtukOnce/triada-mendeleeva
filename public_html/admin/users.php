@@ -7,6 +7,26 @@ $isOwner = $u['role'] === 'owner';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $form = (string)($_POST['form'] ?? '');
+
+    // Редактирование таблицы прав — только руководитель (не админ)
+    if ($form === 'perms') {
+        if (!$isOwner) {
+            flash_set('err', 'Таблицу прав редактирует только руководитель');
+            redirect('/admin/users.php');
+        }
+        $in = $_POST['p'] ?? [];
+        $out = [];
+        foreach (perms_catalog() as $k => [$label, $cols, $def]) {
+            foreach ($cols as $col) {
+                $out[$k][$col] = !empty($in[$k][$col]) ? 1 : 0;
+            }
+        }
+        setting_set('role_perms', json_encode($out, JSON_UNESCAPED_UNICODE));
+        log_action((int)$u['id'], 'role_perms_update', $out);
+        flash_set('ok', 'Таблица прав обновлена');
+        redirect('/admin/users.php');
+    }
+
     $targetId = (int)($_POST['user_id'] ?? 0);
 
     $st = db()->prepare('SELECT * FROM users WHERE id = ?');
@@ -22,6 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // иначе админ сбросит пароль владельца и (без Telegram) увидит его в открытом виде.
         if (!$isOwner && in_array($target['role'], ['deputy', 'owner'], true)) {
             flash_set('err', 'Пароль зама и руководителя сбрасывает только руководитель');
+            redirect('/admin/users.php');
+        }
+        if (!user_perm($u, 'reset_accounts')) {
+            flash_set('err', 'Сброс паролей вам не разрешён (таблица прав)');
             redirect('/admin/users.php');
         }
         $alphabet = 'abcdefghkmnpqrstuvwxyz23456789';
@@ -53,6 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'cap') {
+        if (!user_perm($u, 'manage_caps')) {
+            flash_set('err', 'Назначение судей и фотографов вам не разрешено (таблица прав)');
+            redirect('/admin/users.php');
+        }
         $cap = (string)($_POST['cap'] ?? '');
         $val = !empty($_POST['val']) ? 1 : 0;
         $col = $cap === 'judge' ? 'is_judge' : ($cap === 'photo' ? 'is_photographer' : null);
@@ -91,6 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Роли «зам руководителя» и «руководитель» меняет только руководитель');
             redirect('/admin/users.php');
         }
+        if (!user_perm($u, 'manage_admins')) {
+            flash_set('err', 'Назначение и снятие админов вам не разрешено (таблица прав)');
+            redirect('/admin/users.php');
+        }
         if ($target['role'] === 'owner' && $newRole !== 'owner') {
             $owners = (int)db()->query("SELECT COUNT(*) FROM users WHERE role = 'owner'")->fetchColumn();
             if ($owners <= 1) {
@@ -109,6 +141,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetTop = in_array($target['role'], ['deputy', 'owner'], true);
         if (!$isOwner && $targetTop) {
             flash_set('err', 'Аккаунты зама и руководителя удаляет только руководитель');
+            redirect('/admin/users.php');
+        }
+        if (!user_perm($u, 'reset_accounts')) {
+            flash_set('err', 'Удаление аккаунтов вам не разрешено (таблица прав)');
             redirect('/admin/users.php');
         }
         if ($targetId === (int)$u['id']) {
@@ -161,32 +197,54 @@ echo '<div class="stat"><div class="lbl">сейчас в сети</div><div clas
 echo '</div>';
 echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы. Замами и руководителями управляет только руководитель; последнего руководителя снять нельзя. При удалении аккаунта игрок и статистика сохраняются.</p>';
 
-// ── Таблица прав ролей ──
+// ── Таблица прав ролей: руководитель редактирует галочками, админ видит для чтения ──
 $chk = '<span style="color:var(--ok);font-weight:700;">✓</span>';
 $no = '<span style="color:var(--tx3);">—</span>';
-echo '<details style="margin:0 0 14px;"><summary style="cursor:pointer;color:var(--ac);font-size:14px;">📋 Кто что может — таблица прав ролей</summary>';
-echo '<div class="card" style="overflow-x:auto;margin-top:10px;max-width:860px;"><table class="tbl" style="table-layout:fixed;">';
-$cc = ' style="text-align:center;width:96px;"'; // роли: равные колонки, галочки по центру
-echo '<tr><th>Право</th><th' . $cc . '>Судья</th><th' . $cc . '>Админ</th><th' . $cc . '>Зам</th><th' . $cc . '>Руководитель</th></tr>';
-foreach ([
-    ['Вести протоколы вечеров и турниров', 1, 1, 1, 1],
-    ['Создавать вечера и турниры, анонсы, рассылки', 0, 1, 1, 1],
-    ['Новости, бан-лист, слияние ников, заявки на привязку', 0, 1, 1, 1],
-    ['Назначать судей и фотографов', 0, 1, 1, 1],
-    ['Принимать заявки в клуб (в админке)', 0, 1, 1, 1],
-    ['Назначать и снимать админов', 0, 1, 1, 1],
-    ['Сброс пароля и удаление аккаунтов игроков и админов', 0, 1, 1, 1],
-    ['Бот-уведомления о новых заявках в клуб', 0, 0, 1, 1],
-    ['Назначать и снимать замов и руководителей', 0, 0, 0, 1],
-    ['Сброс пароля и удаление аккаунтов замов и руководителей', 0, 0, 0, 1],
-] as [$right, $j, $a, $d, $o]) {
-    echo '<tr><td style="white-space:normal;">' . $right . '</td>'
-        . '<td style="text-align:center;">' . ($j ? $chk : $no) . '</td>'
-        . '<td style="text-align:center;">' . ($a ? $chk : $no) . '</td>'
-        . '<td style="text-align:center;">' . ($d ? $chk : $no) . '</td>'
-        . '<td style="text-align:center;">' . ($o ? $chk : $no) . '</td></tr>';
+$permsCfg = perms_config();
+echo '<details style="margin:0 0 14px;"><summary style="cursor:pointer;color:var(--ac);font-size:14px;">📋 Кто что может — таблица прав ролей'
+    . ($isOwner ? ' <span style="color:var(--tx3);font-size:12px;">(редактируется)</span>' : '') . '</summary>';
+if ($isOwner) {
+    echo '<form method="post" action="/admin/users.php">' . csrf_field() . '<input type="hidden" name="form" value="perms">';
 }
-echo '</table><p style="color:var(--tx3);font-size:12px;margin:8px 0 0;">Последний руководитель неснимаем. Судья и фотограф — флаги поверх роли «игрок»; судья видит только судейские страницы. Контакт клуба на страницах ошибок — руководитель.</p></div></details>';
+echo '<div class="card" style="overflow-x:auto;margin-top:10px;max-width:860px;"><table class="tbl" style="table-layout:fixed;">';
+$cc = ' style="text-align:center;width:96px;"'; // роли: равные колонки, по центру
+echo '<tr><th>Право</th><th' . $cc . '>Судья</th><th' . $cc . '>Админ</th><th' . $cc . '>Зам</th><th' . $cc . '>Руководитель</th></tr>';
+// Ячейка: руководителю — чекбокс, админу — ✓/—; вне каталога колонки — всегда «—»
+$cell = function (string $k, string $col, array $cols) use ($isOwner, $permsCfg, $chk, $no): string {
+    if (!in_array($col, $cols, true)) {
+        return '<td style="text-align:center;">' . $no . '</td>';
+    }
+    $on = (int)($permsCfg[$k][$col] ?? 0) === 1;
+    if ($isOwner) {
+        return '<td style="text-align:center;"><input type="checkbox" name="p[' . $k . '][' . $col . ']" value="1"'
+            . ($on ? ' checked' : '') . ' style="width:17px;height:17px;accent-color:var(--ok);cursor:pointer;"></td>';
+    }
+    return '<td style="text-align:center;">' . ($on ? $chk : $no) . '</td>';
+};
+foreach (perms_catalog() as $k => [$label, $cols, $def]) {
+    echo '<tr><td style="white-space:normal;">' . $label . '</td>'
+        . $cell($k, 'judge', $cols)
+        . $cell($k, 'admin', $cols)
+        . $cell($k, 'deputy', $cols)
+        . '<td style="text-align:center;">' . $chk . '</td></tr>';
+}
+// Нередактируемые права руководителя
+foreach ([
+    'Назначать и снимать замов и руководителей',
+    'Сброс пароля и удаление аккаунтов замов и руководителей',
+    'Редактировать эту таблицу прав',
+] as $fixed) {
+    echo '<tr style="opacity:.75;"><td style="white-space:normal;">' . $fixed . ' 🔒</td>'
+        . '<td style="text-align:center;">' . $no . '</td><td style="text-align:center;">' . $no . '</td>'
+        . '<td style="text-align:center;">' . $no . '</td><td style="text-align:center;">' . $chk . '</td></tr>';
+}
+echo '</table>';
+if ($isOwner) {
+    echo '<p style="margin:12px 0 0;"><button class="btn" type="submit">Сохранить права</button></p>';
+}
+echo '<p style="color:var(--tx3);font-size:12px;margin:8px 0 0;">Галочки действуют сразу и на кнопки, и на серверные проверки. Последний руководитель неснимаем. Судья и фотограф — флаги поверх роли «игрок». Контакт клуба на страницах ошибок — руководитель.</p></div>';
+echo $isOwner ? '</form>' : '';
+echo '</details>';
 
 echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';
 echo '<form method="get" action="/admin/users.php" style="max-width:300px;flex:1;min-width:200px;">';
@@ -240,11 +298,11 @@ foreach ($list as $row) {
     echo '<td class="us-status" data-uid="' . $rid . '">' . status_html($row) . '</td>';
     // Управление ролями
     echo '<td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">';
-    if (!$isAdminRow) {
+    if (!$isAdminRow && user_perm($u, 'manage_caps')) {
         echo cap_btn($rid, 'judge', !empty($row['is_judge']), 'судья');
         echo cap_btn($rid, 'photo', !empty($row['is_photographer']), 'фотограф');
     }
-    $canEditRole = $isOwner || !$isTopRow; // роли верхушки (зам/руководитель) меняет только руководитель
+    $canEditRole = ($isOwner || !$isTopRow) && user_perm($u, 'manage_admins'); // роли верхушки (зам/руководитель) меняет только руководитель
     {
         echo '<form method="post" action="/admin/users.php" style="display:inline;">' . csrf_field();
         echo '<input type="hidden" name="form" value="role"><input type="hidden" name="user_id" value="' . $rid . '">';
@@ -260,7 +318,7 @@ foreach ($list as $row) {
     }
     echo '</td>';
     $hasTg = !empty($row['tg_user_id']);
-    $canReset = $isOwner || !$isTopRow; // пароль зама/руководителя сбрасывает только руководитель
+    $canReset = ($isOwner || !$isTopRow) && user_perm($u, 'reset_accounts'); // пароль зама/руководителя сбрасывает только руководитель
     $resetLabel = $hasTg ? 'Сбросить → в Telegram' : 'Сбросить пароль';
     $resetConfirm = $hasTg
         ? 'Сбросить пароль ' . esc(addslashes($row['nickname'])) . '? Новый пароль придёт ему в личку бота.'
@@ -271,7 +329,7 @@ foreach ($list as $row) {
         echo '<input type="hidden" name="form" value="reset"><input type="hidden" name="user_id" value="' . $rid . '">';
         echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . esc($resetLabel) . '</button></form>';
     }
-    $canDelete = $rid !== (int)$u['id'] && ($isOwner || !$isTopRow);
+    $canDelete = $rid !== (int)$u['id'] && ($isOwner || !$isTopRow) && user_perm($u, 'reset_accounts');
     if ($canDelete) {
         echo ' <form method="post" action="/admin/users.php" style="display:inline;" onsubmit="return confirm(\'Удалить аккаунт ' . esc(addslashes($row['nickname'])) . '? Игрок и статистика останутся — удалится только вход.\');">' . csrf_field()
             . '<input type="hidden" name="form" value="delete_user"><input type="hidden" name="user_id" value="' . $rid . '">'

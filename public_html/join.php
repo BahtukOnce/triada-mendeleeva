@@ -175,8 +175,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 . ($vals['birth_date'] !== '' ? "\n🎂 " . bot_esc(date('d.m.Y', strtotime($vals['birth_date']))) : '')
                 . "\n\nОткрыть на сайте: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/applications.php";
             if (bot_token() !== '') {
-                // Заявки в бот приходят только руководителю (owner).
-                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('deputy','owner') AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+                // кому в бот уходят заявки: руководитель всегда; зам/админ — по таблице прав
+                $notifyRoles = ["'owner'"];
+                if (perm_role_enabled('app_bot_notify', 'deputy')) { $notifyRoles[] = "'deputy'"; }
+                if (perm_role_enabled('app_bot_notify', 'admin')) { $notifyRoles[] = "'admin'"; }
+                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN (" . implode(',', $notifyRoles) . ") AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($recip as $tg) {
                     bot_send((int)$tg, $botText);
                 }

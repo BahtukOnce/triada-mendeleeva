@@ -4,6 +4,7 @@ require ROOT . '/inc/rating.php';
 require ROOT . '/inc/elo.php';
 require_once ROOT . '/inc/import.php'; // nick_key() для постоянного алиаса слияния
 $u = require_role('admin');
+if (!user_perm($u, 'manage_content')) { http_response_code(403); exit('Доступ ограничен таблицей прав.'); }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'merge') {
     csrf_check();

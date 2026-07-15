@@ -6,7 +6,7 @@ $u = require_judge();
 // Право редактировать турнир: открыто ВСЕМ судьям и админам (страница уже под require_judge).
 // Привязка main_judge_player_id/table_judges сохраняется для отображения и как задел —
 // при желании доступ можно сузить только на назначенных судей (см. закомментированный вариант).
-$isAdmin = role_level($u['role']) >= 3;
+$isAdmin = in_array($u['role'], ['admin', 'deputy', 'owner'], true) && user_perm($u, 'manage_tournaments');
 $myPid = 0;
 if (db_ready()) {
     $mp = db()->prepare('SELECT id FROM players WHERE user_id = ? LIMIT 1');

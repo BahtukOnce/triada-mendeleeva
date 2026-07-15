@@ -81,10 +81,11 @@ function require_role(string $minRole): array
     return $u;
 }
 
-// Капабилити: судья и фотограф — флаги поверх роли; админ/глава имеют всё
+// Капабилити: судья и фотограф — флаги поверх роли. Право «вести протоколы»
+// настраивается руководителем в таблице прав (админка → Пользователи).
 function user_can_judge(?array $u): bool
 {
-    return $u && (role_level($u['role']) >= 3 || !empty($u['is_judge']));
+    return $u && user_perm($u, 'protocols');
 }
 
 function user_can_photo(?array $u): bool
@@ -108,14 +109,19 @@ function require_judge(): array
 // Для нового турнира ($tRow === null) — любой судья (создавать может каждый).
 function tournament_can_manage(?array $u, ?array $tRow): bool
 {
+    if (!$u) {
+        return false;
+    }
+    // админ/зам/руководитель — по настраиваемому праву «Турниры: создание и настройки»
+    if (in_array($u['role'], ['admin', 'deputy', 'owner'], true)) {
+        return user_perm($u, 'manage_tournaments');
+    }
     if (!user_can_judge($u)) {
         return false;
     }
-    if (role_level($u['role']) >= 3) {
-        return true;
-    }
     if ($tRow === null) {
-        return true;
+        // новый турнир: судья создаёт, если это разрешено в таблице прав
+        return user_perm($u, 'manage_tournaments');
     }
     static $pidByUser = [];
     $uid = (int)$u['id'];

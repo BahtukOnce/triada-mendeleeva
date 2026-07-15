@@ -1,6 +1,7 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 $u = require_role('admin');
+if (!user_perm($u, 'manage_days')) { http_response_code(403); exit('Рассылки вам не разрешены (таблица прав).'); }
 require ROOT . '/inc/bot_lib.php';
 
 $recipients = 0;

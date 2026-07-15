@@ -3,9 +3,16 @@ require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require_once ROOT . '/inc/bot_lib.php';
 $u = require_judge();
 
+// Просмотр и «Вести игры» — судьям; управление вечерами — по таблице прав
+$canManageDays = user_perm($u, 'manage_days');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $form = (string)($_POST['form'] ?? '');
+    if (!$canManageDays) {
+        flash_set('err', 'Управление вечерами вам не разрешено (таблица прав)');
+        redirect('/admin/days.php');
+    }
 
     if ($form === 'create') {
         $date = (string)($_POST['date'] ?? '');
@@ -102,15 +109,17 @@ $nextStatus = [
 page_head('Админка — вечера', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Игровые вечера</h1>';
 
-echo '<div class="card"><h2 style="margin-top:0;">Создать вечер</h2>';
-echo '<form method="post" action="/admin/days.php">' . csrf_field() . '<input type="hidden" name="form" value="create">';
-echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
-echo '<div class="field" style="margin:0;"><label>Дата</label><input type="date" name="date" required value="' . date('Y-m-d') . '"></div>';
-echo '<div class="field" style="margin:0;"><label>Название (авто, если пусто)</label><input type="text" name="title" placeholder="14 июня"></div>';
-echo '<div class="field" style="margin:0;min-width:160px;"><label>Место</label>'
-    . '<select name="location" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;width:100%;">'
-    . '<option value="Тушино">Тушино</option><option value="Миусы">Миусы</option></select></div>';
-echo '<button class="btn" type="submit">Создать</button></div></form></div>';
+if ($canManageDays) {
+    echo '<div class="card"><h2 style="margin-top:0;">Создать вечер</h2>';
+    echo '<form method="post" action="/admin/days.php">' . csrf_field() . '<input type="hidden" name="form" value="create">';
+    echo '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
+    echo '<div class="field" style="margin:0;"><label>Дата</label><input type="date" name="date" required value="' . date('Y-m-d') . '"></div>';
+    echo '<div class="field" style="margin:0;"><label>Название (авто, если пусто)</label><input type="text" name="title" placeholder="14 июня"></div>';
+    echo '<div class="field" style="margin:0;min-width:160px;"><label>Место</label>'
+        . '<select name="location" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;width:100%;">'
+        . '<option value="Тушино">Тушино</option><option value="Миусы">Миусы</option></select></div>';
+    echo '<button class="btn" type="submit">Создать</button></div></form></div>';
+}
 
 if ($list) {
     echo '<div class="card" style="overflow-x:auto;"><table class="tbl">';
@@ -123,13 +132,13 @@ if ($list) {
         if (in_array($d['status'], ['reg_closed', 'live', 'finished'], true)) {
             echo '<a class="btn" style="padding:4px 12px;font-size:12px;" href="/admin/protocol.php?day=' . (int)$d['id'] . '">Вести игры</a> ';
         }
-        foreach ($nextStatus[$d['status']] as [$to, $lbl]) {
+        foreach ($canManageDays ? $nextStatus[$d['status']] : [] as [$to, $lbl]) {
             echo '<form method="post" action="/admin/days.php" style="display:inline;">' . csrf_field();
             echo '<input type="hidden" name="form" value="status"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
             echo '<input type="hidden" name="to" value="' . $to . '">';
             echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">' . $lbl . '</button></form> ';
         }
-        if ($d['status'] === 'reg_open') {
+        if ($d['status'] === 'reg_open' && $canManageDays) {
             echo '<form method="post" action="/admin/days.php" style="display:inline;" onsubmit="return confirm(\'Разослать анонс записи всем привязанным к боту?\');">' . csrf_field();
             echo '<input type="hidden" name="form" value="announce"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
             echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit">📣 Разослать анонс</button></form> ';

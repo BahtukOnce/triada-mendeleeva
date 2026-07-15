@@ -1137,6 +1137,78 @@ function setting_set(string $key, string $value): void
         ->execute([$key, $value]);
 }
 
+// ── Настраиваемые права ролей ─────────────────────────────
+// Руководитель редактирует таблицу прав в админке (settings.role_perms, JSON);
+// руководитель сам всегда может всё, игрок без флагов — ничего из этого.
+// Каталог: ключ => [подпись, редактируемые колонки, дефолты по колонкам].
+function perms_catalog(): array
+{
+    return [
+        'protocols'          => ['Вести протоколы вечеров и турниров', ['judge', 'admin', 'deputy'], ['judge' => 1, 'admin' => 1, 'deputy' => 1]],
+        'manage_days'        => ['Вечера: создание, статусы, анонсы, TG-рассылка', ['judge', 'admin', 'deputy'], ['judge' => 0, 'admin' => 1, 'deputy' => 1]],
+        'manage_tournaments' => ['Турниры: создание и настройки', ['judge', 'admin', 'deputy'], ['judge' => 1, 'admin' => 1, 'deputy' => 1]],
+        'manage_content'     => ['Новости, бан-лист, слияние ников, заявки на привязку', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'applications'       => ['Принимать заявки в клуб', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'manage_caps'        => ['Назначать судей и фотографов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'manage_admins'      => ['Назначать и снимать админов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'reset_accounts'     => ['Сброс пароля и удаление аккаунтов (игроки и админы)', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'app_bot_notify'     => ['Бот-уведомления о новых заявках в клуб', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
+    ];
+}
+
+// Текущая конфигурация: дефолты каталога + сохранённые правки руководителя
+function perms_config(): array
+{
+    static $cfg = null;
+    if ($cfg !== null) {
+        return $cfg;
+    }
+    $cfg = [];
+    foreach (perms_catalog() as $k => [$label, $cols, $def]) {
+        $cfg[$k] = $def;
+    }
+    try {
+        $saved = json_decode(setting('role_perms', ''), true);
+        if (is_array($saved)) {
+            foreach ($cfg as $k => $def) {
+                foreach ($def as $col => $v) {
+                    if (isset($saved[$k][$col])) {
+                        $cfg[$k][$col] = (int)$saved[$k][$col] ? 1 : 0;
+                    }
+                }
+            }
+        }
+    } catch (Throwable $e) {
+    }
+    return $cfg;
+}
+
+function perm_role_enabled(string $perm, string $col): bool
+{
+    $cfg = perms_config();
+    return (int)($cfg[$perm][$col] ?? 0) === 1;
+}
+
+// Есть ли у пользователя право $perm. Колонка «судья» действует для флага
+// «судья» (или роли judge); для прав без судейской колонки судьям — нет.
+function user_perm(?array $u, string $perm): bool
+{
+    if (!$u) {
+        return false;
+    }
+    $role = (string)($u['role'] ?? '');
+    if ($role === 'owner') {
+        return true;
+    }
+    if ($role === 'deputy' || $role === 'admin') {
+        return perm_role_enabled($perm, $role);
+    }
+    if ($role === 'judge' || !empty($u['is_judge'])) {
+        return perm_role_enabled($perm, 'judge');
+    }
+    return false;
+}
+
 // Сохранение загруженной картинки. С GD — пережатие в JPEG до $maxSide px;
 // без GD — сохраняем оригинал как есть. Возвращает web-путь или строку-ошибку.
 function save_image_upload(array $file, string $subdir, string $name, int $maxSide = 512)

@@ -1,6 +1,7 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
-$me = require_role('admin'); // админ (3) и руководитель/owner (4)
+$me = require_role('admin');
+if (!user_perm($me, 'manage_content')) { http_response_code(403); exit('Доступ ограничен таблицей прав.'); }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();

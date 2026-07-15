@@ -182,7 +182,11 @@ foreach ($rows as $r) {
                 . "📱 Telegram: " . bot_esc($tg !== '' ? '@' . $tg : '—') . "\n"
                 . "🎓 " . bot_esc($status)
                 . "\n\nОткрыть на сайте: " . rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/') . '/admin/applications.php';
-            $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('deputy','owner') AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+            // кому в бот уходят заявки: руководитель всегда; зам/админ — по таблице прав
+            $notifyRoles = ["'owner'"];
+            if (perm_role_enabled('app_bot_notify', 'deputy')) { $notifyRoles[] = "'deputy'"; }
+            if (perm_role_enabled('app_bot_notify', 'admin')) { $notifyRoles[] = "'admin'"; }
+            $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN (" . implode(',', $notifyRoles) . ") AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
             foreach ($recip as $tgid) {
                 bot_send((int)$tgid, $botText);
             }
