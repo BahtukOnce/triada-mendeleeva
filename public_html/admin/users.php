@@ -165,8 +165,9 @@ echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и п
 $chk = '<span style="color:var(--ok);font-weight:700;">✓</span>';
 $no = '<span style="color:var(--tx3);">—</span>';
 echo '<details style="margin:0 0 14px;"><summary style="cursor:pointer;color:var(--ac);font-size:14px;">📋 Кто что может — таблица прав ролей</summary>';
-echo '<div class="card" style="overflow-x:auto;margin-top:10px;"><table class="tbl">';
-echo '<tr><th>Право</th><th class="num">Судья</th><th class="num">Админ</th><th class="num">Зам</th><th class="num">Руководитель</th></tr>';
+echo '<div class="card" style="overflow-x:auto;margin-top:10px;max-width:860px;"><table class="tbl" style="table-layout:fixed;">';
+$cc = ' style="text-align:center;width:96px;"'; // роли: равные колонки, галочки по центру
+echo '<tr><th>Право</th><th' . $cc . '>Судья</th><th' . $cc . '>Админ</th><th' . $cc . '>Зам</th><th' . $cc . '>Руководитель</th></tr>';
 foreach ([
     ['Вести протоколы вечеров и турниров', 1, 1, 1, 1],
     ['Создавать вечера и турниры, анонсы, рассылки', 0, 1, 1, 1],
@@ -179,11 +180,11 @@ foreach ([
     ['Назначать и снимать замов и руководителей', 0, 0, 0, 1],
     ['Сброс пароля и удаление аккаунтов замов и руководителей', 0, 0, 0, 1],
 ] as [$right, $j, $a, $d, $o]) {
-    echo '<tr><td>' . $right . '</td>'
-        . '<td class="num">' . ($j ? $chk : $no) . '</td>'
-        . '<td class="num">' . ($a ? $chk : $no) . '</td>'
-        . '<td class="num">' . ($d ? $chk : $no) . '</td>'
-        . '<td class="num">' . ($o ? $chk : $no) . '</td></tr>';
+    echo '<tr><td style="white-space:normal;">' . $right . '</td>'
+        . '<td style="text-align:center;">' . ($j ? $chk : $no) . '</td>'
+        . '<td style="text-align:center;">' . ($a ? $chk : $no) . '</td>'
+        . '<td style="text-align:center;">' . ($d ? $chk : $no) . '</td>'
+        . '<td style="text-align:center;">' . ($o ? $chk : $no) . '</td></tr>';
 }
 echo '</table><p style="color:var(--tx3);font-size:12px;margin:8px 0 0;">Последний руководитель неснимаем. Судья и фотограф — флаги поверх роли «игрок»; судья видит только судейские страницы. Контакт клуба на страницах ошибок — руководитель.</p></div></details>';
 
