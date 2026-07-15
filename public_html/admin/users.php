@@ -38,12 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($form === 'reset') {
-        // Неприкосновенность верхушки: пароль зама/руководителя сбрасывает только руководитель —
-        // иначе админ сбросит пароль владельца и (без Telegram) увидит его в открытом виде.
-        if (!$isOwner && in_array($target['role'], ['deputy', 'owner'], true)) {
-            flash_set('err', 'Пароль зама и руководителя сбрасывает только руководитель');
-            redirect('/admin/users.php');
-        }
+        // Сброс пароля доступен всем с правом reset_accounts — включая аккаунты зама и
+        // руководителя (решение владельца: админам доверяем, суть админа — администрирование).
+        // Если у цели привязан Telegram, новый пароль уходит ей в личку, а не сбрасывающему.
         if (!user_perm($u, 'reset_accounts')) {
             flash_set('err', 'Сброс паролей вам не разрешён (таблица прав)');
             redirect('/admin/users.php');
@@ -231,7 +228,7 @@ foreach (perms_catalog() as $k => [$label, $cols, $def]) {
 // Нередактируемые права руководителя
 foreach ([
     'Назначать и снимать замов и руководителей',
-    'Сброс пароля и удаление аккаунтов замов и руководителей',
+    'Удаление аккаунтов замов и руководителей',
     'Редактировать эту таблицу прав',
 ] as $fixed) {
     echo '<tr style="opacity:.75;"><td style="white-space:normal;">' . $fixed . ' 🔒</td>'
@@ -318,7 +315,7 @@ foreach ($list as $row) {
     }
     echo '</td>';
     $hasTg = !empty($row['tg_user_id']);
-    $canReset = ($isOwner || !$isTopRow) && user_perm($u, 'reset_accounts'); // пароль зама/руководителя сбрасывает только руководитель
+    $canReset = user_perm($u, 'reset_accounts'); // сброс пароля — любым аккаунтам (решение владельца)
     $resetLabel = $hasTg ? 'Сбросить → в Telegram' : 'Сбросить пароль';
     $resetConfirm = $hasTg
         ? 'Сбросить пароль ' . esc(addslashes($row['nickname'])) . '? Новый пароль придёт ему в личку бота.'

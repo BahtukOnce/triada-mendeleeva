@@ -1151,7 +1151,7 @@ function perms_catalog(): array
         'applications'       => ['Принимать заявки в клуб', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'manage_caps'        => ['Назначать судей и фотографов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'manage_admins'      => ['Назначать и снимать админов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
-        'reset_accounts'     => ['Сброс пароля и удаление аккаунтов (игроки и админы)', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'reset_accounts'     => ['Сброс пароля любых аккаунтов; удаление аккаунтов игроков и админов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'app_bot_notify'     => ['Бот-уведомления о новых заявках в клуб', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
     ];
 }
