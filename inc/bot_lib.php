@@ -474,18 +474,31 @@ function day_poll_active(): ?array
     return $p;
 }
 
-// Тоггл голоса; вернуть true, если после операции голос стоит
+// Тоггл голоса; вернуть true, если после операции голос стоит.
+// Каждое действие пишется в журнал day_poll_log (кто/когда проголосовал или передумал).
 function day_poll_vote_toggle(int $optionId, int $playerId): bool
 {
+    $pq = db()->prepare('SELECT poll_id FROM day_poll_options WHERE id = ?');
+    $pq->execute([$optionId]);
+    $pollId = (int)($pq->fetchColumn() ?: 0);
+    $log = function (string $action) use ($pollId, $optionId, $playerId): void {
+        try {
+            db()->prepare('INSERT INTO day_poll_log (poll_id, option_id, player_id, action) VALUES (?,?,?,?)')
+                ->execute([$pollId, $optionId, $playerId, $action]);
+        } catch (Throwable $e) {
+        }
+    };
     $st = db()->prepare('SELECT id FROM day_poll_votes WHERE option_id = ? AND player_id = ?');
     $st->execute([$optionId, $playerId]);
     $id = $st->fetchColumn();
     if ($id) {
         db()->prepare('DELETE FROM day_poll_votes WHERE id = ?')->execute([(int)$id]);
+        $log('unvote');
         return false;
     }
     db()->prepare('INSERT IGNORE INTO day_poll_votes (option_id, player_id) VALUES (?,?)')
         ->execute([$optionId, $playerId]);
+    $log('vote');
     return true;
 }
 

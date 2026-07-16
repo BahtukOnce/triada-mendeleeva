@@ -220,6 +220,41 @@ if ($canManageDays) {
             . '<input type="hidden" name="form" value="poll_close"><input type="hidden" name="poll_id" value="' . (int)$poll['id'] . '">'
             . '<button class="btn btn-ghost" type="submit">Закрыть опрос</button></form>';
         echo '</div>';
+
+        // История голосов: кто проголосовал / передумал и когда (журнал, ничего не удаляется)
+        try {
+            $lg = db()->prepare("SELECT l.action, l.created_at, o.date AS opt_date, p.nickname
+                FROM day_poll_log l
+                JOIN day_poll_options o ON o.id = l.option_id
+                JOIN players p ON p.id = l.player_id
+                WHERE l.poll_id = ? ORDER BY l.id DESC LIMIT 150");
+            $lg->execute([(int)$poll['id']]);
+            $logRows = $lg->fetchAll();
+            if ($logRows) {
+                // кто хоть раз передумывал — пометим в шапке
+                $unvoters = [];
+                foreach ($logRows as $lr) {
+                    if ($lr['action'] === 'unvote') {
+                        $unvoters[(string)$lr['nickname']] = 1;
+                    }
+                }
+                echo '<details style="margin-top:14px;"><summary style="cursor:pointer;color:var(--tx2);font-size:13.5px;">'
+                    . '🕓 История голосов (' . count($logRows) . ')'
+                    . ($unvoters ? ' · передумывали: ' . esc(implode(', ', array_slice(array_keys($unvoters), 0, 10))) : '')
+                    . '</summary>';
+                echo '<table class="tbl" style="margin-top:10px;"><tr><th>Когда</th><th>Игрок</th><th>Действие</th></tr>';
+                foreach ($logRows as $lr) {
+                    $dayLbl = day_poll_weekday((string)$lr['opt_date']) . ' ' . date('d.m', strtotime((string)$lr['opt_date']));
+                    echo '<tr><td style="white-space:nowrap;color:var(--tx2);">' . esc(date('d.m H:i', strtotime((string)$lr['created_at']))) . '</td>'
+                        . '<td>' . esc((string)$lr['nickname']) . '</td>'
+                        . '<td>' . ($lr['action'] === 'vote'
+                            ? '<span style="color:var(--ok);">✅ за ' . $dayLbl . '</span>'
+                            : '<span style="color:var(--ac);">↩️ передумал: снял голос с ' . $dayLbl . '</span>') . '</td></tr>';
+                }
+                echo '</table></details>';
+            }
+        } catch (Throwable $e) {
+        }
     } else {
         echo '<p style="color:var(--tx2);font-size:13px;margin:-4px 0 10px;">Предложите игрокам выбрать день: укажите варианты дат (мин. 2), затем разошлите опрос в бота. Из победившего дня создадите вечер кнопкой из свода.</p>';
         echo '<form method="post" action="/admin/days.php">' . csrf_field() . '<input type="hidden" name="form" value="poll_create">';
