@@ -42,38 +42,17 @@ main.container { flex: 1; padding-bottom: 40px; }
 .brand-text i { font-style: normal; font-size: 12px; color: var(--tx2); white-space: nowrap; }
 .logo-svg { display: block; }
 
-/* ── «Живое» лого в шапке: глазки выглядывают из-под шляпы, оглядываются, моргают ── */
-.logo-anim { position: relative; display: block; flex: none; }
-.logo-eye {
-  position: absolute; top: 47%; width: 17%; height: 13%;
-  background: #fff; border-radius: 50%; opacity: 0; pointer-events: none;
-  animation: logoEye 11s ease-in-out infinite;
+/* ── «Живое» лого: детектив периодически коротко озирается (наклон влево-вправо).
+   Собственные глаза-«линзы» логотипа не трогаем — двигается фигура целиком. ── */
+.logo-anim { display: block; flex: none; transform-origin: 50% 28%; animation: logoGlance 9s ease-in-out infinite; }
+@keyframes logoGlance {
+  0%, 78%, 100% { transform: rotate(0deg) translateY(0); }
+  83% { transform: rotate(-7deg) translateY(-0.5px); }  /* глянул налево */
+  88% { transform: rotate(-7deg); }
+  93% { transform: rotate(6deg); }                       /* глянул направо */
+  97% { transform: rotate(0deg); }
 }
-.logo-eye.le-l { left: 29%; }
-.logo-eye.le-r { left: 54%; }
-.logo-eye::after {
-  content: ""; position: absolute; top: 22%; left: 32%; width: 42%; height: 60%;
-  background: #0e0e11; border-radius: 50%;
-  animation: logoPupil 11s ease-in-out infinite;
-}
-@keyframes logoEye { /* появились → видимы → пара морганий → исчезли; долгая пауза */
-  0%, 6% { opacity: 0; transform: scaleY(0.1); }
-  9%, 24% { opacity: 1; transform: scaleY(1); }
-  26% { transform: scaleY(0.08); }   /* моргнули */
-  28%, 47% { opacity: 1; transform: scaleY(1); }
-  49% { transform: scaleY(0.08); }   /* моргнули ещё раз */
-  51%, 58% { opacity: 1; transform: scaleY(1); }
-  63%, 100% { opacity: 0; transform: scaleY(0.6); }
-}
-@keyframes logoPupil { /* зрачки: центр → влево → вправо → центр */
-  0%, 12% { transform: translateX(0); }
-  16%, 22% { transform: translateX(-58%); }
-  30%, 40% { transform: translateX(62%); }
-  46%, 100% { transform: translateX(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .logo-eye, .logo-eye::after { animation: none; opacity: 0; }
-}
+@media (prefers-reduced-motion: reduce) { .logo-anim { animation: none; } }
 
 .nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
 .nav a {
@@ -666,9 +645,8 @@ body::before {
   .user-pill:hover { transform: translateY(-1px); }
   .user-pill.role-admin:hover { box-shadow: 0 4px 16px rgba(232,51,42,0.3); }
 
-  .logo-svg, .logo-anim { transition: transform 0.45s cubic-bezier(0.2,0.7,0.2,1); }
-  .brand:hover > .logo-svg, .brand:hover .logo-anim { transform: rotate(-7deg) scale(1.07); }
-  .brand:hover .logo-anim .logo-svg { transform: none; } /* внутри обёртки крутится обёртка (вместе с глазами) */
+  .logo-anim { transition: transform 0.45s cubic-bezier(0.2,0.7,0.2,1); }
+  .brand:hover .logo-anim { animation-play-state: paused; transform: rotate(-7deg) scale(1.07); }
 
   .tbl tbody tr, .tbl tr { transition: background 0.15s ease; }
   .tbl tr:hover td { background: var(--sf2); }
