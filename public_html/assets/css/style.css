@@ -42,32 +42,54 @@ main.container { flex: 1; padding-bottom: 40px; }
 .brand-text i { font-style: normal; font-size: 12px; color: var(--tx2); white-space: nowrap; }
 .logo-svg { display: block; }
 
-/* ── «Живое» лого: детектив озирается по сторонам и подмигивает правой линзой.
-   Озирание — поворот всей фигуры; подмигивание — белое «веко» строго на глаз-кольцо. ── */
-.logo-anim { position: relative; display: block; flex: none; transform-origin: 50% 26%;
-  animation: logoGlance 7s ease-in-out infinite; }
-@keyframes logoGlance {
-  0%, 34% { transform: rotate(0deg); }
-  44% { transform: rotate(-13deg); }   /* резко налево */
-  55% { transform: rotate(-13deg); }
-  65% { transform: rotate(11deg); }    /* и направо */
-  76% { transform: rotate(11deg); }
-  84%, 100% { transform: rotate(0deg); }
+/* ── «Живое» лого: PNG распилен на слои (logo_hat/logo_face), поверх колец-«линз» —
+   живые глаза: белая склера + тёмный зрачок (цвет фона шапки --sf, дырки прозрачны).
+   Цикл ~13с: моргнул → посмотрел влево/вправо → прищурился → подмигнул правым →
+   поправил шляпу (шляпа приподнимается, зрачки смотрят вверх). ── */
+.logo-anim { position: relative; display: block; flex: none; width: 48px; aspect-ratio: 527 / 722; }
+.logo-anim .logo-face, .logo-anim .logo-hat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.logo-anim .logo-hat { animation: logoHat 13s ease-in-out infinite; transform-origin: 50% 55%; }
+.logo-eye2 { position: absolute; width: 9.2%; aspect-ratio: 1; background: #fff; border-radius: 50%; pointer-events: none; }
+.logo-eye2.e2l { left: 12.2%; top: 49.9%; }  /* центр левой линзы 16.8% / 53.3% */
+.logo-eye2.e2r { left: 66.3%; top: 50.2%; }  /* центр правой линзы 70.9% / 53.6% */
+.logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; }
+.logo-eye2.e2l i { animation: logoPupilL 13s ease-in-out infinite; }
+.logo-eye2.e2r i { animation: logoPupilR 13s ease-in-out infinite; }
+@keyframes logoPupilL {
+  0%, 4% { transform: none; }
+  5.5% { transform: scaleY(0.05); }                 /* моргнул */
+  7%, 11% { transform: none; }
+  14%, 22% { transform: translateX(-52%); }          /* посмотрел влево */
+  27%, 34% { transform: translateX(52%); }           /* вправо */
+  38%, 42% { transform: none; }
+  46%, 53% { transform: scaleY(0.3); }               /* прищурился (подозревает) */
+  57%, 70% { transform: none; }
+  74%, 79% { transform: translateY(-42%); }          /* глянул вверх на шляпу */
+  84%, 100% { transform: none; }
 }
-/* Правая линза (центр 70.9% / 53.6%): белый диск закрывает тёмный зрачок-дырку = глаз моргнул */
-.logo-wink {
-  position: absolute; left: 66.3%; top: 50.2%; width: 9.2%; aspect-ratio: 1;
-  background: #fff; border-radius: 50%; transform: scaleY(0); transform-origin: center;
-  pointer-events: none; animation: logoWink 7s ease-in-out infinite;
+@keyframes logoPupilR {
+  0%, 4% { transform: none; }
+  5.5% { transform: scaleY(0.05); }
+  7%, 11% { transform: none; }
+  14%, 22% { transform: translateX(-52%); }
+  27%, 34% { transform: translateX(52%); }
+  38%, 42% { transform: none; }
+  46%, 53% { transform: scaleY(0.3); }
+  57%, 59% { transform: none; }
+  61.5% { transform: scaleY(0.05); }                 /* подмигнул (только правый) */
+  64%, 70% { transform: none; }
+  74%, 79% { transform: translateY(-42%); }
+  84%, 100% { transform: none; }
 }
-@keyframes logoWink { /* два быстрых подмигивания в конце цикла, когда фигура смотрит прямо */
-  0%, 87% { transform: scaleY(0); }
-  90% { transform: scaleY(1); }
-  92% { transform: scaleY(0); }
-  94% { transform: scaleY(1); }
-  96%, 100% { transform: scaleY(0); }
+@keyframes logoHat { /* приподнял и поправил шляпу */
+  0%, 71%, 85%, 100% { transform: none; }
+  75% { transform: translateY(-6.5%) rotate(-7deg); }
+  79% { transform: translateY(-5%) rotate(-3deg); }
+  82% { transform: translateY(0) rotate(0deg); }
 }
-@media (prefers-reduced-motion: reduce) { .logo-anim, .logo-wink { animation: none; } .logo-wink { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .logo-anim .logo-hat, .logo-eye2 i { animation: none; }
+}
 
 .nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
 .nav a {
