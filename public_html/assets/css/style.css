@@ -42,17 +42,32 @@ main.container { flex: 1; padding-bottom: 40px; }
 .brand-text i { font-style: normal; font-size: 12px; color: var(--tx2); white-space: nowrap; }
 .logo-svg { display: block; }
 
-/* ── «Живое» лого: детектив периодически коротко озирается (наклон влево-вправо).
-   Собственные глаза-«линзы» логотипа не трогаем — двигается фигура целиком. ── */
-.logo-anim { display: block; flex: none; transform-origin: 50% 28%; animation: logoGlance 9s ease-in-out infinite; }
+/* ── «Живое» лого: детектив озирается по сторонам и подмигивает правой линзой.
+   Озирание — поворот всей фигуры; подмигивание — белое «веко» строго на глаз-кольцо. ── */
+.logo-anim { position: relative; display: block; flex: none; transform-origin: 50% 26%;
+  animation: logoGlance 7s ease-in-out infinite; }
 @keyframes logoGlance {
-  0%, 78%, 100% { transform: rotate(0deg) translateY(0); }
-  83% { transform: rotate(-7deg) translateY(-0.5px); }  /* глянул налево */
-  88% { transform: rotate(-7deg); }
-  93% { transform: rotate(6deg); }                       /* глянул направо */
-  97% { transform: rotate(0deg); }
+  0%, 34% { transform: rotate(0deg); }
+  44% { transform: rotate(-13deg); }   /* резко налево */
+  55% { transform: rotate(-13deg); }
+  65% { transform: rotate(11deg); }    /* и направо */
+  76% { transform: rotate(11deg); }
+  84%, 100% { transform: rotate(0deg); }
 }
-@media (prefers-reduced-motion: reduce) { .logo-anim { animation: none; } }
+/* Правая линза (центр 70.9% / 53.6%): белый диск закрывает тёмный зрачок-дырку = глаз моргнул */
+.logo-wink {
+  position: absolute; left: 66.3%; top: 50.2%; width: 9.2%; aspect-ratio: 1;
+  background: #fff; border-radius: 50%; transform: scaleY(0); transform-origin: center;
+  pointer-events: none; animation: logoWink 7s ease-in-out infinite;
+}
+@keyframes logoWink { /* два быстрых подмигивания в конце цикла, когда фигура смотрит прямо */
+  0%, 87% { transform: scaleY(0); }
+  90% { transform: scaleY(1); }
+  92% { transform: scaleY(0); }
+  94% { transform: scaleY(1); }
+  96%, 100% { transform: scaleY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .logo-anim, .logo-wink { animation: none; } .logo-wink { transform: scaleY(0); } }
 
 .nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
 .nav a {
