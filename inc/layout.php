@@ -119,7 +119,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=107">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=108">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -173,8 +173,8 @@ function page_head(string $title, string $active = '', array $meta = []): void
         && is_file(ROOT . '/public_html/assets/img/logo_face.svg');
     if ($hasLayers) {
         echo '<a class="brand" href="/index.php"><span class="logo-anim" aria-hidden="true">'
-            . '<img class="logo-face" src="/assets/img/logo_face.svg?v=1" alt="">'
-            . '<img class="logo-hat" src="/assets/img/logo_hat.svg?v=1" alt="">'
+            . '<img class="logo-face" src="/assets/img/logo_face.svg?v=2" alt="">'
+            . '<img class="logo-hat" src="/assets/img/logo_hat.svg?v=2" alt="">'
             . '<span class="logo-arm aL"><img src="/assets/img/logo_arm.svg?v=1" alt=""></span>'
             . '<span class="logo-arm aR"><img src="/assets/img/logo_arm.svg?v=1" alt=""></span>'
             . '<span class="logo-eye2 e2l"><i></i></span>'

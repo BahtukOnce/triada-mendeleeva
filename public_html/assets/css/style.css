@@ -49,15 +49,16 @@ main.container { flex: 1; padding-bottom: 40px; }
 .logo-anim { position: relative; display: block; flex: none; width: 60px; aspect-ratio: 527 / 722; }
 .logo-anim .logo-face, .logo-anim .logo-hat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .logo-anim .logo-face { z-index: 1; }
-.logo-anim .logo-hat { z-index: 2; animation: logoHat 13s ease-in-out infinite; transform-origin: 50% 60%; }
+/* порядок слоёв: лицо(1) < глаза(2) < шляпа(3) < руки(4) — сползая, шляпа накрывает глаза */
+.logo-anim .logo-hat { z-index: 3; animation: logoHat 13s ease-in-out infinite; transform-origin: 50% 60%; }
 /* Контейнер руки = весь бокс лого: тогда translateY в keyframes у рук и шляпы
    считается от одной базы, и на участке подъёма им заданы одинаковые значения —
    рассинхрон невозможен. Сама рука позиционируется картинкой внутри. */
-.logo-anim .logo-arm { position: absolute; inset: 0; opacity: 0; z-index: 3; pointer-events: none; animation: logoArm 13s ease-in-out infinite; }
+.logo-anim .logo-arm { position: absolute; inset: 0; opacity: 0; z-index: 4; pointer-events: none; animation: logoArm 13s ease-in-out infinite; }
 .logo-anim .logo-arm img { position: absolute; width: 44%; aspect-ratio: 1; top: 24%; display: block; }
 .logo-anim .logo-arm.aL img { left: -13%; }
 .logo-anim .logo-arm.aR img { right: -13%; transform: scaleX(-1); }
-.logo-eye2 { position: absolute; width: 9.2%; aspect-ratio: 1; background: #fff; border-radius: 50%; pointer-events: none; z-index: 4; }
+.logo-eye2 { position: absolute; width: 9.2%; aspect-ratio: 1; background: #fff; border-radius: 50%; pointer-events: none; z-index: 2; }
 .logo-eye2.e2l { left: 12.2%; top: 49.9%; }  /* центр левой линзы 16.8% / 53.3% */
 .logo-eye2.e2r { left: 66.3%; top: 50.2%; }  /* центр правой линзы 70.9% / 53.6% */
 .logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; }
@@ -81,13 +82,15 @@ main.container { flex: 1; padding-bottom: 40px; }
   66%, 68% { transform: translateY(0%) rotate(0deg); }     /* руки дотолкали на место */
   100% { transform: none; }
 }
-@keyframes logoArm { /* та же база (%) и те же значения 8%->0%, что у logoHat на 60-68% */
-  0%, 50% { opacity: 0; transform: translateY(20%); }
-  54% { opacity: 1; transform: translateY(12%); }          /* поднялись к полям */
+@keyframes logoArm { /* та же база (%) и те же значения 8%->0%, что у logoHat на 60-68%.
+   Появление/уход — мгновенные (~130мс) и внизу, чтобы не висеть серым полупрозрачным у шляпы */
+  0%, 53% { opacity: 0; transform: translateY(22%); }
+  54% { opacity: 1; transform: translateY(19%); }          /* появились внизу */
   58%, 60% { opacity: 1; transform: translateY(8%); }      /* взялись: смещение = смещению шляпы */
   66%, 68% { opacity: 1; transform: translateY(0%); }      /* приехали вместе со шляпой */
   71% { opacity: 1; transform: translateY(6%); }           /* отпустили, соскользнули */
-  75%, 100% { opacity: 0; transform: translateY(20%); }
+  74% { opacity: 1; transform: translateY(18%); }          /* ушли вниз */
+  75%, 100% { opacity: 0; transform: translateY(22%); }
 }
 @media (prefers-reduced-motion: reduce) {
   .logo-anim .logo-hat, .logo-anim .logo-arm, .logo-eye2 i { animation: none; }
