@@ -1,0 +1,22 @@
+# зависимости и сборки — не в git
+node_modules/
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+
+# подписи (никогда не коммитим!)
+*.keystore
+*.jks
+keystore.properties
+
+# firebase (добавляется владельцем для push)
+android/app/google-services.json
+
+.DS_Store

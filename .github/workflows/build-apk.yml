@@ -1,0 +1,65 @@
+name: Сборка Android APK
+
+# Собирает APK мобильного приложения «Триада Менделеева» (обёртка Capacitor
+# над сайтом). Готовый файл появляется во вкладке Actions → запуск → Artifacts.
+on:
+  workflow_dispatch: {}        # ручной запуск кнопкой в Actions
+  push:
+    branches: [claude/mendeleev-table-website-yh0f51, main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Гарантировать SDK-пакеты (platform/build-tools 34)
+        run: |
+          SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Установка зависимостей
+        working-directory: mobile
+        run: npm ci
+
+      - name: Capacitor sync
+        working-directory: mobile
+        run: npx cap sync android
+
+      - name: Сборка debug APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Переименовать APK
+        run: |
+          mkdir -p out
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk \
+             out/triada-mendeleeva.apk
+
+      - name: Публикация артефакта
+        uses: actions/upload-artifact@v4
+        with:
+          name: triada-mendeleeva-apk
+          path: out/triada-mendeleeva.apk
+          if-no-files-found: error

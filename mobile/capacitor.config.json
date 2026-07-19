@@ -1,0 +1,31 @@
+{
+  "appId": "ru.triadamendeleeva.app",
+  "appName": "Триада Менделеева",
+  "webDir": "www",
+  "backgroundColor": "#0e0e11",
+  "server": {
+    "url": "https://triada-mendeleeva.ru",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "triada-mendeleeva.ru",
+      "*.triada-mendeleeva.ru"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#0e0e11",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "launchAutoHide": true,
+      "backgroundColor": "#0e0e11",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

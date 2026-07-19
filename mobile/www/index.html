@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Триада Менделеева</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0e0e11;color:#e8e8ea;
+      font-family:-apple-system,Roboto,"Segoe UI",sans-serif;
+      display:flex;align-items:center;justify-content:center;text-align:center}
+    .box{opacity:.85}
+    .sp{width:34px;height:34px;margin:18px auto 0;border:3px solid #2a2a30;
+      border-top-color:#c62828;border-radius:50%;animation:r .8s linear infinite}
+    @keyframes r{to{transform:rotate(360deg)}}
+    a{color:#c62828}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div style="font-size:18px;font-weight:600">Триада Менделеева</div>
+    <div class="sp"></div>
+    <div id="msg" style="margin-top:16px;font-size:13px;opacity:.6">Загрузка…</div>
+    <noscript><p>Требуется подключение к интернету.</p></noscript>
+  </div>
+  <script>
+    // Этот экран показывается только если основной сайт недоступен
+    // (нет сети). Capacitor грузит https://triada-mendeleeva.ru поверх.
+    setTimeout(function () {
+      var m = document.getElementById('msg');
+      if (m) m.innerHTML = 'Нет соединения с сайтом.<br>Проверьте интернет и ' +
+        '<a href="https://triada-mendeleeva.ru">откройте заново</a>.';
+    }, 6000);
+  </script>
+</body>
+</html>
