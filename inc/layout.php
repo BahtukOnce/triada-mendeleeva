@@ -119,7 +119,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=101">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=102">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -171,8 +171,10 @@ function page_head(string $title, string $active = '', array $meta = []): void
         && is_file(ROOT . '/public_html/assets/img/logo_face.png');
     if ($hasLayers) {
         echo '<a class="brand" href="/index.php"><span class="logo-anim" aria-hidden="true">'
-            . '<img class="logo-face" src="/assets/img/logo_face.png?v=1" alt="">'
+            . '<img class="logo-face" src="/assets/img/logo_face.png?v=2" alt="">'
             . '<img class="logo-hat" src="/assets/img/logo_hat.png?v=1" alt="">'
+            . '<span class="logo-arm aL"><img src="/assets/img/logo_arm.png?v=1" alt=""></span>'
+            . '<span class="logo-arm aR"><img src="/assets/img/logo_arm.png?v=1" alt=""></span>'
             . '<span class="logo-eye2 e2l"><i></i></span>'
             . '<span class="logo-eye2 e2r"><i></i></span>'
             . '</span>';
@@ -180,6 +182,37 @@ function page_head(string $title, string $active = '', array $meta = []): void
         echo '<a class="brand" href="/index.php"><span class="logo-anim">' . logo_svg(48) . '</span>';
     }
     echo '<span class="brand-text"><b>Триада Менделеева</b><i>клуб спортивной мафии · РХТУ</i></span></a>';
+
+    // Десктоп: зрачки лого следят за курсором. Тач-устройства (курсора нет) остаются на
+    // keyframe-«озирании». Дёшево: один mousemove + rAF-троттлинг, только два transform.
+    if ($hasLayers) {
+        echo <<<'LOGOJS'
+<script>
+(function(){
+  var a = document.querySelector('.logo-anim');
+  if (!a || !a.querySelector('.logo-eye2')) return;
+  if (!(window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
+  a.classList.add('cursor');
+  var eyes = a.querySelectorAll('.logo-eye2'), raf = 0, mxx = 0, myy = 0;
+  function apply(){
+    raf = 0;
+    for (var k = 0; k < eyes.length; k++){
+      var eye = eyes[k], r = eye.getBoundingClientRect();
+      var cx = r.left + r.width/2, cy = r.top + r.height/2;
+      var dx = mxx - cx, dy = myy - cy, d = Math.hypot(dx, dy) || 1;
+      var reach = Math.min(1, d/(r.width*3)), m = r.width * 0.22 * reach;
+      var p = eye.querySelector('i');
+      if (p) p.style.transform = 'translate(' + (dx/d*m).toFixed(2) + 'px,' + (dy/d*m).toFixed(2) + 'px)';
+    }
+  }
+  window.addEventListener('mousemove', function(e){
+    mxx = e.clientX; myy = e.clientY;
+    if (!raf) raf = requestAnimationFrame(apply);
+  }, {passive:true});
+})();
+</script>
+LOGOJS;
+    }
 
     echo '<button class="burger" id="nav-burger" aria-label="Меню" aria-expanded="false"><span></span><span></span><span></span></button>';
 
