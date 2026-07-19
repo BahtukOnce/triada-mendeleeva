@@ -167,14 +167,16 @@ function page_head(string $title, string $active = '', array $meta = []): void
     // «Живое» лого (только в шапке): PNG распилен на слои шляпа/лицо, поверх колец-«линз» —
     // живые глаза (склера + зрачок). Зрачки оглядываются, щурятся, моргают; правый глаз
     // подмигивает; шляпа приподнимается («поправил шляпу»). Анимации — .logo-anim в style.css.
-    $hasLayers = is_file(ROOT . '/public_html/assets/img/logo_hat.png')
-        && is_file(ROOT . '/public_html/assets/img/logo_face.png');
+    // Слои лого — SVG (вектор, трассирован с фирменного PNG): чёткие границы на любом
+    // зуме и retina. PNG-слои остаются в репо как исходники для трассировки.
+    $hasLayers = is_file(ROOT . '/public_html/assets/img/logo_hat.svg')
+        && is_file(ROOT . '/public_html/assets/img/logo_face.svg');
     if ($hasLayers) {
         echo '<a class="brand" href="/index.php"><span class="logo-anim" aria-hidden="true">'
-            . '<img class="logo-face" src="/assets/img/logo_face.png?v=2" alt="">'
-            . '<img class="logo-hat" src="/assets/img/logo_hat.png?v=1" alt="">'
-            . '<span class="logo-arm aL"><img src="/assets/img/logo_arm.png?v=1" alt=""></span>'
-            . '<span class="logo-arm aR"><img src="/assets/img/logo_arm.png?v=1" alt=""></span>'
+            . '<img class="logo-face" src="/assets/img/logo_face.svg?v=1" alt="">'
+            . '<img class="logo-hat" src="/assets/img/logo_hat.svg?v=1" alt="">'
+            . '<span class="logo-arm aL"><img src="/assets/img/logo_arm.svg?v=1" alt=""></span>'
+            . '<span class="logo-arm aR"><img src="/assets/img/logo_arm.svg?v=1" alt=""></span>'
             . '<span class="logo-eye2 e2l"><i></i></span>'
             . '<span class="logo-eye2 e2r"><i></i></span>'
             . '</span>';
