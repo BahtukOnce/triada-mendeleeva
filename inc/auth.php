@@ -26,11 +26,102 @@ function ensure_player_link(array $user): ?array
     return null;
 }
 
+// ── «Запомнить меня»: постоянный вход отдельным токеном ──────────────
+// Сессия PHP на shared-хостинге может чиститься по таймауту, поэтому держим
+// вход длинным токеном в куке (в базе — только его хэш). Вошёл один раз —
+// заходит без повторной авторизации, пока не нажмёт «Выйти».
+const REMEMBER_COOKIE = 'triada_remember';
+const REMEMBER_DAYS   = 400;
+
+function remember_issue(int $userId): void
+{
+    if (!db_ready()) {
+        return;
+    }
+    try {
+        $raw  = bin2hex(random_bytes(32));
+        $hash = hash('sha256', $raw);
+        $exp  = date('Y-m-d H:i:s', time() + REMEMBER_DAYS * 86400);
+        db()->prepare('INSERT INTO remember_tokens (user_id, token_hash, expires_at, last_used_at, ua, ip)
+            VALUES (?,?,?,NOW(),?,?)')
+            ->execute([$userId, $hash, $exp,
+                mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255), client_ip()]);
+        remember_set_cookie($raw);
+    } catch (Throwable $e) {
+    }
+}
+
+function remember_set_cookie(string $raw): void
+{
+    if (headers_sent()) {
+        return;
+    }
+    setcookie(REMEMBER_COOKIE, $raw, [
+        'expires'  => time() + REMEMBER_DAYS * 86400,
+        'path'     => '/',
+        'secure'   => request_is_https(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    $_COOKIE[REMEMBER_COOKIE] = $raw;
+}
+
+// Пытается восстановить вход из куки. Ставит $_SESSION['uid'] и возвращает id, либо null.
+function remember_login_from_cookie(): ?int
+{
+    if (empty($_COOKIE[REMEMBER_COOKIE]) || !db_ready()) {
+        return null;
+    }
+    $raw  = (string)$_COOKIE[REMEMBER_COOKIE];
+    $hash = hash('sha256', $raw);
+    try {
+        $st = db()->prepare('SELECT id, user_id FROM remember_tokens
+            WHERE token_hash = ? AND expires_at > NOW() LIMIT 1');
+        $st->execute([$hash]);
+        $row = $st->fetch();
+        if (!$row) {
+            return null;
+        }
+        $_SESSION['uid'] = (int)$row['user_id'];
+        // продлеваем срок (скользящее окно) и отмечаем использование
+        $exp = date('Y-m-d H:i:s', time() + REMEMBER_DAYS * 86400);
+        db()->prepare('UPDATE remember_tokens SET expires_at = ?, last_used_at = NOW() WHERE id = ?')
+            ->execute([$exp, (int)$row['id']]);
+        remember_set_cookie($raw);
+        return (int)$row['user_id'];
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function remember_clear(): void
+{
+    $raw = (string)($_COOKIE[REMEMBER_COOKIE] ?? '');
+    if ($raw !== '' && db_ready()) {
+        try {
+            db()->prepare('DELETE FROM remember_tokens WHERE token_hash = ?')
+                ->execute([hash('sha256', $raw)]);
+        } catch (Throwable $e) {
+        }
+    }
+    if (!headers_sent()) {
+        setcookie(REMEMBER_COOKIE, '', [
+            'expires' => time() - 42000, 'path' => '/',
+            'secure' => request_is_https(), 'httponly' => true, 'samesite' => 'Lax',
+        ]);
+    }
+    unset($_COOKIE[REMEMBER_COOKIE]);
+}
+
 function current_user(): ?array
 {
     static $user = false;
     if ($user === false) {
         $user = null;
+        // Нет активной сессии — пробуем «запомнить меня»
+        if (empty($_SESSION['uid']) && db_ready()) {
+            remember_login_from_cookie();
+        }
         if (!empty($_SESSION['uid']) && db_ready()) {
             try {
                 $st = db()->prepare('SELECT * FROM users WHERE id = ?');
@@ -287,6 +378,7 @@ function auth_register(string $nick, string $pass1, string $pass2)
 
     session_regenerate_id(true);
     $_SESSION['uid'] = $id;
+    remember_issue($id); // «запомнить меня»
     return ['id' => $id, 'nickname' => $nick, 'role' => $role, 'linked' => $linked];
 }
 
@@ -317,6 +409,7 @@ function auth_login(string $nick, string $pass)
 
     session_regenerate_id(true);
     $_SESSION['uid'] = (int)$u['id'];
+    remember_issue((int)$u['id']); // «запомнить меня» — вход держится долго
     return $u;
 }
 
@@ -326,6 +419,7 @@ function auth_logout(): void
     if ($u) {
         log_action((int)$u['id'], 'logout');
     }
+    remember_clear(); // убираем постоянный токен
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $p = session_get_cookie_params();

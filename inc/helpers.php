@@ -1042,6 +1042,15 @@ function is_app(): bool
     return strpos((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 'TriadaApp') !== false;
 }
 
+// HTTPS ли запрос. На Beget TLS обрывается на прокси, поэтому смотрим и заголовки прокси.
+function request_is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '')) === 'on')
+        || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443');
+}
+
 // Жёсткое требование входа в приложении: гость видит только экран входа/анкеты.
 // Обычные браузеры (не приложение) не затрагиваются — сайт остаётся публичным.
 function app_require_login(): void
