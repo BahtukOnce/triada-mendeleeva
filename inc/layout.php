@@ -119,7 +119,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=100">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=101">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -181,9 +181,15 @@ function page_head(string $title, string $active = '', array $meta = []): void
     }
     echo '<span class="brand-text"><b>Триада Менделеева</b><i>клуб спортивной мафии · РХТУ</i></span></a>';
 
-    echo '<button class="burger" id="nav-burger" aria-label="Меню"><span></span><span></span><span></span></button>';
+    echo '<button class="burger" id="nav-burger" aria-label="Меню" aria-expanded="false"><span></span><span></span><span></span></button>';
 
-    echo '<nav class="nav" id="site-nav">';
+    // Полупрозрачная подложка под выдвижным меню (мобильные)
+    echo '<div class="nav-scrim" id="nav-scrim" hidden></div>';
+
+    echo '<nav class="nav" id="site-nav" aria-label="Основное меню">';
+    // Шапка выдвижного меню (видна только на мобильных)
+    echo '<div class="nav-drawer-head"><span class="nav-drawer-brand">' . logo_svg(26) . '<b>Триада</b></span>'
+        . '<button class="nav-close" id="nav-close" aria-label="Закрыть меню">&times;</button></div>';
     foreach (nav_items($u !== null) as $key => [$href, $label]) {
         $cls = $key === $active ? ' class="active"' : '';
         echo '<a href="/' . $href . '"' . $cls . '>' . $label . '</a>';
@@ -192,6 +198,17 @@ function page_head(string $title, string $active = '', array $meta = []): void
         $al = admin_alerts();
         echo '<a href="/admin/" class="nav-admin' . ($active === 'admin' ? ' active' : '') . '">Админка'
             . ($al > 0 ? ' <span class="nav-badge">' . $al . '</span>' : '') . '</a>';
+    }
+    // Низ выдвижного меню: вход/анкета для гостя или кабинет/выход (только мобильные)
+    if ($u) {
+        echo '<div class="nav-drawer-auth">'
+            . '<a class="nav-drawer-cab" href="/cabinet.php">Личный кабинет</a>'
+            . '<form method="post" action="/logout.php" class="nav-drawer-logout">' . csrf_field()
+            . '<button type="submit">Выйти</button></form></div>';
+    } else {
+        echo '<div class="nav-drawer-auth">'
+            . '<a class="btn btn-block" href="/login.php">Войти</a>'
+            . '<a class="btn btn-ghost btn-block" href="/join.php" style="margin-top:8px;">Подать заявку</a></div>';
     }
     echo '</nav>';
 
@@ -260,7 +277,7 @@ function page_foot(): void
        . '<a class="soc vk" href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank" aria-label="VK" title="VK">' . $vkIcon . '</a>'
        . '</span>';
     echo '</div></footer>';
-    echo '<script src="/assets/js/app.js?v=20"></script>';
+    echo '<script src="/assets/js/app.js?v=21"></script>';
     echo '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
     echo '</body></html>';
 }

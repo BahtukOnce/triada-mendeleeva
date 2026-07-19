@@ -14,7 +14,8 @@
   },
   "android": {
     "backgroundColor": "#0e0e11",
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "appendUserAgent": "TriadaApp"
   },
   "plugins": {
     "SplashScreen": {

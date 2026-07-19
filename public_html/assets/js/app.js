@@ -3,10 +3,62 @@
 
   var burger = document.getElementById('nav-burger');
   var nav = document.getElementById('site-nav');
+  var scrim = document.getElementById('nav-scrim');
+  var navClose = document.getElementById('nav-close');
   if (burger && nav) {
-    burger.addEventListener('click', function () {
-      nav.classList.toggle('open');
+    var openNav = function () {
+      nav.classList.add('open');
+      burger.classList.add('open');
+      burger.setAttribute('aria-expanded', 'true');
+      document.body.classList.add('nav-lock');
+      if (scrim) {
+        scrim.hidden = false;
+        requestAnimationFrame(function () { scrim.classList.add('open'); });
+      }
+    };
+    var closeNav = function () {
+      nav.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('nav-lock');
+      if (scrim) {
+        scrim.classList.remove('open');
+        setTimeout(function () { if (!nav.classList.contains('open')) scrim.hidden = true; }, 300);
+      }
+    };
+    var toggleNav = function () { nav.classList.contains('open') ? closeNav() : openNav(); };
+
+    burger.addEventListener('click', toggleNav);
+    if (navClose) navClose.addEventListener('click', closeNav);
+    if (scrim) scrim.addEventListener('click', closeNav);
+    nav.addEventListener('click', function (e) { if (e.target.closest('a')) closeNav(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('open')) closeNav();
     });
+
+    // Свайп от левого края вправо — открыть меню
+    var tsx = 0, tsy = 0, tracking = false, swiping = false;
+    window.addEventListener('touchstart', function (e) {
+      if (nav.classList.contains('open')) return;
+      var t = e.touches[0];
+      if (t.clientX <= 24) { tsx = t.clientX; tsy = t.clientY; tracking = true; swiping = false; }
+    }, { passive: true });
+    window.addEventListener('touchmove', function (e) {
+      if (!tracking) return;
+      var t = e.touches[0], dx = t.clientX - tsx, dy = t.clientY - tsy;
+      if (!swiping && Math.abs(dx) > Math.abs(dy) && dx > 12) swiping = true;
+      if (swiping && dx > 55) { openNav(); tracking = false; }
+    }, { passive: true });
+    window.addEventListener('touchend', function () { tracking = false; }, { passive: true });
+
+    // Свайп влево по открытому меню — закрыть
+    var nsx = null, nsy = null;
+    nav.addEventListener('touchstart', function (e) { nsx = e.touches[0].clientX; nsy = e.touches[0].clientY; }, { passive: true });
+    nav.addEventListener('touchmove', function (e) {
+      if (nsx === null || !nav.classList.contains('open')) return;
+      var t = e.touches[0], dx = t.clientX - nsx, dy = t.clientY - nsy;
+      if (dx < -50 && Math.abs(dx) > Math.abs(dy)) { closeNav(); nsx = null; }
+    }, { passive: true });
   }
 
   var pill = document.getElementById('user-pill');

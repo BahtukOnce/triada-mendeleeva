@@ -5,6 +5,14 @@ if (current_user()) {
     redirect('/cabinet.php');
 }
 
+// «Продолжить как гость» из приветственного экрана приложения — больше не редиректим
+if (isset($_GET['guest'])) {
+    $_SESSION['guest_ok'] = 1;
+    redirect('/index.php');
+}
+
+$welcome = isset($_GET['welcome']);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $res = auth_login((string)($_POST['nickname'] ?? ''), (string)($_POST['password'] ?? ''));
@@ -29,7 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 page_head('Вход', '');
 ?>
 <div class="form-narrow">
-  <h1 style="text-align:center;">Вход</h1>
+  <?php if ($welcome): ?>
+    <div style="text-align:center;margin-bottom:6px;">
+      <div style="font-size:44px;line-height:1;margin-bottom:6px;"><?= logo_svg(52) ?></div>
+      <h1 style="margin:0 0 4px;">Триада Менделеева</h1>
+      <p style="color:var(--tx2);margin:0;">Войдите, чтобы записываться на игры и видеть свою статистику</p>
+    </div>
+  <?php else: ?>
+    <h1 style="text-align:center;">Вход</h1>
+  <?php endif; ?>
   <div class="form-card">
     <form method="post" action="/login.php">
       <?= csrf_field() ?>
@@ -46,6 +62,9 @@ page_head('Вход', '');
     </form>
   </div>
   <div class="form-foot">Ещё не в клубе? <a href="/join.php">Подать заявку на вступление</a></div>
+  <?php if ($welcome): ?>
+    <div class="form-foot"><a href="/login.php?guest=1" style="color:var(--tx2);">Продолжить без входа →</a></div>
+  <?php endif; ?>
   <?php $botUser = setting('bot_username'); ?>
   <div class="form-foot" style="font-size:12.5px;line-height:1.55;">
     <b>Забыли пароль?</b><br>

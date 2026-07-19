@@ -143,7 +143,13 @@ main.container { flex: 1; padding-bottom: 40px; }
 }
 
 .burger { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
-.burger span { display: block; width: 20px; height: 2px; background: var(--tx); margin: 4px 0; border-radius: 2px; }
+.burger span { display: block; width: 20px; height: 2px; background: var(--tx); margin: 4px 0; border-radius: 2px; transition: transform .25s ease, opacity .2s ease; }
+.burger.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.burger.open span:nth-child(2) { opacity: 0; }
+.burger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+/* Элементы выдвижного меню видны только на мобильных (ниже в @media) */
+.nav-scrim, .nav-drawer-head, .nav-drawer-auth, .nav-close { display: none; }
 
 .env-ribbon {
   background: var(--acsf); color: var(--ac); text-align: center;
@@ -591,15 +597,60 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
   .brand-text i { display: none; }
   .suggest-btn { display: none; }
   .tables-grid { grid-template-columns: 1fr !important; }
-  .burger { display: block; margin-left: auto; }
+  .burger { display: block; margin-left: auto; order: 3; }
+
+  /* Выдвижное меню слева (drawer) */
   .nav {
-    display: none; position: absolute; left: 0; right: 0; top: 100%;
-    background: var(--sf); border-bottom: 1px solid var(--bd);
-    flex-direction: column; padding: 8px 12px; margin: 0;
+    display: flex; position: fixed; top: 0; left: 0; bottom: 0;
+    width: 82vw; max-width: 320px; margin: 0; z-index: 200;
+    background: var(--sf); border-right: 1px solid var(--bd);
+    flex-direction: column; flex-wrap: nowrap; gap: 2px;
+    padding: 10px 12px calc(16px + env(safe-area-inset-bottom));
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: 0 0 40px rgba(0, 0, 0, .45);
   }
-  .nav.open { display: flex; }
-  .nav a { padding: 11px 10px; font-size: 15px; }
+  .nav.open { transform: translateX(0); }
+  .nav a { padding: 13px 12px; font-size: 15.5px; border-radius: 10px; }
+
+  .nav-scrim {
+    display: block; position: fixed; inset: 0; z-index: 190;
+    background: rgba(0, 0, 0, .5); opacity: 0; pointer-events: none;
+    transition: opacity .28s ease;
+  }
+  .nav-scrim.open { opacity: 1; pointer-events: auto; }
+  body.nav-lock { overflow: hidden; }
+  /* Поднимаем контекст шапки, чтобы затемнение накрыло сам бургер/шапку,
+     а ярким остался только выдвижной drawer */
+  body.nav-lock .site-header { z-index: 210; }
+  body.nav-lock .burger { opacity: 0; pointer-events: none; }
+
+  .nav-drawer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--bd);
+  }
+  .nav-drawer-brand { display: flex; align-items: center; gap: 9px; font-size: 16px; color: var(--tx); }
+  .nav-drawer-brand .logo-svg { width: 26px; height: auto; }
+  .nav-close {
+    display: block; background: none; border: none; color: var(--tx2);
+    font-size: 30px; line-height: 1; padding: 0 6px; cursor: pointer;
+  }
+  .nav-drawer-auth { display: block; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--bd); }
+  .nav-drawer-cab {
+    display: block; text-align: center; padding: 12px; border-radius: 10px;
+    background: var(--sf2); color: var(--tx); font-weight: 550; margin-bottom: 8px;
+  }
+  .nav-drawer-logout { margin: 0; }
+  .nav-drawer-logout button {
+    width: 100%; padding: 11px; border-radius: 10px; background: none;
+    border: 1px solid var(--bd); color: var(--ac); font-size: 14px; cursor: pointer; font-family: inherit;
+  }
   .header-right { margin-left: 0; }
+  /* Имя клуба усекаем, чтобы не налезало на кнопки */
+  .brand-text { min-width: 0; }
+  /* Гостевую кнопку «Войти» в шапке прячем — вход есть в выдвижном меню */
+  .header-right .btn-ghost { display: none; }
   .grid-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .grid-2 { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: stretch; }

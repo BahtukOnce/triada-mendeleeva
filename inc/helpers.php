@@ -1036,6 +1036,12 @@ function client_ip(): string
     return $_SERVER['REMOTE_ADDR'] ?? '';
 }
 
+// Открыто ли из мобильного приложения (Capacitor добавляет «TriadaApp» в User-Agent).
+function is_app(): bool
+{
+    return strpos((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 'TriadaApp') !== false;
+}
+
 // Кол-во требующих внимания админа: новые предложения + заявки на привязку
 function admin_alerts(): int
 {

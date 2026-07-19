@@ -1,6 +1,12 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
 
+// В мобильном приложении при первом заходе гостя предлагаем войти
+// (кнопка «Продолжить как гость» в /login.php ставит флаг и возвращает сюда).
+if (is_app() && !current_user() && empty($_SESSION['guest_ok'])) {
+    redirect('/login.php?welcome=1');
+}
+
 $dbok = db_ready();
 $nextDay = null;
 $regCount = 0;
