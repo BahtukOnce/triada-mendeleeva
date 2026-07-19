@@ -59,47 +59,30 @@ main.container { flex: 1; padding-bottom: 40px; }
 .logo-eye2.e2l { left: 12.2%; top: 49.9%; }  /* центр левой линзы 16.8% / 53.3% */
 .logo-eye2.e2r { left: 66.3%; top: 50.2%; }  /* центр правой линзы 70.9% / 53.6% */
 .logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; }
-.logo-eye2.e2l i { animation: logoPupilL 13s ease-in-out infinite; }
-.logo-eye2.e2r i { animation: logoPupilR 13s ease-in-out infinite; }
-/* десктоп: зрачки следят за курсором (двигает JS), keyframe-озирание выключается */
-.logo-anim.cursor .logo-eye2 i { animation: none; transition: transform .12s ease-out; }
-@keyframes logoPupilL {
-  0%, 4% { transform: none; }
-  5.5% { transform: scaleY(0.05); }                 /* моргнул */
-  7%, 11% { transform: none; }
-  14%, 22% { transform: translateX(-52%); }          /* посмотрел влево */
-  27%, 34% { transform: translateX(52%); }           /* вправо */
-  38%, 42% { transform: none; }
-  46%, 53% { transform: scaleY(0.3); }               /* прищурился (подозревает) */
-  57%, 70% { transform: none; }
-  74%, 79% { transform: translateY(-42%); }          /* глянул вверх на шляпу */
-  84%, 100% { transform: none; }
+.logo-eye2 i { animation: logoScan 13s ease-in-out infinite; }
+@keyframes logoScan { /* высматривает влево/вправо с прищуром, затем удивлённо вверх на шляпу */
+  0%, 5% { transform: none; }
+  7% { transform: scaleY(0.08); }                          /* моргнул */
+  9%, 12% { transform: none; }
+  16%, 23% { transform: translateX(-46%) scaleY(0.72); }   /* высматривает влево, прищур */
+  27% { transform: none; }
+  31%, 38% { transform: translateX(46%) scaleY(0.72); }    /* вправо, прищур */
+  42% { transform: none; }
+  52%, 64% { transform: translateY(-44%) scaleY(1.12); }   /* шляпа сползла — удивлённо смотрит вверх */
+  70%, 100% { transform: none; }
 }
-@keyframes logoPupilR {
-  0%, 4% { transform: none; }
-  5.5% { transform: scaleY(0.05); }
-  7%, 11% { transform: none; }
-  14%, 22% { transform: translateX(-52%); }
-  27%, 34% { transform: translateX(52%); }
-  38%, 42% { transform: none; }
-  46%, 53% { transform: scaleY(0.3); }
-  57%, 59% { transform: none; }
-  61.5% { transform: scaleY(0.05); }                 /* подмигнул (только правый) */
-  64%, 70% { transform: none; }
-  74%, 79% { transform: translateY(-42%); }
-  84%, 100% { transform: none; }
+@keyframes logoHat { /* шляпа сползает на лоб (ниже, чуть набок), руки возвращают на место — вверх не уходит */
+  0%, 42% { transform: none; }
+  48%, 56% { transform: translateY(12%) rotate(3deg); }
+  66% { transform: translateY(1%) rotate(0deg); }
+  70%, 100% { transform: none; }
 }
-@keyframes logoHat { /* руки поднимают шляпу — под ней видна макушка */
-  0%, 70%, 86%, 100% { transform: none; }
-  74% { transform: translateY(-15%) rotate(-3deg); }
-  78% { transform: translateY(-17%) rotate(-4deg); }
-  82% { transform: translateY(-4%) rotate(-1deg); }
-}
-@keyframes logoArm { /* тонкие руки заходят с боков, берут поля, поднимают и ставят назад */
-  0%, 69%, 88%, 100% { opacity: 0; transform: translateY(36%); }
-  72% { opacity: 1; transform: translateY(2%); }
-  74%, 78% { opacity: 1; transform: translateY(-15%); }
-  83% { opacity: 1; transform: translateY(2%); }
+@keyframes logoArm { /* руки поднимаются к сползшим полям и толкают шляпу обратно вверх */
+  0%, 52% { opacity: 0; transform: translateY(38%); }
+  56% { opacity: 1; transform: translateY(10%); }
+  60%, 64% { opacity: 1; transform: translateY(-4%); }
+  68% { opacity: 1; transform: translateY(10%); }
+  72%, 100% { opacity: 0; transform: translateY(38%); }
 }
 @media (prefers-reduced-motion: reduce) {
   .logo-anim .logo-hat, .logo-anim .logo-arm, .logo-eye2 i { animation: none; }
