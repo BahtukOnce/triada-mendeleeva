@@ -56,10 +56,16 @@ Firebase:
    с package `ru.triadamendeleeva.app`.
 2. Скачать `google-services.json` и положить в `mobile/android/app/`
    (файл в `.gitignore` — в репозиторий не попадёт).
-3. Раскомментировать блоки Firebase в `android/build.gradle`,
-   `android/app/build.gradle` (помечены `# FCM`).
-4. На стороне сайта — отправка через FCM HTTP API туда, где сайт уже шлёт
-   уведомления (таблица `notifications`) и Telegram. Это делается отдельной задачей.
+3. Подключить Google Services Gradle-плагин:
+   - в `android/build.gradle` (buildscript → dependencies):
+     `classpath 'com.google.gms:google-services:4.4.2'`
+   - в конце `android/app/build.gradle`:
+     `apply plugin: 'com.google.gms.google-services'`
+   Плагин `@capacitor/push-notifications` сам подтянет `firebase-messaging`.
+4. В приложении — запросить разрешение и зарегистрировать токен через
+   `PushNotifications.register()` (Capacitor); токен отправлять на сайт.
+5. На стороне сайта — рассылка через FCM HTTP v1 там, где сайт уже шлёт
+   уведомления (таблица `notifications`) и в Telegram. Отдельная задача.
 
 До этого приложение полностью рабочее — просто без пушей (у клуба уже есть
 уведомления в Telegram-боте).
