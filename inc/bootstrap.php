@@ -132,3 +132,6 @@ register_shutdown_function(function (): void {
 require ROOT . '/inc/db.php';
 require ROOT . '/inc/auth.php';
 require ROOT . '/inc/layout.php';
+
+// В мобильном приложении гость дальше экрана входа/анкеты не проходит (жёсткий вход).
+app_require_login();

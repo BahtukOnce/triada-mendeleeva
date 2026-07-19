@@ -1042,6 +1042,27 @@ function is_app(): bool
     return strpos((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 'TriadaApp') !== false;
 }
 
+// Жёсткое требование входа в приложении: гость видит только экран входа/анкеты.
+// Обычные браузеры (не приложение) не затрагиваются — сайт остаётся публичным.
+function app_require_login(): void
+{
+    if (!is_app() || current_user()) {
+        return;
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+        return;
+    }
+    $uri    = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    $script = basename($uri);
+    // Доступно без входа: авторизация/анкета/активация, служебное и все /api/
+    $allow = ['login.php', 'join.php', 'activate.php', 'logout.php', 'register.php',
+        'robots.php', 'sitemap.php', 'deploy.php', 'migrate.php', 'bot.php', 'setup_webhook.php'];
+    if (in_array($script, $allow, true) || strpos($uri, '/api/') !== false) {
+        return;
+    }
+    redirect('/login.php?welcome=1');
+}
+
 // Кол-во требующих внимания админа: новые предложения + заявки на привязку
 function admin_alerts(): int
 {

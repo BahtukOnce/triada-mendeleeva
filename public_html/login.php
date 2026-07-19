@@ -5,12 +5,6 @@ if (current_user()) {
     redirect('/cabinet.php');
 }
 
-// «Продолжить как гость» из приветственного экрана приложения — больше не редиректим
-if (isset($_GET['guest'])) {
-    $_SESSION['guest_ok'] = 1;
-    redirect('/index.php');
-}
-
 $welcome = isset($_GET['welcome']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -62,9 +56,6 @@ page_head('Вход', '');
     </form>
   </div>
   <div class="form-foot">Ещё не в клубе? <a href="/join.php">Подать заявку на вступление</a></div>
-  <?php if ($welcome): ?>
-    <div class="form-foot"><a href="/login.php?guest=1" style="color:var(--tx2);">Продолжить без входа →</a></div>
-  <?php endif; ?>
   <?php $botUser = setting('bot_username'); ?>
   <div class="form-foot" style="font-size:12.5px;line-height:1.55;">
     <b>Забыли пароль?</b><br>
