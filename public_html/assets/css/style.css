@@ -71,9 +71,9 @@ main.container { flex: 1; padding-bottom: 40px; }
   52%, 64% { transform: translateY(-44%) scaleY(1.12); }   /* шляпа сползла — удивлённо смотрит вверх */
   70%, 100% { transform: none; }
 }
-@keyframes logoHat { /* шляпа сползает на лоб (ниже, чуть набок), руки возвращают на место — вверх не уходит */
+@keyframes logoHat { /* шляпа сползает на глаза (поля касаются глаз, чуть набок), руки возвращают на место — вверх не уходит */
   0%, 42% { transform: none; }
-  48%, 56% { transform: translateY(12%) rotate(3deg); }
+  48%, 56% { transform: translateY(8%) rotate(2deg); }
   66% { transform: translateY(1%) rotate(0deg); }
   70%, 100% { transform: none; }
 }
