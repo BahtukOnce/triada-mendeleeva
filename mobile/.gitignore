@@ -11,10 +11,12 @@ android/.idea/
 android/*.iml
 android/app/*.iml
 
-# подписи (никогда не коммитим!)
-*.keystore
-*.jks
-keystore.properties
+# Ключ подписи для сайдлоада КОММИТИМ намеренно (keystore/triada-release.jks +
+# keystore.properties) — иначе обновления не встанут поверх старой версии.
+# Play-ключи (если появятся) сюда класть НЕЛЬЗЯ — только в GitHub Secrets:
+release.keystore
+upload*.jks
+play*.jks
 
 # firebase (добавляется владельцем для push)
 android/app/google-services.json

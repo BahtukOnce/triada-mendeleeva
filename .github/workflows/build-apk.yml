@@ -47,14 +47,14 @@ jobs:
         working-directory: mobile
         run: npx cap sync android
 
-      - name: Сборка debug APK
+      - name: Сборка подписанного APK
         working-directory: mobile/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Переименовать APK
         run: |
           mkdir -p out
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk \
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk \
              out/triada-mendeleeva.apk
 
       - name: Публикация артефакта

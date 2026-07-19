@@ -1,0 +1,100 @@
+name: Релиз приложения
+
+# Собирает ПОДПИСАННЫЙ APK и публикует его в GitHub Releases с тегом app-v<version>.
+# Отсюда приложение (server/version.php → UpdateChecker) берёт обновление.
+#
+# Как выпустить обновление: Actions → «Релиз приложения» → Run workflow →
+# ввести новую версию (например 1.0.1) и, по желанию, описание изменений.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия (semver, напр. 1.0.1)'
+        required: true
+        default: '1.0.1'
+      notes:
+        description: 'Что нового (покажется в приложении)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Гарантировать SDK-пакеты
+        run: |
+          SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Проставить версию
+        id: ver
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          # versionCode = major*10000 + minor*100 + patch (как в build.gradle и version.php)
+          IFS=. read -r MA MI PA <<< "$VERSION"
+          PA=${PA:-0}
+          VC=$(( ${MA:-0}*10000 + ${MI:-0}*100 + ${PA:-0} ))
+          echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
+          sed -i -E "s/versionCode [0-9]+/versionCode ${VC}/" mobile/android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"${VERSION}\"/" mobile/android/app/build.gradle
+          echo "Собираю versionName=$VERSION versionCode=$VC"
+          grep -E "versionCode|versionName" mobile/android/app/build.gradle
+
+      - name: Установка зависимостей
+        working-directory: mobile
+        run: npm ci
+
+      - name: Capacitor sync
+        working-directory: mobile
+        run: npx cap sync android
+
+      - name: Сборка подписанного APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Подготовить файл
+        run: |
+          mkdir -p out
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk \
+             out/triada-mendeleeva.apk
+
+      - name: Публикация релиза
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          NOTES="${{ github.event.inputs.notes }}"
+          [ -z "$NOTES" ] && NOTES="Обновление приложения ${VERSION}."
+          gh release create "app-v${VERSION}" out/triada-mendeleeva.apk \
+            --title "Приложение ${VERSION}" \
+            --notes "$NOTES" \
+            --target "${{ github.sha }}"
+
+      - name: APK как артефакт (дубль)
+        uses: actions/upload-artifact@v4
+        with:
+          name: triada-mendeleeva-apk
+          path: out/triada-mendeleeva.apk

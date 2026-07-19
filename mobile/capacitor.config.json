@@ -6,6 +6,7 @@
   "server": {
     "url": "https://triada-mendeleeva.ru",
     "androidScheme": "https",
+    "errorPath": "error.html",
     "allowNavigation": [
       "triada-mendeleeva.ru",
       "*.triada-mendeleeva.ru"
