@@ -119,7 +119,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=105">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=106">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -179,7 +179,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
             . '<span class="logo-eye2 e2r"><i></i></span>'
             . '</span>';
     } else {
-        echo '<a class="brand" href="/index.php"><span class="logo-anim">' . logo_svg(48) . '</span>';
+        echo '<a class="brand" href="/index.php"><span class="logo-anim">' . logo_svg(60) . '</span>';
     }
     echo '<span class="brand-text"><b>Триада Менделеева</b><i>клуб спортивной мафии · РХТУ</i></span></a>';
 

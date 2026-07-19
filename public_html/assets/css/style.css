@@ -46,7 +46,7 @@ main.container { flex: 1; padding-bottom: 40px; }
    живые глаза: белая склера + тёмный зрачок (цвет фона шапки --sf, дырки прозрачны).
    Цикл ~13с: моргнул → посмотрел влево/вправо → прищурился → подмигнул правым →
    поправил шляпу (шляпа приподнимается, зрачки смотрят вверх). ── */
-.logo-anim { position: relative; display: block; flex: none; width: 48px; aspect-ratio: 527 / 722; }
+.logo-anim { position: relative; display: block; flex: none; width: 60px; aspect-ratio: 527 / 722; }
 .logo-anim .logo-face, .logo-anim .logo-hat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .logo-anim .logo-face { z-index: 1; }
 .logo-anim .logo-hat { z-index: 2; animation: logoHat 13s ease-in-out infinite; transform-origin: 50% 60%; }
@@ -594,6 +594,7 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 /* ── Мобильная версия ──────────────────────────── */
 @media (max-width: 900px) {
   .header-inner { padding: 0 14px; }
+  .logo-anim { width: 52px; }
   .brand-text i { display: none; }
   .suggest-btn { display: none; }
   .tables-grid { grid-template-columns: 1fr !important; }
