@@ -68,21 +68,24 @@ main.container { flex: 1; padding-bottom: 40px; }
   27% { transform: none; }
   31%, 38% { transform: translateX(46%) scaleY(0.72); }    /* вправо, прищур */
   42% { transform: none; }
-  52%, 64% { transform: translateY(-44%) scaleY(1.12); }   /* шляпа сползла — удивлённо смотрит вверх */
-  70%, 100% { transform: none; }
+  50%, 68% { transform: translateY(-44%) scaleY(1.12); }   /* шляпа сползла — удивлённо смотрит вверх */
+  74%, 100% { transform: none; }
 }
-@keyframes logoHat { /* шляпа сползает на глаза (поля касаются глаз, чуть набок), руки возвращают на место — вверх не уходит */
+/* Синхрон рук и шляпы: шляпа ждёт внизу (48–60%), руки берутся за поля к 60%,
+   затем 60→68% шляпа и руки едут вверх ВМЕСТЕ (ход рук ≈ ходу шляпы). */
+@keyframes logoHat {
   0%, 42% { transform: none; }
-  48%, 56% { transform: translateY(8%) rotate(2deg); }
-  66% { transform: translateY(1%) rotate(0deg); }
-  70%, 100% { transform: none; }
+  48%, 60% { transform: translateY(8%) rotate(2deg); }     /* сползла и ждёт рук */
+  66%, 68% { transform: translateY(0%) rotate(0deg); }     /* руки дотолкали на место */
+  100% { transform: none; }
 }
-@keyframes logoArm { /* руки поднимаются к сползшим полям и толкают шляпу обратно вверх */
-  0%, 52% { opacity: 0; transform: translateY(38%); }
-  56% { opacity: 1; transform: translateY(10%); }
-  60%, 64% { opacity: 1; transform: translateY(-4%); }
-  68% { opacity: 1; transform: translateY(10%); }
-  72%, 100% { opacity: 0; transform: translateY(38%); }
+@keyframes logoArm {
+  0%, 50% { opacity: 0; transform: translateY(38%); }
+  54% { opacity: 1; transform: translateY(16%); }          /* поднялись к полям */
+  58%, 60% { opacity: 1; transform: translateY(6%); }      /* взялись за поля */
+  66%, 68% { opacity: 1; transform: translateY(-14%); }    /* толкнули вверх вместе со шляпой */
+  72% { opacity: 1; transform: translateY(2%); }           /* отпустили */
+  76%, 100% { opacity: 0; transform: translateY(38%); }
 }
 @media (prefers-reduced-motion: reduce) {
   .logo-anim .logo-hat, .logo-anim .logo-arm, .logo-eye2 i { animation: none; }
