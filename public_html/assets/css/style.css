@@ -50,11 +50,11 @@ main.container { flex: 1; padding-bottom: 40px; }
 .logo-anim .logo-face, .logo-anim .logo-hat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .logo-anim .logo-face { z-index: 1; }
 /* порядок слоёв: лицо(1) < глаза(2) < шляпа(3) < руки(4) — сползая, шляпа накрывает глаза */
-.logo-anim .logo-hat { z-index: 3; animation: logoHat 13s ease-in-out infinite; transform-origin: 50% 60%; }
+.logo-anim .logo-hat { z-index: 3; animation: logoHat 6.5s ease-in-out infinite; transform-origin: 50% 60%; }
 /* Контейнер руки = весь бокс лого: тогда translateY в keyframes у рук и шляпы
    считается от одной базы, и на участке подъёма им заданы одинаковые значения —
    рассинхрон невозможен. Сама рука позиционируется картинкой внутри. */
-.logo-anim .logo-arm { position: absolute; inset: 0; opacity: 0; z-index: 4; pointer-events: none; animation: logoArm 13s ease-in-out infinite; }
+.logo-anim .logo-arm { position: absolute; inset: 0; opacity: 0; z-index: 4; pointer-events: none; animation: logoArm 6.5s ease-in-out infinite; }
 .logo-anim .logo-arm img { position: absolute; width: 44%; aspect-ratio: 1; top: 24%; display: block; }
 .logo-anim .logo-arm.aL img { left: -13%; }
 .logo-anim .logo-arm.aR img { right: -13%; transform: scaleX(-1); }
@@ -62,7 +62,7 @@ main.container { flex: 1; padding-bottom: 40px; }
 .logo-eye2.e2l { left: 12.2%; top: 49.9%; }  /* центр левой линзы 16.8% / 53.3% */
 .logo-eye2.e2r { left: 66.3%; top: 50.2%; }  /* центр правой линзы 70.9% / 53.6% */
 .logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; }
-.logo-eye2 i { animation: logoScan 13s ease-in-out infinite; }
+.logo-eye2 i { animation: logoScan 6.5s ease-in-out infinite; }
 @keyframes logoScan { /* высматривает влево/вправо с прищуром, затем удивлённо вверх на шляпу */
   0%, 5% { transform: none; }
   7% { transform: scaleY(0.08); }                          /* моргнул */
