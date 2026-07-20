@@ -173,8 +173,8 @@ function page_head(string $title, string $active = '', array $meta = []): void
         && is_file(ROOT . '/public_html/assets/img/logo_face.svg');
     if ($hasLayers) {
         echo '<a class="brand" href="/index.php"><span class="logo-anim" aria-hidden="true">'
-            . '<img class="logo-face" src="/assets/img/logo_face.svg?v=4" alt="">'
-            . '<img class="logo-hat" src="/assets/img/logo_hat.svg?v=4" alt="">'
+            . '<img class="logo-face" src="/assets/img/logo_face.svg?v=5" alt="">'
+            . '<img class="logo-hat" src="/assets/img/logo_hat.svg?v=5" alt="">'
             . '<span class="logo-arm aL"><img src="/assets/img/logo_arm.svg?v=1" alt=""></span>'
             . '<span class="logo-arm aR"><img src="/assets/img/logo_arm.svg?v=1" alt=""></span>'
             . '<span class="logo-eye2 e2l"><i></i></span>'
