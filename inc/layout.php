@@ -119,7 +119,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=110">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=111">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -184,6 +184,59 @@ function page_head(string $title, string $active = '', array $meta = []): void
         echo '<a class="brand" href="/index.php"><span class="logo-anim">' . logo_svg(60) . '</span>';
     }
     echo '<span class="brand-text"><b>Триада Менделеева</b><i>клуб спортивной мафии · РХТУ</i></span></a>';
+
+    // Плеер сцен лого: по кругу s-hat/s-wink/s-dream/s-sus с паузой между сценами.
+    // Между сценами на десктопе зрачки следят за курсором (mousemove + rAF, дёшево).
+    // prefers-reduced-motion — ничего не запускаем.
+    if ($hasLayers) {
+        echo <<<'LOGOJS'
+<script>
+(function(){
+  var a = document.querySelector('.logo-anim');
+  if (!a || !a.querySelector('.logo-eye2')) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var eyes = a.querySelectorAll('.logo-eye2');
+  function clearPupils(){
+    for (var k = 0; k < eyes.length; k++){
+      var p = eyes[k].querySelector('i');
+      if (p) p.style.transform = '';
+    }
+  }
+  var scenes = [['s-hat',6500],['s-wink',2400],['s-dream',5400],['s-sus',3800]];
+  var idx = 0, busy = false, PAUSE = 6000;
+  function play(){
+    var s = scenes[idx % scenes.length]; idx++;
+    busy = true; clearPupils();
+    a.classList.add(s[0]);
+    setTimeout(function(){
+      a.classList.remove(s[0]); busy = false;
+      setTimeout(play, PAUSE);
+    }, s[1]);
+  }
+  setTimeout(play, PAUSE);
+  if (window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches){
+    var raf = 0, mx = 0, my = 0;
+    function apply(){
+      raf = 0;
+      if (busy) return;
+      for (var k = 0; k < eyes.length; k++){
+        var eye = eyes[k], r = eye.getBoundingClientRect();
+        var cx = r.left + r.width/2, cy = r.top + r.height/2;
+        var dx = mx - cx, dy = my - cy, d = Math.hypot(dx, dy) || 1;
+        var reach = Math.min(1, d/(r.width*3)), m = r.width * 0.22 * reach;
+        var p = eye.querySelector('i');
+        if (p) p.style.transform = 'translate(' + (dx/d*m).toFixed(2) + 'px,' + (dy/d*m).toFixed(2) + 'px)';
+      }
+    }
+    window.addEventListener('mousemove', function(e){
+      mx = e.clientX; my = e.clientY;
+      if (!raf) raf = requestAnimationFrame(apply);
+    }, {passive:true});
+  }
+})();
+</script>
+LOGOJS;
+    }
 
     echo '<button class="burger" id="nav-burger" aria-label="Меню" aria-expanded="false"><span></span><span></span><span></span></button>';
 

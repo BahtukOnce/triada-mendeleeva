@@ -50,50 +50,103 @@ main.container { flex: 1; padding-bottom: 40px; }
 .logo-anim .logo-face, .logo-anim .logo-hat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .logo-anim .logo-face { z-index: 1; }
 /* порядок слоёв: лицо(1) < глаза(2) < шляпа(3) < руки(4) — сползая, шляпа накрывает глаза */
-.logo-anim .logo-hat { z-index: 3; animation: logoHat 11s ease-in-out infinite; transform-origin: 50% 60%; }
+.logo-anim .logo-hat { z-index: 3; transform-origin: 50% 60%; }
 /* Контейнер руки = весь бокс лого: тогда translateY в keyframes у рук и шляпы
    считается от одной базы, и на участке подъёма им заданы одинаковые значения —
    рассинхрон невозможен. Сама рука позиционируется картинкой внутри. */
-.logo-anim .logo-arm { position: absolute; inset: 0; opacity: 0; z-index: 4; pointer-events: none; animation: logoArm 11s ease-in-out infinite; }
+.logo-anim .logo-arm { position: absolute; inset: 0; opacity: 0; z-index: 4; pointer-events: none; }
 .logo-anim .logo-arm img { position: absolute; width: 44%; aspect-ratio: 1; top: 24%; display: block; }
 .logo-anim .logo-arm.aL img { left: -13%; }
 .logo-anim .logo-arm.aR img { right: -13%; transform: scaleX(-1); }
 .logo-eye2 { position: absolute; width: 9.2%; aspect-ratio: 1; background: #fff; border-radius: 50%; pointer-events: none; z-index: 2; }
 .logo-eye2.e2l { left: 12.2%; top: 49.9%; }  /* центр левой линзы 16.8% / 53.3% */
 .logo-eye2.e2r { left: 66.3%; top: 50.2%; }  /* центр правой линзы 70.9% / 53.6% */
-.logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; }
-.logo-eye2 i { animation: logoScan 11s ease-in-out infinite; }
-/* Цикл 11с = действие ~6.5с (как раньше) + пауза ~4.5с. Проценты сжаты множителем 6.5/11. */
+.logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; transition: transform 0.1s ease-out; }
+
+/* ── Сцены лого ─────────────────────────────────────
+   Запускает JS в layout.php: классы s-hat/s-dream/s-wink/s-sus на .logo-anim по кругу
+   с паузой между сценами. Между сценами на десктопе зрачки следят за курсором
+   (inline transform от JS; во время сцены keyframes его переопределяют). */
+.logo-anim.s-hat .logo-hat { animation: logoHat 6.5s ease-in-out; }
+.logo-anim.s-hat .logo-arm { animation: logoArm 6.5s ease-in-out; }
+.logo-anim.s-hat .logo-eye2 i { animation: logoScan 6.5s ease-in-out; transition: none; }
 @keyframes logoScan { /* высматривает влево/вправо с прищуром, затем удивлённо вверх на шляпу */
-  0%, 3% { transform: none; }
-  4.1% { transform: scaleY(0.08); }                            /* моргнул */
-  5.3%, 7.1% { transform: none; }
-  9.5%, 13.6% { transform: translateX(-46%) scaleY(0.72); }    /* высматривает влево, прищур */
-  16% { transform: none; }
-  18.3%, 22.5% { transform: translateX(46%) scaleY(0.72); }    /* вправо, прищур */
-  24.8% { transform: none; }
-  29.5%, 40.2% { transform: translateY(-44%) scaleY(1.12); }   /* шляпа сползла — удивлённо вверх */
-  43.7%, 100% { transform: none; }
+  0%, 5% { transform: none; }
+  7% { transform: scaleY(0.08); }                          /* моргнул */
+  9%, 12% { transform: none; }
+  16%, 23% { transform: translateX(-46%) scaleY(0.72); }   /* высматривает влево, прищур */
+  27% { transform: none; }
+  31%, 38% { transform: translateX(46%) scaleY(0.72); }    /* вправо, прищур */
+  42% { transform: none; }
+  50%, 68% { transform: translateY(-44%) scaleY(1.12); }   /* шляпа сползла — удивлённо вверх */
+  74%, 100% { transform: none; }
 }
-/* Синхрон рук и шляпы: шляпа ждёт внизу, руки берутся за поля, затем едут вверх ВМЕСТЕ
-   (одна база % и одинаковые значения 8%->0% на 35.5-40.2%). */
+/* Синхрон рук и шляпы: одна база % и одинаковые значения 8%->0% на 60-68%. */
 @keyframes logoHat {
-  0%, 24.8% { transform: none; }
-  28.4%, 35.5% { transform: translateY(8%) rotate(2deg); }     /* сползла и ждёт рук */
-  39%, 40.2% { transform: translateY(0%) rotate(0deg); }       /* руки дотолкали на место */
+  0%, 42% { transform: none; }
+  48%, 60% { transform: translateY(8%) rotate(2deg); }     /* сползла и ждёт рук */
+  66%, 68% { transform: translateY(0%) rotate(0deg); }     /* руки дотолкали на место */
   100% { transform: none; }
 }
 @keyframes logoArm { /* появление/уход мгновенные (~130мс) и внизу — не висит серым у шляпы */
-  0%, 31.3% { opacity: 0; transform: translateY(22%); }
-  31.9% { opacity: 1; transform: translateY(19%); }            /* появились внизу */
-  34.3%, 35.5% { opacity: 1; transform: translateY(8%); }      /* взялись: смещение = смещению шляпы */
-  39%, 40.2% { opacity: 1; transform: translateY(0%); }        /* приехали вместе со шляпой */
-  42% { opacity: 1; transform: translateY(6%); }               /* отпустили */
-  43.7% { opacity: 1; transform: translateY(18%); }            /* ушли вниз */
-  44.3%, 100% { opacity: 0; transform: translateY(22%); }
+  0%, 53% { opacity: 0; transform: translateY(22%); }
+  54% { opacity: 1; transform: translateY(19%); }
+  58%, 60% { opacity: 1; transform: translateY(8%); }      /* взялись: смещение = смещению шляпы */
+  66%, 68% { opacity: 1; transform: translateY(0%); }      /* приехали вместе со шляпой */
+  71% { opacity: 1; transform: translateY(6%); }
+  74% { opacity: 1; transform: translateY(18%); }
+  75%, 100% { opacity: 0; transform: translateY(22%); }
 }
+
+/* «Задремал»: глаза слипаются, шляпа сползает… вздрогнул, руки вернули шляпу */
+.logo-anim.s-dream .logo-hat { animation: logoDreamHat 5.4s ease-in-out; }
+.logo-anim.s-dream .logo-arm { animation: logoDreamArm 5.4s ease-in-out; }
+.logo-anim.s-dream .logo-eye2 i { animation: logoDreamEye 5.4s ease-in-out; transition: none; }
+@keyframes logoDreamEye {
+  0%, 8% { transform: none; }
+  34% { transform: translateY(16%) scaleY(0.42); }
+  46% { transform: translateY(20%) scaleY(0.3); }
+  49% { transform: translateY(-20%) scaleY(1.18); }        /* вздрогнул */
+  53%, 74% { transform: translateY(-44%) scaleY(1.18); }
+  82%, 89% { transform: none; }
+  91% { transform: scaleY(0.08); }                         /* виноватое моргание */
+  93%, 100% { transform: none; }
+}
+@keyframes logoDreamHat {
+  0%, 12% { transform: none; }
+  44% { transform: translateY(6.5%) rotate(1.8deg); }
+  49%, 58% { transform: translateY(7.5%) rotate(2.2deg); }
+  70%, 100% { transform: none; }
+}
+@keyframes logoDreamArm {
+  0%, 51% { opacity: 0; transform: translateY(22%); }
+  52% { opacity: 1; transform: translateY(19%); }
+  56%, 58% { opacity: 1; transform: translateY(7.5%); }
+  70%, 72% { opacity: 1; transform: translateY(0%); }
+  76% { opacity: 1; transform: translateY(6%); }
+  79% { opacity: 1; transform: translateY(18%); }
+  80%, 100% { opacity: 0; transform: translateY(22%); }
+}
+
+/* «Подмигнул»: только правый глаз */
+.logo-anim.s-wink .logo-eye2.e2r i { animation: logoWinkEye 2.4s ease-in-out; transition: none; }
+@keyframes logoWinkEye {
+  0%, 28% { transform: none; }
+  34%, 46% { transform: scaleY(0.05); }
+  54%, 100% { transform: none; }
+}
+
+/* «Подозрительный взгляд»: медленно влево с прищуром, рывок вправо, назад */
+.logo-anim.s-sus .logo-eye2 i { animation: logoSusEye 3.8s ease-in-out; transition: none; }
+@keyframes logoSusEye {
+  0%, 7% { transform: none; }
+  24%, 46% { transform: translateX(-46%) scaleY(0.6); }
+  50%, 72% { transform: translateX(46%) scaleY(0.6); }
+  80%, 100% { transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .logo-anim .logo-hat, .logo-anim .logo-arm, .logo-eye2 i { animation: none; }
+  .logo-anim .logo-hat, .logo-anim .logo-arm, .logo-eye2 i { animation: none !important; transition: none; }
 }
 
 .nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
