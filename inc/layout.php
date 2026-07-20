@@ -203,7 +203,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     }
   }
   var scenes = [['s-hat',6500],['s-wink',2400],['s-dream',5400],['s-sus',3800]];
-  var idx = 0, busy = false, PAUSE = 6000;
+  var idx = 0, busy = false, PAUSE = 10000;
   function play(){
     var s = scenes[idx % scenes.length]; idx++;
     busy = true; clearPupils();
