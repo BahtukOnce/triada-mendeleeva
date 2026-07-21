@@ -59,9 +59,11 @@ main.container { flex: 1; padding-bottom: 40px; }
 .logo-anim .logo-arm.aL img { left: -13%; }
 .logo-anim .logo-arm.aR img { right: -13%; transform: scaleX(-1); }
 .logo-eye2 { position: absolute; width: 9.2%; aspect-ratio: 1; background: #fff; border-radius: 50%; pointer-events: none; z-index: 2; }
-.logo-eye2.e2l { left: 12.2%; top: 49.9%; }  /* центр левой линзы 16.8% / 53.3% */
-.logo-eye2.e2r { left: 66.3%; top: 50.2%; }  /* центр правой линзы 70.9% / 53.6% */
-.logo-eye2 i { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; background: var(--sf); border-radius: 50%; display: block; transition: transform 0.1s ease-out; }
+.logo-eye2.e2l { left: 12.2%; top: 49.95%; }  /* центр левой линзы 16.78% / 53.31% */
+.logo-eye2.e2r { left: 66.3%; top: 50.25%; }  /* центр правой линзы 70.88% / 53.61% */
+/* Зрачок 56% (не 52%): полностью накрывает прозрачную дырку кольца (26px против 27.2px),
+   иначе вокруг зрачка сквозит тёмный фон серпом и глаза кажутся разного размера. */
+.logo-eye2 i { position: absolute; left: 22%; top: 22%; width: 56%; height: 56%; background: var(--sf); border-radius: 50%; display: block; transition: transform 0.1s ease-out; }
 
 /* ── Сцены лого ─────────────────────────────────────
    Запускает JS в layout.php: классы s-hat/s-dream/s-wink/s-sus на .logo-anim по кругу
