@@ -88,7 +88,8 @@ function page_head(string $title, string $active = '', array $meta = []): void
     }
 
     echo '<!doctype html><html lang="ru" data-theme="dark"><head><meta charset="utf-8">';
-    echo '<meta name="viewport" content="width=device-width, initial-scale=1">' . "\n";
+    echo '<meta name="viewport" content="width=device-width, initial-scale=1'
+        . (is_app() ? ', viewport-fit=cover' : '') . '">' . "\n";
     echo $robots;
     $titleTag = trim((string)($meta['title_tag'] ?? '')) ?: ($title . ' — Триада Менделеева');
     echo '<title>' . esc($titleTag) . '</title>';
@@ -119,7 +120,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=112">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=113">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -161,7 +162,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
             . json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
             . '</script>';
     }
-    echo '</head><body>';
+    echo '</head><body' . (is_app() ? ' class="app"' : '') . '>';
 
     echo '<header class="site-header"><div class="header-inner header-row">';
     // «Живое» лого (только в шапке): PNG распилен на слои шляпа/лицо, поверх колец-«линз» —
@@ -334,7 +335,29 @@ function page_foot(): void
        . '<a class="soc vk" href="https://vk.com/triada_mendeleev" rel="noopener" target="_blank" aria-label="VK" title="VK">' . $vkIcon . '</a>'
        . '</span>';
     echo '</div></footer>';
+
+    // Мобильное приложение: нижняя таб-навигация (только для вошедших — гость видит вход).
+    if (is_app() && ($appUser = current_user())) {
+        $ic = [
+            'home'  => '<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>',
+            'games' => '<svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><path d="M8 3v3M16 3v3"/></svg>',
+            'rank'  => '<svg viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 0 1-12 0z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/><path d="M12 13v4M9 21h6M10 17h4"/></svg>',
+            'user'  => '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
+            'more'  => '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+        ];
+        echo '<nav class="tabbar" aria-label="Навигация приложения">'
+            . '<a href="/index.php" data-match="/index.php,/">' . $ic['home'] . '<span class="t-lbl">Главная</span></a>'
+            . '<a href="/days.php" data-match="/days.php">' . $ic['games'] . '<span class="t-lbl">Игры</span></a>'
+            . '<a href="/rating.php" data-match="/rating.php">' . $ic['rank'] . '<span class="t-lbl">Рейтинг</span></a>'
+            . '<a href="/cabinet.php" data-match="/cabinet.php">' . $ic['user'] . '<span class="t-lbl">Профиль</span></a>'
+            . '<button type="button" id="tab-more">' . $ic['more'] . '<span class="t-lbl">Ещё</span></button>'
+            . '</nav>';
+    }
+
     echo '<script src="/assets/js/app.js?v=21"></script>';
+    if (is_app()) {
+        echo '<script src="/assets/js/app-native.js?v=1"></script>';
+    }
     echo '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
     echo '</body></html>';
 }
