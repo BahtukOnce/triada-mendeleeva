@@ -47,6 +47,30 @@ jobs:
         working-directory: mobile
         run: npx cap sync android
 
+      # Ключ подписи больше НЕ лежит в репозитории (был утёчкой: репо публичный).
+      # Он приходит из Secrets и существует только внутри одноразового раннера.
+      - name: Ключ подписи из Secrets
+        env:
+          KS_B64:   ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS:  ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "::error::Нет секрета ANDROID_KEYSTORE_B64 — подписывать APK нечем."
+            echo "Заведите секреты: Settings → Secrets and variables → Actions (инструкция — mobile/KEYSTORE.md)."
+            exit 1
+          fi
+          mkdir -p mobile/android/keystore
+          printf '%s' "$KS_B64" | tr -d '\n\r ' | base64 -d > mobile/android/keystore/triada-release.jks
+          {
+            printf 'storeFile=keystore/triada-release.jks\n'
+            printf 'storePassword=%s\n' "$KS_PASS"
+            printf 'keyAlias=%s\n' "${KS_ALIAS:-triada}"
+            printf 'keyPassword=%s\n' "${KEY_PASS:-$KS_PASS}"
+          } > mobile/android/keystore.properties
+          echo "Ключ подписи готов ($(stat -c%s mobile/android/keystore/triada-release.jks) Б)."
+
       - name: Сборка подписанного APK
         working-directory: mobile/android
         run: ./gradlew assembleRelease --no-daemon --stacktrace

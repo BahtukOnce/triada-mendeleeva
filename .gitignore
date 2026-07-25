@@ -4,3 +4,11 @@
 deploy.log
 public_html/uploads/
 /storage/
+
+# Ключ подписи Android НИКОГДА не коммитим: репозиторий публичный, а из ключа
+# собирается APK, который телефон принимает как обновление настоящего приложения.
+# В CI ключ приходит из GitHub Secrets (см. mobile/KEYSTORE.md).
+mobile/android/keystore.properties
+mobile/android/keystore/
+*.jks
+*.keystore
