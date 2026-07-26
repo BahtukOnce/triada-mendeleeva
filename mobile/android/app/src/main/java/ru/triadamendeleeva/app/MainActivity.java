@@ -13,7 +13,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {          // в BridgeActivity метод public — понижать видимость нельзя
         super.onResume();
         // Вернулись из настроек, где выдавали разрешение на установку — продолжаем
         // прерванное обновление, чтобы не перезапускать приложение вручную.
