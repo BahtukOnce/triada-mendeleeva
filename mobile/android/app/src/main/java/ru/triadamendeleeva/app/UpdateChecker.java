@@ -228,21 +228,120 @@ public class UpdateChecker {
         return lp;
     }
 
+    // Отложенное обновление: пользователь ушёл в настройки давать разрешение на
+    // установку. Возвращается — resumePending() (из MainActivity.onResume) сам
+    // продолжает загрузку, чтобы не пришлось перезапускать приложение и жать «Обновить» снова.
+    private static String pendUrl, pendName, pendNotes;
+
     private static void startUpdate(final Activity activity, String url, String name, String notes) {
         // Разрешение «установка неизвестных приложений» (Android 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 && !activity.getPackageManager().canRequestPackageInstalls()) {
-            Toast.makeText(activity,
-                    "Разрешите установку из этого приложения и нажмите «Обновить» ещё раз",
-                    Toast.LENGTH_LONG).show();
-            try {
-                Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:" + activity.getPackageName()));
-                activity.startActivity(i);
-            } catch (Throwable ignored) {}
+            pendUrl = url; pendName = name; pendNotes = notes;
+            askInstallPermission(activity);
             return;
         }
+        pendUrl = null;
         downloadBranded(activity, url, name, notes);
+    }
+
+    /**
+     * Вызывается из MainActivity.onResume(): если пользователь уходил выдавать
+     * разрешение и выдал его — сразу продолжаем прерванное обновление.
+     */
+    public static void resumePending(final Activity activity) {
+        if (pendUrl == null || activity.isFinishing()) return;
+        boolean allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                || activity.getPackageManager().canRequestPackageInstalls();
+        if (!allowed) return;                 // разрешение так и не дали — ждём дальше
+        final String u = pendUrl, n = pendName, nt = pendNotes;
+        pendUrl = null; pendName = null; pendNotes = null;
+        // небольшая задержка: окно настроек ещё закрывается
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override public void run() {
+                if (!activity.isFinishing()) downloadBranded(activity, u, n == null ? "" : n, nt == null ? "" : nt);
+            }
+        }, 400);
+    }
+
+    /** Фирменное объяснение, зачем нужно разрешение, вместо системного тоста. */
+    private static void askInstallPermission(final Activity activity) {
+        if (activity.isFinishing()) return;
+        final Runnable openSettings = new Runnable() {
+            @Override public void run() {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:" + activity.getPackageName()));
+                    activity.startActivity(i);
+                } catch (Throwable t) {
+                    try { activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)); }
+                    catch (Throwable ignored) {
+                        Toast.makeText(activity, "Откройте настройки → Установка неизвестных приложений",
+                                Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
+        };
+        try {
+            final float dp = activity.getResources().getDisplayMetrics().density;
+            LinearLayout card = new LinearLayout(activity);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackground(roundedCard(dp));
+            int pad = Math.round(24 * dp);
+            card.setPadding(pad, Math.round(22 * dp), pad, Math.round(18 * dp));
+
+            TextView title = new TextView(activity);
+            title.setText("Нужно одно разрешение");
+            title.setTextColor(C_TX);
+            title.setTextSize(18.5f);
+            title.setGravity(Gravity.CENTER);
+            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+            card.addView(title, wrap(Gravity.CENTER_HORIZONTAL, 0, 0, dp));
+
+            TextView body = new TextView(activity);
+            body.setText("Приложение обновляется само, минуя Google Play, поэтому Android просит "
+                    + "разрешить установку из «Триады». Включите переключатель и вернитесь — "
+                    + "загрузка продолжится сама.");
+            body.setTextColor(C_TX2);
+            body.setTextSize(14.5f);
+            body.setLineSpacing(Math.round(4 * dp), 1f);
+            card.addView(body, wrap(Gravity.START, 12, 0, dp));
+
+            LinearLayout row = new LinearLayout(activity);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.END);
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rowLp.topMargin = Math.round(20 * dp);
+            card.addView(row, rowLp);
+
+            final Dialog dlg = new Dialog(activity);
+            dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+
+            TextView later = brandButton(activity, dp, "Позже", false);
+            later.setOnClickListener(v -> {
+                pendUrl = null;                   // передумал — ничего не ждём
+                try { dlg.dismiss(); } catch (Throwable ignored) {}
+            });
+            row.addView(later);
+
+            TextView go = brandButton(activity, dp, "Настройки", true);
+            go.setOnClickListener(v -> {
+                try { dlg.dismiss(); } catch (Throwable ignored) {}
+                openSettings.run();
+            });
+            LinearLayout.LayoutParams goLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            goLp.leftMargin = Math.round(10 * dp);
+            row.addView(go, goLp);
+
+            dlg.setContentView(card);
+            dlg.setCancelable(true);
+            styleWindow(dlg, activity, dp);
+            dlg.show();
+        } catch (Throwable t) {
+            openSettings.run();               // не смогли показать диалог — ведём прямо в настройки
+        }
     }
 
     /** Фирменный полноэкранный экран загрузки + скачивание APK внутри приложения. */

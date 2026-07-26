@@ -20,8 +20,6 @@ $android = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" 
   .app-dl-sub { color: var(--tx2); margin: 0 auto 22px; max-width: 460px; }
   .app-dl-btn { display: inline-flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700;
     padding: 14px 26px; border-radius: 14px; }
-  .app-dl-hint { color: var(--tx3, var(--tx2)); font-size: 13px; margin: 14px 0 0; }
-  .app-dl-hint b { color: var(--tx); }
   .app-dl-card { text-align: left; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px;
     padding: 18px 20px; margin: 26px 0 0; }
   .app-dl-card h3 { margin: 0 0 10px; font-size: 15px; }
@@ -36,8 +34,6 @@ $android = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" 
   <p class="app-dl-sub">Тот же клуб, но как приложение: своя иконка на экране, полноэкранный режим, нижняя навигация и обновления прямо внутри — без Google Play.</p>
 
   <a class="btn app-dl-btn" href="/app/download.php" rel="nofollow"><?= $android ?> Скачать APK</a>
-
-  <p class="app-dl-hint">С компьютера — открой эту страницу на телефоне: <b>triada-mendeleeva.ru/app.php</b></p>
 
   <div class="app-dl-card">
     <h3>Как установить</h3>

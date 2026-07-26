@@ -11,4 +11,12 @@ public class MainActivity extends BridgeActivity {
         // Проверка обновлений «внутри приложения» (см. UpdateChecker)
         UpdateChecker.check(this);
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Вернулись из настроек, где выдавали разрешение на установку — продолжаем
+        // прерванное обновление, чтобы не перезапускать приложение вручную.
+        UpdateChecker.resumePending(this);
+    }
 }
