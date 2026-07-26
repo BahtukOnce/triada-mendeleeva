@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -19,7 +20,6 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.FileProvider;
 
 import org.json.JSONObject;
@@ -82,19 +82,156 @@ public class UpdateChecker {
         }).start();
     }
 
+    // ── Фирменные цвета (те же, что у сайта: --bg/--sf/--bd/--ac/--tx/--tx2) ──
+    private static final int C_BG     = Color.parseColor("#0e0e11");
+    private static final int C_CARD   = Color.parseColor("#17171d");
+    private static final int C_BORDER = Color.parseColor("#2e2e38");
+    private static final int C_ACCENT = Color.parseColor("#e8332a");
+    private static final int C_TX     = Color.parseColor("#ececed");
+    private static final int C_TX2    = Color.parseColor("#9a9aa2");
+
+    /** Диалог «Доступно обновление» в фирменном стиле (вместо системного серого). */
     private static void showDialog(final Activity activity, String name, String notes, final String url) {
         if (activity.isFinishing()) return;
-        StringBuilder msg = new StringBuilder();
-        if (!name.isEmpty()) msg.append("Версия ").append(name).append("\n\n");
-        msg.append(notes.isEmpty() ? "Доступна новая версия приложения." : notes);
+        final float dp = activity.getResources().getDisplayMetrics().density;
 
-        new AlertDialog.Builder(activity)
-                .setTitle("Доступно обновление")
-                .setMessage(msg.toString())
-                .setCancelable(true)
-                .setPositiveButton("Обновить", (d, w) -> startUpdate(activity, url))
-                .setNegativeButton("Позже", null)
-                .show();
+        LinearLayout card = new LinearLayout(activity);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(roundedCard(dp));
+        int pad = Math.round(24 * dp);
+        card.setPadding(pad, Math.round(26 * dp), pad, Math.round(18 * dp));
+
+        // Логотип клуба
+        ImageView logo = new ImageView(activity);
+        try {
+            logo.setImageResource(R.drawable.update_logo);
+        } catch (Throwable t) {
+            try { logo.setImageDrawable(activity.getPackageManager().getApplicationIcon(activity.getPackageName())); }
+            catch (Throwable ignored) {}
+        }
+        LinearLayout.LayoutParams logoLp =
+                new LinearLayout.LayoutParams(Math.round(62 * dp), Math.round(84 * dp));
+        logoLp.gravity = Gravity.CENTER_HORIZONTAL;
+        logoLp.bottomMargin = Math.round(14 * dp);
+        card.addView(logo, logoLp);
+
+        TextView title = new TextView(activity);
+        title.setText("Доступно обновление");
+        title.setTextColor(C_TX);
+        title.setTextSize(20);
+        title.setGravity(Gravity.CENTER);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        card.addView(title, wrap(Gravity.CENTER_HORIZONTAL, 0, 0, dp));
+
+        if (!name.isEmpty()) {
+            TextView ver = new TextView(activity);
+            ver.setText("Версия " + name);
+            ver.setTextColor(C_ACCENT);
+            ver.setTextSize(13.5f);
+            ver.setGravity(Gravity.CENTER);
+            card.addView(ver, wrap(Gravity.CENTER_HORIZONTAL, 5, 0, dp));
+        }
+
+        // Разделитель
+        View div = new View(activity);
+        div.setBackgroundColor(C_BORDER);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Math.round(dp)));
+        divLp.topMargin = Math.round(16 * dp);
+        divLp.bottomMargin = Math.round(14 * dp);
+        card.addView(div, divLp);
+
+        TextView body = new TextView(activity);
+        body.setText(notes.isEmpty() ? "Доступна новая версия приложения." : notes);
+        body.setTextColor(C_TX2);
+        body.setTextSize(14.5f);
+        body.setLineSpacing(Math.round(4 * dp), 1f);
+        card.addView(body, wrap(Gravity.START, 0, 0, dp));
+
+        // Кнопки: «Позже» призрачная, «Обновить» — красная
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.END);
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.topMargin = Math.round(20 * dp);
+        card.addView(row, rowLp);
+
+        final Dialog dlg = new Dialog(activity);
+        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+
+        TextView later = brandButton(activity, dp, "Позже", false);
+        later.setOnClickListener(v -> { try { dlg.dismiss(); } catch (Throwable ignored) {} });
+        row.addView(later);
+
+        TextView upd = brandButton(activity, dp, "Обновить", true);
+        upd.setOnClickListener(v -> {
+            try { dlg.dismiss(); } catch (Throwable ignored) {}
+            startUpdate(activity, url);
+        });
+        LinearLayout.LayoutParams updLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        updLp.leftMargin = Math.round(10 * dp);
+        row.addView(upd, updLp);
+
+        dlg.setContentView(card);
+        dlg.setCancelable(true);
+        dlg.setCanceledOnTouchOutside(true);
+        styleWindow(dlg, activity, dp);
+        try { dlg.show(); } catch (Throwable ignored) {}
+    }
+
+    /** Карточка диалога: тёмный фон, скругление, тонкая рамка. */
+    private static android.graphics.drawable.GradientDrawable roundedCard(float dp) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setColor(C_CARD);
+        g.setCornerRadius(18 * dp);
+        g.setStroke(Math.max(1, Math.round(dp)), C_BORDER);
+        return g;
+    }
+
+    /** Кнопка в стиле сайта: primary — красная заливка, иначе призрачная с рамкой. */
+    private static TextView brandButton(Activity activity, float dp, String text, boolean primary) {
+        TextView b = new TextView(activity);
+        b.setText(text);
+        b.setTextSize(14.5f);
+        b.setGravity(Gravity.CENTER);
+        b.setTypeface(b.getTypeface(), android.graphics.Typeface.BOLD);
+        b.setTextColor(primary ? Color.WHITE : C_TX2);
+        int px = Math.round(20 * dp), py = Math.round(11 * dp);
+        b.setPadding(px, py, px, py);
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setCornerRadius(11 * dp);
+        if (primary) {
+            g.setColor(C_ACCENT);
+        } else {
+            g.setColor(Color.TRANSPARENT);
+            g.setStroke(Math.max(1, Math.round(dp)), C_BORDER);
+        }
+        b.setBackground(g);
+        b.setClickable(true);
+        b.setFocusable(true);
+        return b;
+    }
+
+    /** Прозрачное окно с затемнением + ширина карточки под экран (макс. 360dp). */
+    private static void styleWindow(Dialog dlg, Activity activity, float dp) {
+        android.view.Window w = dlg.getWindow();
+        if (w == null) return;
+        w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        w.setDimAmount(0.78f);
+        int screen = activity.getResources().getDisplayMetrics().widthPixels;
+        int want = Math.min(screen - Math.round(48 * dp), Math.round(360 * dp));
+        w.setLayout(want, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    private static LinearLayout.LayoutParams wrap(int gravity, int topDp, int bottomDp, float dp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = gravity;
+        lp.topMargin = Math.round(topDp * dp);
+        lp.bottomMargin = Math.round(bottomDp * dp);
+        return lp;
     }
 
     private static void startUpdate(final Activity activity, String url) {
@@ -121,7 +258,7 @@ public class UpdateChecker {
         LinearLayout root = new LinearLayout(activity);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
-        root.setBackgroundColor(Color.parseColor("#0e0e11"));
+        root.setBackgroundColor(C_BG);
         int pad = Math.round(28 * dp);
         root.setPadding(pad, pad, pad, pad);
 
@@ -139,14 +276,14 @@ public class UpdateChecker {
 
         TextView wait = new TextView(activity);
         wait.setText("Пожалуйста, подождите");
-        wait.setTextColor(Color.WHITE);
+        wait.setTextColor(C_TX);
         wait.setTextSize(18);
         wait.setGravity(Gravity.CENTER);
         root.addView(wait);
 
         TextView sub = new TextView(activity);
         sub.setText("Загрузка обновления…");
-        sub.setTextColor(Color.parseColor("#9a9aa2"));
+        sub.setTextColor(C_TX2);
         sub.setTextSize(13);
         sub.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
@@ -158,12 +295,18 @@ public class UpdateChecker {
         final ProgressBar prog = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         prog.setMax(100);
         prog.setIndeterminate(true);
+        // Полоса прогресса — фирменным красным, а не системным бирюзовым
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            prog.setProgressTintList(android.content.res.ColorStateList.valueOf(C_ACCENT));
+            prog.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(C_ACCENT));
+            prog.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(C_BORDER));
+        }
         LinearLayout.LayoutParams progLp = new LinearLayout.LayoutParams(
                 Math.round(220 * dp), ViewGroup.LayoutParams.WRAP_CONTENT);
         root.addView(prog, progLp);
 
         final TextView pct = new TextView(activity);
-        pct.setTextColor(Color.parseColor("#9a9aa2"));
+        pct.setTextColor(C_TX2);
         pct.setTextSize(12);
         pct.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams pctLp = new LinearLayout.LayoutParams(
@@ -175,7 +318,7 @@ public class UpdateChecker {
         dlg.setContentView(root);
         dlg.setCancelable(false);
         if (dlg.getWindow() != null) {
-            dlg.getWindow().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#0e0e11")));
+            dlg.getWindow().setBackgroundDrawable(new ColorDrawable(C_BG));
         }
         try { dlg.show(); } catch (Throwable ignored) {}
 
@@ -263,15 +406,58 @@ public class UpdateChecker {
     private static void fallback(final Activity activity, final String url) {
         if (activity.isFinishing()) return;
         try {
-            new AlertDialog.Builder(activity)
-                    .setTitle("Не удалось скачать")
-                    .setMessage("Открыть страницу загрузки в браузере?")
-                    .setPositiveButton("Открыть", (d, w) -> {
-                        try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
-                        catch (Throwable ignored) {}
-                    })
-                    .setNegativeButton("Отмена", null)
-                    .show();
+            final float dp = activity.getResources().getDisplayMetrics().density;
+            LinearLayout card = new LinearLayout(activity);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackground(roundedCard(dp));
+            int pad = Math.round(24 * dp);
+            card.setPadding(pad, Math.round(22 * dp), pad, Math.round(18 * dp));
+
+            TextView title = new TextView(activity);
+            title.setText("Не удалось скачать");
+            title.setTextColor(C_TX);
+            title.setTextSize(18.5f);
+            title.setGravity(Gravity.CENTER);
+            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+            card.addView(title, wrap(Gravity.CENTER_HORIZONTAL, 0, 0, dp));
+
+            TextView body = new TextView(activity);
+            body.setText("Открыть страницу загрузки в браузере?");
+            body.setTextColor(C_TX2);
+            body.setTextSize(14.5f);
+            body.setGravity(Gravity.CENTER);
+            card.addView(body, wrap(Gravity.CENTER_HORIZONTAL, 10, 0, dp));
+
+            LinearLayout row = new LinearLayout(activity);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.END);
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rowLp.topMargin = Math.round(20 * dp);
+            card.addView(row, rowLp);
+
+            final Dialog dlg = new Dialog(activity);
+            dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+
+            TextView cancel = brandButton(activity, dp, "Отмена", false);
+            cancel.setOnClickListener(v -> { try { dlg.dismiss(); } catch (Throwable ignored) {} });
+            row.addView(cancel);
+
+            TextView open = brandButton(activity, dp, "Открыть", true);
+            open.setOnClickListener(v -> {
+                try { dlg.dismiss(); } catch (Throwable ignored) {}
+                try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+                catch (Throwable ignored) {}
+            });
+            LinearLayout.LayoutParams openLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            openLp.leftMargin = Math.round(10 * dp);
+            row.addView(open, openLp);
+
+            dlg.setContentView(card);
+            dlg.setCancelable(true);
+            styleWindow(dlg, activity, dp);
+            dlg.show();
         } catch (Throwable t) {
             Toast.makeText(activity, "Не удалось скачать обновление", Toast.LENGTH_LONG).show();
         }

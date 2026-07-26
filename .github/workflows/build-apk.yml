@@ -11,6 +11,49 @@ on:
       - '.github/workflows/build-apk.yml'
 
 jobs:
+  # Проверка, что код вообще компилируется. Секреты тут НЕ нужны: debug-сборка
+  # подписывается автоматическим ключом Android, поэтому job падает только на
+  # настоящих ошибках кода — и ловит их даже когда релизный ключ не настроен.
+  compile-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Гарантировать SDK-пакеты (platform/build-tools 34)
+        run: |
+          SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Установка зависимостей
+        working-directory: mobile
+        run: npm ci
+
+      - name: Capacitor sync
+        working-directory: mobile
+        run: npx cap sync android
+
+      - name: Компиляция (debug, без ключа подписи)
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
   build:
     runs-on: ubuntu-latest
     steps:
