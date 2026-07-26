@@ -12,11 +12,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -132,21 +132,14 @@ public class UpdateChecker {
             card.addView(ver, wrap(Gravity.CENTER_HORIZONTAL, 5, 0, dp));
         }
 
-        // Разделитель
-        View div = new View(activity);
-        div.setBackgroundColor(C_BORDER);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Math.round(dp)));
-        divLp.topMargin = Math.round(16 * dp);
-        divLp.bottomMargin = Math.round(14 * dp);
-        card.addView(div, divLp);
-
-        TextView body = new TextView(activity);
-        body.setText(notes.isEmpty() ? "Доступна новая версия приложения." : notes);
-        body.setTextColor(C_TX2);
-        body.setTextSize(14.5f);
-        body.setLineSpacing(Math.round(4 * dp), 1f);
-        card.addView(body, wrap(Gravity.START, 0, 0, dp));
+        // Список изменений здесь НЕ показываем — он читается на экране загрузки,
+        // пока идёт скачивание (решение владельца: в вопросе он только мешает).
+        TextView hint = new TextView(activity);
+        hint.setText("Что нового — покажем во время загрузки");
+        hint.setTextColor(C_TX2);
+        hint.setTextSize(13f);
+        hint.setGravity(Gravity.CENTER);
+        card.addView(hint, wrap(Gravity.CENTER_HORIZONTAL, 12, 0, dp));
 
         // Кнопки: «Позже» призрачная, «Обновить» — красная
         LinearLayout row = new LinearLayout(activity);
@@ -164,10 +157,11 @@ public class UpdateChecker {
         later.setOnClickListener(v -> { try { dlg.dismiss(); } catch (Throwable ignored) {} });
         row.addView(later);
 
+        final String vName = name, vNotes = notes;
         TextView upd = brandButton(activity, dp, "Обновить", true);
         upd.setOnClickListener(v -> {
             try { dlg.dismiss(); } catch (Throwable ignored) {}
-            startUpdate(activity, url);
+            startUpdate(activity, url, vName, vNotes);
         });
         LinearLayout.LayoutParams updLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -234,7 +228,7 @@ public class UpdateChecker {
         return lp;
     }
 
-    private static void startUpdate(final Activity activity, String url) {
+    private static void startUpdate(final Activity activity, String url, String name, String notes) {
         // Разрешение «установка неизвестных приложений» (Android 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 && !activity.getPackageManager().canRequestPackageInstalls()) {
@@ -248,11 +242,12 @@ public class UpdateChecker {
             } catch (Throwable ignored) {}
             return;
         }
-        downloadBranded(activity, url);
+        downloadBranded(activity, url, name, notes);
     }
 
     /** Фирменный полноэкранный экран загрузки + скачивание APK внутри приложения. */
-    private static void downloadBranded(final Activity activity, final String url) {
+    private static void downloadBranded(final Activity activity, final String url,
+                                        String name, String notes) {
         final float dp = activity.getResources().getDisplayMetrics().density;
 
         LinearLayout root = new LinearLayout(activity);
@@ -314,8 +309,43 @@ public class UpdateChecker {
         pctLp.topMargin = Math.round(10 * dp);
         root.addView(pct, pctLp);
 
+        // ── Что нового: читается, пока идёт загрузка (в диалоге-вопросе этого нет) ──
+        int cardW = Math.min(activity.getResources().getDisplayMetrics().widthPixels - 2 * pad,
+                Math.round(330 * dp));
+
+        TextView newTtl = new TextView(activity);
+        newTtl.setText(name.isEmpty() ? "Что нового" : "Что нового в версии " + name);
+        newTtl.setTextColor(C_ACCENT);
+        newTtl.setTextSize(13.5f);
+        newTtl.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams nTtlLp = new LinearLayout.LayoutParams(
+                cardW, ViewGroup.LayoutParams.WRAP_CONTENT);
+        nTtlLp.topMargin = Math.round(30 * dp);
+        root.addView(newTtl, nTtlLp);
+
+        TextView newBody = new TextView(activity);
+        newBody.setText(notes.isEmpty() ? "Улучшения и исправления." : notes);
+        newBody.setTextColor(C_TX2);
+        newBody.setTextSize(14f);
+        newBody.setLineSpacing(Math.round(4 * dp), 1f);
+        int cpad = Math.round(14 * dp);
+        newBody.setPadding(cpad, Math.round(12 * dp), cpad, Math.round(12 * dp));
+        newBody.setBackground(roundedCard(dp));
+        LinearLayout.LayoutParams nBodyLp = new LinearLayout.LayoutParams(
+                cardW, ViewGroup.LayoutParams.WRAP_CONTENT);
+        nBodyLp.topMargin = Math.round(10 * dp);
+        root.addView(newBody, nBodyLp);
+
+        // Длинный список изменений на маленьком экране должен прокручиваться,
+        // а не обрезаться: короткий контент при этом остаётся по центру.
+        ScrollView scroll = new ScrollView(activity);
+        scroll.setBackgroundColor(C_BG);
+        scroll.setFillViewport(true);
+        scroll.addView(root, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         final Dialog dlg = new Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-        dlg.setContentView(root);
+        dlg.setContentView(scroll);
         dlg.setCancelable(false);
         if (dlg.getWindow() != null) {
             dlg.getWindow().setBackgroundDrawable(new ColorDrawable(C_BG));
