@@ -84,7 +84,9 @@ function remember_login_from_cookie(): ?int
         }
         // Здесь рождается аутентифицированная сессия, поэтому пересоздаём её id:
         // иначе навязанный жертве идентификатор становится входом в аккаунт.
-        if (session_status() === PHP_SESSION_ACTIVE) {
+        // headers_sent() — страховка: если страница уже начала вывод, менять куку
+        // нельзя, и вход должен просто продолжиться без регенерации.
+        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
             session_regenerate_id(true);
         }
         $_SESSION['uid'] = (int)$row['user_id'];
