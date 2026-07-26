@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '') {
     $pdo->prepare('UPDATE players SET user_id = ? WHERE id = ? AND user_id IS NULL')->execute([$uid, (int)$player['id']]);
     $pdo->prepare('UPDATE club_applications SET activated_at = NOW() WHERE id = ?')->execute([(int)$app['id']]);
     $pdo->commit();
+    session_regenerate_id(true);   // новая аутентифицированная сессия — против фиксации
     $_SESSION['uid'] = $uid;
     log_action($uid, 'account_activated', ['player_id' => (int)$player['id'], 'application' => (int)$app['id']]);
     flash_set('ok', 'Аккаунт создан. Добро пожаловать в клуб! 🎉');

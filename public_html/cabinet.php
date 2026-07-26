@@ -21,8 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
                 ->execute([password_hash($new1, PASSWORD_DEFAULT), $u['id']]);
-            log_action((int)$u['id'], 'password_change');
-            flash_set('ok', 'Пароль обновлён');
+            // Смена пароля должна выкидывать чужие устройства: токен «запомнить меня»
+            // живёт 400 дней, и без этого украденная кука осталась бы рабочей.
+            // Текущее устройство оставляем — человек сам только что подтвердил пароль.
+            $kicked = remember_revoke_all((int)$u['id'], (string)($_COOKIE[REMEMBER_COOKIE] ?? ''));
+            session_regenerate_id(true);
+            log_action((int)$u['id'], 'password_change', ['revoked_devices' => $kicked]);
+            flash_set('ok', 'Пароль обновлён' . ($kicked > 0
+                ? '. Вход на других устройствах (' . $kicked . ') сброшен — там понадобится войти заново.'
+                : ''));
         }
         redirect('/cabinet.php');
     }

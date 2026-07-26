@@ -45,30 +45,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('err', 'Сброс паролей вам не разрешён (таблица прав)');
             redirect('/admin/users.php');
         }
+        // Аккаунт зама/руководителя сбрасывать можно (решение владельца), но пароль
+        // от него нельзя показывать сбрасывающему: иначе админ сбрасывает пароль
+        // руководителю, читает его во флеше и входит под ним. Для таких целей —
+        // только доставка в Telegram, и пароль меняем ТОЛЬКО после успешной отправки.
+        $targetTop = in_array($target['role'], ['deputy', 'owner'], true);
+        $tgId = (int)($target['tg_user_id'] ?? 0);
+        if ($targetTop && !$isOwner && (!$tgId || bot_token() === '')) {
+            flash_set('err', 'У «' . $target['nickname'] . '» не привязан Telegram, а показывать пароль '
+                . 'аккаунта руководителя или зама нельзя. Сброс сделает руководитель.');
+            redirect('/admin/users.php');
+        }
+
         $alphabet = 'abcdefghkmnpqrstuvwxyz23456789';
         $temp = '';
         for ($i = 0; $i < 8; $i++) {
             $temp .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         }
-        db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
-            ->execute([password_hash($temp, PASSWORD_DEFAULT), $targetId]);
+        $msg = "🔐 Администратор сбросил твой пароль на сайте «Триада Менделеева».\n\n"
+            . "Новый пароль: <code>" . esc($temp) . "</code>\n\n"
+            . "Зайди на сайт и смени его в Личном кабинете.";
 
-        // Если у игрока привязан Telegram — отправляем новый пароль ему в личку бота
-        $tgId = (int)($target['tg_user_id'] ?? 0);
+        // Порядок важен: сначала доставка, потом смена пароля — иначе неудачная
+        // отправка оставила бы человека без доступа к своему же аккаунту.
         $sent = false;
         if ($tgId && bot_token() !== '') {
-            $res = bot_send($tgId,
-                "🔐 Администратор сбросил твой пароль на сайте «Триада Менделеева».\n\n"
-                . "Новый пароль: <code>" . esc($temp) . "</code>\n\n"
-                . "Зайди на сайт и смени его в Личном кабинете.");
+            $res = bot_send($tgId, $msg);
             $sent = is_array($res) && !empty($res['ok']);
         }
-        log_action((int)$u['id'], 'admin_password_reset', ['user_id' => $targetId, 'via' => $sent ? 'telegram' : 'manual']);
+        if ($targetTop && !$isOwner && !$sent) {
+            flash_set('err', 'Не удалось отправить пароль в Telegram, а показывать пароль верхушки нельзя — '
+                . 'пароль НЕ изменён. Попробуйте позже или попросите руководителя.');
+            redirect('/admin/users.php');
+        }
+
+        db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+            ->execute([password_hash($temp, PASSWORD_DEFAULT), $targetId]);
+        // Сброс должен возвращать контроль над аккаунтом: без этого 400-дневный
+        // токен «запомнить меня» оставлял бы вход тому, кто им уже завладел.
+        $kicked = remember_revoke_all($targetId);
+
+        log_action((int)$u['id'], 'admin_password_reset', ['user_id' => $targetId,
+            'via' => $sent ? 'telegram' : 'manual', 'top' => $targetTop, 'revoked_devices' => $kicked]);
+
+        // Руководителю — сигнал в бот о сбросе его аккаунта или аккаунта зама
+        if ($targetTop) {
+            try {
+                app_notify_owners('🔐 Сброшен пароль аккаунта «' . $target['nickname'] . '» ('
+                    . role_label((string)$target['role']) . ') — сделал ' . $u['nickname'], '/admin/logs.php');
+                if (bot_token() !== '') {
+                    $owners = db()->query("SELECT tg_user_id FROM users WHERE role = 'owner'
+                        AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+                    foreach ($owners as $ow) {
+                        if ((int)$ow !== $tgId) {
+                            bot_send((int)$ow, "🔐 <b>Сброс пароля</b>\n\nАккаунт: <b>" . bot_esc((string)$target['nickname'])
+                                . "</b> (" . bot_esc(role_label((string)$target['role'])) . ")\nСделал: <b>"
+                                . bot_esc((string)$u['nickname']) . "</b>");
+                        }
+                    }
+                }
+            } catch (Throwable $e) {
+            }
+        }
+
+        $tail = $kicked > 0 ? ' Вход на других устройствах (' . $kicked . ') сброшен.' : '';
         if ($sent) {
-            flash_set('ok', 'Новый пароль отправлен «' . $target['nickname'] . '» в личку Telegram.');
+            flash_set('ok', 'Новый пароль отправлен «' . $target['nickname'] . '» в личку Telegram.' . $tail);
         } else {
             $hint = $tgId ? ' (отправить в Telegram не удалось — передайте вручную)' : ' (Telegram не привязан — передайте вручную)';
-            flash_set('ok', 'Новый пароль для «' . $target['nickname'] . '»: ' . $temp . $hint . '. Пусть сменит в кабинете.');
+            flash_set('ok', 'Новый пароль для «' . $target['nickname'] . '»: ' . $temp . $hint . '. Пусть сменит в кабинете.' . $tail);
         }
         redirect('/admin/users.php');
     }
@@ -128,6 +173,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$newRole, $targetId]);
+        // Понижение роли должно бить и по «вечным» входам: иначе на другом устройстве
+        // остаётся живая сессия, выданная под прежними правами.
+        if (role_level($newRole) < role_level((string)$target['role'])) {
+            remember_revoke_all($targetId);
+        }
         log_action((int)$u['id'], 'role_change', ['user_id' => $targetId, 'role' => $newRole]);
         flash_set('ok', 'Роль «' . $target['nickname'] . '» → ' . role_label($newRole));
         redirect('/admin/users.php');
@@ -149,6 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/admin/users.php');
         }
         try {
+            remember_revoke_all($targetId);   // «вечные» входы удалённого аккаунта — тоже под нож
+            db()->prepare('DELETE FROM notifications WHERE user_id = ?')->execute([$targetId]);
             db()->prepare('UPDATE players SET user_id = NULL WHERE user_id = ?')->execute([$targetId]); // игрок и статистика остаются
             db()->prepare('DELETE FROM users WHERE id = ?')->execute([$targetId]);
             log_action((int)$u['id'], 'user_delete', ['nick' => $target['nickname']]);

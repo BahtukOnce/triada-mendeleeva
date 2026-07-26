@@ -1,0 +1,42 @@
+name: Проверка синтаксиса PHP
+
+# Ловит синтаксические ошибки ДО прода. Деплой идёт вебхуком сразу после пуша в main,
+# поэтому опечатка в inc/bootstrap.php или inc/auth.php уронила бы весь сайт целиком.
+# Порядок работы: пушим правки в ветку → ждём зелёный линт → только потом в main.
+on:
+  push:
+    branches: ['**']
+    paths: ['**.php']
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PHP 8.2 (как на Beget)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: php -l по всем файлам
+        run: |
+          fail=0
+          count=0
+          while IFS= read -r -d '' f; do
+            count=$((count + 1))
+            if ! out=$(php -l "$f" 2>&1); then
+              echo "::error file=$f::$(echo "$out" | head -3)"
+              fail=1
+            fi
+          done < <(find . -name '*.php' -not -path './mobile/node_modules/*' -print0)
+          echo "Проверено файлов: $count"
+          if [ "$fail" != "0" ]; then
+            echo "::error::Есть синтаксические ошибки — в main пускать нельзя"
+            exit 1
+          fi
+          echo "Синтаксис в порядке."

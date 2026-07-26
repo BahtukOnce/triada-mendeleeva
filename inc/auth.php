@@ -82,6 +82,11 @@ function remember_login_from_cookie(): ?int
         if (!$row) {
             return null;
         }
+        // Здесь рождается аутентифицированная сессия, поэтому пересоздаём её id:
+        // иначе навязанный жертве идентификатор становится входом в аккаунт.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
         $_SESSION['uid'] = (int)$row['user_id'];
         // продлеваем срок (скользящее окно) и отмечаем использование
         $exp = date('Y-m-d H:i:s', time() + REMEMBER_DAYS * 86400);
@@ -91,6 +96,33 @@ function remember_login_from_cookie(): ?int
         return (int)$row['user_id'];
     } catch (Throwable $e) {
         return null;
+    }
+}
+
+/**
+ * Отзывает ВСЕ токены «запомнить меня» у пользователя — вызывать при любой смене
+ * пароля, снятии роли и удалении аккаунта. Иначе украденная кука остаётся рабочей
+ * навсегда, и «сбросить пароль» не возвращает контроль над аккаунтом.
+ *
+ * $keepRaw — сырой токен текущего устройства (чтобы не выкидывать того, кто сам
+ * меняет себе пароль в кабинете); null — выкинуть везде.
+ */
+function remember_revoke_all(int $userId, ?string $keepRaw = null): int
+{
+    if ($userId <= 0 || !db_ready()) {
+        return 0;
+    }
+    try {
+        if ($keepRaw !== null && $keepRaw !== '') {
+            $st = db()->prepare('DELETE FROM remember_tokens WHERE user_id = ? AND token_hash <> ?');
+            $st->execute([$userId, hash('sha256', $keepRaw)]);
+        } else {
+            $st = db()->prepare('DELETE FROM remember_tokens WHERE user_id = ?');
+            $st->execute([$userId]);
+        }
+        return $st->rowCount();
+    } catch (Throwable $e) {
+        return 0;
     }
 }
 

@@ -28,6 +28,10 @@ session_set_cookie_params([
     'httponly' => true,
     'samesite' => 'Lax',
 ]);
+// Без strict_mode PHP принимает любой присланный id сессии и создаёт под него
+// хранилище — это и есть фиксация сессии: навязанный жертве id после входа
+// становится рабочим доступом к аккаунту.
+ini_set('session.use_strict_mode', '1');
 session_start();
 
 require ROOT . '/inc/helpers.php';

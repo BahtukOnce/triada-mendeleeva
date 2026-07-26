@@ -289,9 +289,12 @@ function bot_reset_password(int $userId): string
     }
     db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
         ->execute([password_hash($temp, PASSWORD_DEFAULT), $userId]);
+    // Смена пароля обязана выкидывать все «вечные» входы, иначе сброс не возвращает
+    // контроль над аккаунтом (токен «запомнить меня» живёт 400 дней).
+    $revoked = function_exists('remember_revoke_all') ? remember_revoke_all($userId) : 0;
     try {
         db()->prepare('INSERT INTO logs (user_id, action, details, ip) VALUES (?,?,?,NULL)')
-            ->execute([$userId, 'password_reset_bot', json_encode(['via' => 'bot'], JSON_UNESCAPED_UNICODE)]);
+            ->execute([$userId, 'password_reset_bot', json_encode(['via' => 'bot', 'revoked_devices' => $revoked], JSON_UNESCAPED_UNICODE)]);
     } catch (Throwable $e) {
     }
     return $temp;
