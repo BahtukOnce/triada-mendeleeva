@@ -5,7 +5,10 @@ name: Сборка Android APK
 on:
   workflow_dispatch: {}        # ручной запуск кнопкой в Actions
   push:
-    branches: [claude/mendeleev-table-website-yh0f51, main]
+    # Все ветки: правки в mobile/ проверяются компиляцией ДО попадания в main.
+    # Локально Java собрать нечем (на машине только JRE, без Android SDK), поэтому
+    # compile-check — единственный способ поймать ошибку до релиза.
+    branches: ['**']
     paths:
       - 'mobile/**'
       - '.github/workflows/build-apk.yml'
