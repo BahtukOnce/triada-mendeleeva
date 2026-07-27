@@ -54,7 +54,30 @@ jobs:
         working-directory: mobile/android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+  # Есть ли ключ подписи в Secrets. Нужен отдельным job'ом, потому что в условии
+  # job'а нельзя читать secrets напрямую — только выход предыдущего job'а.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      have_key: ${{ steps.check.outputs.have_key }}
+    steps:
+      - name: Проверка наличия ключа
+        id: check
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "have_key=0" >> "$GITHUB_OUTPUT"
+            echo "::notice::Ключа подписи в Secrets нет — подписанный APK не собираем. Это не ошибка: см. mobile/KEYSTORE.md."
+          else
+            echo "have_key=1" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Подписанный APK собираем только когда ключ реально есть: иначе job ПРОПУСКАЕТСЯ,
+  # а не падает — чтобы не сыпать письмами «Run failed» на каждый пуш.
   build:
+    needs: [compile-check, gate]
+    if: needs.gate.outputs.have_key == '1'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
