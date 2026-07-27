@@ -29,7 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         db()->prepare("INSERT INTO game_days (date, title, location, status) VALUES (?,?,?, 'draft')")
             ->execute([$date, $title, trim((string)($_POST['location'] ?? '')) ?: null]);
-        log_action((int)$u['id'], 'day_create', ['date' => $date]);
+        $newDayId = (int)db()->lastInsertId();
+        // Сразу привязываем вечер к основному рейтингу — иначе его игры пойдут в ELO,
+        // но не в Σ и клубный балл (пересчёт берёт дни только через rating_days).
+        day_attach_to_main_rating($newDayId);
+        log_action((int)$u['id'], 'day_create', ['date' => $date, 'day_id' => $newDayId]);
         flash_set('ok', 'Вечер создан (черновик). Откройте запись, когда будете готовы.');
         redirect('/admin/days.php');
     }

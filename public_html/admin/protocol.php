@@ -141,6 +141,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $pdo->commit();
 
+        // Страховка для вечеров, созданных до появления автопривязки (или другим путём):
+        // без строки в rating_days игра не попала бы в клубный рейтинг, а сообщение
+        // ниже обещает обратное.
+        day_attach_to_main_rating($dayId);
         recompute_all_locked();
         log_action((int)$u['id'], 'game_save', ['game_id' => $gid, 'day_id' => $dayId]);
         flash_set('ok', 'Игра сохранена, рейтинг обновлён');

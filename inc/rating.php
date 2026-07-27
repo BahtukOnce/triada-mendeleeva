@@ -95,6 +95,35 @@ function seat_total(array $seat, ?string $winner, bool $isPu, float $bmBonus, fl
 }
 
 // Все завершённые игры рейтинга с местами (дни из rating_days)
+/**
+ * Привязывает игровой вечер к основному (текущему) рейтингу клуба.
+ *
+ * Пересчёт берёт игры строго через JOIN rating_days, поэтому вечер БЕЗ такой строки
+ * не попадает в клубный рейтинг: ELO по его играм считается, а Σ и клубный балл — нет.
+ * Раньше rating_days заполнял только импорт из Google-таблицы, и всё, что провели
+ * на сайте через протокол, в рейтинг не входило.
+ *
+ * Идемпотентно: PRIMARY KEY (rating_id, day_id) + INSERT IGNORE.
+ * ВАЖНО: исторические вечера с mafiauniverse намеренно НЕ привязаны (см.
+ * legacy_import.php) — их сюда передавать нельзя, иначе прошлые сезоны вольются
+ * в текущий рейтинг.
+ */
+function day_attach_to_main_rating(int $dayId): bool
+{
+    if ($dayId <= 0) {
+        return false;
+    }
+    try {
+        $st = db()->prepare('INSERT IGNORE INTO rating_days (rating_id, day_id)
+            SELECT r.id, ? FROM ratings r WHERE r.is_main = 1 LIMIT 1');
+        $st->execute([$dayId]);
+        return $st->rowCount() > 0;
+    } catch (Throwable $e) {
+        app_log_error('WARN', 'day_attach_to_main_rating: ' . $e->getMessage(), __FILE__, __LINE__);
+        return false;
+    }
+}
+
 function rating_games(int $ratingId): array
 {
     $st = db()->prepare("SELECT g.* FROM games g
