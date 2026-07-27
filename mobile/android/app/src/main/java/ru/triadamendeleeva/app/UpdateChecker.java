@@ -48,6 +48,12 @@ import java.net.URL;
 public class UpdateChecker {
 
     private static final String VERSION_URL = "https://triada-mendeleeva.ru/app/version.php";
+    /**
+     * APK берём ТОЛЬКО из релизов нашего репозитория. Вторая линия обороны к проверке
+     * на сервере: даже если манифест подменят, приложение не поставит чужой файл.
+     */
+    private static final String APK_URL_PREFIX =
+            "https://github.com/BahtukOnce/triada-mendeleeva/releases/";
     private static final String APK_MIME = "application/vnd.android.package-archive";
     private static final String APK_NAME = "triada-update.apk";
 
@@ -70,7 +76,8 @@ public class UpdateChecker {
                     final String url = info.optString("url", "");
                     final String name = info.optString("versionName", "");
                     final String notes = info.optString("notes", "");
-                    if (url.isEmpty()) return;
+                    // Чужой адрес = попытка подсунуть посторонний APK: молча игнорируем
+                    if (url.isEmpty() || !url.startsWith(APK_URL_PREFIX)) return;
 
                     activity.runOnUiThread(new Runnable() {
                         @Override public void run() { showDialog(activity, name, notes, url); }

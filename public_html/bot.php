@@ -17,9 +17,16 @@ require ROOT . '/inc/db.php';
 require ROOT . '/inc/bot_lib.php';
 
 // ── Проверка секрета вебхука ──────────────────────────────
+// Fail-closed: без секрета эндпоинт вообще не работает. Иначе любой мог бы прислать
+// поддельный апдейт от чужого tg_user_id — то есть действовать в боте за другого
+// человека (в том числе запрашивать сброс пароля) и публиковать фейковые новости.
 $secret = (string)($GLOBALS['cfg']['bot_secret'] ?? '');
+if ($secret === '') {
+    http_response_code(503);
+    exit('bot secret is not configured');
+}
 $hdr = $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '';
-if ($secret !== '' && !hash_equals($secret, (string)$hdr)) {
+if (!hash_equals($secret, (string)$hdr)) {
     http_response_code(403);
     exit('forbidden');
 }

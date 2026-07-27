@@ -40,14 +40,19 @@ if (isset($_GET['delete'])) {
 }
 
 if (isset($_GET['go'])) {
+    // Без секрета вебхук ставить нельзя: bot.php теперь fail-closed и такой вебхук
+    // всё равно будет отвечать 503, а раньше это молча открывало приём подделок.
+    if ($secret === '') {
+        echo "ОТКАЗ: в config.php не задан bot_secret. Задайте его и повторите — "
+            . "без секрета bot.php не принимает апдейты.\n";
+        exit;
+    }
     $params = [
         'url'             => $botUrl,
         'allowed_updates' => json_encode(['message', 'callback_query', 'channel_post', 'edited_channel_post']),
         'drop_pending_updates' => 'true',
+        'secret_token'    => $secret,
     ];
-    if ($secret !== '') {
-        $params['secret_token'] = $secret;
-    }
     echo "setWebhook ($botUrl) -> ";
     print_r(bot_api('setWebhook', $params));
     echo "\n\n";

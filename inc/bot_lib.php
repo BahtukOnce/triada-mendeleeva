@@ -251,14 +251,16 @@ function bot_is_admin(int $tgId): bool
     if (!$p) {
         return false;
     }
-    $owner = (string)($GLOBALS['cfg']['owner_nickname'] ?? '');
-    if ($owner !== '' && bot_same_name((string)$p['nickname'], $owner)) {
-        return true;
-    }
-    if (!empty($p['user_id'])) {
-        $st = db()->prepare('SELECT role FROM users WHERE id = ?');
-        $st->execute([(int)$p['user_id']]);
-        if (in_array((string)$st->fetchColumn(), ['admin', 'deputy', 'owner'], true)) {
+    // Права ТОЛЬКО из users.role. Раньше здесь была ветка «ник совпал с
+    // owner_nickname из config» — она выдавала админку бота без всякой проверки
+    // владения ником: bot_same_name режет регистр и эмодзи, а привязать ник без
+    // аккаунта можно было без пароля. Ник — не доказательство, роль — доказательство.
+    // Фолбэк по нику аккаунта — на случай, когда игрок ещё не привязан к users:
+    // право по-прежнему берётся из реальной роли аккаунта, а не из названия ника.
+    $st = db()->prepare('SELECT role FROM users WHERE id = ? OR LOWER(nickname) = LOWER(?)');
+    $st->execute([(int)($p['user_id'] ?? 0), (string)$p['nickname']]);
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $role) {
+        if (in_array((string)$role, ['admin', 'deputy', 'owner'], true)) {
             return true;
         }
     }

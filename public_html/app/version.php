@@ -19,16 +19,33 @@ const TAG_PREFIX = 'app-v';
 const CACHE_OK_TTL = 600;   // кэш успешного ответа, сек
 const CACHE_ERR_TTL = 120;  // кэш ошибки, сек (чтобы не долбить API)
 
-// 1) ручной оверрайд имеет приоритет
-$override = __DIR__ . '/version.override.json';
-if (is_file($override)) {
-    header('Cache-Control: public, max-age=120');
-    echo file_get_contents($override);
-    exit;
+// Ссылка на APK должна вести только в релизы НАШЕГО репозитория: приложение по этому
+// URL качает файл и ставит его как обновление, поэтому чужой адрес здесь = подмена.
+const APK_URL_PREFIX = 'https://github.com/' . REPO . '/releases/';
+function apk_url_ok($url) {
+    return is_string($url) && $url !== '' && strncmp($url, APK_URL_PREFIX, strlen(APK_URL_PREFIX)) === 0;
 }
 
-// 2) кэш
-$cacheFile = sys_get_temp_dir() . '/triada_app_version.json';
+// 1) ручной оверрайд имеет приоритет (но URL всё равно проверяем)
+$override = __DIR__ . '/version.override.json';
+if (is_file($override)) {
+    $ov = json_decode((string)file_get_contents($override), true);
+    if (is_array($ov) && (empty($ov['url']) || apk_url_ok($ov['url']))) {
+        header('Cache-Control: public, max-age=120');
+        echo json_encode($ov, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    // битый/подозрительный оверрайд игнорируем и идём обычным путём
+}
+
+// 2) кэш. НЕ в sys_get_temp_dir(): на шаред-хостинге /tmp общий для всех аккаунтов,
+// и подложенный туда файл заставил бы приложение качать чужой APK. Держим в storage/
+// рядом с остальными приватными данными (каталог вне docroot и в .gitignore).
+$cacheDir = dirname(__DIR__, 2) . '/storage';
+if (!is_dir($cacheDir)) {
+    @mkdir($cacheDir, 0775, true);
+}
+$cacheFile = $cacheDir . '/app_version.json';
 if (is_file($cacheFile)) {
     $age = time() - filemtime($cacheFile);
     $cached = json_decode(file_get_contents($cacheFile), true);
@@ -53,7 +70,7 @@ if ($release) {
             break;
         }
     }
-    if ($vc > 0 && $apk !== '') {
+    if ($vc > 0 && apk_url_ok($apk)) {
         $notes = trim((string)($release['body'] ?? ''));
         if (mb_strlen($notes) > 600) $notes = mb_substr($notes, 0, 600) . '…';
         $out = [
