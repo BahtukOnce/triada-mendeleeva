@@ -480,6 +480,37 @@ function standings_from_games(array $games, array $seatsByGame): array
 // = порядок game_id (так считает elo_recompute), поэтому первая игра = MIN(game_id).
 // Нужно, чтобы итоговые таблицы турниров/вечеров показывали ELO на тот момент,
 // а не текущий. Возвращает [player_id => elo_before].
+/**
+ * ELO по ИТОГАМ события: значение после последней игры игрока в этом турнире/вечере.
+ *
+ * Входной ELO (event_entry_elo) у дебютанта равен стартовой 1000 — в таблице турнира
+ * это выглядело так, будто рейтинг не посчитан: колонка забита одинаковыми 1000.
+ * По итогам события число всегда осмысленное: оно уже учитывает сыгранные игры.
+ * Берём MAX(eh.id), а не MAX(game_id): строки elo_history пишутся пересчётом строго
+ * в хронологическом порядке, поэтому последняя по id — это последняя по времени.
+ */
+function event_exit_elo(array $gameIds): array
+{
+    $ids = array_values(array_filter(array_map('intval', $gameIds)));
+    if (!$ids) {
+        return [];
+    }
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $out = [];
+    try {
+        $st = db()->prepare("SELECT eh.player_id, eh.elo_after
+            FROM elo_history eh
+            JOIN (SELECT player_id, MAX(id) AS last_h FROM elo_history WHERE game_id IN ($in) GROUP BY player_id) f
+              ON f.player_id = eh.player_id AND f.last_h = eh.id");
+        $st->execute($ids);
+        foreach ($st->fetchAll() as $r) {
+            $out[(int)$r['player_id']] = round((float)$r['elo_after'], 1);
+        }
+    } catch (Throwable $e) {
+    }
+    return $out;
+}
+
 function event_entry_elo(array $gameIds): array
 {
     $ids = array_values(array_filter(array_map('intval', $gameIds)));

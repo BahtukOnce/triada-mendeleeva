@@ -188,8 +188,10 @@ if ($games) {
     }
     // Рейтинг вечера — по Σ; тай-брейк по Σ+ (бонусным баллам), с округлением для стабильности
     uasort($standing, fn($a, $b) => [round($b['sum'], 2), round($b['sum_plus'], 2)] <=> [round($a['sum'], 2), round($a['sum_plus'], 2)]);
-    // ELO в рейтинге вечера — на момент того вечера (входной ELO игрока), а не текущий
-    $enterElo = event_entry_elo(array_column($games, 'id'));
+    // ELO в таблице вечера — ПО ИТОГАМ вечера (после последней игры), а не входной:
+    // у дебютанта входной равен стартовой 1000 и колонка выглядела незаполненной.
+    // Рядом стоит «ЭЛО за вечер» — вместе они дают полную картину.
+    $enterElo = event_exit_elo(array_column($games, 'id'));
     foreach ($standing as $pid => &$rowE) {
         if (isset($enterElo[$pid])) {
             $rowE['elo'] = $enterElo[$pid];
@@ -221,7 +223,7 @@ if ($games) {
     echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
         . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
-        . '<th class="num" data-type="num" title="ELO на момент вечера">ELO</th><th class="num" data-type="num">ЭЛО за вечер</th></tr></thead><tbody>';
+        . '<th class="num" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">ELO</th><th class="num" data-type="num">ЭЛО за вечер</th></tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
@@ -320,13 +322,15 @@ if ($games) {
         if ($g['first_killed_seat']) {
             $meta[] = 'ПУ: место ' . (int)$g['first_killed_seat'];
         }
+        // Пустой ЛХ — это промах, а не «нет данных»: показываем явно, чтобы строки
+        // под играми были одинаковыми (см. lh_miss_chip).
         $lhPu = lh_seats_colored($rbs, (int)$g['bm_seat1'], (int)$g['bm_seat2'], (int)$g['bm_seat3']);
-        if ($lhPu !== '') {
-            $meta[] = 'ЛХ ПУ: ' . $lhPu;
+        if ($g['first_killed_seat']) {
+            $meta[] = 'ЛХ ПУ: ' . ($lhPu !== '' ? $lhPu : lh_miss_chip());
         }
         $lhV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
-        if ($lhV0 !== '') {
-            $meta[] = 'ЛХ заголос.: ' . $lhV0;
+        if (!empty($g['vote0_seat'])) {
+            $meta[] = 'ЛХ заголос.: ' . ($lhV0 !== '' ? $lhV0 : lh_miss_chip());
         }
         if ($meta) {
             echo '<p style="color:var(--tx2);font-size:12px;margin:8px 0 0;line-height:2;">' . implode(' &nbsp;·&nbsp; ', $meta) . '</p>';

@@ -213,9 +213,10 @@ if ($mjId) {
 
 // ── Итоговая таблица — НАВЕРХУ, считается вживую по уже СЫГРАННЫМ играм ──
 // Черновики (созданная рассадка без результата, status≠finished) в таблицу не идут.
-// ELO в таблице — на момент турнира (входной ELO участника), а не текущий.
+// ELO в таблице — ПО ИТОГАМ турнира, а не текущий и не входной: входной у дебютанта
+// равен стартовой 1000, и колонка выглядела незаполненной (решение владельца).
 $finishedGames = array_values(array_filter($games, fn($g) => ($g['status'] ?? '') === 'finished'));
-$enterElo = event_entry_elo(array_column($finishedGames, 'id'));
+$enterElo = event_exit_elo(array_column($finishedGames, 'id'));
 if ($enterElo) {
     foreach ($seatsByGame as &$seatsRef) {
         foreach ($seatsRef as &$s) {
@@ -248,7 +249,7 @@ if ($standing && (!$standingsHidden || $canManageT)) {
         . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo"></th>'
         . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
-        . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num" title="ELO на момент турнира">ELO</th>'
+        . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num" title="ELO по итогам турнира — после последней сыгранной в нём игры">ELO</th>'
         . '<th class="num" data-type="num">Σ</th><th class="num" data-type="num">~Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
@@ -770,15 +771,19 @@ foreach ($byTable as $tableNo => $tGames) {
         }
         $lhBlocks = [];
         $puSeat = (int)($g['first_killed_seat'] ?? 0);
+        // Блок ЛХ показываем всегда, когда есть кому его делать: пустой ЛХ — это промах,
+        // а не «данных нет». Иначе соседние игры выглядят по-разному без причины.
         $chipsPu = lh_seats_colored($rbs, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0));
-        if ($chipsPu !== '' && $puSeat > 0) {
-            $lhBlocks[] = ['nick' => $nickBySeat[$puSeat] ?? '', 'seat' => $puSeat, 'chips' => $chipsPu,
+        if ($puSeat > 0) {
+            $lhBlocks[] = ['nick' => $nickBySeat[$puSeat] ?? '', 'seat' => $puSeat,
+                'chips' => $chipsPu !== '' ? $chipsPu : lh_miss_chip(),
                 'kind' => 'ПУ', 'kindTitle' => 'первоубиенный ночью', 'kindBg' => 'rgba(232,51,42,.7)'];
         }
         $v0Seat = (int)($g['vote0_seat'] ?? 0);
         $chipsV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
-        if ($chipsV0 !== '' && $v0Seat > 0) {
-            $lhBlocks[] = ['nick' => $nickBySeat[$v0Seat] ?? '', 'seat' => $v0Seat, 'chips' => $chipsV0,
+        if ($v0Seat > 0) {
+            $lhBlocks[] = ['nick' => $nickBySeat[$v0Seat] ?? '', 'seat' => $v0Seat,
+                'chips' => $chipsV0 !== '' ? $chipsV0 : lh_miss_chip(),
                 'kind' => 'заголосован', 'kindTitle' => 'заголосован на 0-м круге', 'kindBg' => 'rgba(120,110,220,.7)'];
         }
         $lhBlockHtml = function (array $b): string {
