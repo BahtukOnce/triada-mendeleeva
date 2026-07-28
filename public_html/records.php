@@ -68,14 +68,17 @@ try {
             }
         }
     }
+    // Порог держим низким (3), а сколько именно игр требовать — выбирает читатель
+    // ползунком ниже. Иначе в топе навсегда застревают старожилы: у пары с сотней
+    // совместных игр винрейт почти не бывает выше, чем у пары с шестью.
     $bestPairs = [];
     foreach ($pairAgg as $k => $v) {
-        if ($v['g'] >= 6) {
+        if ($v['g'] >= 3) {
             $bestPairs[] = ['k' => $k, 'g' => $v['g'], 'w' => $v['w'], 'wr' => $v['w'] / $v['g']];
         }
     }
     usort($bestPairs, fn($x, $y) => [$y['wr'], $y['g']] <=> [$x['wr'], $x['g']]);
-    $bestPairs = array_slice($bestPairs, 0, 6);
+    $bestPairs = array_slice($bestPairs, 0, 300);
     if ($bestPairs) {
         $pids = [];
         foreach ($bestPairs as $bp) {
@@ -91,9 +94,18 @@ try {
             $plMap[(int)$pl['id']] = $pl;
         }
         echo '<h2 style="margin-top:18px;">🤝 Лучшие дуэты</h2>';
-        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе (от 6 совместных игр) — клик откроет «Дуэль»</p>';
-        echo '<div class="records-grid"><div class="rec-card"><div class="rec-rows">';
-        $rankP = 0;
+        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе — клик откроет «Дуэль»</p>';
+        // Порог совместных игр задаёт читатель: по просьбе из «Предложений» —
+        // иначе в списке видны только самые сыгранные пары.
+        echo '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
+            . '<label for="duo-min" style="font-size:13px;color:var(--tx2);">Показывать пары от</label>'
+            . '<input type="number" id="duo-min" min="3" max="60" step="1" value="6" '
+            . 'style="width:78px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;">'
+            . '<span style="font-size:13px;color:var(--tx2);">совместных игр</span>'
+            . '<span id="duo-none" style="font-size:12.5px;color:var(--tx3);display:none;">— таких пар нет, снизьте порог</span></div>';
+        // Одиночную карточку НЕ кладём в records-grid: там колонки по ~280px, из-за чего
+        // плашка выходила узкой, а ники обрезались многоточием.
+        echo '<div class="rec-card"><div class="rec-rows" id="duo-rows">';
         foreach ($bestPairs as $bp) {
             [$a, $b] = array_map('intval', explode('-', $bp['k']));
             $pa = $plMap[$a] ?? null;
@@ -101,15 +113,40 @@ try {
             if (!$pa || !$pb) {
                 continue;
             }
-            $rankP++;
-            $medal = $rankP === 1 ? '🥇' : ($rankP === 2 ? '🥈' : ($rankP === 3 ? '🥉' : '·'));
-            echo '<a class="rec-row" href="/versus.php?a=' . $a . '&b=' . $b . '">'
-                . '<span class="rec-rank">' . $medal . '</span>'
+            echo '<a class="rec-row duo-row" data-g="' . (int)$bp['g'] . '" style="display:none;" href="/versus.php?a=' . $a . '&b=' . $b . '">'
+                . '<span class="rec-rank"></span>'
                 . avatar_html($pa, 24) . avatar_html($pb, 24)
                 . '<span class="rec-name">' . esc($pa['nickname']) . ' + ' . esc($pb['nickname']) . '</span>'
                 . '<span class="rec-v">' . round($bp['wr'] * 100) . '% · ' . $bp['g'] . ' игр</span></a>';
         }
-        echo '</div></div></div>';
+        echo '</div></div>';
+        ?>
+<script>
+(function () {
+  var inp = document.getElementById('duo-min');
+  if (!inp) return;
+  var rows = [].slice.call(document.querySelectorAll('.duo-row'));
+  var none = document.getElementById('duo-none');
+  var medals = ['🥇', '🥈', '🥉'];
+  function apply() {
+    var min = parseInt(inp.value, 10);
+    if (!min || min < 3) min = 3;
+    var shown = 0;
+    rows.forEach(function (r) {
+      var ok = shown < 6 && parseInt(r.dataset.g, 10) >= min;
+      r.style.display = ok ? '' : 'none';
+      if (ok) {
+        r.querySelector('.rec-rank').textContent = medals[shown] || '·';
+        shown++;
+      }
+    });
+    if (none) none.style.display = shown ? 'none' : '';
+  }
+  inp.addEventListener('input', apply);
+  apply();
+})();
+</script>
+        <?php
     }
 } catch (Throwable $e) {
 }

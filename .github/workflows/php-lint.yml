@@ -1,12 +1,13 @@
-name: Проверка синтаксиса PHP
+name: Проверка синтаксиса PHP и JS
 
 # Ловит синтаксические ошибки ДО прода. Деплой идёт вебхуком сразу после пуша в main,
-# поэтому опечатка в inc/bootstrap.php или inc/auth.php уронила бы весь сайт целиком.
-# Порядок работы: пушим правки в ветку → ждём зелёный линт → только потом в main.
+# поэтому опечатка в inc/bootstrap.php или inc/auth.php уронила бы весь сайт целиком,
+# а сломанный app.js — интерактив на всех страницах. Локально проверить нечем: на
+# машине нет ни php, ни node. Порядок: пушим в ветку → зелёный линт → потом в main.
 on:
   push:
     branches: ['**']
-    paths: ['**.php']
+    paths: ['**.php', '**.js']
   pull_request:
   workflow_dispatch: {}
 
@@ -40,3 +41,27 @@ jobs:
             exit 1
           fi
           echo "Синтаксис в порядке."
+
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: node --check по своим скриптам
+        run: |
+          fail=0
+          count=0
+          while IFS= read -r -d '' f; do
+            count=$((count + 1))
+            if ! out=$(node --check "$f" 2>&1); then
+              echo "::error file=$f::$(echo "$out" | head -3)"
+              fail=1
+            fi
+          done < <(find public_html/assets/js -name '*.js' -print0)
+          echo "Проверено файлов: $count"
+          if [ "$fail" != "0" ]; then
+            echo "::error::Сломан JS — интерактив ляжет на всех страницах"
+            exit 1
+          fi
+          echo "JS в порядке."

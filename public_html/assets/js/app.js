@@ -379,7 +379,13 @@
     closeModal();
   });
 
-  // ── Выпадашка с поиском: <select data-search> ──
+})();
+
+// ── Выпадашка с поиском: <select data-search> ──
+// Жило внутри блока новостей, который на неновостных страницах выходит раньше
+// (early return выше), поэтому поиск по игрокам не работал вообще нигде: ни в
+// «Дуэли», ни в кабинете, ни в админке турниров. Вынесено в отдельный блок.
+(function () {
   function enhanceSearchSelect(sel) {
     if (sel.dataset.ssDone) return;
     sel.dataset.ssDone = '1';
