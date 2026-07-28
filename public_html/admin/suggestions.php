@@ -22,7 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $list = db_ready() ? db()->query('SELECT * FROM suggestions ORDER BY FIELD(status,\'new\',\'planned\',\'done\',\'declined\'), created_at DESC LIMIT 200')->fetchAll() : [];
-$statusLabel = ['new' => 'на рассмотрении', 'planned' => 'в планах', 'done' => 'сделано', 'declined' => 'отклонено'];
+// «новое» вместо «на рассмотрении»: именно этот статус считает значок в админке, и
+// подпись должна отвечать на вопрос «почему горит» — оно новое, пока не разобрано.
+$statusLabel = ['new' => 'новое', 'planned' => 'в планах', 'done' => 'сделано', 'declined' => 'отклонено'];
 
 page_head('Админка — предложения', '');
 echo '<p><a href="/admin/">← Админка</a></p><h1>Предложения по сайту</h1>';

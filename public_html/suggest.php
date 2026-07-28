@@ -40,7 +40,7 @@ $st = db()->prepare('SELECT * FROM suggestions WHERE user_id = ? ORDER BY create
 $st->execute([(int)$u['id']]);
 $mine = $st->fetchAll();
 
-$statusLabel = ['new' => 'на рассмотрении', 'planned' => 'в планах', 'done' => 'сделано', 'declined' => 'отклонено'];
+$statusLabel = ['new' => 'новое', 'planned' => 'в планах', 'done' => 'сделано', 'declined' => 'отклонено'];
 $statusTag = ['new' => '', 'planned' => 'tag-open', 'done' => 'tag-ok', 'declined' => ''];
 
 page_head('Предложить идею', '');
