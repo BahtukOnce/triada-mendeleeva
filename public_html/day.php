@@ -327,6 +327,8 @@ if ($games) {
         $lhPu = lh_seats_colored($rbs, (int)$g['bm_seat1'], (int)$g['bm_seat2'], (int)$g['bm_seat3']);
         if ($g['first_killed_seat']) {
             $meta[] = 'ЛХ ПУ: ' . ($lhPu !== '' ? $lhPu : lh_miss_chip());
+        } else {
+            $meta[] = 'ЛХ: ' . lh_miss_chip('Первоубиенный не отмечен — лучшего хода в игре не было');
         }
         $lhV0 = lh_seats_colored($rbs, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0));
         if (!empty($g['vote0_seat'])) {

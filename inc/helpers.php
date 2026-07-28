@@ -267,9 +267,9 @@ function penalty_badges(array $s): string
  * Пустое место не отличалось от «не заполнено», хотя по правилам ПУ ход всегда
  * вправе сделать, и его отсутствие — такой же результат, как неудачная угадка.
  */
-function lh_miss_chip(): string
+function lh_miss_chip(string $title = 'Лучший ход не принёс бонуса: места не названы или среди них нет чёрных'): string
 {
-    return '<span title="Лучший ход не принёс бонуса: места не названы или среди них нет чёрных" '
+    return '<span title="' . esc($title) . '" '
         . 'style="display:inline-block;font-weight:600;font-size:12px;padding:1px 8px;border-radius:5px;'
         . 'background:var(--sf2);border:1px solid var(--bd);color:var(--tx2);">промах</span>';
 }

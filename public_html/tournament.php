@@ -786,13 +786,21 @@ foreach ($byTable as $tableNo => $tGames) {
                 'chips' => $chipsV0 !== '' ? $chipsV0 : lh_miss_chip(),
                 'kind' => 'заголосован', 'kindTitle' => 'заголосован на 0-м круге', 'kindBg' => 'rgba(120,110,220,.7)'];
         }
+        // Ни ПУ, ни заголосованного — блока не было вовсе, и карточка выглядела иначе,
+        // чем соседние. Показываем ту же плашку: лучшего хода в игре не случилось.
+        if (!$lhBlocks) {
+            $lhBlocks[] = ['nick' => '', 'seat' => 0, 'kind' => '', 'kindTitle' => '', 'kindBg' => '',
+                'chips' => lh_miss_chip('Первоубиенный не отмечен — лучшего хода в игре не было')];
+        }
         $lhBlockHtml = function (array $b): string {
+            $who = $b['nick'] !== ''
+                ? ' <b style="color:var(--tx);">' . esc($b['nick']) . '</b> · место ' . (int)$b['seat']
+                    . ' <span title="' . esc($b['kindTitle']) . '" style="display:inline-block;font-size:10px;font-weight:700;'
+                    . 'padding:2px 6px;border-radius:5px;background:' . $b['kindBg'] . ';color:#fff;margin-left:4px;vertical-align:middle;">'
+                    . $b['kind'] . '</span>'
+                : '';
             return '<div style="background:var(--sf2);border-radius:8px;padding:8px 10px;margin-top:8px;">'
-                . '<div style="color:var(--tx3);font-size:11px;margin-bottom:6px;">🌟 ЛХ <b style="color:var(--tx);">'
-                . esc($b['nick']) . '</b> · место ' . (int)$b['seat']
-                . ' <span title="' . esc($b['kindTitle']) . '" style="display:inline-block;font-size:10px;font-weight:700;'
-                . 'padding:2px 6px;border-radius:5px;background:' . $b['kindBg'] . ';color:#fff;margin-left:4px;vertical-align:middle;">'
-                . $b['kind'] . '</span></div>'
+                . '<div style="color:var(--tx3);font-size:11px;margin-bottom:6px;">🌟 ЛХ' . $who . '</div>'
                 . '<div style="display:flex;gap:5px;flex-wrap:wrap;">' . $b['chips'] . '</div></div>';
         };
         if (!$multi) {

@@ -62,9 +62,16 @@ foreach ($list as $s) {
     echo '<input type="text" name="admin_note" placeholder="ответ (необязательно)" value="' . esc($s['admin_note']) . '" style="flex:1;min-width:180px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;">';
     echo '<button class="btn" style="padding:6px 14px;font-size:13px;" type="submit">Сохранить</button>';
     echo '</form>';
-    echo '<form method="post" action="/admin/suggestions.php" style="display:inline;margin-top:6px;" onsubmit="return confirm(\'Удалить?\');">' . csrf_field();
+    // Удаление отделяем от «Сохранить»: раньше форма была display:inline, и вертикальный
+    // отступ к ней не применялся — красная кнопка липла к выпадашке статуса и ловила
+    // случайные клики. Отодвигаем чертой и уводим вправо, подтверждение — с текстом идеи.
+    $confirmTxt = mb_substr(trim(preg_replace('/\s+/u', ' ', (string)$s['body'])), 0, 60);
+    echo '<div style="display:flex;justify-content:flex-end;margin-top:16px;padding-top:10px;border-top:1px solid var(--bd);">';
+    echo '<form method="post" action="/admin/suggestions.php" onsubmit="return confirm(\'Удалить предложение безвозвратно?\\n\\n'
+        . esc(addslashes($confirmTxt)) . '…\');">' . csrf_field();
     echo '<input type="hidden" name="form" value="delete"><input type="hidden" name="id" value="' . (int)$s['id'] . '">';
     echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button></form>';
+    echo '</div>';
     echo '</div>';
 }
 page_foot();
