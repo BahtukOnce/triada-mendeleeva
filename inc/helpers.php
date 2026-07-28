@@ -495,6 +495,7 @@ function achievements_catalog(): array
         'triple'   => ['🎖', 'Тройка в ЛХ', 'Лучший ход 3 из 3', 'Мастерство'],
         'don'      => ['😈', 'Дон-мастер', '60%+ за дона (от 4 игр)', 'Мастерство'],
         'danger'   => ['🎯', 'Самый опасный', '5+ раз первоубиенный (вас вычисляют первым)', 'Мастерство'],
+        'hunch'    => ['🔮', 'Чуйка', 'За чёрных 3+ раза шериф убит первой же ночью', 'Мастерство'],
         'tour_win'  => ['🥇', 'Победитель турнира', 'Выиграл турнир', 'Турниры'],
         'tour_win2' => ['🏅', 'Двукратный', 'Выиграл 2 турнира', 'Турниры'],
         'tour_win3' => ['🏆', 'Триумфатор', 'Выиграл 3 турнира', 'Турниры'],
@@ -526,7 +527,7 @@ function achievement_earners(): array
         }
         // глобальные игры (для серий) — по хронологии
         $byPlayer = [];
-        $q = db()->query("SELECT gs.player_id, gs.role, gs.plus, g.winner
+        $q = db()->query("SELECT gs.player_id, gs.role, gs.plus, gs.seat, g.winner, g.first_killed_seat
             FROM game_seats gs JOIN games g ON g.id = gs.game_id
             WHERE g.status = 'finished' AND g.winner IS NOT NULL
             ORDER BY gs.player_id, COALESCE((SELECT date FROM game_days WHERE id=g.day_id),(SELECT date_from FROM tournaments WHERE id=g.tournament_id)), g.id");
@@ -551,6 +552,17 @@ function achievement_earners(): array
             AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id=g.id AND s.seat IN (g.bm_seat1,g.bm_seat2,g.bm_seat3) AND s.role IN ('maf','don'))=3") as $r) {
             $triples[(int)$r['player_id']] = true;
         }
+        // «Чуйка»: чёрные, у которых первой же ночью выстрел лёг в шерифа. Считаем по
+        // первоубиенному (ПУ) с ролью шерифа — засчитывается всей чёрной команде игры,
+        // выбор цели у мафии общий.
+        $hunch = [];
+        foreach (db()->query("SELECT me.player_id pid, COUNT(*) c FROM games g
+            JOIN game_seats sh ON sh.game_id = g.id AND sh.seat = g.first_killed_seat AND sh.role = 'sheriff'
+            JOIN game_seats me ON me.game_id = g.id AND me.role IN ('maf','don')
+            WHERE g.status = 'finished'
+            GROUP BY me.player_id") as $r) {
+            $hunch[(int)$r['pid']] = (int)$r['c'];
+        }
 
         // Ники и аватары для всех игроков (не только из кэша рейтинга), иначе попадает «#id»
         $nickOf = [];
@@ -574,8 +586,21 @@ function achievement_earners(): array
             $maxW = 0; $w = 0; $maxPlus = 0.0;
             $blk = 0; $bsr = 0; $redRole = 0; $rrsr = 0;     // роль подряд (раздача)
             $redW = 0; $rwsr = 0; $blackW = 0; $bwsr = 0;    // победы подряд цветом
+            // Всё время: допы, ПУ и дон-статистика. Раньше эти три ачивки брались из
+            // rating_cache — а там только вечера ТЕКУЩЕГО сезона, хотя подписи обещают
+            // «всего». Из-за этого числа были занижены, а при смене сезона ачивки бы
+            // просто исчезли у всех.
+            $dopAll = 0.0; $puAll = 0; $donG = 0; $donW = 0;
             foreach (($byPlayer[$pid] ?? []) as $g) {
                 $maxPlus = max($maxPlus, (float)$g['plus']);
+                $dopAll += (float)$g['plus'];
+                if ((int)$g['first_killed_seat'] > 0 && (int)$g['seat'] === (int)$g['first_killed_seat']) {
+                    $puAll++;
+                }
+                if ($g['role'] === 'don') {
+                    $donG++;
+                    if ($g['winner'] === 'black') { $donW++; }
+                }
                 $isBlack = in_array($g['role'], ['maf', 'don'], true);
                 $won = ($g['winner'] === 'red' && !$isBlack) || ($g['winner'] === 'black' && $isBlack);
                 if ($won) { $w++; $maxW = max($maxW, $w); } else { $w = 0; }
@@ -584,8 +609,8 @@ function achievement_earners(): array
                 if (!$isBlack && $g['winner'] === 'red') { $rwsr++; $redW = max($redW, $rwsr); } else { $rwsr = 0; }
                 if ($isBlack && $g['winner'] === 'black') { $bwsr++; $blackW = max($blackW, $bwsr); } else { $bwsr = 0; }
             }
-            $puPct = $games ? ((int)($r['pu_count'] ?? 0)) / $games * 100 : 100;
-            $donWr = ($r && (int)$r['g_don'] >= 4) ? (int)$r['w_don'] / (int)$r['g_don'] * 100 : 0;
+            $puPct = $games ? $puAll / $games * 100 : 100;
+            $donWr = $donG >= 4 ? $donW / $donG * 100 : 0;
             $cond = [
                 'debut' => $games >= 1, 'ten' => $games >= 10, 'games25' => $games >= 25, 'games50' => $games >= 50, 'veteran' => $games >= 100,
                 'streak3' => $maxW >= 3, 'streak5' => $maxW >= 5, 'streak8' => $maxW >= 8, 'streak10' => $maxW >= 10,
@@ -596,9 +621,10 @@ function achievement_earners(): array
                 'elo1100' => $peak >= 1100, 'elo1400' => $peak >= 1400, 'elo1700' => $peak >= 1700,
                 'elo2000' => $peak >= 2000, 'elo2300' => $peak >= 2300, 'elo2600' => $peak >= 2600,
                 'eloday' => ($eloDay[$pid] ?? 0) >= 150,
-                'dop30' => $r && (float)$r['dop_sum'] >= 30, 'fatgame' => $maxPlus >= 1.0,
+                'dop30' => $dopAll >= 30, 'fatgame' => $maxPlus >= 1.0,
                 'triple' => isset($triples[$pid]),
-                'don' => $donWr >= 60, 'danger' => ((int)($r['pu_count'] ?? 0)) >= 5,
+                'don' => $donWr >= 60, 'danger' => $puAll >= 5,
+                'hunch' => (($hunch[$pid] ?? 0) >= 3),
             ];
             foreach ($cond as $k => $ok) {
                 if ($ok) {

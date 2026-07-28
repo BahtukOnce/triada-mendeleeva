@@ -115,17 +115,19 @@ try {
             $pids[(int)$b] = 1;
         }
         $inP = implode(',', array_fill(0, count($pids), '?'));
-        $pq = db()->prepare("SELECT id, nickname, avatar, flair FROM players WHERE id IN ($inP)");
+        $pq = db()->prepare("SELECT id, nickname, avatar, flair, elo FROM players WHERE id IN ($inP)");
         $pq->execute(array_keys($pids));
         $plMap = [];
         foreach ($pq->fetchAll() as $pl) {
             $plMap[(int)$pl['id']] = $pl;
         }
-        echo '<h2 style="margin-top:18px;">🤝 Лучшие дуэты</h2>';
-        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе — клик откроет «Дуэль»</p>';
-        // Период и порог — одной строкой: это один набор настроек списка, разносить
-        // их на две строки незачем.
-        echo '<div id="duo" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">';
+        // Якорь — на заголовке, а не на строке настроек, плюс scroll-margin-top под
+        // липкую шапку (70px): иначе после перезагрузки страница вставала так, что
+        // заголовок уезжал под шапку и было непонятно, куда тебя перенесло.
+        echo '<h2 id="duo" style="margin-top:18px;scroll-margin-top:86px;">🤝 Лучшие дуэты</h2>';
+        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе — клик по строке откроет «Дуэль»</p>';
+        // Период и порог — одной строкой: это один набор настроек списка.
+        echo '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">';
         echo '<a class="tag' . ($duoSel === 'all' ? ' tag-open' : '') . '" href="/records.php#duo">За всё время</a>';
         foreach ($duoSeasons as $sName) {
             echo '<a class="tag' . ($duoSel === $sName ? ' tag-open' : '') . '" href="/records.php?duo='
@@ -137,11 +139,11 @@ try {
             . 'style="width:64px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 9px;">'
             . '<span style="font-size:13px;color:var(--tx2);">совместных игр</span>'
             . '<span id="duo-none" style="font-size:12.5px;color:var(--tx3);display:none;">— таких пар нет, снизьте порог</span></div>';
-        // Ширину задаём явно. В records-grid (колонки ~280px) карточка была слишком узкой
-        // и ники обрезались; на всю ширину страницы — наоборот, ник и процент разъезжались
-        // по краям, потому что .rec-name растягивается (flex:1). 620px — ники целиком,
-        // а строка остаётся компактной.
-        echo '<div class="rec-card" style="max-width:620px;"><div class="rec-rows" id="duo-rows">';
+        // Таблица в том же виде, что «Битва факультетов»: колонки читаются глазами,
+        // а список-карточка либо резал ники в узкой сетке, либо растягивал строку.
+        echo '<div class="card" style="overflow-x:auto;"><table class="tbl duo-tbl">';
+        echo '<tr><th>#</th><th>Пара</th><th class="num">Игр вместе</th><th class="num">Побед</th>'
+            . '<th class="num">Винрейт</th><th class="num">Ср. ELO</th></tr>';
         foreach ($bestPairs as $bp) {
             [$a, $b] = array_map('intval', explode('-', $bp['k']));
             $pa = $plMap[$a] ?? null;
@@ -149,13 +151,20 @@ try {
             if (!$pa || !$pb) {
                 continue;
             }
-            echo '<a class="rec-row duo-row" data-g="' . (int)$bp['g'] . '" style="display:none;" href="/versus.php?a=' . $a . '&b=' . $b . '">'
-                . '<span class="rec-rank"></span>'
-                . avatar_html($pa, 24) . avatar_html($pb, 24)
-                . '<span class="rec-name">' . esc($pa['nickname']) . ' + ' . esc($pb['nickname']) . '</span>'
-                . '<span class="rec-v">' . round($bp['wr'] * 100) . '% · ' . $bp['g'] . ' игр</span></a>';
+            $wrP = round($bp['wr'] * 100);
+            $eloP = (int)round(((float)($pa['elo'] ?? 1000) + (float)($pb['elo'] ?? 1000)) / 2);
+            echo '<tr class="duo-row" data-g="' . (int)$bp['g'] . '" style="display:none;" '
+                . 'data-href="/versus.php?a=' . $a . '&b=' . $b . '">'
+                . '<td class="duo-rank"></td>'
+                . '<td><span style="display:inline-flex;align-items:center;gap:7px;">'
+                . avatar_html($pa, 22) . avatar_html($pb, 22)
+                . '<b>' . esc($pa['nickname']) . ' + ' . esc($pb['nickname']) . '</b></span></td>'
+                . '<td class="num">' . (int)$bp['g'] . '</td>'
+                . '<td class="num">' . (int)$bp['w'] . '</td>'
+                . '<td class="num"><b style="color:' . ($wrP >= 60 ? 'var(--ok)' : 'var(--ac)') . ';">' . $wrP . '%</b></td>'
+                . '<td class="num">' . $eloP . '</td></tr>';
         }
-        echo '</div></div>';
+        echo '</table></div>';
         ?>
 <script>
 (function () {
@@ -172,7 +181,8 @@ try {
       var ok = shown < 6 && parseInt(r.dataset.g, 10) >= min;
       r.style.display = ok ? '' : 'none';
       if (ok) {
-        r.querySelector('.rec-rank').textContent = medals[shown] || '·';
+        var c = r.querySelector('.duo-rank');
+        if (c) c.textContent = medals[shown] || (shown + 1);
         shown++;
       }
     });
@@ -189,24 +199,50 @@ try {
 
 // ── Битва факультетов РХТУ: командный зачёт по анкетам ──
 try {
-    $mainIdF = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    $fq = db()->prepare("SELECT p.faculty, p.elo, rc.games,
-            (COALESCE(rc.w_civ,0) + COALESCE(rc.w_maf,0) + COALESCE(rc.w_sher,0) + COALESCE(rc.w_don,0)) AS wins,
-            COALESCE(rc.dop_sum, 0) AS dops
+    // Считаем прямо по сыгранным играм, а не по rating_cache: кэш содержит только
+    // вечера текущего сезона, поэтому выбрать период было невозможно в принципе.
+    // Теперь период выбирается чипами (как у дуэтов), и учитываются также турниры.
+    $facSel = (string)($_GET['fac'] ?? 'all');
+    if ($facSel !== 'all' && !in_array($facSel, $duoSeasons ?? [], true)) {
+        $facSel = 'all';
+    }
+    $fSql = "SELECT p.faculty, p.nickname, p.elo,
+            COUNT(*) AS games,
+            SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
+                      OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS wins,
+            COALESCE(SUM(gs.plus), 0) AS dops
         FROM players p
-        LEFT JOIN rating_cache rc ON rc.player_id = p.id AND rc.rating_id = ?
-        WHERE p.faculty IS NOT NULL AND TRIM(p.faculty) <> ''");
-    $fq->execute([$mainIdF]);
+        JOIN game_seats gs ON gs.player_id = p.id
+        JOIN games g ON g.id = gs.game_id
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE p.faculty IS NOT NULL AND TRIM(p.faculty) <> ''
+          AND p.banned_at IS NULL
+          AND g.status = 'finished' AND g.winner IN ('red','black')";
+    $fArgs = [];
+    if ($facSel !== 'all') {
+        $fSql .= " AND $seasonExpr = ?";
+        $fArgs = [$facSel];
+    }
+    $fSql .= " GROUP BY p.id, p.faculty, p.nickname, p.elo";
+    $fq = db()->prepare($fSql);
+    $fq->execute($fArgs);
     $fac = [];
     foreach ($fq->fetchAll() as $r) {
         $key = mb_strtoupper(trim((string)$r['faculty'])); // нормализация: ИМиХТ = имихт
+        // «Другое» — это вариант из анкеты, а не факультет: в командном зачёте ему не место.
+        if (in_array($key, ['ДРУГОЕ', 'НЕТ', 'НЕ УКАЗАН', '-', '—'], true)) {
+            continue;
+        }
         if (!isset($fac[$key])) {
-            $fac[$key] = ['label' => trim((string)$r['faculty']), 'members' => 0, 'games' => 0, 'wins' => 0, 'eloSum' => 0.0, 'eloN' => 0, 'dops' => 0.0];
+            $fac[$key] = ['label' => trim((string)$r['faculty']), 'members' => 0, 'games' => 0,
+                'wins' => 0, 'eloSum' => 0.0, 'eloN' => 0, 'dops' => 0.0, 'nicks' => []];
         }
         $fac[$key]['members']++;
         $fac[$key]['games'] += (int)($r['games'] ?? 0);
         $fac[$key]['wins'] += (int)$r['wins'];
         $fac[$key]['dops'] += (float)$r['dops'];
+        $fac[$key]['nicks'][] = (string)$r['nickname'];
         if ((int)($r['games'] ?? 0) > 0) {
             $fac[$key]['eloSum'] += (float)$r['elo'];
             $fac[$key]['eloN']++;
@@ -219,8 +255,16 @@ try {
             $wb = $b['games'] >= 10 ? $b['wins'] / $b['games'] : -1;
             return [$wb, $b['games']] <=> [$wa, $a['games']];
         });
-        echo '<h2 style="margin-top:18px;">🏛 Битва факультетов</h2>';
-        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">командный зачёт по анкетам игроков (факультет — в личном кабинете); факультеты с <10 играми — вне зачёта</p>';
+        echo '<h2 id="fac" style="margin-top:18px;scroll-margin-top:86px;">🏛 Битва факультетов</h2>';
+        echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">командный зачёт по анкетам игроков '
+            . '(факультет — в личном кабинете); наведи на название — увидишь состав</p>';
+        echo '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">'
+            . '<a class="tag' . ($facSel === 'all' ? ' tag-open' : '') . '" href="/records.php#fac">За всё время</a>';
+        foreach (($duoSeasons ?? []) as $sName) {
+            echo '<a class="tag' . ($facSel === $sName ? ' tag-open' : '') . '" href="/records.php?fac='
+                . urlencode($sName) . '#fac">' . esc($sName) . '</a>';
+        }
+        echo '</div>';
         echo '<div class="card" style="overflow-x:auto;"><table class="tbl fac-tbl">';
         echo '<tr><th>#</th><th>Факультет</th><th class="num">Игроков</th><th class="num">Игр</th><th class="num">Побед</th><th class="num">Винрейт</th><th class="num">Ср. ELO</th><th class="num">Допы</th></tr>';
         $posF = 0;
@@ -230,9 +274,16 @@ try {
             $inRace = $f['games'] >= 10;
             $medalF = !$inRace ? '·' : ($posF === 1 ? '🥇' : ($posF === 2 ? '🥈' : ($posF === 3 ? '🥉' : $posF)));
             $wrCol = !$inRace ? 'var(--tx3)' : ($wr >= 52 ? 'var(--ok)' : ($wr <= 48 ? 'var(--ac)' : 'var(--tx)'));
+            // Состав — подсказкой при наведении на название факультета.
+            sort($f['nicks'], SORT_NATURAL | SORT_FLAG_CASE);
+            $roster = implode(', ', array_slice($f['nicks'], 0, 40))
+                . (count($f['nicks']) > 40 ? ' и ещё ' . (count($f['nicks']) - 40) : '');
+            // «·» вместо места раньше не объясняло себя — подписываем прямо в строке.
+            $outTag = $inRace ? '' : ' <span class="tag" style="font-size:10.5px;padding:1px 7px;'
+                . 'vertical-align:middle;" title="Для места в зачёте нужно минимум 10 игр">вне зачёта</span>';
             echo '<tr' . ($inRace ? '' : ' style="opacity:.55;"') . '>'
-                . '<td>' . $medalF . '</td>'
-                . '<td><b>' . esc($f['label']) . '</b></td>'
+                . '<td' . ($inRace ? '' : ' title="Вне зачёта: меньше 10 игр"') . '>' . $medalF . '</td>'
+                . '<td title="' . esc($roster) . '"><b>' . esc($f['label']) . '</b>' . $outTag . '</td>'
                 . '<td class="num">' . $f['members'] . '</td>'
                 . '<td class="num">' . $f['games'] . '</td>'
                 . '<td class="num">' . $f['wins'] . '</td>'
