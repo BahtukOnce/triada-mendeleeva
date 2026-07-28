@@ -63,17 +63,22 @@ echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Очные в�
 
 // ── Форма выбора пары ──
 echo '<div class="card"><form method="get" action="/versus.php" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
-$dl = '<datalist id="duel-dl">';
-foreach ($allP as $p) {
-    $dl .= '<option value="' . esc($p['nickname']) . '">';
-}
-$dl .= '</datalist>';
-echo $dl;
-echo '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>Игрок 1</label>'
-    . '<input type="text" name="an" list="duel-dl" autocomplete="off" placeholder="ник" value="' . esc($pa['nickname'] ?? '') . '"></div>';
+// Выбор игрока — <select data-search>: его подхватывает enhanceSearchSelect и делает
+// выпадашку с поиском. Раньше здесь был нативный datalist: по клику на треугольник
+// показывался весь список без поиска (жалоба из «Предложений»).
+$duelSelect = function (string $name, string $label, ?array $cur) use ($allP): string {
+    $h = '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>' . $label . '</label>'
+        . '<select name="' . $name . '" data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
+    foreach ($allP as $p) {
+        $nick = (string)$p['nickname'];
+        $h .= '<option value="' . esc($nick) . '"'
+            . (($cur && (string)$cur['nickname'] === $nick) ? ' selected' : '') . '>' . esc($nick) . '</option>';
+    }
+    return $h . '</select></div>';
+};
+echo $duelSelect('an', 'Игрок 1', $pa);
 echo '<div style="align-self:center;font-weight:800;color:var(--tx2);padding:0 2px;">vs</div>';
-echo '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>Игрок 2</label>'
-    . '<input type="text" name="bn" list="duel-dl" autocomplete="off" placeholder="ник" value="' . esc($pb['nickname'] ?? '') . '"></div>';
+echo $duelSelect('bn', 'Игрок 2', $pb);
 echo '<button class="btn" type="submit">Сравнить</button>';
 echo '</form></div>';
 
