@@ -37,9 +37,25 @@ echo '</div>';
 
 // ── Лучшие дуэты клуба: пары одного цвета с лучшим винрейтом (от 6 совместных игр) ──
 try {
-    $rowsP = db()->query("SELECT gs.game_id, gs.player_id, gs.role, g.winner
-        FROM game_seats gs JOIN games g ON g.id = gs.game_id
-        WHERE g.status = 'finished' AND g.winner IN ('red','black')")->fetchAll();
+    // Период дуэтов выбирается явно: за всё время или текущий сезон (1 сент — 31 авг).
+    // Без подписи период рекордов угадать невозможно, а «за всё время» и «сейчас» —
+    // это разные списки: старожилы иначе навсегда занимают верх.
+    $duoCur = (string)($_GET['duo'] ?? '') === 'cur';
+    [$duoFrom, $duoTo, $duoLabel] = current_season_bounds();
+    $duoSql = "SELECT gs.game_id, gs.player_id, gs.role, g.winner
+        FROM game_seats gs
+        JOIN games g ON g.id = gs.game_id
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE g.status = 'finished' AND g.winner IN ('red','black')";
+    $duoArgs = [];
+    if ($duoCur) {
+        $duoSql .= " AND COALESCE(d.date, t.date_from) BETWEEN ? AND ?";
+        $duoArgs = [$duoFrom, $duoTo];
+    }
+    $stP = db()->prepare($duoSql);
+    $stP->execute($duoArgs);
+    $rowsP = $stP->fetchAll();
     $byGame = [];
     foreach ($rowsP as $r) {
         $byGame[(int)$r['game_id']][] = $r;
@@ -68,12 +84,11 @@ try {
             }
         }
     }
-    // Порог держим низким (3), а сколько именно игр требовать — выбирает читатель
-    // ползунком ниже. Иначе в топе навсегда застревают старожилы: у пары с сотней
-    // совместных игр винрейт почти не бывает выше, чем у пары с шестью.
+    // Ниже 5 совместных игр пару не показываем вообще: на 3-4 играх винрейт — это шум,
+    // 100% у случайной пары вытеснит настоящие дуэты. Выше 5 порог поднимает читатель.
     $bestPairs = [];
     foreach ($pairAgg as $k => $v) {
-        if ($v['g'] >= 3) {
+        if ($v['g'] >= 5) {
             $bestPairs[] = ['k' => $k, 'g' => $v['g'], 'w' => $v['w'], 'wr' => $v['w'] / $v['g']];
         }
     }
@@ -95,11 +110,16 @@ try {
         }
         echo '<h2 style="margin-top:18px;">🤝 Лучшие дуэты</h2>';
         echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе — клик откроет «Дуэль»</p>';
+        // Период: за всё время или текущий сезон. Раньше период вообще не был подписан.
+        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;">'
+            . '<a class="tag' . ($duoCur ? '' : ' tag-open') . '" href="/records.php#duo">За всё время</a>'
+            . '<a class="tag' . ($duoCur ? ' tag-open' : '') . '" href="/records.php?duo=cur#duo">' . esc($duoLabel) . '</a>'
+            . '</div>';
         // Порог совместных игр задаёт читатель: по просьбе из «Предложений» —
         // иначе в списке видны только самые сыгранные пары.
-        echo '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
+        echo '<div id="duo" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
             . '<label for="duo-min" style="font-size:13px;color:var(--tx2);">Показывать пары от</label>'
-            . '<input type="number" id="duo-min" min="3" max="60" step="1" value="6" '
+            . '<input type="number" id="duo-min" min="5" max="60" step="1" value="5" '
             . 'style="width:78px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;">'
             . '<span style="font-size:13px;color:var(--tx2);">совместных игр</span>'
             . '<span id="duo-none" style="font-size:12.5px;color:var(--tx3);display:none;">— таких пар нет, снизьте порог</span></div>';
@@ -130,7 +150,7 @@ try {
   var medals = ['🥇', '🥈', '🥉'];
   function apply() {
     var min = parseInt(inp.value, 10);
-    if (!min || min < 3) min = 3;
+    if (!min || min < 5) min = 5;   // ниже 5 совместных игр винрейт — шум
     var shown = 0;
     rows.forEach(function (r) {
       var ok = shown < 6 && parseInt(r.dataset.g, 10) >= min;
