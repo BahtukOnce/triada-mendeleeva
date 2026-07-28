@@ -37,11 +37,24 @@ echo '</div>';
 
 // ── Лучшие дуэты клуба: пары одного цвета с лучшим винрейтом (от 6 совместных игр) ──
 try {
-    // Период дуэтов выбирается явно: за всё время или текущий сезон (1 сент — 31 авг).
-    // Без подписи период рекордов угадать невозможно, а «за всё время» и «сейчас» —
-    // это разные списки: старожилы иначе навсегда занимают верх.
-    $duoCur = (string)($_GET['duo'] ?? '') === 'cur';
-    [$duoFrom, $duoTo, $duoLabel] = current_season_bounds();
+    // Период дуэтов выбирается явно, и сезоны берём из реальных данных — а не список
+    // «всё время / текущий»: за всю историю верх навсегда занимают старожилы.
+    // Сезон = 1 сентября — 31 августа (та же формула, что в профиле игрока).
+    $dExpr      = "COALESCE(d.date, t.date_from)";
+    $startY     = "(YEAR($dExpr) - (MONTH($dExpr) < 9))";
+    $seasonExpr = "CONCAT('Сезон ', $startY, '/', $startY + 1)";
+    $duoSeasons = [];
+    foreach (db()->query("SELECT $seasonExpr s FROM games g
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE g.status = 'finished' AND g.winner IN ('red','black') AND $dExpr IS NOT NULL
+        GROUP BY s ORDER BY s DESC")->fetchAll() as $rs) {
+        $duoSeasons[] = (string)$rs['s'];
+    }
+    $duoSel = (string)($_GET['duo'] ?? 'all');
+    if ($duoSel !== 'all' && !in_array($duoSel, $duoSeasons, true)) {
+        $duoSel = 'all';                       // чужой параметр в адресе — молча игнорируем
+    }
     $duoSql = "SELECT gs.game_id, gs.player_id, gs.role, g.winner
         FROM game_seats gs
         JOIN games g ON g.id = gs.game_id
@@ -49,9 +62,9 @@ try {
         LEFT JOIN tournaments t ON t.id = g.tournament_id
         WHERE g.status = 'finished' AND g.winner IN ('red','black')";
     $duoArgs = [];
-    if ($duoCur) {
-        $duoSql .= " AND COALESCE(d.date, t.date_from) BETWEEN ? AND ?";
-        $duoArgs = [$duoFrom, $duoTo];
+    if ($duoSel !== 'all') {
+        $duoSql .= " AND $seasonExpr = ?";
+        $duoArgs = [$duoSel];
     }
     $stP = db()->prepare($duoSql);
     $stP->execute($duoArgs);
@@ -110,22 +123,25 @@ try {
         }
         echo '<h2 style="margin-top:18px;">🤝 Лучшие дуэты</h2>';
         echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">пары одного цвета с лучшим винрейтом вместе — клик откроет «Дуэль»</p>';
-        // Период: за всё время или текущий сезон. Раньше период вообще не был подписан.
-        echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;">'
-            . '<a class="tag' . ($duoCur ? '' : ' tag-open') . '" href="/records.php#duo">За всё время</a>'
-            . '<a class="tag' . ($duoCur ? ' tag-open' : '') . '" href="/records.php?duo=cur#duo">' . esc($duoLabel) . '</a>'
-            . '</div>';
-        // Порог совместных игр задаёт читатель: по просьбе из «Предложений» —
-        // иначе в списке видны только самые сыгранные пары.
-        echo '<div id="duo" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;">'
-            . '<label for="duo-min" style="font-size:13px;color:var(--tx2);">Показывать пары от</label>'
+        // Период и порог — одной строкой: это один набор настроек списка, разносить
+        // их на две строки незачем.
+        echo '<div id="duo" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">';
+        echo '<a class="tag' . ($duoSel === 'all' ? ' tag-open' : '') . '" href="/records.php#duo">За всё время</a>';
+        foreach ($duoSeasons as $sName) {
+            echo '<a class="tag' . ($duoSel === $sName ? ' tag-open' : '') . '" href="/records.php?duo='
+                . urlencode($sName) . '#duo">' . esc($sName) . '</a>';
+        }
+        echo '<span style="width:1px;height:20px;background:var(--bd);margin:0 3px;"></span>'
+            . '<label for="duo-min" style="font-size:13px;color:var(--tx2);">от</label>'
             . '<input type="number" id="duo-min" min="5" max="60" step="1" value="5" '
-            . 'style="width:78px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;">'
+            . 'style="width:64px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 9px;">'
             . '<span style="font-size:13px;color:var(--tx2);">совместных игр</span>'
             . '<span id="duo-none" style="font-size:12.5px;color:var(--tx3);display:none;">— таких пар нет, снизьте порог</span></div>';
-        // Одиночную карточку НЕ кладём в records-grid: там колонки по ~280px, из-за чего
-        // плашка выходила узкой, а ники обрезались многоточием.
-        echo '<div class="rec-card"><div class="rec-rows" id="duo-rows">';
+        // Ширину задаём явно. В records-grid (колонки ~280px) карточка была слишком узкой
+        // и ники обрезались; на всю ширину страницы — наоборот, ник и процент разъезжались
+        // по краям, потому что .rec-name растягивается (flex:1). 620px — ники целиком,
+        // а строка остаётся компактной.
+        echo '<div class="rec-card" style="max-width:620px;"><div class="rec-rows" id="duo-rows">';
         foreach ($bestPairs as $bp) {
             [$a, $b] = array_map('intval', explode('-', $bp['k']));
             $pa = $plMap[$a] ?? null;
