@@ -29,6 +29,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('INSERT INTO suggestions (user_id, nickname, body, images) VALUES (?,?,?,?)')
             ->execute([(int)$u['id'], $myNick, $body, $imgUrls ? json_encode($imgUrls, JSON_UNESCAPED_UNICODE) : null]);
         log_action((int)$u['id'], 'suggestion_add', ['images' => count($imgUrls)]);
+
+        // Уведомляем администрацию о новом предложении: колокольчик + Telegram-бот
+        // руководителю, заму и админам, у кого привязан Telegram (как у заявок в join.php).
+        app_notify_admins('💡 Новое предложение от ' . $myNick, '/admin/suggestions.php');
+        try {
+            if (bot_token() !== '') {
+                $preview = mb_substr($body, 0, 400) . (mb_strlen($body) > 400 ? '…' : '');
+                $botText = "💡 <b>Новое предложение</b>\n\n"
+                    . "🎭 От: <b>" . bot_esc($myNick) . "</b>\n\n"
+                    . bot_esc($preview) . "\n\n"
+                    . "Открыть: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/suggestions.php";
+                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('owner','deputy','admin') AND tg_user_id IS NOT NULL")
+                    ->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($recip as $tg) {
+                    bot_send((int)$tg, $botText);
+                }
+            }
+        } catch (Throwable $e) {
+        }
+
         flash_set('ok', 'Спасибо! Ваше предложение отправлено администрации клуба.');
         redirect('/suggest.php');
     }
