@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/bot_lib.php';   // уведомление администрации о новой идее
 
 $u = require_login();
 $player = current_player();
