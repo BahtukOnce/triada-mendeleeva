@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/bot_lib.php';   // уведомляем автора идеи в личку бота
 $u = require_role('admin');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -9,10 +10,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($form === 'update') {
         $status = (string)($_POST['status'] ?? 'new');
         $status = in_array($status, ['new', 'planned', 'done', 'declined'], true) ? $status : 'new';
+        $note = trim((string)($_POST['admin_note'] ?? '')) ?: null;
+
+        // Состояние ДО правки — чтобы дёргать автора только при реальном изменении,
+        // а не на каждое нажатие «Сохранить».
+        $prev = db()->prepare('SELECT user_id, nickname, body, status, admin_note FROM suggestions WHERE id = ?');
+        $prev->execute([$id]);
+        $before = $prev->fetch() ?: null;
+
         db()->prepare('UPDATE suggestions SET status = ?, admin_note = ? WHERE id = ?')
-            ->execute([$status, trim((string)($_POST['admin_note'] ?? '')) ?: null, $id]);
+            ->execute([$status, $note, $id]);
         log_action((int)$u['id'], 'suggestion_update', ['id' => $id, 'status' => $status]);
-        flash_set('ok', 'Обновлено');
+
+        // Автор узнаёт судьбу своей идеи: колокольчик на сайте + личка бота.
+        $changed = $before && ((string)$before['status'] !== $status
+            || (string)($before['admin_note'] ?? '') !== (string)($note ?? ''));
+        if ($changed && $before && (int)($before['user_id'] ?? 0) > 0) {
+            $authorId = (int)$before['user_id'];
+            $head = [
+                'done'     => '✅ Ваше предложение выполнено',
+                'planned'  => '📌 Ваше предложение взято в планы',
+                'declined' => '🚫 Ваше предложение отклонено',
+                'new'      => '💡 Ваше предложение снова на рассмотрении',
+            ][$status] ?? '💡 Статус вашего предложения обновлён';
+            $short = mb_substr(trim(preg_replace('/\s+/u', ' ', (string)$before['body'])), 0, 90);
+            try {
+                app_notify($authorId, $head . ': «' . $short . '…»', '/suggest.php');
+                if (bot_token() !== '') {
+                    $tg = db()->prepare('SELECT tg_user_id FROM users WHERE id = ? AND tg_user_id IS NOT NULL');
+                    $tg->execute([$authorId]);
+                    $tgId = (int)($tg->fetchColumn() ?: 0);
+                    if ($tgId > 0) {
+                        $msg = '<b>' . bot_esc($head) . "</b>\n\n"
+                            . '«' . bot_esc($short) . "…»\n"
+                            . ($note !== null ? "\n💬 Ответ: " . bot_esc($note) . "\n" : '')
+                            . "\nСпасибо, что помогаете сайту становиться лучше.";
+                        bot_send($tgId, $msg);
+                    }
+                }
+            } catch (Throwable $e) {
+            }
+        }
+        flash_set('ok', $changed ? 'Обновлено, автор уведомлён' : 'Обновлено');
     } elseif ($form === 'delete') {
         db()->prepare('DELETE FROM suggestions WHERE id = ?')->execute([$id]);
         log_action((int)$u['id'], 'suggestion_delete', ['id' => $id]);
