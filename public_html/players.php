@@ -86,6 +86,7 @@ echo '<form method="get" action="/players.php" style="max-width:340px;flex:1;min
 echo '<div class="field" style="margin:0;"><input type="search" id="pl-search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
 echo '</form>';
 echo '<a class="tag" href="/versus.php" title="Очные встречи двух игроков, соратники и немезиды">⚔️ Дуэль</a>';
+echo '<a class="tag" href="/birthdays.php" title="Календарь дней рождения игроков">🎂 Дни рождения</a>';
 echo '</div>';
 // Переключатель: активные (играли за год) / все. Никого не удаляем — просто вид по умолчанию компактнее.
 echo '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">';
