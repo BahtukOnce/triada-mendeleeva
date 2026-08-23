@@ -750,8 +750,16 @@ function bot_notify_admins_day_vote(int $dayId, string $nick, string $action, ?s
     if ($vd !== '') {
         $txt .= "\n" . $vd;
     }
+    // Кому шлём — настраивается галочками в админке (day_vote_notify).
+    // Руководитель получает всегда, остальные роли — по таблице прав.
+    $roles = ["'owner'"];
+    foreach (['deputy', 'admin', 'judge'] as $r) {
+        if (function_exists('perm_role_enabled') && perm_role_enabled('day_vote_notify', $r)) {
+            $roles[] = "'" . $r . "'";
+        }
+    }
     $q = db()->query("SELECT p.tg_user_id FROM players p JOIN users u ON u.id = p.user_id
-        WHERE u.role IN ('admin','deputy','owner') AND p.tg_user_id IS NOT NULL");
+        WHERE u.role IN (" . implode(',', $roles) . ") AND p.tg_user_id IS NOT NULL");
     foreach ($q->fetchAll(PDO::FETCH_COLUMN) as $tg) {
         bot_send($tg, $txt, null);
         usleep(30000);

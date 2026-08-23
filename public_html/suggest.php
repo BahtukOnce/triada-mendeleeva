@@ -41,8 +41,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     . "🎭 От: <b>" . bot_esc($myNick) . "</b>\n\n"
                     . bot_esc($preview) . "\n\n"
                     . "Открыть: " . rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/') . "/admin/suggestions.php";
-                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN ('owner','deputy','admin') AND tg_user_id IS NOT NULL")
-                    ->fetchAll(PDO::FETCH_COLUMN);
+                // Руководителю всегда; заму и админу — по таблице прав в админке.
+                $roles = ["'owner'"];
+                if (perm_role_enabled('sugg_bot_notify', 'deputy')) { $roles[] = "'deputy'"; }
+                if (perm_role_enabled('sugg_bot_notify', 'admin'))  { $roles[] = "'admin'"; }
+                $recip = db()->query("SELECT tg_user_id FROM users WHERE role IN (" . implode(',', $roles) . ")
+                    AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($recip as $tg) {
                     bot_send((int)$tg, $botText);
                 }

@@ -1232,6 +1232,8 @@ function perms_catalog(): array
         'reset_accounts'     => ['Сброс пароля любых аккаунтов; удаление аккаунтов игроков и админов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'app_bot_notify'     => ['Бот-уведомления о новых заявках в клуб', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
         'bd_bot_notify'      => ['Бот-сводка о днях рождения', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
+        'sugg_bot_notify'    => ['Бот-уведомления о новых предложениях по сайту', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
+        'day_vote_notify'    => ['Бот-уведомления о записи и отписке на вечер', ['judge', 'admin', 'deputy'], ['judge' => 0, 'admin' => 1, 'deputy' => 1]],
     ];
 }
 
