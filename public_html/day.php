@@ -260,7 +260,7 @@ if ($games) {
     }
 
     echo '<h2>Игры вечера</h2>';
-    echo '<div class="tables-grid" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr));">';
+    echo '<div class="tables-grid grid-equal" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr));">';
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats);

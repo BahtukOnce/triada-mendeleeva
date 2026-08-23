@@ -166,7 +166,7 @@ foreach ($groups as $grp) {
         . ' · ' . ($grp['is_day'] ? 'вечер' : 'турнир') . ' · игр: ' . count($grp['games'])
         . ', побед: ' . $wins . ' · ' . $eloChip($evDelta) . '</span></div>';
 
-    echo '<div class="tables-grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:10px;">';
+    echo '<div class="tables-grid grid-equal" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:10px;">';
     foreach ($grp['games'] as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $dist = $g['context'] === 'day' ? null : $tournamentDist((int)$g['tournament_id']);

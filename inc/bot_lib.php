@@ -93,6 +93,107 @@ function bot_copy_message(int $toChat, int $fromChat, int $msgId): bool
     return is_array($r) && !empty($r['ok']);
 }
 
+/**
+ * Приближение к сотой игре в сезоне: клуб поздравляет со 100-й, и руководству нужен
+ * запас времени. Шлём один раз на игрока за сезон при переходе через 92 игры и ещё раз
+ * ровно на сотой. Отметки живут в settings (ms_notified), поэтому повторов не будет
+ * даже при пересчёте или повторном сохранении протокола.
+ *
+ * $playerIds — кого проверять (участники только что сохранённой игры).
+ */
+function bot_notify_milestones(array $playerIds): void
+{
+    $ids = array_values(array_unique(array_filter(array_map('intval', $playerIds))));
+    if (!$ids || !function_exists('current_season_bounds')) {
+        return;
+    }
+    [$sFrom, $sTo, $sLabel] = current_season_bounds();
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $st = db()->prepare("SELECT gs.player_id, p.nickname, p.tg, COUNT(*) games
+            FROM game_seats gs
+            JOIN games g ON g.id = gs.game_id
+            JOIN players p ON p.id = gs.player_id
+            LEFT JOIN game_days d ON d.id = g.day_id
+            LEFT JOIN tournaments t ON t.id = g.tournament_id
+            WHERE gs.player_id IN ($in) AND g.status = 'finished'
+              AND COALESCE(d.date, t.date_from) BETWEEN ? AND ?
+            GROUP BY gs.player_id, p.nickname, p.tg");
+        $st->execute(array_merge($ids, [$sFrom, $sTo]));
+        $rows = $st->fetchAll();
+    } catch (Throwable $e) {
+        return;
+    }
+    if (!$rows) {
+        return;
+    }
+
+    $seen = json_decode((string)bot_setting('ms_notified', '[]'), true);
+    if (!is_array($seen)) {
+        $seen = [];
+    }
+    $msgs = [];
+    $addedKeys = [];
+    foreach ($rows as $r) {
+        $n = (int)$r['games'];
+        $pid = (int)$r['player_id'];
+        $nick = (string)$r['nickname'];
+        $tg = trim((string)($r['tg'] ?? ''));
+        $who = '<b>' . bot_esc($nick) . '</b>' . ($tg !== '' ? ' (' . bot_esc('@' . ltrim($tg, '@')) . ')' : '');
+        foreach ([100, 92] as $mark) {           // сначала проверяем сотую, потом «скоро»
+            if ($n < $mark) {
+                continue;
+            }
+            $key = $sLabel . '|' . $pid . '|' . $mark;
+            if (in_array($key, $seen, true)) {
+                continue;
+            }
+            $addedKeys[] = $key;
+            $nl = "\n";
+            $msgs[] = $mark === 100
+                ? "🎉 <b>Сотая игра!</b>" . $nl . $who . " — <b>" . $n . "</b> игр в сезоне "
+                    . bot_esc($sLabel) . "." . $nl . "Пора поздравлять."
+                : "💯 <b>Скоро сотая игра</b>" . $nl . $who . " — уже <b>" . $n . "</b> игр в сезоне "
+                    . bot_esc($sLabel) . "." . $nl . "Осталось " . (100 - $n)
+                    . " до сотой, можно готовить поздравление.";
+            break;                                // на игрока — максимум одно сообщение за раз
+        }
+    }
+    if (!$msgs) {
+        return;
+    }
+
+    try {
+        if (bot_token() !== '') {
+            // Руководителю всегда, остальным — по таблице прав (ms_bot_notify).
+            $roles = ["'owner'"];
+            foreach (['deputy', 'admin'] as $rl) {
+                if (function_exists('perm_role_enabled') && perm_role_enabled('ms_bot_notify', $rl)) {
+                    $roles[] = "'" . $rl . "'";
+                }
+            }
+            $recip = db()->query("SELECT tg_user_id, role FROM users
+                WHERE role IN (" . implode(',', $roles) . ") AND tg_user_id IS NOT NULL")->fetchAll();
+            $text = implode("\n\n", $msgs);
+            foreach ($recip as $u2) {
+                $kb = ((string)$u2['role'] === 'owner') ? bot_forward_kb() : null;
+                bot_send((int)$u2['tg_user_id'], $text, $kb);
+            }
+        }
+    } catch (Throwable $e) {
+    }
+    // Отметки ставим в любом случае: иначе при недоступном боте сообщение повторялось бы
+    // после каждой следующей игры.
+    $seen = array_values(array_unique(array_merge($seen, $addedKeys)));
+    if (count($seen) > 2000) {
+        $seen = array_slice($seen, -2000);
+    }
+    try {
+        setting_set('ms_notified', json_encode($seen, JSON_UNESCAPED_UNICODE));
+    } catch (Throwable $e) {
+    }
+}
+
 function bot_esc(string $s): string
 {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');

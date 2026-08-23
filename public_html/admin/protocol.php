@@ -2,6 +2,7 @@
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
 require ROOT . '/inc/elo.php';
+require_once ROOT . '/inc/bot_lib.php'; // уведомление о подходе к 100 играм
 $u = require_judge();
 
 $dayId = (int)($_GET['day'] ?? 0);
@@ -146,6 +147,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ниже обещает обратное.
         day_attach_to_main_rating($dayId);
         recompute_all_locked();
+
+        // Подход к сотой игре за сезон: клуб поздравляет со 100-й, руководству нужен запас
+        // времени. Список участников берём из БД — в форме он есть не во всех ветках.
+        try {
+            $msPl = db()->prepare('SELECT player_id FROM game_seats WHERE game_id = ?');
+            $msPl->execute([$gid]);
+            bot_notify_milestones(array_map('intval', $msPl->fetchAll(PDO::FETCH_COLUMN)));
+        } catch (Throwable $e) {
+        }
         log_action((int)$u['id'], 'game_save', ['game_id' => $gid, 'day_id' => $dayId]);
         flash_set('ok', 'Игра сохранена, рейтинг обновлён');
         redirect('/admin/protocol.php?day=' . $dayId);

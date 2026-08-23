@@ -2,6 +2,7 @@
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
 require ROOT . '/inc/elo.php';
+require_once ROOT . '/inc/bot_lib.php'; // уведомление о подходе к 100 играм
 $u = require_judge();
 
 // Игра турнира + сам турнир (для прав и заголовка)
@@ -122,6 +123,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
 
         recompute_all_locked();
+
+        // Подход к сотой игре за сезон: клуб поздравляет со 100-й, руководству нужен запас
+        // времени. Список участников берём из БД — в форме он есть не во всех ветках.
+        try {
+            $msPl = db()->prepare('SELECT player_id FROM game_seats WHERE game_id = ?');
+            $msPl->execute([$gid]);
+            bot_notify_milestones(array_map('intval', $msPl->fetchAll(PDO::FETCH_COLUMN)));
+        } catch (Throwable $e) {
+        }
         log_action((int)$u['id'], 'tournament_game_save', ['game_id' => $gid, 'tournament_id' => $tid]);
         flash_set('ok', 'Результат сохранён, таблица турнира и ELO обновлены');
         redirect('/tournament.php?id=' . $tid . '#game-' . $gid);

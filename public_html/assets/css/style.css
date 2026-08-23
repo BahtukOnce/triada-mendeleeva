@@ -317,6 +317,10 @@ body.app .header-row { gap: 8px; }
 .mate-card .mate-wr span { display: block; font-size: 10.5px; font-weight: 500; color: var(--tx2); margin-top: 3px; text-transform: uppercase; letter-spacing: .03em; }
 
 .tables-grid { display: grid; gap: 14px; align-items: start; }
+/* Карточки игр вечера — одинаковой высоты в ряду: при align-items:start соседние
+   карточки обрывались на разной высоте из-за двухстрочных ников и пометок Ci/ПУ. */
+.tables-grid.grid-equal { align-items: stretch; }
+.tables-grid.grid-equal > .card { display: flex; flex-direction: column; }
 .table-col { min-width: 0; }
 .table-col > .card:first-of-type { margin-top: 0; }
 

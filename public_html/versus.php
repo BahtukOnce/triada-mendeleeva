@@ -56,10 +56,40 @@ if ($pa && $pb) {
     $meta['url'] = 'versus.php?a=' . (int)$pa['id'] . '&b=' . (int)$pb['id'];
     $meta['description'] = 'Дуэль: ' . $pa['nickname'] . ' vs ' . $pb['nickname'] . ' — очные встречи, счёт и совместные игры.';
 }
+// Фильтр по сезонам — как в «Зале славы»: список строится по реально сыгранным
+// сезонам, формула та же (1 сентября — 31 августа).
+$vsExpr   = "COALESCE(d.date, t.date_from)";
+$vsStartY = "(YEAR($vsExpr) - (MONTH($vsExpr) < 9))";
+$vsSeason = "CONCAT('Сезон ', $vsStartY, '/', $vsStartY + 1)";
+$vsSeasons = [];
+try {
+    foreach (db()->query("SELECT $vsSeason s FROM games g
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE g.status = 'finished' AND g.winner IS NOT NULL AND $vsExpr IS NOT NULL
+        GROUP BY s ORDER BY s DESC")->fetchAll() as $rs) {
+        $vsSeasons[] = (string)$rs['s'];
+    }
+} catch (Throwable $e) {
+}
+$vsSel = (string)($_GET['season'] ?? 'all');
+if ($vsSel !== 'all' && !in_array($vsSel, $vsSeasons, true)) {
+    $vsSel = 'all';
+}
+$vsWhere = $vsSel === 'all' ? '' : " AND $vsSeason = ?";
+$vsArgs  = $vsSel === 'all' ? [] : [$vsSel];
+$vsLink = function (string $season) use ($pa, $pb): string {
+    $q = [];
+    if ($pa) { $q['an'] = (string)$pa['nickname']; }
+    if ($pb) { $q['bn'] = (string)$pb['nickname']; }
+    if ($season !== 'all') { $q['season'] = $season; }
+    return '/versus.php' . ($q ? '?' . http_build_query($q) : '');
+};
+
 page_head('⚔️ Дуэль' . ($pa && $pb ? ': ' . $pa['nickname'] . ' vs ' . $pb['nickname'] : ''), 'players', $meta);
 
 echo '<h1 style="display:flex;align-items:center;gap:10px;">⚔️ Дуэль</h1>';
-echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Очные встречи двух игроков по всем сыгранным играм клуба: счёт по разные стороны, винрейт в одной команде, история совместных столов.</p>';
+echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Очные встречи двух игроков: счёт по разные стороны, винрейт в одной команде, история совместных столов.</p>';
 
 // ── Форма выбора пары ──
 echo '<div class="card"><form method="get" action="/versus.php" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
@@ -82,6 +112,14 @@ echo $duelSelect('bn', 'Игрок 2', $pb);
 echo '<button class="btn" type="submit">Сравнить</button>';
 echo '</form></div>';
 
+// Чипы сезонов — тот же вид, что в «Зале славы» и на других вкладках.
+echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">'
+    . '<a class="tag' . ($vsSel === 'all' ? ' tag-open' : '') . '" href="' . esc($vsLink('all')) . '">За всё время</a>';
+foreach ($vsSeasons as $sName) {
+    echo '<a class="tag' . ($vsSel === $sName ? ' tag-open' : '') . '" href="' . esc($vsLink($sName)) . '">' . esc($sName) . '</a>';
+}
+echo '</div>';
+
 // ════════════════════════ РЕЖИМ ПАРЫ ════════════════════════
 if ($pa && $pb) {
     // Общие игры пары
@@ -93,9 +131,9 @@ if ($pa && $pb) {
         JOIN game_seats sb ON sb.game_id = g.id AND sb.player_id = ?
         LEFT JOIN game_days d ON d.id = g.day_id
         LEFT JOIN tournaments t ON t.id = g.tournament_id
-        WHERE g.status = 'finished' AND g.winner IS NOT NULL
+        WHERE g.status = 'finished' AND g.winner IS NOT NULL" . $vsWhere . "
         ORDER BY COALESCE(d.date, t.date_from) DESC, g.id DESC");
-    $st->execute([(int)$pa['id'], (int)$pb['id']]);
+    $st->execute(array_merge([(int)$pa['id'], (int)$pb['id']], $vsArgs));
     $joint = $st->fetchAll();
 
     $tg = 0;      // вместе: игр
@@ -296,8 +334,10 @@ if ($pa && !$pb) {
         JOIN games g ON g.id = ga.game_id AND g.status = 'finished' AND g.winner IN ('red','black')
         JOIN game_seats gb ON gb.game_id = ga.game_id AND gb.player_id <> ga.player_id
         JOIN players p2 ON p2.id = gb.player_id AND p2.banned_at IS NULL
-        WHERE ga.player_id = ?");
-    $st->execute([(int)$pa['id']]);
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE ga.player_id = ?" . $vsWhere);
+    $st->execute(array_merge([(int)$pa['id']], $vsArgs));
     $agg = [];
     foreach ($st->fetchAll() as $r) {
         if (is_casper((string)$r['nickname'])) {
@@ -329,7 +369,8 @@ if ($pa && !$pb) {
 
     echo '<div class="card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
         . avatar_html($pa, 44) . '<div><b style="font-size:16px;">' . player_label($pa) . '</b>'
-        . '<div style="font-size:12.5px;color:var(--tx2);">связи по всем играм клуба · минимум ' . $plg($MIN) . ' для попадания в списки</div></div>'
+        . '<div style="font-size:12.5px;color:var(--tx2);">связи ' . ($vsSel === 'all' ? 'по всем играм клуба' : esc($vsSel))
+        . ' · минимум ' . $plg($MIN) . ' для попадания в списки</div></div>'
         . '<a class="tag" style="margin-left:auto;" href="/player.php?id=' . (int)$pa['id'] . '">профиль →</a></div>';
 
     $renderList = function (string $title, string $hint, array $list, string $mode) use ($pa, $pct, $plg): void {

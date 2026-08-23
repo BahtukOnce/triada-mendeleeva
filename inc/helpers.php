@@ -1234,6 +1234,7 @@ function perms_catalog(): array
         'bd_bot_notify'      => ['Бот-сводка о днях рождения', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
         'sugg_bot_notify'    => ['Бот-уведомления о новых предложениях по сайту', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'day_vote_notify'    => ['Бот-уведомления о записи и отписке на вечер', ['judge', 'admin', 'deputy'], ['judge' => 0, 'admin' => 1, 'deputy' => 1]],
+        'ms_bot_notify'      => ['Бот-уведомления о подходе к 100 играм за сезон', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
     ];
 }
 
