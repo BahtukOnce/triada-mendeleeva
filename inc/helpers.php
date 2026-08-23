@@ -1231,6 +1231,7 @@ function perms_catalog(): array
         'manage_admins'      => ['Назначать и снимать админов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'reset_accounts'     => ['Сброс пароля любых аккаунтов; удаление аккаунтов игроков и админов', ['admin', 'deputy'], ['admin' => 1, 'deputy' => 1]],
         'app_bot_notify'     => ['Бот-уведомления о новых заявках в клуб', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
+        'bd_bot_notify'      => ['Бот-сводка о днях рождения', ['admin', 'deputy'], ['admin' => 0, 'deputy' => 1]],
     ];
 }
 

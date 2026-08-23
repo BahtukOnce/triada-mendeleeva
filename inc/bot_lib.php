@@ -59,6 +59,40 @@ function bot_send_photo($chatId, string $file, string $caption, ?string $markup 
 }
 
 // ── Утилиты ───────────────────────────────────────────────
+/**
+ * Кнопка «переслать заму» под автоматическими сообщениями руководителю.
+ * Возвращает null, если зама с привязанным Telegram нет — тогда кнопки не будет,
+ * чтобы не показывать заведомо нерабочее действие.
+ */
+function bot_forward_kb(): ?string
+{
+    try {
+        $has = db()->query("SELECT 1 FROM users WHERE role = 'deputy' AND tg_user_id IS NOT NULL LIMIT 1")->fetchColumn();
+        if (!$has) {
+            return null;
+        }
+    } catch (Throwable $e) {
+        return null;
+    }
+    return json_encode(['inline_keyboard' => [[
+        ['text' => '➡️ Переслать заму', 'callback_data' => 'fwddep'],
+    ]]], JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * Копия сообщения в другой чат (copyMessage): в отличие от forwardMessage не тащит
+ * шапку «Переслано от», то есть у зама сообщение выглядит как обычное от бота.
+ */
+function bot_copy_message(int $toChat, int $fromChat, int $msgId): bool
+{
+    $r = bot_api('copyMessage', [
+        'chat_id'      => $toChat,
+        'from_chat_id' => $fromChat,
+        'message_id'   => $msgId,
+    ]);
+    return is_array($r) && !empty($r['ok']);
+}
+
 function bot_esc(string $s): string
 {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');

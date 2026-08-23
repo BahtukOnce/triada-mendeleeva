@@ -10,20 +10,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Редактирование таблицы прав — только руководитель (не админ)
     if ($form === 'perms') {
-        if (!$isOwner) {
-            flash_set('err', 'Таблицу прав редактирует только руководитель');
-            redirect('/admin/users.php');
-        }
+        // Таблицу прав правят руководитель и админ. НО два права остаются только за
+        // руководителем: через них админ выдал бы себе доступ к чужим аккаунтам и
+        // назначению админов — то есть поднял бы себя до руководителя.
+        $ownerOnly = ['manage_admins', 'reset_accounts'];
+        $prev = perms_config();
         $in = $_POST['p'] ?? [];
         $out = [];
+        $locked = false;
         foreach (perms_catalog() as $k => [$label, $cols, $def]) {
             foreach ($cols as $col) {
+                if (!$isOwner && in_array($k, $ownerOnly, true)) {
+                    $out[$k][$col] = (int)($prev[$k][$col] ?? ($def[$col] ?? 0));  // не трогаем
+                    $locked = true;
+                    continue;
+                }
                 $out[$k][$col] = !empty($in[$k][$col]) ? 1 : 0;
             }
         }
         setting_set('role_perms', json_encode($out, JSON_UNESCAPED_UNICODE));
         log_action((int)$u['id'], 'role_perms_update', $out);
-        flash_set('ok', 'Таблица прав обновлена');
+        flash_set('ok', 'Таблица прав обновлена'
+            . ($locked ? '. Права «Назначать админов» и «Сброс паролей» меняет только руководитель — они оставлены как были.' : ''));
         redirect('/admin/users.php');
     }
 
@@ -246,29 +254,35 @@ echo '<div class="stat"><div class="lbl">сейчас в сети</div><div clas
 echo '</div>';
 echo '<p style="color:var(--tx2);font-size:13px;margin-top:-4px;">Роли и права (судья/фотограф) назначают админы. Замами и руководителями управляет только руководитель; последнего руководителя снять нельзя. При удалении аккаунта игрок и статистика сохраняются.</p>';
 
-// ── Таблица прав ролей: руководитель редактирует галочками, админ видит для чтения ──
+// ── Таблица прав ролей: правят руководитель и админ (решение владельца). Права
+// «Назначать админов» и «Сброс паролей» остаются за руководителем — иначе админ
+// выдал бы их себе сам и поднялся до руководителя. Они помечены замком.
+$canEditPerms = $isOwner || user_perm($u, 'manage_admins') || role_level($u['role']) >= 3;
+$permOwnerOnly = ['manage_admins', 'reset_accounts'];
 $chk = '<span style="color:var(--ok);font-weight:700;">✓</span>';
 $no = '<span style="color:var(--tx3);">—</span>';
 $permsCfg = perms_config();
 echo '<details style="margin:0 0 14px;"><summary style="cursor:pointer;color:var(--ac);font-size:14px;">📋 Кто что может — таблица прав ролей'
-    . ($isOwner ? ' <span style="color:var(--tx3);font-size:12px;">(редактируется)</span>' : '') . '</summary>';
-if ($isOwner) {
+    . ($canEditPerms ? ' <span style="color:var(--tx3);font-size:12px;">(редактируется)</span>' : '') . '</summary>';
+if ($canEditPerms) {
     echo '<form method="post" action="/admin/users.php">' . csrf_field() . '<input type="hidden" name="form" value="perms">';
 }
 echo '<div class="card" style="overflow-x:auto;margin-top:10px;max-width:860px;"><table class="tbl" style="table-layout:fixed;">';
 $cc = ' style="text-align:center;width:96px;"'; // роли: равные колонки, по центру
 echo '<tr><th>Право</th><th' . $cc . '>Судья</th><th' . $cc . '>Админ</th><th' . $cc . '>Зам</th><th' . $cc . '>Руководитель</th></tr>';
 // Ячейка: руководителю — чекбокс, админу — ✓/—; вне каталога колонки — всегда «—»
-$cell = function (string $k, string $col, array $cols) use ($isOwner, $permsCfg, $chk, $no): string {
+$cell = function (string $k, string $col, array $cols) use ($isOwner, $canEditPerms, $permOwnerOnly, $permsCfg, $chk, $no): string {
     if (!in_array($col, $cols, true)) {
         return '<td style="text-align:center;">' . $no . '</td>';
     }
     $on = (int)($permsCfg[$k][$col] ?? 0) === 1;
-    if ($isOwner) {
+    $locked = !$isOwner && in_array($k, $permOwnerOnly, true);   // админу это право не отдаём
+    if ($canEditPerms && !$locked) {
         return '<td style="text-align:center;"><input type="checkbox" name="p[' . $k . '][' . $col . ']" value="1"'
             . ($on ? ' checked' : '') . ' style="width:17px;height:17px;accent-color:var(--ok);cursor:pointer;"></td>';
     }
-    return '<td style="text-align:center;">' . ($on ? $chk : $no) . '</td>';
+    return '<td style="text-align:center;" ' . ($locked ? 'title="Меняет только руководитель"' : '') . '>'
+        . ($on ? $chk : $no) . ($locked ? ' 🔒' : '') . '</td>';
 };
 foreach (perms_catalog() as $k => [$label, $cols, $def]) {
     echo '<tr><td style="white-space:normal;">' . $label . '</td>'
@@ -288,11 +302,11 @@ foreach ([
         . '<td style="text-align:center;">' . $no . '</td><td style="text-align:center;">' . $chk . '</td></tr>';
 }
 echo '</table>';
-if ($isOwner) {
+if ($canEditPerms) {
     echo '<p style="margin:12px 0 0;"><button class="btn" type="submit">Сохранить права</button></p>';
 }
 echo '<p style="color:var(--tx3);font-size:12px;margin:8px 0 0;">Галочки действуют сразу и на кнопки, и на серверные проверки. Последний руководитель неснимаем. Судья и фотограф — флаги поверх роли «игрок». Контакт клуба на страницах ошибок — руководитель.</p></div>';
-echo $isOwner ? '</form>' : '';
+echo $canEditPerms ? '</form>' : '';
 echo '</details>';
 
 echo '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">';

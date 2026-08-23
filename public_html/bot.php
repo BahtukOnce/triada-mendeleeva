@@ -271,6 +271,35 @@ function handle_callback(array $cb): void
     if ($chatId === null || $msgId === null) {
         return;
     }
+
+    // «Переслать заму»: копируем ЭТО же сообщение в личку каждому заму. copyMessage
+    // (а не forward) — чтобы у зама не было шапки «Переслано от» и выглядело как
+    // обычное сообщение бота. Доступно только руководителю.
+    if ($data === 'fwddep') {
+        $me = bot_player_by_tg($userId);
+        $isOwnerTg = false;
+        if ($me && !empty($me['user_id'])) {
+            $q = db()->prepare('SELECT role FROM users WHERE id = ?');
+            $q->execute([(int)$me['user_id']]);
+            $isOwnerTg = (string)$q->fetchColumn() === 'owner';
+        }
+        if (!$isOwnerTg) {
+            bot_send($chatId, 'Пересылать заму может только руководитель.');
+            return;
+        }
+        $deps = db()->query("SELECT tg_user_id FROM users
+            WHERE role = 'deputy' AND tg_user_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+        $ok = 0;
+        foreach ($deps as $d) {
+            if (bot_copy_message((int)$d, (int)$chatId, (int)$msgId)) {
+                $ok++;
+            }
+        }
+        bot_send($chatId, $ok > 0
+            ? '➡️ Отправлено заму' . ($ok > 1 ? ' (' . $ok . ')' : '') . '.'
+            : 'Не получилось: у зама не привязан Telegram или он не начинал диалог с ботом.');
+        return;
+    }
     bot_touch($userId, $cb['from'] ?? null);
 
     $cbPlayer = bot_player_by_tg($userId);
