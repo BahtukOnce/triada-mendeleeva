@@ -402,6 +402,23 @@ function bot_is_admin(int $tgId): bool
     return false;
 }
 
+// Руководитель или заместитель (для команд управления клубом из бота).
+function bot_is_leader(int $tgId): bool
+{
+    $p = bot_player_by_tg($tgId);
+    if (!$p) {
+        return false;
+    }
+    $st = db()->prepare('SELECT role FROM users WHERE id = ? OR LOWER(nickname) = LOWER(?)');
+    $st->execute([(int)($p['user_id'] ?? 0), (string)$p['nickname']]);
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $role) {
+        if (in_array((string)$role, ['owner', 'deputy'], true)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // ── Аккаунт на сайте и сброс пароля через бота ────────────
 // Аккаунт сайта (логин = ник), к которому привязан игрок. null — если аккаунта нет.
 function bot_site_account(array $player): ?array
@@ -699,6 +716,89 @@ function bot_broadcast_day_poll(int $pollId): int
         usleep(40000);
     }
     return $sent;
+}
+
+// Создать опрос «Когда играем?» из списка дат (YYYY-MM-DD).
+// Возвращает id опроса; 0 — если валидных дат < 2; -1 — если уже есть открытый опрос.
+function day_poll_create(array $dates): int
+{
+    $clean = [];
+    foreach ($dates as $d) {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) {
+            $clean[(string)$d] = 1; // дедуп
+        }
+    }
+    $clean = array_keys($clean);
+    sort($clean);
+    if (count($clean) < 2) {
+        return 0;
+    }
+    if (db()->query("SELECT id FROM day_polls WHERE status = 'open' LIMIT 1")->fetchColumn()) {
+        return -1;
+    }
+    db()->prepare("INSERT INTO day_polls (title) VALUES ('Когда играем?')")->execute();
+    $pollId = (int)db()->lastInsertId();
+    $ins = db()->prepare('INSERT INTO day_poll_options (poll_id, date) VALUES (?,?)');
+    foreach ($clean as $d) {
+        $ins->execute([$pollId, $d]);
+    }
+    return $pollId;
+}
+
+// Разобрать аргумент команды в список дат (YYYY-MM-DD): принимает дни недели
+// (пн/вт/…/вс → ближайшая такая дата от сегодня), YYYY-MM-DD, DD.MM(.YYYY), «сегодня/завтра».
+function day_poll_parse_dates(string $arg): array
+{
+    $wd = ['пн' => 1, 'вт' => 2, 'ср' => 3, 'чт' => 4, 'пт' => 5, 'сб' => 6, 'вс' => 7,
+        'пон' => 1, 'понедельник' => 1, 'вто' => 2, 'вторник' => 2, 'сре' => 3, 'среда' => 3,
+        'чет' => 4, 'четверг' => 4, 'пят' => 5, 'пятница' => 5, 'суб' => 6, 'суббота' => 6,
+        'вос' => 7, 'воскресенье' => 7];
+    $today = new DateTimeImmutable('today');
+    $out = [];
+    foreach (preg_split('/[\s,;]+/u', trim($arg)) as $tok) {
+        $tok = mb_strtolower(trim((string)$tok));
+        if ($tok === '') {
+            continue;
+        }
+        $date = null;
+        if ($tok === 'сегодня') {
+            $date = $today;
+        } elseif ($tok === 'завтра') {
+            $date = $today->modify('+1 day');
+        } elseif (isset($wd[$tok])) {
+            $delta = ($wd[$tok] - (int)$today->format('N') + 7) % 7;
+            $date = $today->modify('+' . $delta . ' days');
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tok)) {
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $tok) ?: null;
+        } elseif (preg_match('/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/', $tok, $m)) {
+            $yy = isset($m[3]) ? (int)$m[3] : (int)$today->format('Y');
+            if ($yy < 100) {
+                $yy += 2000;
+            }
+            $cand = DateTimeImmutable::createFromFormat('!Y-n-j', $yy . '-' . (int)$m[2] . '-' . (int)$m[1]) ?: null;
+            if ($cand && !isset($m[3]) && $cand < $today) {
+                $cand = $cand->modify('+1 year'); // без года и уже прошло — берём следующий год
+            }
+            $date = $cand;
+        }
+        if ($date instanceof DateTimeInterface) {
+            $out[$date->format('Y-m-d')] = 1;
+        }
+    }
+    $out = array_keys($out);
+    sort($out);
+    return $out;
+}
+
+// Закрыть активный опрос; вернуть его (с вариантами и голосами) или null, если открытого нет.
+function day_poll_close_active(): ?array
+{
+    $poll = day_poll_active();
+    if (!$poll) {
+        return null;
+    }
+    db()->prepare("UPDATE day_polls SET status = 'closed', closed_at = NOW() WHERE id = ?")->execute([(int)$poll['id']]);
+    return $poll;
 }
 
 // ── «Готовый стол»: правило клуба — вечер состоится, если 12+ человек

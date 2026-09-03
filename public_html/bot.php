@@ -152,7 +152,7 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
                 send($chatId, $pt, $pm);
                 return;
             }
-            send_menu($chatId, $userId, help_text());
+            send_menu($chatId, $userId, help_text(bot_is_leader($userId)));
             return;
         case '/me':
         case '/my':
@@ -173,6 +173,55 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
             } else {
                 send_menu($chatId, $userId, "Опроса «когда играем?» сейчас нет — как появится, пришлём.");
             }
+            return;
+        case '/opros_new':
+        case '/newpoll':
+            if (!bot_is_leader($userId)) {
+                send($chatId, '🔒 Создавать опрос может только руководитель или заместитель.');
+                return;
+            }
+            $dates = day_poll_parse_dates($arg);
+            if (count($dates) < 2) {
+                send($chatId, "🗳 <b>Новый опрос «Когда играем?»</b>\n\n"
+                    . "Пришлите варианты через пробел (минимум 2) — дни недели или даты:\n"
+                    . "<code>/opros_new пн ср пт</code>\n"
+                    . "<code>/opros_new 15.08 17.08 20.08</code>");
+                return;
+            }
+            $pid = day_poll_create($dates);
+            if ($pid === -1) {
+                send($chatId, 'Уже есть открытый опрос. Сначала закройте его: /opros_close');
+                return;
+            }
+            if ($pid <= 0) {
+                send($chatId, 'Нужно минимум 2 разные корректные даты.');
+                return;
+            }
+            $sent = bot_broadcast_day_poll($pid);
+            $lines = [];
+            foreach ($dates as $d) {
+                $lines[] = '• ' . day_poll_weekday($d) . ' ' . date('d.m', (int)strtotime($d));
+            }
+            send($chatId, "✅ Опрос создан и разослан <b>" . $sent . "</b> игрокам:\n" . implode("\n", $lines));
+            return;
+        case '/opros_close':
+        case '/zakryt':
+            if (!bot_is_leader($userId)) {
+                send($chatId, '🔒 Закрывать опрос может только руководитель или заместитель.');
+                return;
+            }
+            $closed = day_poll_close_active();
+            if (!$closed) {
+                send($chatId, 'Открытого опроса сейчас нет.');
+                return;
+            }
+            $opts = $closed['options'] ?? [];
+            usort($opts, fn($a, $b) => (int)$b['votes'] <=> (int)$a['votes']);
+            $win = $opts[0] ?? null;
+            $wtxt = $win
+                ? day_poll_weekday((string)$win['date']) . ' ' . date('d.m', (int)strtotime((string)$win['date'])) . ' — ' . (int)$win['votes'] . ' голос.'
+                : '—';
+            send($chatId, "🗳 Опрос закрыт. Лидер: <b>" . $wtxt . "</b>.\nСоздать вечер на этот день можно на сайте, в разделе «Игры».");
             return;
         case '/top':
             send_menu($chatId, $userId, top_text($arg !== '' ? (int)$arg : 10));
@@ -693,9 +742,9 @@ function welcome_text(): string
         . "Просто отправьте его одним сообщением (например: <code>Бант.</code>).";
 }
 
-function help_text(): string
+function help_text(bool $leader = false): string
 {
-    return "🎭 <b>Триада Менделеева</b>\n\n"
+    $t = "🎭 <b>Триада Менделеева</b>\n\n"
         . "Выбирайте кнопкой ниже 👇\n"
         . "• <b>📊 Моя статистика</b> — ваша карточка\n"
         . "• <b>📅 Запись на игру</b> — записаться на ближайший вечер\n"
@@ -705,6 +754,12 @@ function help_text(): string
         . "• <b>🔍 Найти игрока</b> — затем пришлите имя\n"
         . "• <b>🔔 Уведомления</b> — вкл/выкл оповещения о вечерах и результатах\n"
         . "• <b>🔑 Пароль на сайт</b> — узнать логин и сбросить пароль от личного кабинета";
+    if ($leader) {
+        $t .= "\n\n👑 <b>Руководителю</b>\n"
+            . "• <code>/opros_new пн ср пт</code> — создать и разослать опрос «когда играем?»\n"
+            . "• <code>/opros_close</code> — закрыть опрос и увидеть лидера";
+    }
+    return $t;
 }
 
 function stats_text(string $query): string
