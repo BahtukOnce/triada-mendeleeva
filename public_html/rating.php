@@ -5,6 +5,7 @@ require_once ROOT . '/inc/rating.php'; // общий wr_cell()
 $ratings = [];
 $current = null;
 $rows = [];
+$seasonNotStarted = false; // основной сезон ещё без игр — показываем прошлый состав в нулях
 
 if (db_ready()) {
     // основной (текущий сезон) первым, дальше исторические — хронологически, от новых к
@@ -34,6 +35,27 @@ if (db_ready()) {
             ORDER BY (rc.club_score IS NULL), rc.club_score DESC, rc.sum_total DESC LIMIT 300");
         $st->execute([$current['id']]);
         $rows = $st->fetchAll();
+
+        // Сезон только начался: у основного рейтинга ещё нет ни одной сыгранной игры.
+        // Не оставляем пустую страницу — показываем прошлогодний состав «в нулях»:
+        // сезонные счётчики нулевые, но ELO переносится (он сквозной, не сезонный).
+        // Ранжируем по ELO. Флаг $seasonNotStarted включает баннер и гасит медали.
+        if (!$rows && (int)($current['is_main'] ?? 0) === 1) {
+            $prevId = (int) db()->query("SELECT id FROM ratings
+                WHERE is_active = 1 AND is_frozen = 1 ORDER BY title DESC LIMIT 1")->fetchColumn();
+            if ($prevId) {
+                $st = db()->prepare("SELECT p.id AS player_id, p.nickname, p.avatar, p.elo,
+                        0 AS games, NULL AS club_score, NULL AS avg_total, 0 AS sum_total, 0 AS sum_plus,
+                        0 AS pu_count, 0 AS lh_sum, 0 AS dop_sum, 0 AS minus_sum, 0 AS ci_sum,
+                        0 AS w_civ, 0 AS g_civ, 0 AS w_maf, 0 AS g_maf, 0 AS w_sher, 0 AS g_sher,
+                        0 AS w_don, 0 AS g_don, 0 AS dop_civ, 0 AS dop_maf, 0 AS dop_sher, 0 AS dop_don
+                    FROM rating_cache rc JOIN players p ON p.id = rc.player_id
+                    WHERE rc.rating_id = ? ORDER BY p.elo DESC");
+                $st->execute([$prevId]);
+                $rows = $st->fetchAll();
+                $seasonNotStarted = (bool)$rows;
+            }
+        }
     }
 }
 
@@ -144,6 +166,14 @@ if ($current && !$inSwitcher) {
 }
 
 if ($rows) {
+    if ($seasonNotStarted) {
+        // Крупная надпись: сезон стартовал, но игр ещё нет. Таблица ниже — прошлый состав в нулях.
+        echo '<div class="card" style="border-left:3px solid var(--ac);margin-bottom:14px;">'
+            . '<div style="font-size:15px;font-weight:600;margin-bottom:3px;">🆕 Сезон «' . esc($current['title']) . '» только начался</div>'
+            . '<div style="color:var(--tx2);font-size:13px;line-height:1.5;">Сыгранных игр пока нет — все клубные счётчики по нулям. '
+            . 'ELO перенесён с прошлого сезона (он сквозной). Таблица нальётся после первого вечера; '
+            . 'итоги прошлого сезона — в переключателе выше.</div></div>';
+    }
     // ── Номинации (среди игроков с минимумом игр) ──
     $minG = (int)(setting('min_games_nomination') ?: '10');
     $cands = array_filter($rows, fn($r) => (int)$r['games'] >= $minG);
@@ -237,9 +267,10 @@ if ($rows) {
     foreach ($rows as $row) {
         $pos++;
         $w = $row['w_civ'] + $row['w_maf'] + $row['w_sher'] + $row['w_don'];
-        $medal = $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : ''));
+        // На «нулевой» таблице (сезон не начался) медалей и подиума нет — результатов ещё нет.
+        $medal = $seasonNotStarted ? '' : ($pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : '')));
         $isMe = $mePid && (int)$row['player_id'] === $mePid;
-        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
+        echo '<tr data-games="' . (int)$row['games'] . '"' . ((!$seasonNotStarted && $pos <= 3) ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
         echo '<td data-sort="' . $pos . '">' . ($medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="' . me_nick_style($isMe) . '">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
