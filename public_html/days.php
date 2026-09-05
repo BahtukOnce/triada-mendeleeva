@@ -58,23 +58,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'create_
     redirect('/day.php?id=' . $newId);
 }
 
-// Фильтр по сезонам: «текущий» (season IS NULL) по умолчанию, исторические — по метке
+// Фильтр по сезонам. Сезон вечера определяем от ДАТЫ (1 сент–31 авг), как и везде на
+// сайте, но у легаси-вечеров уважаем проставленную метку game_days.season (их даты при
+// импорте могли переноситься). Текущий сезон — по границам current_season_bounds(), а НЕ
+// по «season IS NULL»: поэтому новый сезон появляется сам, без ручной простановки меток.
+// Штамповать сайтовые вечера нельзя — legacy_import делает DELETE WHERE season IS NOT NULL
+// и снёс бы их при повторном импорте; поэтому группируем по вычисленному сезону.
 $list = [];
 $seasons = [];
 $season = isset($_GET['season']) ? (string)$_GET['season'] : 'cur';
 if (db_ready()) {
-    $seasons = db()->query("SELECT DISTINCT season FROM game_days WHERE season IS NOT NULL ORDER BY season DESC")
+    // Эффективный сезон вечера: метка легаси, иначе — вычисленный из даты.
+    $seasonExpr = "COALESCE(d.season, CONCAT('Сезон ', (YEAR(d.date) - (MONTH(d.date) < 9)), '/', (YEAR(d.date) - (MONTH(d.date) < 9) + 1)))";
+    $curLabel = current_season_bounds()[2];
+    // Вкладки — все сезоны, кроме текущего (он отдельной кнопкой «Текущий сезон»).
+    $allSeasons = db()->query("SELECT DISTINCT $seasonExpr s FROM game_days d WHERE d.date IS NOT NULL ORDER BY s DESC")
         ->fetchAll(PDO::FETCH_COLUMN);
+    $seasons = array_values(array_filter($allSeasons, fn($s) => (string)$s !== $curLabel));
     $conds = [];
     $params = [];
     if ($season === 'all') {
         // без фильтра по сезону
     } elseif ($season !== 'cur' && in_array($season, $seasons, true)) {
-        $conds[] = 'd.season = ?';
+        $conds[] = "$seasonExpr = ?";
         $params[] = $season;
     } else {
         $season = 'cur';
-        $conds[] = 'd.season IS NULL';
+        $conds[] = "$seasonExpr = ?";
+        $params[] = $curLabel;
     }
     if (!$canEdit) {
         $conds[] = "d.status <> 'draft'"; // черновики видят только судьи/админы
