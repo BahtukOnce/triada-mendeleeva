@@ -7,8 +7,10 @@ $current = null;
 $rows = [];
 
 if (db_ready()) {
-    // основной (текущий сезон) первым, дальше исторические сезоны от новых к старым
-    $ratings = db()->query('SELECT * FROM ratings WHERE is_active = 1 ORDER BY is_main DESC, id DESC')->fetchAll();
+    // основной (текущий сезон) первым, дальше исторические — хронологически, от новых к
+    // старым. Сортируем по названию («Сезон 2026/2027» > «2025/2026» > …), а НЕ по id:
+    // самый первый сезон имеет id=1 и при сортировке по id проваливался в конец списка.
+    $ratings = db()->query('SELECT * FROM ratings WHERE is_active = 1 ORDER BY is_main DESC, title DESC')->fetchAll();
     $reqId = isset($_GET['r']) ? (int)$_GET['r'] : 0;
     foreach ($ratings as $r) {
         if ((int)$r['id'] === $reqId) {
