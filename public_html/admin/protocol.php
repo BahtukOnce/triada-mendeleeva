@@ -188,6 +188,42 @@ $roster->execute([$dayId]);
 $rosterList = $roster->fetchAll();
 $allPlayers = db()->query('SELECT id, nickname FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll();
 
+// Подсказки ника: не все ~250 игроков базы (в основном легаси, которых никто не помнит), а те,
+// кто реально ходит — участники последних 5 игровых вечеров до даты этого вечера. Сверху —
+// сегодняшние: записавшиеся и уже сыгравшие в этом вечере. Границу сезона намеренно не ставим:
+// в начале сезона вечеров ещё нет и список был бы пустым; через 5 вечеров он сам станет
+// полностью текущим сезоном. Остальную базу JS добавляет при вводе от двух букв.
+$suggest = [];       // player_id => nickname
+$suggestToday = [];  // player_id => true
+foreach ($rosterList as $r) {
+    $suggest[(int)$r['id']] = (string)$r['nickname'];
+    $suggestToday[(int)$r['id']] = true;
+}
+$sugDays = [$dayId];
+$rd = db()->prepare("SELECT d.id FROM game_days d
+    WHERE d.id <> ? AND d.date <= ?
+      AND EXISTS (SELECT 1 FROM games g WHERE g.day_id = d.id AND g.status = 'finished')
+    ORDER BY d.date DESC, d.id DESC LIMIT 5");
+$rd->execute([$dayId, (string)$day['date']]);
+foreach ($rd->fetchAll(PDO::FETCH_COLUMN) as $rid) {
+    $sugDays[] = (int)$rid;
+}
+$sp = db()->prepare('SELECT DISTINCT p.id, p.nickname, g.day_id FROM game_seats gs
+    JOIN games g ON g.id = gs.game_id
+    JOIN players p ON p.id = gs.player_id
+    WHERE g.day_id IN (' . implode(',', array_fill(0, count($sugDays), '?')) . ') AND p.banned_at IS NULL');
+$sp->execute($sugDays);
+foreach ($sp->fetchAll() as $r) {
+    $suggest[(int)$r['id']] = (string)$r['nickname'];
+    if ((int)$r['day_id'] === $dayId) {
+        $suggestToday[(int)$r['id']] = true;
+    }
+}
+uksort($suggest, function ($a, $b) use ($suggest, $suggestToday) {
+    $byToday = (isset($suggestToday[$a]) ? 0 : 1) <=> (isset($suggestToday[$b]) ? 0 : 1);
+    return $byToday ?: strcmp(mb_strtolower($suggest[$a]), mb_strtolower($suggest[$b]));
+});
+
 // Игры вечера
 $gamesSt = db()->prepare("SELECT g.*, jp.nickname AS judge_nick FROM games g
     LEFT JOIN players jp ON jp.id = g.judge_player_id
@@ -272,8 +308,8 @@ page_head('Ведение игры — ' . $day['title'], '');
   <input type="hidden" name="game_id" value="<?= $editGid ?>">
 
   <datalist id="players-dl">
-    <?php foreach ($allPlayers as $p): ?>
-      <option value="<?= esc($p['nickname']) ?>"></option>
+    <?php foreach ($suggest as $snick): ?>
+      <option value="<?= esc($snick) ?>"></option>
     <?php endforeach; ?>
   </datalist>
 
@@ -505,13 +541,15 @@ page_head('Ведение игры — ' . $day['title'], '');
   document.getElementById('game-form').addEventListener('change', recompute);
   recompute();
 
-  // ── «Нет на платформе»: ник, которого ещё нет среди игроков, красим серым с подписью.
+  // ── Вся база ников (подсказки ниже — только недавние игроки, а сверяться надо со всеми).
+  var allNicks = <?= json_encode(array_column($allPlayers, 'nickname'), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: '[]' ?>;
+
+  // ── «Нет на платформе»: ник, которого нет во ВСЕЙ базе игроков, красим серым с подписью.
   // Такой игрок заведётся при сохранении — судья видит это заранее и ловит опечатку
-  // («Васся» вместо «Вася»), пока она не превратилась в лишнего игрока.
+  // («Васся» вместо «Вася»), пока она не превратилась в лишнего игрока. Сверка именно со всей
+  // базой: в подсказках только недавние, и по ним посерели бы существующие игроки.
   var knownNicks = {};
-  [].forEach.call(document.querySelectorAll('#players-dl option'), function (o) {
-    knownNicks[String(o.value || '').trim().toLowerCase()] = true;
-  });
+  allNicks.forEach(function (n) { knownNicks[String(n).trim().toLowerCase()] = true; });
   function markNewNicks() {
     document.querySelectorAll('tr[data-seat] input[name^="nick"]').forEach(function (inp) {
       var v = inp.value.trim().toLowerCase();
@@ -523,6 +561,34 @@ page_head('Ведение игры — ' . $day['title'], '');
   }
   document.getElementById('game-form').addEventListener('input', markNewNicks);
   markNewNicks();
+
+  // ── Подсказки ника. По умолчанию — недавние игроки (datalist собран в PHP). С двух букв
+  // добавляем совпадения из всей базы, чтобы вернувшегося после перерыва тоже можно было
+  // выбрать. Тех, кто уже сидит за этим столом, не предлагаем.
+  var nickDl = document.getElementById('players-dl');
+  var recentNicks = [].map.call(nickDl.querySelectorAll('option'), function (o) { return o.value; });
+  var seatNickInputs = [].slice.call(document.querySelectorAll('tr[data-seat] input[name^="nick"]'));
+  function fillSuggest(self) {
+    var q = self.value.trim().toLowerCase(), taken = {}, seen = {}, out = [];
+    seatNickInputs.forEach(function (i) {
+      var v = i.value.trim().toLowerCase();
+      if (i !== self && v) taken[v] = true;
+    });
+    function add(n) {
+      var k = String(n).toLowerCase();
+      if (!seen[k] && !taken[k]) { seen[k] = true; out.push(n); }
+    }
+    recentNicks.forEach(function (n) { if (q.length < 2 || String(n).toLowerCase().indexOf(q) !== -1) add(n); });
+    if (q.length >= 2) {
+      allNicks.forEach(function (n) { if (out.length < 40 && String(n).toLowerCase().indexOf(q) !== -1) add(n); });
+    }
+    nickDl.innerHTML = '';
+    out.forEach(function (n) { var o = document.createElement('option'); o.value = n; nickDl.appendChild(o); });
+  }
+  seatNickInputs.forEach(function (inp) {
+    inp.addEventListener('focus', function () { fillSuggest(inp); });
+    inp.addEventListener('input', function () { fillSuggest(inp); });
+  });
 
   // ── Быстрые кнопки (применяются к последнему выбранному полю «+» или «−») ──
   var lastField = null, dopTarget = document.getElementById('dop-target');
