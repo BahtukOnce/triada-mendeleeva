@@ -5,7 +5,6 @@ require_once ROOT . '/inc/rating.php'; // общий wr_cell()
 $ratings = [];
 $current = null;
 $rows = [];
-$seasonNotStarted = false; // основной сезон ещё без игр — показываем прошлый состав в нулях
 
 if (db_ready()) {
     // основной (текущий сезон) первым, дальше исторические — хронологически, от новых к
@@ -35,27 +34,6 @@ if (db_ready()) {
             ORDER BY (rc.club_score IS NULL), rc.club_score DESC, rc.sum_total DESC LIMIT 300");
         $st->execute([$current['id']]);
         $rows = $st->fetchAll();
-
-        // Сезон только начался: у основного рейтинга ещё нет ни одной сыгранной игры.
-        // Не оставляем пустую страницу — показываем прошлогодний состав «в нулях»:
-        // сезонные счётчики нулевые, но ELO переносится (он сквозной, не сезонный).
-        // Ранжируем по ELO. Флаг $seasonNotStarted включает баннер и гасит медали.
-        if (!$rows && (int)($current['is_main'] ?? 0) === 1) {
-            $prevId = (int) db()->query("SELECT id FROM ratings
-                WHERE is_active = 1 AND is_frozen = 1 ORDER BY title DESC LIMIT 1")->fetchColumn();
-            if ($prevId) {
-                $st = db()->prepare("SELECT p.id AS player_id, p.nickname, p.avatar, p.elo,
-                        0 AS games, NULL AS club_score, NULL AS avg_total, 0 AS sum_total, 0 AS sum_plus,
-                        0 AS pu_count, 0 AS lh_sum, 0 AS dop_sum, 0 AS minus_sum, 0 AS ci_sum,
-                        0 AS w_civ, 0 AS g_civ, 0 AS w_maf, 0 AS g_maf, 0 AS w_sher, 0 AS g_sher,
-                        0 AS w_don, 0 AS g_don, 0 AS dop_civ, 0 AS dop_maf, 0 AS dop_sher, 0 AS dop_don
-                    FROM rating_cache rc JOIN players p ON p.id = rc.player_id
-                    WHERE rc.rating_id = ? ORDER BY p.elo DESC");
-                $st->execute([$prevId]);
-                $rows = $st->fetchAll();
-                $seasonNotStarted = (bool)$rows;
-            }
-        }
     }
 }
 
@@ -166,14 +144,6 @@ if ($current && !$inSwitcher) {
 }
 
 if ($rows) {
-    if ($seasonNotStarted) {
-        // Крупная надпись: сезон стартовал, но игр ещё нет. Таблица ниже — прошлый состав в нулях.
-        echo '<div class="card" style="border-left:3px solid var(--ac);margin-bottom:14px;">'
-            . '<div style="font-size:15px;font-weight:600;margin-bottom:3px;">🆕 Сезон «' . esc($current['title']) . '» только начался</div>'
-            . '<div style="color:var(--tx2);font-size:13px;line-height:1.5;">Сыгранных игр пока нет — все клубные счётчики по нулям. '
-            . 'ELO перенесён с прошлого сезона (он сквозной). Таблица нальётся после первого вечера; '
-            . 'итоги прошлого сезона — в переключателе выше.</div></div>';
-    }
     // ── Номинации (среди игроков с минимумом игр) ──
     $minG = (int)(setting('min_games_nomination') ?: '10');
     $cands = array_filter($rows, fn($r) => (int)$r['games'] >= $minG);
@@ -242,9 +212,16 @@ if ($rows) {
     echo '<p style="color:var(--tx2);font-size:12.5px;margin:0 0 8px;">Рейтинг по принципу клуба (~Σ×Σ). '
         . 'Нажмите на заголовок колонки, чтобы отсортировать. Номинации — среди игроков от ' . $minG . ' игр.</p>';
 
-    echo '<div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap;">';
+    echo '<div style="display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap;">';
     echo '<label style="font-size:13px;color:var(--tx2);">Показывать игроков от</label>';
-    echo '<input type="number" id="rt-mingames" min="0" value="0" style="width:80px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;"> ';
+    // −/+ кнопки: крутить порог удобнее, чем целиться в мелкие стрелки браузера. Стили
+    // инлайном, чтобы не трогать style.css (иначе пришлось бы поднимать ?v= в layout).
+    $rtStep = 'width:34px;height:36px;font-size:20px;line-height:1;cursor:pointer;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:0;';
+    echo '<div style="display:inline-flex;align-items:center;gap:5px;">';
+    echo '<button type="button" id="rt-minus" aria-label="меньше" style="' . $rtStep . '">−</button>';
+    echo '<input type="number" id="rt-mingames" min="0" value="0" style="width:58px;text-align:center;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 6px;">';
+    echo '<button type="button" id="rt-plus" aria-label="больше" style="' . $rtStep . '">+</button>';
+    echo '</div>';
     echo '<span style="font-size:13px;color:var(--tx2);">игр</span>';
     echo '<span id="rt-count" style="font-size:12.5px;color:var(--tx3);"></span></div>';
 
@@ -267,10 +244,9 @@ if ($rows) {
     foreach ($rows as $row) {
         $pos++;
         $w = $row['w_civ'] + $row['w_maf'] + $row['w_sher'] + $row['w_don'];
-        // На «нулевой» таблице (сезон не начался) медалей и подиума нет — результатов ещё нет.
-        $medal = $seasonNotStarted ? '' : ($pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : '')));
+        $medal = $pos === 1 ? '🥇' : ($pos === 2 ? '🥈' : ($pos === 3 ? '🥉' : ''));
         $isMe = $mePid && (int)$row['player_id'] === $mePid;
-        echo '<tr data-games="' . (int)$row['games'] . '"' . ((!$seasonNotStarted && $pos <= 3) ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
+        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
         echo '<td data-sort="' . $pos . '">' . ($medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="' . me_nick_style($isMe) . '">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
@@ -317,16 +293,28 @@ if ($rows) {
     });
     cnt.textContent = '— показано ' + shown + ' из ' + rows.length;
   }
+  // Кнопки −/+ крутят порог (не ниже 0) и сразу применяют фильтр.
+  var dec = document.getElementById('rt-minus'), inc = document.getElementById('rt-plus');
+  function step(d) { var v = (parseInt(inp.value, 10) || 0) + d; if (v < 0) v = 0; inp.value = v; apply(); }
+  if (dec) dec.addEventListener('click', function () { step(-1); });
+  if (inc) inc.addEventListener('click', function () { step(1); });
   inp.addEventListener('input', apply);
   apply();
 })();
 </script>
     <?php
 } elseif ($current && (int)($current['is_main'] ?? 0) === 1) {
-    // Новый сезон только начался: кэша ещё нет, но это не «пусто вообще» — прошлые
-    // сезоны доступны в переключателе выше, а таблица нальётся с первого вечера.
-    empty_state('Новый сезон только начался',
-        'Клубный рейтинг «' . esc($current['title']) . '» заполнится после первого сыгранного вечера. Прошлые сезоны — в переключателе выше.');
+    // Новый сезон без сыгранных игр: в текущем рейтинге только игроки ЭТОГО сезона,
+    // поэтому пока никого. Показываем приглашение (не чужой прошлый состав), а судьям —
+    // кнопку сразу завести вечер и внести игры.
+    echo '<div class="card" style="text-align:center;padding:26px 18px;border-left:3px solid var(--ac);">';
+    echo '<div style="font-size:38px;line-height:1;margin-bottom:10px;">🆕</div>';
+    echo '<div style="font-size:18px;font-weight:700;margin-bottom:6px;">Сезон «' . esc($current['title']) . '» только начался</div>';
+    echo '<div style="color:var(--tx2);font-size:14px;line-height:1.6;max-width:520px;margin:0 auto;">Скоро первые игры! Клубный рейтинг заполнится после первого сыгранного вечера. Итоги прошлого сезона — в переключателе выше.</div>';
+    if (user_can_judge(current_user())) {
+        echo '<div style="margin-top:16px;"><a class="btn" href="/days.php">➕ Внести игру в рейтинг</a></div>';
+    }
+    echo '</div>';
 } else {
     empty_state('Рейтинг пока пуст', 'Таблица появится после переноса истории игр.');
 }
