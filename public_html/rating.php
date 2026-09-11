@@ -28,7 +28,7 @@ if (db_ready()) {
     }
     if ($current) {
         // Рейтинг всегда по принципу клуба (~Σ×Σ); дальнейшая сортировка — кликом по колонке (JS)
-        $st = db()->prepare("SELECT rc.*, p.nickname, p.avatar, p.elo, p.user_id FROM rating_cache rc
+        $st = db()->prepare("SELECT rc.*, p.nickname, p.avatar, p.flair, p.elo, p.user_id FROM rating_cache rc
             JOIN players p ON p.id = rc.player_id
             WHERE rc.rating_id = ?
             ORDER BY (rc.club_score IS NULL), rc.club_score DESC, rc.sum_total DESC LIMIT 300");
@@ -202,7 +202,7 @@ if ($rows) {
             echo '<div class="nom-title">' . esc($title) . '</div>';
             echo '<a class="nom-player" href="/player.php?id=' . (int)$row['player_id'] . '">'
                 . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 34)
-                . '<span>' . esc($row['nickname']) . '</span></a>';
+                . '<span>' . player_label($row) . '</span></a>';   // ник + эмодзи из профиля
             echo '<div class="nom-meta">' . ($wr !== null ? round($wr * 100) . '% · ' : '') . esc($hint) . '</div>';
             echo '</div>';
         }
@@ -244,7 +244,7 @@ if ($rows) {
         echo '<td data-sort="' . $pos . '">' . ($medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="' . me_nick_style($isMe) . '">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nickname']) . casper_ghost($row['nickname']) . '</span>'
+            . '<span>' . player_label($row) . casper_ghost($row['nickname']) . '</span>'   // ник + эмодзи из профиля
             // «!» у тех, у кого нет аккаунта на сайте (решение руководителя): подсказка по наведению.
             . ((empty($row['user_id']) && !is_casper((string)$row['nickname']))
                 ? '<span class="rt-unreg" tabindex="0" role="img" aria-label="Игрока пока нет в системе — не зарегистрирован на сайте"'

@@ -101,7 +101,7 @@ if ($id && db_ready()) {
         if ($games) {
             $ids = array_column($games, 'id');
             $in = implode(',', array_fill(0, count($ids), '?'));
-            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.elo FROM game_seats gs
+            $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.flair, p.elo FROM game_seats gs
                 JOIN players p ON p.id = gs.player_id
                 WHERE gs.game_id IN ($in) ORDER BY gs.game_id, gs.seat");
             $st->execute($ids);
@@ -422,7 +422,7 @@ if (user_can_judge(current_user())) {
 
 // ── Состав участников (заявка/приглашения) ──
 $mainRid = (int)(db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn() ?: 0);
-$rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.elo, p.fav_role,
+$rq = db()->prepare("SELECT tp.player_id, tp.state, p.nickname, p.avatar, p.flair, p.elo, p.fav_role,
         rc.games, (COALESCE(rc.w_civ,0)+COALESCE(rc.w_maf,0)+COALESCE(rc.w_sher,0)+COALESCE(rc.w_don,0)) AS wins,
         rc.dop_sum, rc.minus_sum, rc.club_score
     FROM tournament_participants tp
@@ -523,7 +523,7 @@ if (!$isRunning && ($rosterRows || $regOpen)) {
             $mine = ($myPid && (int)$r['player_id'] === $myPid);
             echo '<tr' . ($mine ? ' style="background:var(--acsf);"' : '') . '><td class="num" style="color:var(--tx3);">' . $pos . '</td>'
                 . '<td><a href="/player.php?id=' . (int)$r['player_id'] . '" style="display:inline-flex;align-items:center;gap:9px;color:var(--tx);">'
-                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 30) . '<b>' . esc($r['nickname']) . '</b></a></td>'
+                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 30) . '<b>' . player_label($r) . '</b></a></td>'
                 . '<td class="num" style="color:var(--ac);font-weight:700;">' . (int)round((float)$r['elo']) . '</td>'
                 . '<td class="num">' . ($g ?: '—') . '</td>'
                 . '<td class="num">' . $wr . '</td>'
@@ -537,7 +537,7 @@ if (!$isRunning && ($rosterRows || $regOpen)) {
         echo '<p style="color:var(--tx3);font-size:13px;margin:14px 0 6px;">Приглашены, ждём ответа:</p><div style="display:flex;flex-wrap:wrap;gap:8px;">';
         foreach ($rInvited as $r) {
             echo '<span style="display:inline-flex;align-items:center;gap:6px;opacity:.55;font-size:13px;">'
-                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 20) . esc($r['nickname']) . '</span>';
+                . avatar_html(['nickname' => $r['nickname'], 'avatar' => $r['avatar']], 20) . player_label($r) . '</span>';
         }
         echo '</div>';
     }
@@ -727,7 +727,7 @@ foreach ($byTable as $tableNo => $tGames) {
             echo '<tr><th style="width:42px">#</th><th>Игрок</th></tr>';
             foreach ($seats as $s) {
                 echo '<tr><td>' . (int)$s['seat'] . '</td>'
-                    . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . esc($s['nickname']) . '</a></td></tr>';
+                    . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="color:var(--tx);">' . player_label($s) . '</a></td></tr>';
             }
             echo '</table></div></div>';
             continue;
@@ -748,7 +748,7 @@ foreach ($byTable as $tableNo => $tGames) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             $isMeSeat = $myPid && (int)$s['player_id'] === $myPid;
             echo '<tr' . ($isMeSeat ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
-                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMeSeat) . '">' . esc($s['nickname']) . '</a>'
+                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMeSeat) . '">' . player_label($s) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . penalty_badges($s)
                 . '</td>'

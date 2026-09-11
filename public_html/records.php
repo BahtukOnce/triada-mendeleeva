@@ -251,7 +251,7 @@ try {
                 . '<td class="duo-rank"></td>'
                 . '<td><span style="display:inline-flex;align-items:center;gap:7px;">'
                 . avatar_html($pa, 22) . avatar_html($pb, 22)
-                . '<b>' . esc($pa['nickname']) . ' + ' . esc($pb['nickname']) . '</b></span></td>'
+                . '<b>' . player_label($pa) . ' + ' . player_label($pb) . '</b></span></td>'
                 . '<td class="num">' . (int)$bp['g'] . '</td>'
                 . '<td class="num">' . (int)$bp['w'] . '</td>'
                 . '<td class="num"><b style="color:' . ($wrP >= 60 ? 'var(--ok)' : 'var(--ac)') . ';">' . $wrP . '%</b></td>'

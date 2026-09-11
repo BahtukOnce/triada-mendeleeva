@@ -42,7 +42,7 @@ if ($dbok) {
                 $balance[$b['winner']] = (int)$b['c'];
             }
         }
-        $admins = db()->query("SELECT COALESCE(p.nickname, u.nickname) AS nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar
+        $admins = db()->query("SELECT COALESCE(p.nickname, u.nickname) AS nickname, u.role, u.is_judge, u.is_photographer, p.id AS player_id, p.avatar, p.flair
             FROM users u LEFT JOIN players p ON p.user_id = u.id
             WHERE u.role IN ('owner','deputy','admin') OR u.is_judge = 1 OR u.is_photographer = 1
             ORDER BY FIELD(u.role,'owner','deputy','admin','player'), u.is_judge DESC, u.nickname LIMIT 30")->fetchAll();
@@ -202,7 +202,7 @@ page_head('Главная', 'index', [
           <<?= $tag ?> class="admin-item<?= $isLead ? ' lead' : '' ?>"<?= $attr ?>>
             <?= avatar_html(['nickname' => $a['nickname'], 'avatar' => $a['avatar']], 84, $isLead ? 'background:var(--acsf);color:var(--ac);' : '') ?>
             <div>
-              <div class="nm"><?= esc($a['nickname']) ?></div>
+              <div class="nm"><?= player_label($a) ?></div>
               <div class="rl<?= $isLead ? ' accent' : '' ?>"><?= esc($label) ?></div>
             </div>
           </<?= $tag ?>>
