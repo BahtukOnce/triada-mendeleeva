@@ -30,7 +30,7 @@ function legacy_to_cache(array $row, string $kind): array
         return [
             'games' => $g, 'sum_total' => round($total, 2), 'sum_plus' => 0.0,
             'avg_total' => $g > 0 ? round($avg, 4) : null,
-            'club_score' => $g > 0 ? round($avg * $total, 4) : null,
+            'club_score' => $g > 0 ? round($avg * abs($total), 4) : null,   // знак сохраняем — см. rating_recompute()
             'pu_count' => (int)$pu, 'lh_sum' => 0.0, 'dop_sum' => 0.0, 'ci_sum' => 0.0,
             'w_civ' => (int)$wc, 'g_civ' => (int)$gc, 'w_maf' => (int)$wm, 'g_maf' => (int)$gm,
             'w_sher' => (int)$ws, 'g_sher' => (int)$gs, 'w_don' => (int)$wd, 'g_don' => (int)$gd,
@@ -46,7 +46,7 @@ function legacy_to_cache(array $row, string $kind): array
     return [
         'games' => $g, 'sum_total' => round($sum, 2), 'sum_plus' => round($lh + $dop + $ci, 2),
         'avg_total' => $g > 0 ? round($avg, 4) : null,
-        'club_score' => $g > 0 ? round($avg * $sum, 4) : null,
+        'club_score' => $g > 0 ? round($avg * abs($sum), 4) : null,   // знак сохраняем — см. rating_recompute()
         'pu_count' => 0, 'lh_sum' => round($lh, 1), 'dop_sum' => round($dop, 1), 'ci_sum' => round($ci, 2),
         'w_civ' => 0, 'g_civ' => 0, 'w_maf' => 0, 'g_maf' => 0,
         'w_sher' => 0, 'g_sher' => 0, 'w_don' => 0, 'g_don' => 0,
