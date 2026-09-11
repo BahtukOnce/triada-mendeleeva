@@ -318,8 +318,8 @@ if ($games) {
             }
             $isMe = $mePid && (int)$s['player_id'] === $mePid;
             echo '<tr' . ($isMe ? ' style="' . me_row_style() . '"' : '') . '><td>' . (int)$s['seat'] . '</td>'
-                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMe) . '">' . player_label($s) . '</a>'
-                . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')
+                . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMe) . '">' . esc($s['nickname']) . '</a>'
+                . (!empty($s['flair']) ? ' <span class="flair">' . esc($s['flair']) . '</span>' : '')   // эмодзи — здесь, один раз
                 . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . (!empty($t['ci_half']) ? ' <span class="tag" title="Компенсация ПУ урезана вдвое — команда первоубиенного победила">Ci ×½</span>' : '')
                 . penalty_badges($s) . '</td>'
