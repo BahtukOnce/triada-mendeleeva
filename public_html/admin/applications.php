@@ -55,6 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('/admin/applications.php');
             }
         }
+        // Нажали «Принять как дубль», но игрока не выбрали — не принимаем обычным путём:
+        // иначе вместо привязки к истории молча создался бы новый игрок.
+        if (!empty($_POST['dup_manual']) && $dupPid <= 0) {
+            flash_set('err', 'Выберите игрока, дублем которого является заявка');
+            redirect('/admin/applications.php');
+        }
         $dup = null;
         if ($dupPid > 0) {
             $c = db()->prepare('SELECT id, user_id, nickname, banned_at FROM players WHERE id = ?');
@@ -208,6 +214,7 @@ $tgKey = fn(?string $s): string => ltrim((string)preg_replace('#^(https?://)?t\.
 
 $dupCands = [];
 $basePlayers = [];
+$dupOptionsHtml = '';
 // Только новые заявки: решение по ним ещё предстоит. Разобранные (в т.ч. отклонённые из старой
 // Google-формы — там много уже существующих игроков) плашками не засоряем.
 $pending = array_filter($list, fn($a) => $a['state'] === 'new');
@@ -265,14 +272,15 @@ if ($pending) {
         usort($found, fn($x, $y) => ($y['score'] <=> $x['score']) ?: ((int)$y['p']['games'] <=> (int)$x['p']['games']));
         $dupCands[(int)$a['id']] = array_slice($found, 0, 3);
     }
-    // Общий список ников для ручной пометки «дубль» — только игроки без аккаунта (к ним и привязываем).
-    echo '<datalist id="dup-players-dl">';
+    // Варианты для ручной пометки «дубль» — только игроки без аккаунта (к ним и привязываем).
+    // Выпадашка с поиском в стиле сайта (select[data-search], app.js) вместо белого datalist.
+    usort($basePlayers, fn($x, $y) => strcmp(mb_strtolower((string)$x['nickname']), mb_strtolower((string)$y['nickname'])));
     foreach ($basePlayers as $bp) {
         if (empty($bp['user_id'])) {
-            echo '<option value="' . esc($bp['nickname']) . '"></option>';
+            $dupOptionsHtml .= '<option value="' . (int)$bp['id'] . '">' . esc($bp['nickname'])
+                . ' · ' . (int)$bp['games'] . ' игр</option>';
         }
     }
-    echo '</datalist>';
 }
 
 foreach ($list as $a) {
@@ -343,7 +351,9 @@ foreach ($list as $a) {
         echo '<form method="post" action="/admin/applications.php" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;" onsubmit="return confirm(\'Принять заявку как дубль указанного игрока?\\n\\nНового игрока не будет — аккаунт привяжется к его истории.\');">'
             . csrf_field()
             . '<input type="hidden" name="form" value="approve"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
-            . '<input type="text" name="link_nick" list="dup-players-dl" autocomplete="off" required placeholder="ник игрока в базе" style="min-width:180px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;">'
+            . '<input type="hidden" name="dup_manual" value="1">'
+            . '<span style="flex:1;min-width:220px;"><select name="link_player_id" data-search="Найти игрока в базе…">'
+            . '<option value="">—</option>' . $dupOptionsHtml . '</select></span>'
             . '<button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;" type="submit">Принять как дубль</button></form>';
         echo '</details>';
     }

@@ -454,17 +454,48 @@
 // восстановление введённого после ошибки работают как раньше — кнопки лишь листают варианты.
 // data-stepper-warn — подсветить крайнее значение (4 фола, удаление на крит. круг).
 (function () {
+  function btn(txt, label) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'stp-b'; b.textContent = txt; b.setAttribute('aria-label', label);
+    return b;
+  }
+  // Числовое поле (input[type=number][data-stepper]): те же −/+, уважаем min/max/step, число
+  // можно и вписать руками. Событие input отдаём наружу — фильтры страницы срабатывают как раньше.
+  function enhanceNumber(inp) {
+    if (inp.getAttribute('data-stepper-ready')) return;
+    inp.setAttribute('data-stepper-ready', '1');
+    var wrap = document.createElement('span');
+    wrap.className = 'stp stp-num';
+    var dec = btn('−', 'меньше'), inc = btn('+', 'больше');
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(dec); wrap.appendChild(inp); wrap.appendChild(inc);
+    function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
+    function sync() {
+      var v = num(inp.value, 0);
+      dec.disabled = v <= num(inp.min, -Infinity);
+      inc.disabled = v >= num(inp.max, Infinity);
+    }
+    function step(dir) {
+      var min = num(inp.min, -Infinity), max = num(inp.max, Infinity), st = num(inp.step, 1) || 1;
+      var v = num(inp.value, min > -Infinity ? min : 0) + dir * st;
+      inp.value = String(Math.min(max, Math.max(min, v)));
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    dec.addEventListener('click', function () { step(-1); });
+    inc.addEventListener('click', function () { step(1); });
+    inp.addEventListener('input', sync);
+    inp.addEventListener('change', sync);
+    sync();
+  }
+  document.querySelectorAll('input[type="number"][data-stepper]').forEach(enhanceNumber);
+
   function enhanceStepper(sel) {
     if (sel.getAttribute('data-stepper-ready')) return;
     sel.setAttribute('data-stepper-ready', '1');
     var wrap = document.createElement('span');
     wrap.className = 'stp';
     if (sel.title) wrap.title = sel.title;
-    function btn(txt, label) {
-      var b = document.createElement('button');
-      b.type = 'button'; b.className = 'stp-b'; b.textContent = txt; b.setAttribute('aria-label', label);
-      return b;
-    }
     var dec = btn('−', 'меньше'), inc = btn('+', 'больше');
     var val = document.createElement('span');
     val.className = 'stp-v';
@@ -507,4 +538,112 @@
       t.classList.toggle('show');
     }
   });
+})();
+
+// ── Окно подтверждения в стиле сайта вместо белых системных confirm()/alert() ──
+// triadaConfirm(текст, onOk, onCancel) и triadaAlert(текст, onDone) — для кода страниц.
+// Старые onsubmit/onclick/onchange="…confirm('…')…" переписывать не нужно: перехватываем их
+// заранее (в фазе погружения), текст берём, вызвав сам обработчик с подменённым confirm —
+// так все экранирования и переносы разбирает движок JS. Разметка — .ach-modal: кнопка «Назад»
+// в приложении шлёт Escape для открытых .ach-modal, а Escape здесь — это «Отмена».
+(function () {
+  var dlg = null, msgEl, okBtn, cancelBtn, onOk = null, onCancel = null;
+  function build() {
+    if (dlg) return;
+    dlg = document.createElement('div');
+    dlg.className = 'ach-modal tr-dlg';
+    dlg.innerHTML = '<div class="ach-modal-box tr-dlg-box" role="alertdialog" aria-modal="true">'
+      + '<div class="tr-dlg-msg"></div>'
+      + '<div class="tr-dlg-btns"><button type="button" class="btn btn-ghost tr-dlg-cancel">Отмена</button>'
+      + '<button type="button" class="btn tr-dlg-ok">Да</button></div></div>';
+    document.body.appendChild(dlg);
+    msgEl = dlg.querySelector('.tr-dlg-msg');
+    okBtn = dlg.querySelector('.tr-dlg-ok');
+    cancelBtn = dlg.querySelector('.tr-dlg-cancel');
+    okBtn.addEventListener('click', function () { finish(true); });
+    cancelBtn.addEventListener('click', function () { finish(false); });
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) finish(false); });
+    document.addEventListener('keydown', function (e) {
+      if (!dlg.classList.contains('open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      else if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    });
+  }
+  function finish(ok) {
+    if (!dlg.classList.contains('open')) return;
+    dlg.classList.remove('open');
+    var cb = ok ? onOk : onCancel;
+    onOk = null; onCancel = null;
+    if (cb) cb();
+  }
+  function show(msg, isAlert, ok, cancel) {
+    build();
+    msgEl.textContent = String(msg);
+    cancelBtn.hidden = !!isAlert;
+    okBtn.textContent = isAlert ? 'Понятно' : 'Да';
+    onOk = ok || null;
+    onCancel = cancel || null;
+    dlg.classList.add('open');
+    okBtn.focus();
+  }
+  window.triadaConfirm = function (msg, ok, cancel) { show(msg, false, ok, cancel); };
+  window.triadaAlert = function (msg, done) { show(msg, true, done, done); };
+
+  // Текст из старого обработчика: вызываем его с confirm, который запоминает текст и отвечает «нет».
+  function grabConfirm(el, prop, ev) {
+    var fn = el[prop];
+    if (typeof fn !== 'function') return null;
+    var msg = null, orig = window.confirm;
+    window.confirm = function (m) { msg = m; return false; };
+    try { fn.call(el, ev); } catch (err) {} finally { window.confirm = orig; }
+    return msg;
+  }
+  // Отправка в обход onsubmit (иначе снова спросит); нажатая кнопка уходит в форму как обычно.
+  function submitForm(form, submitter) {
+    if (submitter && submitter.name) {
+      var h = document.createElement('input');
+      h.type = 'hidden'; h.name = submitter.name; h.value = submitter.value;
+      form.appendChild(h);
+    }
+    HTMLFormElement.prototype.submit.call(form);
+  }
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (!f || f.tagName !== 'FORM' || (f.getAttribute('onsubmit') || '').indexOf('confirm(') === -1) return;
+    var msg = grabConfirm(f, 'onsubmit', e);
+    if (msg === null) return;                    // до confirm дело не дошло — всё как было
+    e.preventDefault();
+    e.stopPropagation();
+    var submitter = e.submitter || null;
+    window.triadaConfirm(msg, function () { submitForm(f, submitter); });
+  }, true);
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('[onclick*="confirm("]') : null;
+    if (!el) return;
+    var msg = grabConfirm(el, 'onclick', e);
+    if (msg === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.triadaConfirm(msg, function () {
+      if (el.form) submitForm(el.form, el);
+      else if (el.href) location.href = el.href;
+    });
+  }, true);
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (!el || !el.getAttribute || (el.getAttribute('onchange') || '').indexOf('confirm(') === -1) return;
+    var msg = grabConfirm(el, 'onchange', e);
+    if (msg === null) return;
+    e.stopPropagation();
+    window.triadaConfirm(msg, function () {
+      var orig = window.confirm;
+      window.confirm = function () { return true; };
+      try { el.onchange.call(el, e); } finally { window.confirm = orig; }
+    }, function () {
+      // Отмена — возвращаем список к исходному значению (например, роль в «Пользователях»).
+      if (el.tagName === 'SELECT') {
+        [].forEach.call(el.options, function (o) { o.selected = o.defaultSelected; });
+      }
+    });
+  }, true);
 })();

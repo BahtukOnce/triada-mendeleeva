@@ -119,6 +119,8 @@ if ($mine) {
   var csrfEl = form.querySelector('input[name=csrf]');
   var csrf = csrfEl ? csrfEl.value : '';
   var urls = [], MAX = 5;
+  // Сообщения — окном в стиле сайта (app.js), без него — системным alert.
+  function note(m) { if (window.triadaAlert) { window.triadaAlert(m); } else { window.alert(m); } }
   function render() {
     thumbs.innerHTML = '';
     urls.forEach(function (u, i) {
@@ -137,9 +139,9 @@ if ($mine) {
   }
   function sync() { hidden.value = JSON.stringify(urls); render(); }
   function upload(file) {
-    if (urls.length >= MAX) { alert('Максимум ' + MAX + ' изображений'); return; }
-    if (['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) < 0) { alert('Только JPG, PNG или WebP'); return; }
-    if (file.size > 15 * 1024 * 1024) { alert('Файл больше 15 МБ'); return; }
+    if (urls.length >= MAX) { note('Максимум ' + MAX + ' изображений'); return; }
+    if (['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) < 0) { note('Только JPG, PNG или WebP'); return; }
+    if (file.size > 15 * 1024 * 1024) { note('Файл больше 15 МБ'); return; }
     var ph = document.createElement('div');
     ph.textContent = '…';
     ph.style.cssText = 'width:84px;height:84px;border-radius:8px;border:1px dashed var(--bd);display:flex;align-items:center;justify-content:center;color:var(--tx2);';
@@ -150,10 +152,10 @@ if ($mine) {
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d && d.ok && d.url) { urls.push(d.url); }
-        else { alert('Не удалось загрузить: ' + ((d && d.error) || 'ошибка')); }
+        else { note('Не удалось загрузить: ' + ((d && d.error) || 'ошибка')); }
         sync();
       })
-      .catch(function () { alert('Ошибка загрузки изображения'); sync(); });
+      .catch(function () { note('Ошибка загрузки изображения'); sync(); });
   }
   ta.addEventListener('paste', function (e) {
     var items = (e.clipboardData || window.clipboardData).items;

@@ -214,14 +214,8 @@ if ($rows) {
 
     echo '<div style="display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap;">';
     echo '<label style="font-size:13px;color:var(--tx2);">Показывать игроков от</label>';
-    // −/+ кнопки: крутить порог удобнее, чем целиться в мелкие стрелки браузера. Стили
-    // инлайном, чтобы не трогать style.css (иначе пришлось бы поднимать ?v= в layout).
-    $rtStep = 'width:34px;height:36px;font-size:20px;line-height:1;cursor:pointer;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:0;';
-    echo '<div style="display:inline-flex;align-items:center;gap:5px;">';
-    echo '<button type="button" id="rt-minus" aria-label="меньше" style="' . $rtStep . '">−</button>';
-    echo '<input type="number" id="rt-mingames" min="0" value="0" style="width:58px;text-align:center;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 6px;">';
-    echo '<button type="button" id="rt-plus" aria-label="больше" style="' . $rtStep . '">+</button>';
-    echo '</div>';
+    // Кнопки −/+ вокруг поля — общий компонент data-stepper (app.js), как в протоколах.
+    echo '<input type="number" id="rt-mingames" min="0" value="0" data-stepper>';
     echo '<span style="font-size:13px;color:var(--tx2);">игр</span>';
     echo '<span id="rt-count" style="font-size:12.5px;color:var(--tx3);"></span></div>';
 
@@ -298,12 +292,7 @@ if ($rows) {
     });
     cnt.textContent = '— показано ' + shown + ' из ' + rows.length;
   }
-  // Кнопки −/+ крутят порог (не ниже 0) и сразу применяют фильтр.
-  var dec = document.getElementById('rt-minus'), inc = document.getElementById('rt-plus');
-  function step(d) { var v = (parseInt(inp.value, 10) || 0) + d; if (v < 0) v = 0; inp.value = v; apply(); }
-  if (dec) dec.addEventListener('click', function () { step(-1); });
-  if (inc) inc.addEventListener('click', function () { step(1); });
-  inp.addEventListener('input', apply);
+  inp.addEventListener('input', apply);   // −/+ (data-stepper) тоже шлют input
   apply();
 })();
 </script>

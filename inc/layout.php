@@ -120,7 +120,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=117">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=118">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -355,7 +355,7 @@ function page_foot(): void
             . '</nav>';
     }
 
-    echo '<script src="/assets/js/app.js?v=24"></script>';
+    echo '<script src="/assets/js/app.js?v=25"></script>';
     if (is_app()) {
         echo '<script src="/assets/js/app-native.js?v=1"></script>';
     }

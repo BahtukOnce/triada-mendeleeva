@@ -225,7 +225,11 @@ page_head('Ведение игры — ' . $g['t_title'], '');
     document.getElementById('vt-count').onclick = function () {
       var votes = {}, sum = 0;
       inputs.forEach(function (i) { var v = parseInt(i.value, 10) || 0; votes[+i.getAttribute('data-seat')] = v; sum += v; });
-      if (sum !== aliveN) { alert('Сумма голосов (' + sum + ') ≠ числу голосующих (' + aliveN + ')'); return; }
+      if (sum !== aliveN) {
+        var vtMsg = 'Сумма голосов (' + sum + ') ≠ числу голосующих (' + aliveN + ')';
+        if (window.triadaAlert) { window.triadaAlert(vtMsg); } else { window.alert(vtMsg); }   // окно в стиле сайта
+        return;
+      }
       resolveVote(cands, votes);
     };
     if (isTie) document.getElementById('vt-raise').onclick = function () { raisePrompt(cands); };
@@ -312,7 +316,11 @@ page_head('Ведение игры — ' . $g['t_title'], '');
     if (S.phase === 'done') S.phase = 'nominate';
     render();
   };
-  document.getElementById('lv-reset').onclick = function () { if (confirm('Начать ведение заново?')) init(); };
+  document.getElementById('lv-reset').onclick = function () {
+    // окно подтверждения в стиле сайта; без app.js — системное
+    if (window.triadaConfirm) { window.triadaConfirm('Начать ведение заново?', init); }
+    else if (window.confirm('Начать ведение заново?')) { init(); }
+  };
 
   document.getElementById('lv-finish').onclick = function () {
     document.getElementById('lv-chrono').value = JSON.stringify({ elim: S.elim, log: S.log, firstKill: S.firstKill, puBm: S.puBm, vote0Seat: S.vote0Seat, vote0Bm: S.vote0Bm });

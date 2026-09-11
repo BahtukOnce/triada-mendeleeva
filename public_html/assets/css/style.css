@@ -1209,6 +1209,43 @@ body::before {
 .bd-nick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; font-size: 13.5px; }
 .bd-mark { flex: none; font-size: 11.5px; color: var(--ac); font-weight: 600; }
 
+/* ── Системные элементы браузера — в тёмной теме сайта ──
+   color-scheme: dark перекрашивает то, что рисует сам браузер: календарь и выбор времени,
+   раскрытые выпадающие списки, автозаполнение. Галочки и переключатели — в фирменный красный.
+   Стрелки числовых полей прячем: вместо них кнопки −/+ (data-stepper, app.js). */
+:root { color-scheme: dark; }
+input[type="checkbox"], input[type="radio"], input[type="range"], progress { accent-color: var(--ac); }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .6; }
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+/* ── «Летопись клуба» в «Зале славы»: основание и вехи по протоколам ── */
+.chron { margin-bottom: 14px; }
+.chron-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 12px; }
+.chron-head h2 { margin: 0; }
+.chron-sub { font-size: 12.5px; color: var(--tx2); font-variant-numeric: tabular-nums; }
+.chron-line { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 10px; }
+.chron-step { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 11px 12px;
+  border-radius: 11px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx); }
+a.chron-step:hover { border-color: var(--ac); color: var(--tx); }
+.chron-ic { font-size: 20px; line-height: 1; margin-bottom: 2px; }
+.chron-t { font-size: 14px; font-weight: 700; }
+.chron-d { font-size: 13px; color: var(--tx2); font-variant-numeric: tabular-nums; }
+.chron-w { font-size: 11.5px; color: var(--tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chron-found { background: var(--acsf); border-color: rgba(232,51,42,.5); }
+.chron-next { border-style: dashed; }
+
+/* Окно подтверждения/сообщения вместо системных confirm()/alert() (app.js: triadaConfirm) */
+.ach-modal.tr-dlg { z-index: 1300; }
+.tr-dlg-box { width: min(420px, 100%); padding: 20px 20px 16px; animation: postModalIn .16s ease; }
+.tr-dlg-msg { margin: 2px 2px 18px; font-size: 15px; line-height: 1.55; color: var(--tx); white-space: pre-line; }
+.tr-dlg-btns { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.tr-dlg-btns .btn { min-width: 96px; }
+
 /* ── Кнопки −/+ вместо выпадающих списков (протокол: фолы, техи, удаление, выбывание) ── */
 .stp { display: inline-flex; align-items: center; gap: 1px; padding: 2px; white-space: nowrap;
   background: var(--sf2); border: 1px solid var(--bd); border-radius: 8px; }
@@ -1221,6 +1258,11 @@ body::before {
 .stp-zero .stp-v { color: var(--tx3); font-weight: 400; }   /* нули приглушены — ненулевое видно сразу */
 .stp-max .stp-v { color: var(--ac); }                      /* 4 фола / удаление на крит. круг */
 @media (pointer: coarse) { .stp-b { width: 32px; height: 34px; font-size: 18px; } }  /* под палец */
+/* Числовое поле между кнопками −/+ (input[type=number][data-stepper]) — можно и вписать число */
+.stp.stp-num input[type="number"] { width: 46px; margin: 0; padding: 4px 2px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--tx); box-shadow: none; text-align: center;
+  font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stp.stp-num input[type="number"]:focus { outline: none; background: var(--sf); }
 
 /* ── «!» в рейтинге: игрока нет в системе (нет аккаунта). Красный, как просил руководитель.
    Подсказка своя — появляется сразу при наведении (системный title ждёт ~секунду), на телефоне

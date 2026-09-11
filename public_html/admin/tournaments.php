@@ -343,8 +343,8 @@ echo '<input type="text" name="location_other" id="loc-other" placeholder="Св�
 echo '<script>(function(){var s=document.getElementById("loc-sel"),o=document.getElementById("loc-other");if(!s||!o)return;s.addEventListener("change",function(){o.style.display=s.value==="__other"?"":"none";});})();</script>';
 echo '</div>';
 echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" id="tables-count" min="1" max="6" value="' . (int)($edit['tables_count'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">вместимость: столов × 10 игроков</span></div>';
-echo '<div class="field"><label>Игр</label><input type="number" name="rounds" id="rounds-count" min="1" max="20" value="' . (int)($edit['rounds'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">сколько игр сыграет каждый (= игр на каждом столе)</span></div>';
+echo '<div class="field"><label>Столов</label><input type="number" name="tables_count" id="tables-count" min="1" max="6" data-stepper value="' . (int)($edit['tables_count'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">вместимость: столов × 10 игроков</span></div>';
+echo '<div class="field"><label>Игр</label><input type="number" name="rounds" id="rounds-count" min="1" max="20" data-stepper value="' . (int)($edit['rounds'] ?? 1) . '"><span style="color:var(--tx3);font-size:11px;">сколько игр сыграет каждый (= игр на каждом столе)</span></div>';
 echo '</div>';
 
 $rmode = (string)($edit['reg_mode'] ?? 'open');
