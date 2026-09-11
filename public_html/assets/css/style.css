@@ -434,7 +434,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .sortable thead th.sorted-asc::after { content: " ▲"; font-size: 9px; color: var(--ac); }
 .sortable thead th.sorted-desc::after { content: " ▼"; font-size: 9px; color: var(--ac); }
 .rating-tbl .c-cards { background: rgba(232,51,42,0.055); }
-.rating-tbl .c-cards-first { border-left: 2px solid var(--ac); }
+/* Красные разделители — тенью внутри ячейки, а не общей границей: при border-collapse половина
+   границы лежит в соседней ячейке, и на телефоне её закрашивала прилипшая колонка «Игрок». */
+.rating-tbl .c-cards-first { box-shadow: inset 2px 0 0 var(--ac); }
 .rating-tbl thead .c-cards { text-align: center; }
 .rt-player { display: inline-flex; align-items: center; }
 
@@ -1025,7 +1027,7 @@ body::before {
 .day-games b { color: var(--tx); font-size: 16px; }
 
 .rating-tbl .c-club { background: rgba(232,51,42,0.07); }
-.rating-tbl .c-elo { background: rgba(232,51,42,0.06); border-left: 2px solid var(--ac); border-right: 2px solid var(--ac); }
+.rating-tbl .c-elo { background: rgba(232,51,42,0.06); box-shadow: inset 2px 0 0 var(--ac), inset -2px 0 0 var(--ac); }
 .rating-tbl .rt-groups th { font-size: 11px; font-weight: 600; color: var(--tx2); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; padding: 7px 8px 5px; border-bottom: none; }
 .rating-tbl tr.rt-top td { background: rgba(232,51,42,0.045); }
 .rating-tbl tr.rt-top:hover td { background: var(--sf2); }
@@ -1093,6 +1095,10 @@ body::before {
 .emoji-pick button:hover { border-color: var(--ac); background: var(--acsf); }
 .emoji-pick button.ep-sel { border-color: var(--ac); background: var(--acsf); }
 
+/* Эмодзи игрока (flair) — шрифтом Noto Color Emoji, в стиле стикеров профиля (анимации Noto):
+   одинаково на любом телефоне, а не эмодзи Samsung/Apple/Windows вперемешку. Выбор эмодзи в
+   кабинете — тем же шрифтом, чтобы игрок выбирал ровно то, что потом покажется в таблицах. */
+.flair, .emoji-pick button { font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; font-style: normal; }
 .pf-name .flair.is-lottie { animation: none; }
 @media (prefers-reduced-motion: no-preference) {
   .pf-name .flair { display: inline-block; animation: flairWiggle 2.6s ease-in-out infinite; transform-origin: 50% 80%; }
@@ -1143,8 +1149,20 @@ body::before {
   .container { padding: 0 14px; }
   .vs-head { gap: 8px; }
   /* Рейтинг: # и «Игрок» прилипают слева — при скролле вправо видно, чья строка */
-  .rating-tbl th:nth-child(1), .rating-tbl td:nth-child(1) { position: sticky; left: 0; background: var(--sf); z-index: 2; min-width: 34px; }
-  .rating-tbl th:nth-child(2), .rating-tbl td:nth-child(2) { position: sticky; left: 44px; background: var(--sf); z-index: 2; }
+  /* «#» — ровно 44px, как отступ прилипшей колонки «Игрок»: при ширине 41px браузер сдвигал «Игрок»
+     на 3px вправо, и она наезжала на левую красную линию ELO. */
+  .rating-tbl tr:not(.rt-groups) > :nth-child(1) { position: sticky; left: 0; background: var(--sf); z-index: 2;
+    width: 44px; min-width: 44px; max-width: 44px; box-sizing: border-box; }
+  .rating-tbl tr:not(.rt-groups) > :nth-child(2) { position: sticky; left: 44px; background: var(--sf); z-index: 2; }
+  /* В строке групп (над заголовками) 1-я ячейка занимает обе прилипшие колонки, а 2-я — это уже
+     ELO. Раньше она тоже прилипала и давала красный обрывок над заголовком ELO. */
+  .rating-tbl tr.rt-groups > :first-child { position: sticky; left: 0; background: var(--sf); z-index: 2; }
+  /* Призовые строки полупрозрачные: у прилипших ячеек тот же оттенок поверх сплошного фона,
+     иначе сквозь них просвечивают прокручиваемые колонки и чужие границы. */
+  .rating-tbl tr.rt-1 > td:nth-child(-n+2) { background: linear-gradient(rgba(243,210,122,.13), rgba(243,210,122,.13)), var(--sf); }
+  .rating-tbl tr.rt-2 > td:nth-child(-n+2) { background: linear-gradient(rgba(212,216,223,.11), rgba(212,216,223,.11)), var(--sf); }
+  .rating-tbl tr.rt-3 > td:nth-child(-n+2) { background: linear-gradient(rgba(227,168,120,.11), rgba(227,168,120,.11)), var(--sf); }
+  .rating-tbl tr:hover > td:nth-child(-n+2) { background: var(--sf2); }
   /* Тач-таргеты: пальцу нужно ≥40px */
   .react-btn { padding: 9px 13px; }
   .ava-actions button { padding: 8px 12px; font-size: 13px; }

@@ -120,7 +120,11 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=118">';
+    // Эмодзи игроков — шрифт Noto Color Emoji (правило .flair в style.css): стиль стикеров профиля
+    // на любом устройстве. Google отдаёт шрифт кусками по unicode-range — грузятся только нужные эмодзи.
+    echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
+    echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=119">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
