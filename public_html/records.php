@@ -12,8 +12,8 @@ if (!db_ready()) {
 }
 
 // ── Летопись клуба: основание (настройка) и вехи, посчитанные по протоколам ──
-// Вехи не ведутся руками: первая игра в базе, юбилейные 100/250/500/1000-я, самый длинный
-// вечер, сколько осталось до следующего юбилея. Дата основания — setting club_founded
+// Вехи не ведутся руками: первая игра в базе, юбилейные 100/250/500/1000-я и сколько осталось
+// до следующего юбилея («самый длинный вечер» убран по решению руководителя). Дата основания — setting club_founded
 // (Админка → «Правила и тексты»); пока не указана, админ видит подсказку, остальные — вехи без неё.
 try {
     $ruMonths = [1 => 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа',
@@ -45,26 +45,27 @@ try {
             return ['вечер «' . (string)$g['day_title'] . '»', '/day.php?id=' . (int)$g['day_id']];
         };
         $steps = [];   // [иконка, заголовок, дата/значение, подпись, ссылка, доп. класс]
+        [$w0, $l0] = $where($chron[0]);
         $founded = setting('club_founded');
+        $foundedIsFirst = false;
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $founded)) {
             $age = (int)floor((time() - strtotime($founded)) / (365.25 * 86400));
-            $steps[] = ['🏛', 'Основание клуба', $ruDate($founded), $age > 0 ? 'клубу ' . $plural($age, 'год', 'года', 'лет') : 'первый год клуба', null, 'chron-found'];
+            $ageTxt = $age > 0 ? 'клубу ' . $plural($age, 'год', 'года', 'лет') : 'первый год клуба';
+            // Клуб основан в день первой игры летописи — одна карточка вместо двух с одной датой.
+            $foundedIsFirst = $founded === substr((string)$chron[0]['gdate'], 0, 10);
+            $steps[] = ['🏛', 'Основание клуба', $ruDate($founded), $ageTxt . ($foundedIsFirst ? ' · первая игра' : ''),
+                $foundedIsFirst ? $l0 : null, 'chron-found'];
         } elseif (($cu = current_user()) && role_level($cu['role']) >= role_level('admin')) {
             $steps[] = ['🏛', 'Дата основания', 'не указана', 'указать в «Правилах и текстах»', '/admin/rules.php', 'chron-next'];
         }
-        [$w0, $l0] = $where($chron[0]);
-        $steps[] = ['🎲', 'Первая игра в летописи', $ruDate($chron[0]['gdate']), $w0, $l0, ''];
+        if (!$foundedIsFirst) {
+            $steps[] = ['🎲', 'Первая игра в летописи', $ruDate($chron[0]['gdate']), $w0, $l0, ''];
+        }
         foreach ([100, 250, 500, 1000, 2000, 5000] as $mn) {
             if ($chronN >= $mn) {
                 [$wm, $lm] = $where($chron[$mn - 1]);
                 $steps[] = [$mn >= 1000 ? '🏆' : '🏅', $mn . '-я игра', $ruDate($chron[$mn - 1]['gdate']), $wm, $lm, ''];
             }
-        }
-        $bigDay = db()->query("SELECT d.id, d.title, d.date, COUNT(g.id) AS c FROM game_days d
-            JOIN games g ON g.day_id = d.id AND g.status = 'finished'
-            GROUP BY d.id, d.title, d.date ORDER BY c DESC, d.date LIMIT 1")->fetch();
-        if ($bigDay) {
-            $steps[] = ['🔥', 'Самый длинный вечер', $plural((int)$bigDay['c'], 'игра', 'игры', 'игр'), $ruDate((string)$bigDay['date']), '/day.php?id=' . (int)$bigDay['id'], ''];
         }
         foreach ([100, 250, 500, 1000, 2000, 5000, 10000] as $mn) {
             if ($chronN < $mn) {
