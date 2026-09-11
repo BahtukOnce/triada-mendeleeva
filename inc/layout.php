@@ -7,8 +7,8 @@ function nav_items(bool $authed = true): array
         'index'       => ['index.php', 'Главная'],
         'news'        => ['news.php', 'Новости'],
         'days'        => ['days.php', 'Игры'],
+        'rating'      => ['rating.php', 'Рейтинг'],       // решение руководителя: Игры → Рейтинг → Турниры
         'tournaments' => ['tournaments.php', 'Турниры'],
-        'rating'      => ['rating.php', 'Рейтинг'],
         'players'     => ['players.php', 'Игроки'],
         'records'     => ['records.php', 'Зал славы'],
     ];
@@ -120,7 +120,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     echo '<meta name="apple-mobile-web-app-capable" content="yes">';
     echo '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
     echo '<meta name="apple-mobile-web-app-title" content="Триада">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=115">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=116">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -355,7 +355,7 @@ function page_foot(): void
             . '</nav>';
     }
 
-    echo '<script src="/assets/js/app.js?v=22"></script>';
+    echo '<script src="/assets/js/app.js?v=23"></script>';
     if (is_app()) {
         echo '<script src="/assets/js/app-native.js?v=1"></script>';
     }

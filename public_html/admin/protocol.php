@@ -186,7 +186,7 @@ $roster = db()->prepare('SELECT p.id, p.nickname FROM day_registrations r
     WHERE r.day_id = ? AND r.cancelled_at IS NULL ORDER BY p.nickname');
 $roster->execute([$dayId]);
 $rosterList = $roster->fetchAll();
-$allPlayers = db()->query('SELECT id, nickname FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll();
+$allPlayers = db()->query('SELECT id, nickname, avatar FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll();
 
 // Подсказки ника: не все ~250 игроков базы (в основном легаси, которых никто не помнит), а те,
 // кто реально ходит — участники последних 5 игровых вечеров до даты этого вечера. Сверху —
@@ -223,6 +223,16 @@ uksort($suggest, function ($a, $b) use ($suggest, $suggestToday) {
     $byToday = (isset($suggestToday[$a]) ? 0 : 1) <=> (isset($suggestToday[$b]) ? 0 : 1);
     return $byToday ?: strcmp(mb_strtolower($suggest[$a]), mb_strtolower($suggest[$b]));
 });
+// Для подсказки ника в стиле сайта: аватар (только если файл реально есть — как avatar_html)
+// и пометка «сегодня» у записавшихся и уже сыгравших в этом вечере.
+$nickAvatars = [];
+foreach ($allPlayers as $p) {
+    if (!empty($p['avatar']) && is_file(ROOT . '/public_html' . $p['avatar'])) {
+        $nickAvatars[(string)$p['nickname']] = (string)$p['avatar'];
+    }
+}
+$todayNicks = array_values(array_intersect_key($suggest, $suggestToday));
+$jsonFlags = JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
 
 // Игры вечера
 $gamesSt = db()->prepare("SELECT g.*, jp.nickname AS judge_nick FROM games g
@@ -285,6 +295,21 @@ page_head('Ведение игры — ' . $day['title'], '');
 ?>
 <p><a href="/admin/days.php">← Вечера</a></p>
 <h1>Ведение игры: <?= esc($day['title']) ?> · <?= date('d.m.Y', strtotime($day['date'])) ?></h1>
+<?php
+// Запись на вечер — закрыть/открыть прямо из протокола (вечер идёт — новым записываться поздно).
+// Смена статуса — общая логика admin/days.php (form=status), она же вернёт обратно сюда.
+if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 'manage_days')):
+    $toSt = $day['status'] === 'reg_open' ? 'reg_closed' : 'reg_open'; ?>
+<form method="post" action="/admin/days.php" style="margin:-4px 0 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;"<?= $toSt === 'reg_closed' ? ' onsubmit="return confirm(\'Закрыть запись на этот вечер? Новые игроки не смогут записаться — ни на сайте, ни в боте.\');"' : '' ?>>
+  <?= csrf_field() ?>
+  <input type="hidden" name="form" value="status">
+  <input type="hidden" name="day_id" value="<?= (int)$dayId ?>">
+  <input type="hidden" name="to" value="<?= $toSt ?>">
+  <input type="hidden" name="back" value="/admin/protocol.php?day=<?= (int)$dayId ?>">
+  <span class="tag <?= $day['status'] === 'reg_open' ? 'tag-open' : '' ?>"><?= $day['status'] === 'reg_open' ? 'запись открыта' : 'запись закрыта' ?></span>
+  <button class="btn btn-ghost" style="padding:5px 12px;font-size:13px;" type="submit"><?= $toSt === 'reg_closed' ? '🔒 Закрыть запись' : '🔓 Открыть запись снова' ?></button>
+</form>
+<?php endif; ?>
 
 <!-- Таймер ведущего -->
 <div class="card timer-card">
@@ -342,7 +367,7 @@ page_head('Ведение игры — ' . $day['title'], '');
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
         <tr data-seat="<?= $i ?>">
           <td><?= $i ?></td>
-          <td><input type="text" name="nick<?= $i ?>" list="players-dl" autocomplete="off"
+          <td><input type="text" name="nick<?= $i ?>" autocomplete="off" spellcheck="false"
               value="<?= esc($es['nickname'] ?? '') ?>" style="width:120px;">
               <div class="nick-new" style="display:none;font-size:10.5px;line-height:1.2;color:var(--tx3);white-space:nowrap;margin-top:2px;">нет на платформе</div></td>
           <td>
@@ -352,16 +377,16 @@ page_head('Ведение игры — ' . $day['title'], '');
               <?php endforeach; ?>
             </select>
           </td>
-          <td><select name="fouls<?= $i ?>" class="f-fouls"><?php for ($f = 0; $f <= 4; $f++): ?>
+          <td><select name="fouls<?= $i ?>" class="f-fouls" data-stepper data-stepper-warn><?php for ($f = 0; $f <= 4; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['fouls'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
-          <td><select name="tech<?= $i ?>" class="f-tech"><?php for ($f = 0; $f <= 2; $f++): ?>
+          <td><select name="tech<?= $i ?>" class="f-tech" data-stepper><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['tech_fouls'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
-          <td><select name="bigtech<?= $i ?>" class="f-bigtech"><?php for ($f = 0; $f <= 2; $f++): ?>
+          <td><select name="bigtech<?= $i ?>" class="f-bigtech" data-stepper><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['big_tech'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
-          <td><select name="removal<?= $i ?>" class="f-removal" title="удаление / на критический круг">
+          <td><select name="removal<?= $i ?>" class="f-removal" data-stepper data-stepper-warn title="удаление / на критический круг">
             <option value="0" <?= (int)($es['removal'] ?? 0) === 0 ? 'selected' : '' ?>>—</option>
             <option value="1" <?= (int)($es['removal'] ?? 0) === 1 ? 'selected' : '' ?>>уд</option>
             <option value="2" <?= (int)($es['removal'] ?? 0) === 2 ? 'selected' : '' ?>>уд!</option>
@@ -371,7 +396,7 @@ page_head('Ведение игры — ' . $day['title'], '');
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
               value="<?= $es && (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 1, '.', ''), '0'), '.') : '' ?>" style="width:42px;"></td>
           <td class="num"><b class="f-total">0</b></td>
-          <td><select name="out<?= $i ?>" style="width:48px;"><option value="0">—</option>
+          <td><select name="out<?= $i ?>" class="f-out" data-stepper title="порядок выбывания: каким по счёту игрок выбыл (— дожил до конца)"><option value="0">—</option>
             <?php for ($o = 1; $o <= 10; $o++): ?>
               <option value="<?= $o ?>" <?= (int)($es['out_order'] ?? 0) === $o ? 'selected' : '' ?>><?= $o ?></option>
             <?php endfor; ?></select></td>
@@ -541,54 +566,176 @@ page_head('Ведение игры — ' . $day['title'], '');
   document.getElementById('game-form').addEventListener('change', recompute);
   recompute();
 
-  // ── Вся база ников (подсказки ниже — только недавние игроки, а сверяться надо со всеми).
-  var allNicks = <?= json_encode(array_column($allPlayers, 'nickname'), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: '[]' ?>;
-
-  // ── «Нет на платформе»: ник, которого нет во ВСЕЙ базе игроков, красим серым с подписью.
-  // Такой игрок заведётся при сохранении — судья видит это заранее и ловит опечатку
-  // («Васся» вместо «Вася»), пока она не превратилась в лишнего игрока. Сверка именно со всей
-  // базой: в подсказках только недавние, и по ним посерели бы существующие игроки.
+  // ── Данные для подсказки ника: вся база (сверяться надо со всеми, а предлагать — недавних),
+  // аватары и сегодняшние участники.
+  var allNicks = <?= json_encode(array_column($allPlayers, 'nickname'), $jsonFlags) ?: '[]' ?>;
+  var nickAvatars = <?= json_encode((object)$nickAvatars, $jsonFlags) ?: '{}' ?>;
+  var todayNicks = {};
+  (<?= json_encode($todayNicks, $jsonFlags) ?: '[]' ?>).forEach(function (n) { todayNicks[String(n).toLowerCase()] = true; });
   var knownNicks = {};
   allNicks.forEach(function (n) { knownNicks[String(n).trim().toLowerCase()] = true; });
-  function markNewNicks() {
-    document.querySelectorAll('tr[data-seat] input[name^="nick"]').forEach(function (inp) {
-      var v = inp.value.trim().toLowerCase();
-      var isNew = v !== '' && !knownNicks[v];
-      var hint = inp.parentNode.querySelector('.nick-new');
-      if (hint) hint.style.display = isNew ? '' : 'none';
-      inp.style.color = isNew ? 'var(--tx3)' : '';
+  var recentNicks = [].map.call(document.querySelectorAll('#players-dl option'), function (o) { return o.value; });
+  var seatNickInputs = [].slice.call(document.querySelectorAll('tr[data-seat] input[name^="nick"]'));
+
+  // ── Подсказка ника в стиле сайта (вместо белого системного datalist): аватар, выделение
+  // набранного, «сегодня» у записавшихся. Единственный вариант подсвечен сразу — Enter его
+  // подставляет. Сверху недавние игроки, с двух букв — совпадения из всей базы, чтобы
+  // вернувшегося после перерыва тоже можно было выбрать. Сидящих за этим столом не предлагаем.
+  var dd = document.createElement('div');
+  dd.className = 'nick-dd';
+  dd.setAttribute('role', 'listbox');
+  dd.style.display = 'none';
+  document.body.appendChild(dd);
+  var ddOpen = false, ddInput = null, ddItems = [], ddOn = -1;
+
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  document.getElementById('game-form').addEventListener('input', markNewNicks);
-  markNewNicks();
-
-  // ── Подсказки ника. По умолчанию — недавние игроки (datalist собран в PHP). С двух букв
-  // добавляем совпадения из всей базы, чтобы вернувшегося после перерыва тоже можно было
-  // выбрать. Тех, кто уже сидит за этим столом, не предлагаем.
-  var nickDl = document.getElementById('players-dl');
-  var recentNicks = [].map.call(nickDl.querySelectorAll('option'), function (o) { return o.value; });
-  var seatNickInputs = [].slice.call(document.querySelectorAll('tr[data-seat] input[name^="nick"]'));
-  function fillSuggest(self) {
-    var q = self.value.trim().toLowerCase(), taken = {}, seen = {}, out = [];
+  function avaHtml(n) {
+    if (nickAvatars[n]) return '<img src="' + escHtml(nickAvatars[n]) + '" alt="">';
+    var first = Array.from(String(n))[0] || '?';
+    return '<span class="avatar-circle">' + escHtml(first.toUpperCase()) + '</span>';
+  }
+  function findNicks(self) {
+    var q = self.value.trim().toLowerCase(), taken = {}, seen = {}, head = [], tail = [];
     seatNickInputs.forEach(function (i) {
       var v = i.value.trim().toLowerCase();
       if (i !== self && v) taken[v] = true;
     });
-    function add(n) {
-      var k = String(n).toLowerCase();
-      if (!seen[k] && !taken[k]) { seen[k] = true; out.push(n); }
+    function scan(list) {
+      list.forEach(function (n) {
+        var k = String(n).toLowerCase();
+        if (seen[k] || taken[k]) return;
+        var pos = q === '' ? 0 : k.indexOf(q);
+        if (pos === -1) return;
+        seen[k] = true;
+        if (pos === 0) { head.push(n); } else { tail.push(n); }   // совпадение с начала ника — выше
+      });
     }
-    recentNicks.forEach(function (n) { if (q.length < 2 || String(n).toLowerCase().indexOf(q) !== -1) add(n); });
-    if (q.length >= 2) {
-      allNicks.forEach(function (n) { if (out.length < 40 && String(n).toLowerCase().indexOf(q) !== -1) add(n); });
-    }
-    nickDl.innerHTML = '';
-    out.forEach(function (n) { var o = document.createElement('option'); o.value = n; nickDl.appendChild(o); });
+    scan(recentNicks);
+    if (q.length >= 2) scan(allNicks);
+    return head.concat(tail).slice(0, 30);
   }
-  seatNickInputs.forEach(function (inp) {
-    inp.addEventListener('focus', function () { fillSuggest(inp); });
-    inp.addEventListener('input', function () { fillSuggest(inp); });
+  function placeDd() {
+    if (!ddOpen || !ddInput) return;
+    var r = ddInput.getBoundingClientRect(), h = dd.offsetHeight, w = dd.offsetWidth;
+    dd.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+    // Под полем не помещается — показываем над ним.
+    dd.style.top = ((r.bottom + 4 + h > window.innerHeight && r.top - h - 4 > 0) ? (r.top - h - 4) : (r.bottom + 4)) + 'px';
+  }
+  function setOn(i) {
+    ddOn = i;
+    var els = dd.querySelectorAll('.nick-dd-item');
+    [].forEach.call(els, function (el, j) { el.classList.toggle('on', j === i); });
+    var el = els[i];
+    if (!el) return;
+    // Прокручиваем только сам список (scrollIntoView мог бы дёрнуть всю страницу).
+    if (el.offsetTop < dd.scrollTop) {
+      dd.scrollTop = el.offsetTop;
+    } else if (el.offsetTop + el.offsetHeight > dd.scrollTop + dd.clientHeight) {
+      dd.scrollTop = el.offsetTop + el.offsetHeight - dd.clientHeight;
+    }
+  }
+  function closeDd() {
+    ddOpen = false;
+    ddItems = [];
+    ddOn = -1;
+    dd.style.display = 'none';
+  }
+  function openDd(inp) {
+    ddInput = inp;
+    ddItems = findNicks(inp);
+    var q = inp.value.trim().toLowerCase();
+    // Предлагать нечего — или ник уже введён целиком и других вариантов нет.
+    if (!ddItems.length || (ddItems.length === 1 && String(ddItems[0]).toLowerCase() === q)) {
+      closeDd();
+      markNewNicks();
+      return;
+    }
+    var html = '';
+    ddItems.forEach(function (n, i) {
+      var s = String(n), k = s.toLowerCase(), pos = q ? k.indexOf(q) : -1;
+      var name = pos === -1 ? escHtml(s)
+        : escHtml(s.slice(0, pos)) + '<b>' + escHtml(s.slice(pos, pos + q.length)) + '</b>' + escHtml(s.slice(pos + q.length));
+      html += '<div class="nick-dd-item" role="option" data-i="' + i + '">' + avaHtml(s)
+        + '<span class="nick-dd-name">' + name + '</span>'
+        + (todayNicks[k] ? '<span class="nick-dd-tag">сегодня</span>' : '') + '</div>';
+    });
+    html += '<div class="nick-dd-foot">' + (ddItems.length === 1 ? 'Enter — подставить' : '↑ ↓ — выбрать · Enter — подставить') + '</div>';
+    dd.innerHTML = html;
+    dd.style.minWidth = Math.max(210, Math.round(inp.getBoundingClientRect().width)) + 'px';
+    dd.style.display = 'block';
+    ddOpen = true;
+    placeDd();
+    setOn(ddItems.length === 1 ? 0 : -1);   // единственный вариант — сразу под Enter
+    markNewNicks();
+  }
+  function pickNick(i) {
+    if (!ddInput || i < 0 || i >= ddItems.length) return;
+    var inp = ddInput;
+    inp.value = ddItems[i];
+    inp.dispatchEvent(new Event('input', { bubbles: true }));   // пересчёт итогов и пометок
+    closeDd();
+    markNewNicks();
+  }
+  dd.addEventListener('mousedown', function (e) { e.preventDefault(); });   // фокус остаётся в поле
+  dd.addEventListener('click', function (e) {
+    var it = e.target.closest('.nick-dd-item');
+    if (it) pickNick(parseInt(it.getAttribute('data-i'), 10));
   });
+  // Закрываем по нажатию мимо поля и подсказки, а не по blur: на телефоне прокрутка списка
+  // пальцем уводит фокус из поля, и подсказка закрывалась бы прямо под пальцем.
+  document.addEventListener('pointerdown', function (e) {
+    if (ddOpen && e.target !== ddInput && !dd.contains(e.target)) {
+      closeDd();
+      markNewNicks();
+    }
+  }, true);
+  seatNickInputs.forEach(function (inp) {
+    inp.addEventListener('focus', function () { openDd(inp); });
+    inp.addEventListener('input', function () { openDd(inp); });
+    inp.addEventListener('blur', function () { setTimeout(markNewNicks, 0); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        // Enter в поле ника не отправляет всю игру; при подсказке — подставляет вариант.
+        e.preventDefault();
+        if (ddOpen && ddOn >= 0) pickNick(ddOn);
+        return;
+      }
+      if (!ddOpen) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setOn(Math.min(ddOn + 1, ddItems.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setOn(Math.max(ddOn - 1, 0));
+      } else if (e.key === 'Escape' || e.key === 'Tab') {
+        closeDd();
+        markNewNicks();
+      }
+    });
+  });
+  window.addEventListener('resize', placeDd);
+  window.addEventListener('scroll', placeDd, true);
+
+  // ── «Нет на платформе»: ник, которого нет во ВСЕЙ базе игроков, красим серым с подписью.
+  // Такой игрок заведётся при сохранении — судья видит это заранее и ловит опечатку
+  // («Васся» вместо «Вася»). Пока судья печатает и подсказка что-то предлагает, ник просто
+  // недописан — пометку не показываем (раньше «нет на платформе» появлялось уже на «Всп»).
+  function markNewNicks() {
+    seatNickInputs.forEach(function (inp) {
+      var v = inp.value.trim().toLowerCase();
+      var typing = ddOpen && ddInput === inp && document.activeElement === inp;
+      var show = v !== '' && !knownNicks[v] && !typing;
+      var hint = inp.parentNode.querySelector('.nick-new');
+      if (hint) hint.style.display = show ? '' : 'none';
+      inp.style.color = show ? 'var(--tx3)' : '';
+    });
+  }
+  document.getElementById('game-form').addEventListener('input', markNewNicks);
+  markNewNicks();
 
   // ── Быстрые кнопки (применяются к последнему выбранному полю «+» или «−») ──
   var lastField = null, dopTarget = document.getElementById('dop-target');

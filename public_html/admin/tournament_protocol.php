@@ -235,16 +235,16 @@ page_head('Протокол — ' . $g['t_title'], '');
               <?php endforeach; ?>
             </select>
           </td>
-          <td><select name="fouls<?= $i ?>" class="f-fouls"><?php for ($f = 0; $f <= 4; $f++): ?>
+          <td><select name="fouls<?= $i ?>" class="f-fouls" data-stepper data-stepper-warn><?php for ($f = 0; $f <= 4; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['fouls'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
-          <td><select name="tech<?= $i ?>" class="f-tech"><?php for ($f = 0; $f <= 2; $f++): ?>
+          <td><select name="tech<?= $i ?>" class="f-tech" data-stepper><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['tech_fouls'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
-          <td><select name="bigtech<?= $i ?>" class="f-bigtech"><?php for ($f = 0; $f <= 2; $f++): ?>
+          <td><select name="bigtech<?= $i ?>" class="f-bigtech" data-stepper><?php for ($f = 0; $f <= 2; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['big_tech'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
-          <td><select name="removal<?= $i ?>" class="f-removal" title="удаление / на критический круг">
+          <td><select name="removal<?= $i ?>" class="f-removal" data-stepper data-stepper-warn title="удаление / на критический круг">
             <option value="0" <?= (int)($es['removal'] ?? 0) === 0 ? 'selected' : '' ?>>—</option>
             <option value="1" <?= (int)($es['removal'] ?? 0) === 1 ? 'selected' : '' ?>>уд</option>
             <option value="2" <?= (int)($es['removal'] ?? 0) === 2 ? 'selected' : '' ?>>уд!</option>

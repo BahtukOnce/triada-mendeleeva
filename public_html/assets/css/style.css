@@ -1208,3 +1208,35 @@ body::before {
 .bd-day { flex: none; min-width: 26px; font-variant-numeric: tabular-nums; color: var(--tx2); font-size: 13px; }
 .bd-nick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; font-size: 13.5px; }
 .bd-mark { flex: none; font-size: 11.5px; color: var(--ac); font-weight: 600; }
+
+/* ── Кнопки −/+ вместо выпадающих списков (протокол: фолы, техи, удаление, выбывание) ── */
+.stp { display: inline-flex; align-items: center; gap: 1px; padding: 2px; white-space: nowrap;
+  background: var(--sf2); border: 1px solid var(--bd); border-radius: 8px; }
+.stp-b { width: 24px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent;
+  color: var(--tx2); font-size: 16px; line-height: 1; cursor: pointer; }
+.stp-b:hover:not(:disabled) { background: var(--sf); color: var(--tx); }
+.stp-b:disabled { opacity: .28; cursor: default; }
+.stp-v { min-width: 24px; text-align: center; font-size: 13.5px; font-weight: 700; color: var(--tx);
+  font-variant-numeric: tabular-nums; }
+.stp-zero .stp-v { color: var(--tx3); font-weight: 400; }   /* нули приглушены — ненулевое видно сразу */
+.stp-max .stp-v { color: var(--ac); }                      /* 4 фола / удаление на крит. круг */
+@media (pointer: coarse) { .stp-b { width: 32px; height: 34px; font-size: 18px; } }  /* под палец */
+
+/* ── «!» в рейтинге: игрока нет в системе (нет аккаунта), подсказка по наведению ── */
+.rt-unreg { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px;
+  margin-left: 6px; border: 1px solid var(--tx3); border-radius: 50%; color: var(--tx3);
+  font-size: 10px; font-weight: 700; line-height: 1; vertical-align: middle; cursor: help; flex: none; }
+.rt-player:hover .rt-unreg { border-color: var(--tx2); color: var(--tx2); }
+
+/* ── Подсказка ника в протоколе (вместо белого системного datalist) ── */
+.nick-dd { position: fixed; z-index: 2000; min-width: 210px; max-height: 280px; overflow-y: auto; padding: 4px;
+  background: var(--sf); border: 1px solid var(--bd); border-radius: 10px; box-shadow: 0 16px 44px rgba(0,0,0,.55); }
+.nick-dd-item { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 7px;
+  cursor: pointer; font-size: 14px; color: var(--tx); white-space: nowrap; }
+.nick-dd-item:hover, .nick-dd-item.on { background: var(--sf2); }
+.nick-dd-item.on { box-shadow: inset 2px 0 0 var(--ac); }
+.nick-dd-item img, .nick-dd-item .avatar-circle { width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+  flex: none; font-size: 11px; }
+.nick-dd-name b { color: var(--ac); font-weight: 700; }
+.nick-dd-tag { margin-left: auto; padding-left: 12px; font-size: 11px; color: var(--ok); }
+.nick-dd-foot { margin-top: 3px; padding: 6px 9px 3px; border-top: 1px solid var(--bd); font-size: 11px; color: var(--tx3); }

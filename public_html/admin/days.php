@@ -69,6 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             flash_set('ok', 'Статус обновлён' . $note);
         }
+        // Кнопки «Закрыть/открыть запись» есть и на странице вечера, и в протоколе — возвращаем
+        // туда, откуда нажали. Только эти два локальных адреса, чтобы не было открытого редиректа.
+        $back = (string)($_POST['back'] ?? '');
+        if (preg_match('#^/(day\.php\?id=\d+|admin/protocol\.php\?day=\d+)$#', $back)) {
+            redirect($back);
+        }
         redirect('/admin/days.php');
     }
 

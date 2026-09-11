@@ -108,8 +108,22 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
     $regs = $st->fetchAll();
     echo '<div class="card card-accent">';
     echo '<div class="section-head"><h2 style="margin:0;">Записавшиеся (' . count($regs) . ')</h2>';
+    echo '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
     echo '<span class="tag ' . ($day['status'] === 'reg_open' ? 'tag-open' : '') . '">'
-        . ($day['status'] === 'reg_open' ? 'запись открыта' : 'запись закрыта') . '</span></div>';
+        . ($day['status'] === 'reg_open' ? 'запись открыта' : 'запись закрыта') . '</span>';
+    // Закрыть/открыть запись прямо со страницы вечера — тем, кому разрешено управлять вечерами.
+    // Смена статуса — общая логика admin/days.php (form=status), назад она вернёт сюда.
+    if (user_perm(current_user(), 'manage_days')) {
+        $toSt = $day['status'] === 'reg_open' ? 'reg_closed' : 'reg_open';
+        echo '<form method="post" action="/admin/days.php" style="margin:0;"'
+            . ($toSt === 'reg_closed' ? ' onsubmit="return confirm(\'Закрыть запись на этот вечер? Новые игроки не смогут записаться — ни на сайте, ни в боте.\');"' : '') . '>'
+            . csrf_field()
+            . '<input type="hidden" name="form" value="status"><input type="hidden" name="day_id" value="' . $id . '">'
+            . '<input type="hidden" name="to" value="' . $toSt . '"><input type="hidden" name="back" value="/day.php?id=' . $id . '">'
+            . '<button class="btn btn-ghost" style="padding:5px 12px;font-size:13px;" type="submit">'
+            . ($toSt === 'reg_closed' ? '🔒 Закрыть запись' : '🔓 Открыть запись снова') . '</button></form>';
+    }
+    echo '</div></div>';
     if ($regs) {
         echo '<div class="admin-list" style="margin-top:10px;">';
         foreach ($regs as $r) {

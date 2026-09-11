@@ -448,3 +448,48 @@
   }
   document.querySelectorAll('select[data-search]').forEach(enhanceSearchSelect);
 })();
+
+// ── Кнопки −/+ вместо выпадающего списка у маленьких числовых полей (протоколы: фолы, техи,
+// удаление, порядок выбывания). Сам <select> остаётся, только скрыт: форма, пересчёт итога и
+// восстановление введённого после ошибки работают как раньше — кнопки лишь листают варианты.
+// data-stepper-warn — подсветить крайнее значение (4 фола, удаление на крит. круг).
+(function () {
+  function enhanceStepper(sel) {
+    if (sel.getAttribute('data-stepper-ready')) return;
+    sel.setAttribute('data-stepper-ready', '1');
+    var wrap = document.createElement('span');
+    wrap.className = 'stp';
+    if (sel.title) wrap.title = sel.title;
+    function btn(txt, label) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'stp-b'; b.textContent = txt; b.setAttribute('aria-label', label);
+      return b;
+    }
+    var dec = btn('−', 'меньше'), inc = btn('+', 'больше');
+    var val = document.createElement('span');
+    val.className = 'stp-v';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(dec); wrap.appendChild(val); wrap.appendChild(inc); wrap.appendChild(sel);
+    sel.style.display = 'none';
+    var last = sel.options.length - 1;
+    function sync() {
+      var i = sel.selectedIndex, o = sel.options[i];
+      val.textContent = o ? o.text : '';
+      dec.disabled = i <= 0;
+      inc.disabled = i >= last;
+      wrap.classList.toggle('stp-zero', i <= 0);
+      wrap.classList.toggle('stp-max', sel.hasAttribute('data-stepper-warn') && i === last && last > 0);
+    }
+    function step(d) {
+      var i = Math.max(0, Math.min(last, sel.selectedIndex + d));
+      if (i === sel.selectedIndex) return;
+      sel.selectedIndex = i;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    dec.addEventListener('click', function () { step(-1); });
+    inc.addEventListener('click', function () { step(1); });
+    sel.addEventListener('change', sync);
+    sync();
+  }
+  document.querySelectorAll('select[data-stepper]').forEach(enhanceStepper);
+})();

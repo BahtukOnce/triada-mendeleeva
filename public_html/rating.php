@@ -28,7 +28,7 @@ if (db_ready()) {
     }
     if ($current) {
         // Рейтинг всегда по принципу клуба (~Σ×Σ); дальнейшая сортировка — кликом по колонке (JS)
-        $st = db()->prepare("SELECT rc.*, p.nickname, p.avatar, p.elo FROM rating_cache rc
+        $st = db()->prepare("SELECT rc.*, p.nickname, p.avatar, p.elo, p.user_id FROM rating_cache rc
             JOIN players p ON p.id = rc.player_id
             WHERE rc.rating_id = ?
             ORDER BY (rc.club_score IS NULL), rc.club_score DESC, rc.sum_total DESC LIMIT 300");
@@ -250,7 +250,11 @@ if ($rows) {
         echo '<td data-sort="' . $pos . '">' . ($medal !== '' ? '<span style="font-size:15px;">' . $medal . '</span>' : $pos) . '</td>';
         echo '<td><a class="rt-player" href="/player.php?id=' . (int)$row['player_id'] . '" style="' . me_nick_style($isMe) . '">'
             . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
-            . '<span>' . esc($row['nickname']) . casper_ghost($row['nickname']) . '</span></a></td>';
+            . '<span>' . esc($row['nickname']) . casper_ghost($row['nickname']) . '</span>'
+            // «!» у тех, у кого нет аккаунта на сайте (решение руководителя): подсказка по наведению.
+            . ((empty($row['user_id']) && !is_casper((string)$row['nickname']))
+                ? '<span class="rt-unreg" title="Игрока пока нет в системе — не зарегистрирован на сайте">!</span>' : '')
+            . '</a></td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num c-club" data-sort="' . (float)$row['club_score'] . '"><b>' . ($row['club_score'] !== null ? number_format((float)$row['club_score'], 2) : '—') . '</b></td>';
         echo '<td class="num" data-sort="' . (float)$row['avg_total'] . '">' . ($row['avg_total'] !== null ? number_format((float)$row['avg_total'], 2) : '—') . '</td>';
