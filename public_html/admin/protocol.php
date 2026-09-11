@@ -80,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Верхний предел — защита от опечатки (15 вместо 1.5), реальные баллы столько не набирают
                 'plus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0')))),
                 'minus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0')))),
-                'out_order' => (int)($_POST["out$i"] ?? 0) ?: null,
             ];
         }
 
@@ -133,6 +132,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $seats[$seatNo]['player_id'] = $newPid;
         }
+        // «Выб.» (порядок выбывания) из протокола убран по решению руководителя — поле нигде не
+        // использовалось. Но уже внесённые значения при правке игры не стираем: переносим их по
+        // игроку, а не по месту, чтобы пересадка за столом ничего не перепутала.
+        $oldOut = [];
+        if ($gid) {
+            $oo = $pdo->prepare('SELECT player_id, out_order FROM game_seats WHERE game_id = ? AND out_order IS NOT NULL');
+            $oo->execute([$gid]);
+            foreach ($oo->fetchAll() as $oRow) {
+                $oldOut[(int)$oRow['player_id']] = (int)$oRow['out_order'];
+            }
+        }
         if ($gid) {
             $pdo->prepare('UPDATE games SET judge_player_id=?, winner=?, first_killed_seat=?,
                 bm_seat1=?, bm_seat2=?, bm_seat3=?, comment=?, status=\'finished\', finished_at=NOW()
@@ -156,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         foreach ($seats as $seat => $s) {
             $insS->execute([$gid, $seat, $s['player_id'], $s['role'], $s['fouls'],
-                $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $s['out_order']]);
+                $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $oldOut[(int)$s['player_id']] ?? null]);
         }
         $pdo->commit();
 
@@ -284,7 +294,6 @@ if (is_array($old)) {
             'removal' => (int)($old["removal$i"] ?? 0),
             'plus' => (float)str_replace(',', '.', (string)($old["plus$i"] ?? '0')),
             'minus' => (float)str_replace(',', '.', (string)($old["minus$i"] ?? '0')),
-            'out_order' => (int)($old["out$i"] ?? 0),
         ];
     }
 }
@@ -362,7 +371,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
         <tr>
           <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
-          <th>+</th><th>−</th><th class="num">Итог</th><th>Выб.</th>
+          <th>+</th><th>−</th><th class="num">Итог</th>
         </tr>
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
         <tr data-seat="<?= $i ?>">
@@ -396,10 +405,6 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
               value="<?= $es && (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 1, '.', ''), '0'), '.') : '' ?>" style="width:42px;"></td>
           <td class="num"><b class="f-total">0</b></td>
-          <td><select name="out<?= $i ?>" class="f-out" data-stepper title="порядок выбывания: каким по счёту игрок выбыл (— дожил до конца)"><option value="0">—</option>
-            <?php for ($o = 1; $o <= 10; $o++): ?>
-              <option value="<?= $o ?>" <?= (int)($es['out_order'] ?? 0) === $o ? 'selected' : '' ?>><?= $o ?></option>
-            <?php endfor; ?></select></td>
         </tr>
         <?php endfor; ?>
       </table>
