@@ -220,7 +220,7 @@ page_head('Протокол — ' . $g['t_title'], '');
     <div style="overflow-x:auto;">
       <table class="tbl protocol-tbl">
         <tr>
-          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2">Бол.<br>тех</th>
+          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th>+</th><th>−</th><th class="num">Итог</th>
         </tr>

@@ -1197,6 +1197,28 @@ function player_id_by_nick(string $nick): ?int
     return $id !== false ? (int)$id : null;
 }
 
+// Ищет игрока по нику, а если такого нет — заводит ростер-запись без аккаунта (user_id NULL,
+// «пока нет на платформе»). Нужно протоколу: раньше участник, которого нет в базе, ронял
+// занесение всей игры ошибкой «игрок не найден». Сначала регистронезависимый поиск (как
+// player_id_by_nick) — существующего игрока в любом регистре находим, создаём только
+// действительно новый ник, чтобы не плодить дубли. ON DUPLICATE — страховка от гонки двух
+// судей по UNIQUE nickname.
+function player_id_by_nick_or_create(string $nick): ?int
+{
+    $nick = mb_substr(trim($nick), 0, 60);   // players.nickname — VARCHAR(60)
+    if ($nick === '') {
+        return null;
+    }
+    $id = player_id_by_nick($nick);
+    if ($id) {
+        return $id;
+    }
+    db()->prepare('INSERT INTO players (nickname) VALUES (?)
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)')->execute([$nick]);
+    $id = (int)db()->lastInsertId();
+    return $id ?: player_id_by_nick($nick);
+}
+
 function setting(string $key, string $default = ''): string
 {
     try {

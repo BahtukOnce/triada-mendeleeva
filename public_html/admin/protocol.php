@@ -47,25 +47,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $seats = [];
         $errors = [];
         $usedPlayers = [];
+        // Ники, которых ещё нет в базе: место => ник. Раньше такой участник ронял всю игру
+        // ошибкой «игрок не найден». Теперь заводим ростер-игрока без аккаунта («пока нет на
+        // платформе») — но только после всех проверок и внутри транзакции записи игры, чтобы
+        // ошибка в протоколе не оставляла в базе игроков от несохранённой игры.
+        $newNicks = [];
         for ($i = 1; $i <= 10; $i++) {
             $nick = trim((string)($_POST["nick$i"] ?? ''));
             if ($nick === '') {
                 continue;
             }
             $pid = player_id_by_nick($nick);
-            if (!$pid) {
-                $errors[] = "Место $i: игрок «" . esc($nick) . "» не найден";
-                continue;
-            }
-            if (isset($usedPlayers[$pid])) {
+            // «Уже за столом»: известных сверяем по id, новых — по нику без регистра.
+            $dupKey = $pid ? 'p' . $pid : 'n' . mb_strtolower($nick);
+            if (isset($usedPlayers[$dupKey])) {
                 $errors[] = "Место $i: игрок «" . esc($nick) . "» уже за столом";
                 continue;
             }
-            $usedPlayers[$pid] = true;
+            $usedPlayers[$dupKey] = true;
+            if (!$pid) {
+                $newNicks[$i] = $nick;
+            }
             $role = (string)($_POST["role$i"] ?? 'civ');
             $role = in_array($role, ['civ', 'maf', 'sheriff', 'don'], true) ? $role : 'civ';
             $seats[$i] = [
-                'player_id' => $pid,
+                'player_id' => $pid ?: 0,   // новым id проставим внутри транзакции, после проверок
                 'role' => $role,
                 'fouls' => max(0, min(4, (int)($_POST["fouls$i"] ?? 0))),
                 'tech_fouls' => max(0, min(2, (int)($_POST["tech$i"] ?? 0))),
@@ -115,6 +121,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo = db();
         $pdo->beginTransaction();
+        // Заводим ростер-игроков для новых ников ($newNicks) в той же транзакции: упадёт запись
+        // игры — откатятся и они.
+        foreach ($newNicks as $seatNo => $newNick) {
+            $newPid = (int)player_id_by_nick_or_create($newNick);
+            if ($newPid <= 0) {
+                $pdo->rollBack();
+                $_SESSION['protocol_old'] = $_POST;
+                flash_set('err', 'Не удалось добавить игрока «' . esc($newNick) . '»');
+                redirect('/admin/protocol.php?day=' . $dayId . ($gid ? '&game=' . $gid : ''));
+            }
+            $seats[$seatNo]['player_id'] = $newPid;
+        }
         if ($gid) {
             $pdo->prepare('UPDATE games SET judge_player_id=?, winner=?, first_killed_seat=?,
                 bm_seat1=?, bm_seat2=?, bm_seat3=?, comment=?, status=\'finished\', finished_at=NOW()
@@ -281,7 +299,7 @@ page_head('Ведение игры — ' . $day['title'], '');
     <div style="overflow-x:auto;">
       <table class="tbl protocol-tbl">
         <tr>
-          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2">Бол.<br>тех</th>
+          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th>+</th><th>−</th><th class="num">Итог</th><th>Выб.</th>
         </tr>
@@ -289,7 +307,8 @@ page_head('Ведение игры — ' . $day['title'], '');
         <tr data-seat="<?= $i ?>">
           <td><?= $i ?></td>
           <td><input type="text" name="nick<?= $i ?>" list="players-dl" autocomplete="off"
-              value="<?= esc($es['nickname'] ?? '') ?>" style="width:120px;"></td>
+              value="<?= esc($es['nickname'] ?? '') ?>" style="width:120px;">
+              <div class="nick-new" style="display:none;font-size:10.5px;line-height:1.2;color:var(--tx3);white-space:nowrap;margin-top:2px;">нет на платформе</div></td>
           <td>
             <select name="role<?= $i ?>" class="f-role">
               <?php foreach ($roleOpts as $rk => $rl): ?>
@@ -485,6 +504,25 @@ page_head('Ведение игры — ' . $day['title'], '');
   document.getElementById('game-form').addEventListener('input', recompute);
   document.getElementById('game-form').addEventListener('change', recompute);
   recompute();
+
+  // ── «Нет на платформе»: ник, которого ещё нет среди игроков, красим серым с подписью.
+  // Такой игрок заведётся при сохранении — судья видит это заранее и ловит опечатку
+  // («Васся» вместо «Вася»), пока она не превратилась в лишнего игрока.
+  var knownNicks = {};
+  [].forEach.call(document.querySelectorAll('#players-dl option'), function (o) {
+    knownNicks[String(o.value || '').trim().toLowerCase()] = true;
+  });
+  function markNewNicks() {
+    document.querySelectorAll('tr[data-seat] input[name^="nick"]').forEach(function (inp) {
+      var v = inp.value.trim().toLowerCase();
+      var isNew = v !== '' && !knownNicks[v];
+      var hint = inp.parentNode.querySelector('.nick-new');
+      if (hint) hint.style.display = isNew ? '' : 'none';
+      inp.style.color = isNew ? 'var(--tx3)' : '';
+    });
+  }
+  document.getElementById('game-form').addEventListener('input', markNewNicks);
+  markNewNicks();
 
   // ── Быстрые кнопки (применяются к последнему выбранному полю «+» или «−») ──
   var lastField = null, dopTarget = document.getElementById('dop-target');
