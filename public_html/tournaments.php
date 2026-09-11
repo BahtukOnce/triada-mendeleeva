@@ -3,18 +3,44 @@ require dirname(__DIR__) . '/inc/bootstrap.php';
 
 $isJudge = user_can_judge(current_user());
 $list = [];
+$pastSeasons = [];
+$hasCur = false;
+$season = (string)($_GET['season'] ?? '');
 if (db_ready()) {
+    // Сезон турнира — по дате начала (1 сент–31 авг), как вечера и профиль. Турнир без даты —
+    // это готовящийся черновик, относим его к текущему сезону.
+    $curLabel = current_season_bounds()[2];
+    $seasonExpr = "IF(t.date_from IS NULL, " . db()->quote($curLabel) . ", CONCAT('Сезон ', (YEAR(t.date_from) - (MONTH(t.date_from) < 9)), '/', (YEAR(t.date_from) - (MONTH(t.date_from) < 9) + 1)))";
     // Судьи видят турниры в любом статусе; остальные — без черновиков
-    $where = $isJudge ? '' : "WHERE t.status <> 'draft'";
-    $list = db()->query('SELECT t.*,
+    $conds = $isJudge ? [] : ["t.status <> 'draft'"];
+    $allSeasons = db()->query("SELECT DISTINCT $seasonExpr s FROM tournaments t"
+        . ($conds ? ' WHERE ' . implode(' AND ', $conds) : '') . ' ORDER BY s DESC')->fetchAll(PDO::FETCH_COLUMN);
+    $hasCur = in_array($curLabel, $allSeasons, true);
+    $pastSeasons = array_values(array_filter($allSeasons, fn($s) => (string)$s !== $curLabel));
+    // По умолчанию — текущий сезон; если турниров в нём ещё не было (начало сезона) — все,
+    // чтобы список не «пропадал». Чужое значение в адресе молча сводим к тому же.
+    if ($season !== 'cur' && $season !== 'all' && !in_array($season, $pastSeasons, true)) {
+        $season = $hasCur ? 'cur' : 'all';
+    }
+    $params = [];
+    if ($season === 'cur') {
+        $conds[] = "$seasonExpr = ?";
+        $params[] = $curLabel;
+    } elseif ($season !== 'all') {
+        $conds[] = "$seasonExpr = ?";
+        $params[] = $season;
+    }
+    $st = db()->prepare('SELECT t.*,
             (SELECT COUNT(*) FROM tournament_participants tp WHERE tp.tournament_id = t.id AND tp.state = \'confirmed\') AS roster_cnt,
             (SELECT COUNT(DISTINCT gs.player_id) FROM games g
                 JOIN game_seats gs ON gs.game_id = g.id
                 WHERE g.tournament_id = t.id) AS players_cnt,
             (SELECT COUNT(*) FROM rating_cache rc WHERE rc.rating_id = t.legacy_rating_id) AS legacy_cnt
         FROM tournaments t
-        ' . $where . '
-        ORDER BY t.date_from DESC, t.id DESC LIMIT 50')->fetchAll();
+        ' . ($conds ? 'WHERE ' . implode(' AND ', $conds) : '') . '
+        ORDER BY t.date_from DESC, t.id DESC LIMIT 100');
+    $st->execute($params);
+    $list = $st->fetchAll();
 }
 
 $statusLabel = [
@@ -27,6 +53,20 @@ echo '<h1>Турниры</h1>';
 
 if ($isJudge) {
     echo '<p style="margin:-6px 0 14px;"><a class="btn" href="/admin/tournaments.php">+ Создать турнир / управлять</a></p>';
+}
+
+// Вкладки сезонов — как на «Игровых вечерах».
+if ($hasCur || $pastSeasons) {
+    echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">';
+    $tabs = [['cur', 'Текущий сезон']];
+    foreach ($pastSeasons as $s) {
+        $tabs[] = [$s, $s];
+    }
+    $tabs[] = ['all', 'Все турниры'];
+    foreach ($tabs as [$key, $label]) {
+        echo '<a class="tag ' . ($season === $key ? 'tag-open' : '') . '" href="/tournaments.php?season=' . urlencode($key) . '">' . esc($label) . '</a>';
+    }
+    echo '</div>';
 }
 
 if ($list) {
@@ -55,7 +95,9 @@ if ($list) {
             . ' · участников: ' . $participants . '</p>';
         echo '</div></a>';
     }
+} elseif ($season === 'cur' && $pastSeasons) {
+    empty_state('В этом сезоне турниров пока не было', 'Прошлые турниры — во вкладках выше. Новые анонсы появятся здесь.');
 } else {
-    empty_state('Турниров пока нет', '«Точка кипения», «Турнир победы», кубки РХТУ — вся турнирная история переедет сюда на этапе 2, а новые турниры будут анонсироваться здесь.');
+    empty_state('Турниров пока нет', 'Новые турниры будут анонсироваться здесь.');
 }
 page_foot();
