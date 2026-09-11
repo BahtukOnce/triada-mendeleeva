@@ -280,7 +280,10 @@ function rating_recompute(int $ratingId): void
     foreach ($agg as $pid => $a) {
         $a['sum_plus'] = $a['dop_sum'] + $a['lh_sum'] + $a['ci_sum'];
         $avg = ($a['games'] > 0 && $a['games'] >= $minGames) ? $a['sum_total'] / $a['games'] : null;
-        $club = $avg !== null ? $avg * $a['sum_total'] : null;
+        // ~Σ×|Σ|, а не ~Σ×Σ: у среднего и суммы всегда один знак, и их произведение никогда не
+        // отрицательно — игрок с итогом −0.20 получал +0.04 и вставал выше тех, у кого 0. Модуль
+        // суммы сохраняет знак: у всех в плюсе счёт прежний, минус остаётся минусом.
+        $club = $avg !== null ? $avg * abs($a['sum_total']) : null;
         $peakClub = max((float)($oldPeaks[$pid] ?? 0), $club !== null ? (float)$club : 0.0);
         $ins->execute([
             $ratingId, $pid, $a['games'],
@@ -466,7 +469,7 @@ function standings_from_games(array $games, array $seatsByGame): array
     foreach ($rows as &$r) {
         $r['sum_plus'] = $r['dop_sum'] + $r['lh_sum'] + $r['ci_sum'];
         $r['avg_total'] = $r['games'] > 0 ? $r['sum'] / $r['games'] : 0.0;
-        $r['club_score'] = $r['avg_total'] * $r['sum'];
+        $r['club_score'] = $r['avg_total'] * abs($r['sum']);   // знак сохраняем — см. rating_recompute()
     }
     unset($r);
     // Рейтинг турнира — строго по Σ (сумме баллов за все игры); тай-брейк по Σ+ (бонусным баллам)
