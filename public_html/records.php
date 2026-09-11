@@ -11,6 +11,95 @@ if (!db_ready()) {
     exit;
 }
 
+// ── Летопись клуба: основание (настройка) и вехи, посчитанные по протоколам ──
+// Вехи не ведутся руками: первая игра в базе, юбилейные 100/250/500/1000-я, самый длинный
+// вечер, сколько осталось до следующего юбилея. Дата основания — setting club_founded
+// (Админка → «Правила и тексты»); пока не указана, админ видит подсказку, остальные — вехи без неё.
+try {
+    $ruMonths = [1 => 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа',
+        'сентября', 'октября', 'ноября', 'декабря'];
+    $ruDate = function (string $d) use ($ruMonths): string {
+        $ts = strtotime($d);
+        return (int)date('j', $ts) . ' ' . $ruMonths[(int)date('n', $ts)] . ' ' . date('Y', $ts);
+    };
+    $chron = db()->query("SELECT g.id, COALESCE(d.date, t.date_from) AS gdate, d.id AS day_id, d.title AS day_title,
+            t.id AS tour_id, t.title AS tour_title
+        FROM games g
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE g.status = 'finished' AND COALESCE(d.date, t.date_from) IS NOT NULL
+        ORDER BY COALESCE(d.date, t.date_from), g.id")->fetchAll();
+    $chronN = count($chron);
+    if ($chronN > 0) {
+        // Где сыграна игра: подпись и ссылка на вечер или турнир.
+        $where = function (array $g): array {
+            if (!empty($g['tour_id'])) {
+                return [(string)$g['tour_title'], '/tournament.php?id=' . (int)$g['tour_id']];
+            }
+            return ['вечер «' . (string)$g['day_title'] . '»', '/day.php?id=' . (int)$g['day_id']];
+        };
+        $steps = [];   // [иконка, заголовок, дата/значение, подпись, ссылка, доп. класс]
+        $founded = setting('club_founded');
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $founded)) {
+            $age = (int)floor((time() - strtotime($founded)) / (365.25 * 86400));
+            $yrs = ($age % 10 === 1 && $age % 100 !== 11) ? 'год'
+                : (($age % 10 >= 2 && $age % 10 <= 4 && ($age % 100 < 10 || $age % 100 >= 20)) ? 'года' : 'лет');
+            $steps[] = ['🏛', 'Основание клуба', $ruDate($founded), $age > 0 ? 'клубу ' . $age . ' ' . $yrs : 'первый год клуба', null, 'chron-found'];
+        } elseif (($cu = current_user()) && role_level($cu['role']) >= role_level('admin')) {
+            $steps[] = ['🏛', 'Дата основания', 'не указана', 'указать в «Правилах и текстах»', '/admin/rules.php', 'chron-next'];
+        }
+        [$w0, $l0] = $where($chron[0]);
+        $steps[] = ['🎲', 'Первая игра в летописи', $ruDate($chron[0]['gdate']), $w0, $l0, ''];
+        foreach ([100, 250, 500, 1000, 2000, 5000] as $mn) {
+            if ($chronN >= $mn) {
+                [$wm, $lm] = $where($chron[$mn - 1]);
+                $steps[] = [$mn >= 1000 ? '🏆' : '🏅', $mn . '-я игра', $ruDate($chron[$mn - 1]['gdate']), $wm, $lm, ''];
+            }
+        }
+        $bigDay = db()->query("SELECT d.id, d.title, d.date, COUNT(g.id) AS c FROM game_days d
+            JOIN games g ON g.day_id = d.id AND g.status = 'finished'
+            GROUP BY d.id, d.title, d.date ORDER BY c DESC, d.date LIMIT 1")->fetch();
+        if ($bigDay) {
+            $steps[] = ['🔥', 'Самый длинный вечер', (int)$bigDay['c'] . ' игр', $ruDate((string)$bigDay['date']), '/day.php?id=' . (int)$bigDay['id'], ''];
+        }
+        foreach ([100, 250, 500, 1000, 2000, 5000, 10000] as $mn) {
+            if ($chronN < $mn) {
+                $steps[] = ['🎯', 'До ' . $mn . '-й игры', 'осталось ' . ($mn - $chronN), 'следующий юбилей', null, 'chron-next'];
+                break;
+            }
+        }
+        // Счётчики летописи — из тех же игр.
+        $chronDays = [];
+        $chronTours = [];
+        $chronSeasons = [];
+        foreach ($chron as $g) {
+            if (!empty($g['day_id'])) { $chronDays[(int)$g['day_id']] = 1; }
+            if (!empty($g['tour_id'])) { $chronTours[(int)$g['tour_id']] = 1; }
+            $gts = strtotime((string)$g['gdate']);
+            $chronSeasons[(int)date('Y', $gts) - ((int)date('n', $gts) < 9 ? 1 : 0)] = 1;
+        }
+        $chronPlayers = (int)db()->query("SELECT COUNT(DISTINCT gs.player_id) FROM game_seats gs
+            JOIN games g ON g.id = gs.game_id WHERE g.status = 'finished'")->fetchColumn();
+
+        echo '<div class="card chron">';
+        echo '<div class="chron-head"><h2>📜 Летопись клуба</h2><span class="chron-sub">'
+            . $chronN . ' игр · ' . count($chronDays) . ' вечеров · ' . count($chronTours) . ' турниров · '
+            . count($chronSeasons) . ' сезонов · ' . $chronPlayers . ' игроков</span></div>';
+        echo '<div class="chron-line">';
+        foreach ($steps as [$ic, $title, $val, $sub, $href, $cls]) {
+            $tag = $href ? 'a' : 'div';
+            echo '<' . $tag . ' class="chron-step ' . $cls . '"' . ($href ? ' href="' . esc($href) . '"' : '') . '>'
+                . '<span class="chron-ic">' . $ic . '</span>'
+                . '<span class="chron-t">' . esc($title) . '</span>'
+                . '<span class="chron-d">' . esc($val) . '</span>'
+                . ($sub !== '' ? '<span class="chron-w">' . esc($sub) . '</span>' : '')
+                . '</' . $tag . '>';
+        }
+        echo '</div></div>';
+    }
+} catch (Throwable $e) {
+}
+
 $records = club_records();
 if (!$records) {
     // Без exit: пустой блок рекордов не должен прятать остальной «Зал славы» (дуэты, факультеты).
@@ -134,8 +223,7 @@ try {
         }
         echo '<span style="width:1px;height:20px;background:var(--bd);margin:0 3px;"></span>'
             . '<label for="duo-min" style="font-size:13px;color:var(--tx2);">от</label>'
-            . '<input type="number" id="duo-min" min="5" max="60" step="1" value="5" '
-            . 'style="width:64px;background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 9px;">'
+            . '<input type="number" id="duo-min" min="5" max="60" step="1" value="5" data-stepper>'
             . '<span style="font-size:13px;color:var(--tx2);">совместных игр</span>'
             . '<span id="duo-none" style="font-size:12.5px;color:var(--tx3);display:none;">— таких пар нет, снизьте порог</span></div>';
         // Таблица в том же виде, что «Битва факультетов»: колонки читаются глазами,
@@ -250,9 +338,14 @@ try {
     $fac = array_filter($fac, fn($f) => $f['games'] > 0);
     if (count($fac) >= 2) {
         uasort($fac, function ($a, $b) {
-            $wa = $a['games'] >= 10 ? $a['wins'] / $a['games'] : -1; // <10 игр — вниз
-            $wb = $b['games'] >= 10 ? $b['wins'] / $b['games'] : -1;
-            return [$wb, $b['games']] <=> [$wa, $a['games']];
+            // Сначала «в зачёте» (от 10 игр), потом «вне зачёта»; внутри каждой группы — по
+            // винрейту, дальше по играм и допам. Раньше всем «вне зачёта» ставился общий ключ −1,
+            // и при равных играх порядок был случайным: факультет с 50% оказывался ниже 0%.
+            $inA = $a['games'] >= 10 ? 1 : 0;
+            $inB = $b['games'] >= 10 ? 1 : 0;
+            $wa = $a['games'] > 0 ? $a['wins'] / $a['games'] : 0;
+            $wb = $b['games'] > 0 ? $b['wins'] / $b['games'] : 0;
+            return [$inB, $wb, $b['games'], $b['dops']] <=> [$inA, $wa, $a['games'], $a['dops']];
         });
         echo '<h2 id="fac" style="margin-top:18px;scroll-margin-top:86px;">🏛 Битва факультетов</h2>';
         echo '<p style="color:var(--tx2);font-size:13px;margin-top:-6px;">командный зачёт по анкетам игроков '

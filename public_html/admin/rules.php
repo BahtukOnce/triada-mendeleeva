@@ -6,6 +6,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     setting_set('rules_text', trim((string)($_POST['rules_text'] ?? '')));
     setting_set('about_text', trim((string)($_POST['about_text'] ?? '')));
+    // Дата основания — для «Летописи клуба» в «Зале славы»; пустая = блок без неё.
+    $founded = trim((string)($_POST['club_founded'] ?? ''));
+    setting_set('club_founded', preg_match('/^\d{4}-\d{2}-\d{2}$/', $founded) && $founded <= date('Y-m-d') ? $founded : '');
     setting_set('bot_username', ltrim(trim((string)($_POST['bot_username'] ?? '')), '@'));
     log_action((int)$u['id'], 'rules_update');
     flash_set('ok', 'Сохранено');
@@ -20,7 +23,9 @@ echo '<div class="field"><textarea name="rules_text" rows="16" placeholder="Пр
     . esc(setting('rules_text')) . '</textarea></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;">Блок «О клубе» на главной</h2>';
 echo '<div class="field"><textarea name="about_text" rows="5" placeholder="Пара абзацев о клубе...">'
-    . esc(setting('about_text')) . '</textarea></div></div>';
+    . esc(setting('about_text')) . '</textarea></div>';
+echo '<div class="field" style="max-width:260px;"><label>Дата основания клуба — для «Летописи клуба» в «Зале славы»</label>'
+    . '<input type="date" name="club_founded" value="' . esc(setting('club_founded')) . '" max="' . date('Y-m-d') . '"></div></div>';
 echo '<div class="card"><h2 style="margin-top:0;">Telegram-бот</h2>';
 echo '<div class="field"><label>Username бота (без @) — для кнопки привязки в кабинете</label>'
     . '<input type="text" name="bot_username" value="' . esc(setting('bot_username')) . '" placeholder="triada_bot"></div></div>';
