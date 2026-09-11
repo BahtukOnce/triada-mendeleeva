@@ -22,6 +22,12 @@ try {
         $ts = strtotime($d);
         return (int)date('j', $ts) . ' ' . $ruMonths[(int)date('n', $ts)] . ' ' . date('Y', $ts);
     };
+    // «1 игра / 3 игры / 5 игр» — число вместе с правильной формой слова.
+    $plural = function (int $n, string $one, string $few, string $many): string {
+        $w = ($n % 10 === 1 && $n % 100 !== 11) ? $one
+            : (($n % 10 >= 2 && $n % 10 <= 4 && ($n % 100 < 10 || $n % 100 >= 20)) ? $few : $many);
+        return $n . ' ' . $w;
+    };
     $chron = db()->query("SELECT g.id, COALESCE(d.date, t.date_from) AS gdate, d.id AS day_id, d.title AS day_title,
             t.id AS tour_id, t.title AS tour_title
         FROM games g
@@ -42,9 +48,7 @@ try {
         $founded = setting('club_founded');
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $founded)) {
             $age = (int)floor((time() - strtotime($founded)) / (365.25 * 86400));
-            $yrs = ($age % 10 === 1 && $age % 100 !== 11) ? 'год'
-                : (($age % 10 >= 2 && $age % 10 <= 4 && ($age % 100 < 10 || $age % 100 >= 20)) ? 'года' : 'лет');
-            $steps[] = ['🏛', 'Основание клуба', $ruDate($founded), $age > 0 ? 'клубу ' . $age . ' ' . $yrs : 'первый год клуба', null, 'chron-found'];
+            $steps[] = ['🏛', 'Основание клуба', $ruDate($founded), $age > 0 ? 'клубу ' . $plural($age, 'год', 'года', 'лет') : 'первый год клуба', null, 'chron-found'];
         } elseif (($cu = current_user()) && role_level($cu['role']) >= role_level('admin')) {
             $steps[] = ['🏛', 'Дата основания', 'не указана', 'указать в «Правилах и текстах»', '/admin/rules.php', 'chron-next'];
         }
@@ -60,7 +64,7 @@ try {
             JOIN games g ON g.day_id = d.id AND g.status = 'finished'
             GROUP BY d.id, d.title, d.date ORDER BY c DESC, d.date LIMIT 1")->fetch();
         if ($bigDay) {
-            $steps[] = ['🔥', 'Самый длинный вечер', (int)$bigDay['c'] . ' игр', $ruDate((string)$bigDay['date']), '/day.php?id=' . (int)$bigDay['id'], ''];
+            $steps[] = ['🔥', 'Самый длинный вечер', $plural((int)$bigDay['c'], 'игра', 'игры', 'игр'), $ruDate((string)$bigDay['date']), '/day.php?id=' . (int)$bigDay['id'], ''];
         }
         foreach ([100, 250, 500, 1000, 2000, 5000, 10000] as $mn) {
             if ($chronN < $mn) {
@@ -83,8 +87,10 @@ try {
 
         echo '<div class="card chron">';
         echo '<div class="chron-head"><h2>📜 Летопись клуба</h2><span class="chron-sub">'
-            . $chronN . ' игр · ' . count($chronDays) . ' вечеров · ' . count($chronTours) . ' турниров · '
-            . count($chronSeasons) . ' сезонов · ' . $chronPlayers . ' игроков</span></div>';
+            . $plural($chronN, 'игра', 'игры', 'игр') . ' · ' . $plural(count($chronDays), 'вечер', 'вечера', 'вечеров') . ' · '
+            . $plural(count($chronTours), 'турнир', 'турнира', 'турниров') . ' · '
+            . $plural(count($chronSeasons), 'сезон', 'сезона', 'сезонов') . ' · '
+            . $plural($chronPlayers, 'игрок', 'игрока', 'игроков') . '</span></div>';
         echo '<div class="chron-line">';
         foreach ($steps as [$ic, $title, $val, $sub, $href, $cls]) {
             $tag = $href ? 'a' : 'div';
