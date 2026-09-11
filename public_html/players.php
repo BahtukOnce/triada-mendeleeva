@@ -9,7 +9,7 @@ if (db_ready()) {
     [$seasonStart, $seasonEnd] = current_season_bounds();
     // Игры и победы — за ТЕКУЩИЙ сезон (1 сент–31 авг), включая турниры (sagg).
     // В списке остаётся каждый, кто когда-либо играл ИЛИ зарегистрирован (agg_all — для фильтра).
-    $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo,
+    $sql = "SELECT p.id, p.nickname, p.avatar, p.fav_role, p.fav_seat, p.flair, p.elo, p.user_id,
             sagg.games, sagg.wins, agg_all.games AS all_games, agg_all.wins AS all_wins,
             ragg.games AS recent_games
         FROM players p
@@ -86,7 +86,11 @@ echo '<form method="get" action="/players.php" style="max-width:340px;flex:1;min
 echo '<div class="field" style="margin:0;"><input type="search" id="pl-search" name="q" placeholder="Поиск по нику" value="' . esc($q) . '" autocomplete="off"></div>';
 echo '</form>';
 echo '<a class="tag" href="/versus.php" title="Очные встречи двух игроков, соратники и немезиды">⚔️ Дуэль</a>';
-echo '<a class="tag" href="/birthdays.php" title="Календарь дней рождения игроков">🎂 Дни рождения</a>';
+// Календарь дней рождения — только админу, заму и руководителю (там личные даты).
+$cu = current_user();
+if ($cu && role_level($cu['role']) >= role_level('admin')) {
+    echo '<a class="tag" href="/birthdays.php" title="Календарь дней рождения игроков">🎂 Дни рождения</a>';
+}
 echo '</div>';
 // Переключатель: активные (играли за год) / все. Никого не удаляем — просто вид по умолчанию компактнее.
 echo '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">';
@@ -108,7 +112,13 @@ if ($list) {
         $wr = $g ? round($w / $g * 100) : null;
         $elo = (int)round((float)($p['elo'] ?? 1000));
         $isActive = (int)($p['recent_games'] ?? 0) > 0 ? '1' : '0';
-        echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" data-active="' . $isActive . '" href="/player.php?id=' . (int)$p['id'] . '">';
+        // Без аккаунта на сайте — невзрачная пометка: полупрозрачный кружок у ника и подсказка
+        // при наведении. Не ярлык: у большинства легаси-игроков аккаунта тоже нет, и громкая
+        // метка залепила бы полсписка.
+        $unreg = empty($p['user_id']) && !is_casper((string)$p['nickname']);
+        $unregTip = 'Ещё не зарегистрирован на платформе';
+        echo '<a class="player-card" data-nick="' . esc(mb_strtolower((string)$p['nickname'])) . '" data-active="' . $isActive . '" href="/player.php?id=' . (int)$p['id'] . '"'
+            . ($unreg ? ' title="' . $unregTip . '"' : '') . '>';
         $casper = is_casper((string)$p['nickname']);
         $favHtml = $casper
             ? '<span style="color:var(--tx3);font-size:11.5px;">👻 призрак клуба</span>'
@@ -126,6 +136,8 @@ if ($list) {
             : '';
         echo '<div class="pc-top">' . avatar_html(['nickname' => $p['nickname'], 'avatar' => $p['avatar']], 42)
             . '<div class="pc-name">' . player_label($p)
+            . ($unreg ? '<span title="' . $unregTip . '" aria-label="' . $unregTip . '" style="display:inline-flex;align-items:center;padding:3px 4px;margin-left:1px;vertical-align:middle;cursor:help;">'
+                . '<span style="width:7px;height:7px;border-radius:50%;border:1.5px solid var(--tx3);opacity:.6;"></span></span>' : '')
             . '<div class="pc-fav">' . $favHtml . $seatChip . $mvpChip . '</div></div>'
             . $rankHtml . '</div>';
         if ($casper) {
