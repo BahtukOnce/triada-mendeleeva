@@ -147,6 +147,18 @@ page_head('Главная', 'index', [
       <?php endforeach; ?>
     </table>
   </div>
+  <?php else: ?>
+  <div class="card">
+    <div class="section-head">
+      <h2 style="margin-top:0;">Клубный рейтинг</h2>
+      <a class="more" href="/rating.php">рейтинг →</a>
+    </div>
+    <div style="text-align:center;padding:20px 12px;color:var(--tx2);">
+      <div style="font-size:34px;line-height:1;margin-bottom:8px;">🕗</div>
+      <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:4px;">Новый сезон только начался</div>
+      <div style="font-size:13.5px;line-height:1.6;">Скоро первые игры! Рейтинг заполнится после первого сыгранного вечера.</div>
+    </div>
+  </div>
   <?php endif; ?>
   <?php $balTot = $balance['red'] + $balance['black'] + $balance['draw'];
   if ($balTot > 0):
