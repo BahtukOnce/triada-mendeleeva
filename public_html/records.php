@@ -13,27 +13,26 @@ if (!db_ready()) {
 
 $records = club_records();
 if (!$records) {
+    // Без exit: пустой блок рекордов не должен прятать остальной «Зал славы» (дуэты, факультеты).
     empty_state('Рекордов пока нет', 'Таблица появится после первых игр.');
-    page_foot();
-    exit;
-}
-
-echo '<div class="records-grid">';
-foreach ($records as [$ic, $title, $list, $type]) {
-    echo '<div class="rec-card"><div class="rec-head"><span class="rec-ic">' . $ic . '</span><span class="rec-title">' . esc($title) . '</span></div><div class="rec-rows">';
-    $rank = 0;
-    foreach ($list as $item) {
-        $rank++;
-        $row = $item['row'];
-        $medal = $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : '🥉');
-        echo '<a class="rec-row" href="/player.php?id=' . (int)$row['pid'] . '">'
-            . '<span class="rec-rank">' . $medal . '</span>' . avatar_html($row, 24)
-            . '<span class="rec-name">' . player_label($row) . '</span>'
-            . '<span class="rec-v">' . esc(records_fmt($item['val'], $type)) . '</span></a>';
+} else {
+    echo '<div class="records-grid">';
+    foreach ($records as [$ic, $title, $list, $type]) {
+        echo '<div class="rec-card"><div class="rec-head"><span class="rec-ic">' . $ic . '</span><span class="rec-title">' . esc($title) . '</span></div><div class="rec-rows">';
+        $rank = 0;
+        foreach ($list as $item) {
+            $rank++;
+            $row = $item['row'];
+            $medal = $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : '🥉');
+            echo '<a class="rec-row" href="/player.php?id=' . (int)$row['pid'] . '">'
+                . '<span class="rec-rank">' . $medal . '</span>' . avatar_html($row, 24)
+                . '<span class="rec-name">' . player_label($row) . '</span>'
+                . '<span class="rec-v">' . esc(records_fmt($item['val'], $type)) . '</span></a>';
+        }
+        echo '</div></div>';
     }
-    echo '</div></div>';
+    echo '</div>';
 }
-echo '</div>';
 
 // ── Лучшие дуэты клуба: пары одного цвета с лучшим винрейтом (от 6 совместных игр) ──
 try {

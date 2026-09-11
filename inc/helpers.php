@@ -303,19 +303,43 @@ function club_records(): array
     if (!db_ready()) {
         return [];
     }
-    $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
-    if (!$mainId) {
-        return [];
+    // Рекорды — за ВСЮ историю клуба, а не за текущий сезон. Раньше основа бралась из кэша
+    // основного рейтинга, и после старта нового сезона (кэш пуст) «Зал славы» опустел целиком.
+    // Игры, победы, допы и ПУ считаем прямо по протоколам (game_seats) — как профиль и ачивки:
+    // там полная история, включая перенесённые легаси-сезоны. То, что даёт только пересчёт
+    // рейтинга (клубный счёт, средний итог, ЛХ, MVP вечеров), — по кэшам всех сезонов:
+    // is_active = 1 — ровно сезоны из переключателя рейтинга, турнирные таблицы туда не входят.
+    $agg = [];
+    foreach (db()->query("SELECT gs.player_id pid, COUNT(*) games,
+            SUM(CASE WHEN (g.winner = 'red' AND gs.role IN ('civ','sheriff'))
+                      OR (g.winner = 'black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) wins,
+            SUM(gs.plus) dop,
+            SUM(CASE WHEN g.first_killed_seat = gs.seat THEN 1 ELSE 0 END) pu
+        FROM game_seats gs JOIN games g ON g.id = gs.game_id
+        WHERE g.status = 'finished' AND g.winner IS NOT NULL
+        GROUP BY gs.player_id")->fetchAll() as $r) {
+        $agg[(int)$r['pid']] = ['games' => (int)$r['games'], 'wins' => (int)$r['wins'],
+            'dop' => (float)$r['dop'], 'pu' => (int)$r['pu']];
     }
-    $rows = db()->query("SELECT rc.*, p.nickname, p.avatar, p.flair, p.elo, p.id AS pid
-        FROM rating_cache rc JOIN players p ON p.id = rc.player_id WHERE rc.rating_id = $mainId")->fetchAll();
-    if (!$rows) {
-        return [];
+    foreach (db()->query("SELECT rc.player_id pid, MAX(COALESCE(rc.peak_club, rc.club_score)) club,
+            SUM(rc.sum_total) sumt, SUM(rc.games) cgames, SUM(rc.lh_sum) lh, SUM(rc.mvp_evenings) mvp
+        FROM rating_cache rc JOIN ratings r ON r.id = rc.rating_id
+        WHERE r.is_active = 1
+        GROUP BY rc.player_id")->fetchAll() as $r) {
+        $pid = (int)$r['pid'];
+        $agg[$pid] = ($agg[$pid] ?? ['games' => 0, 'wins' => 0, 'dop' => 0.0, 'pu' => 0])
+            + ['club' => (float)$r['club'], 'sumt' => (float)$r['sumt'], 'cgames' => (int)$r['cgames'],
+               'lh' => (float)$r['lh'], 'mvp' => (int)$r['mvp']];
+    }
+    $rows = [];
+    foreach (db()->query('SELECT id AS pid, nickname, avatar, flair, elo FROM players')->fetchAll() as $p) {
+        if (isset($agg[(int)$p['pid']])) {
+            $rows[] = $p + $agg[(int)$p['pid']] + ['club' => 0.0, 'sumt' => 0.0, 'cgames' => 0, 'lh' => 0.0, 'mvp' => 0];
+        }
     }
     // Высший ELO — пиковый за всю историю (MAX по elo_history), не текущий
     $topEloRows = db()->query('SELECT p.nickname, p.avatar, p.flair, p.id AS pid, MAX(eh.elo_after) AS elo
         FROM elo_history eh JOIN players p ON p.id = eh.player_id GROUP BY p.id ORDER BY elo DESC LIMIT 3')->fetchAll();
-    $wins = fn($r) => (int)$r['w_civ'] + (int)$r['w_maf'] + (int)$r['w_sher'] + (int)$r['w_don'];
     // топ-3 по метрике → [['row'=>игрок, 'val'=>значение], ...]
     $leader = function (array $rows, callable $metric, int $minGames = 0): array {
         $scored = [];
@@ -340,14 +364,16 @@ function club_records(): array
             $recs[] = [$ic, $title, $list, $type];
         }
     };
-    $add('💯', 'Высший клубный счёт', $leader($rows, fn($r) => (float)($r['peak_club'] ?? $r['club_score'])), 'f2');
-    $add('🏆', 'Лучший винрейт (от 30 игр)', $leader($rows, fn($r) => $r['games'] ? $wins($r) / $r['games'] : 0, 30), 'pct');
+    // Все метрики — за всю историю (см. сбор $rows выше). «Клубный счёт» — лучший за любой сезон,
+    // «средний» — по всем сезонам вместе, порог 10 игр считаем по тем же сезонным играм.
+    $add('💯', 'Высший клубный счёт', $leader($rows, fn($r) => (float)$r['club']), 'f2');
+    $add('🏆', 'Лучший винрейт (от 30 игр)', $leader($rows, fn($r) => $r['games'] ? $r['wins'] / $r['games'] : 0, 30), 'pct');
     $add('🎮', 'Больше всех игр', $leader($rows, fn($r) => (int)$r['games']), 'int');
-    $add('➕', 'Больше всех допов', $leader($rows, fn($r) => (float)$r['dop_sum']), 'f1');
-    $add('🔪', 'Больше всех ПУ', $leader($rows, fn($r) => (int)$r['pu_count']), 'int');
-    $add('🌟', 'Больше всех ЛХ', $leader($rows, fn($r) => (float)$r['lh_sum']), 'f1');
-    $add('📊', 'Высший средний (~Σ) — от 10 игр', $leader($rows, fn($r) => (float)$r['avg_total'], 10), 'f2');
-    $add('🥇', 'Больше всех MVP вечеров', $leader($rows, fn($r) => (int)($r['mvp_evenings'] ?? 0)), 'int');
+    $add('➕', 'Больше всех допов', $leader($rows, fn($r) => (float)$r['dop']), 'f1');
+    $add('🔪', 'Больше всех ПУ', $leader($rows, fn($r) => (int)$r['pu']), 'int');
+    $add('🌟', 'Больше всех ЛХ', $leader($rows, fn($r) => (float)$r['lh']), 'f1');
+    $add('📊', 'Высший средний (~Σ) — от 10 игр', $leader($rows, fn($r) => $r['cgames'] >= 10 ? $r['sumt'] / $r['cgames'] : 0), 'f2');
+    $add('🥇', 'Больше всех MVP вечеров', $leader($rows, fn($r) => (int)$r['mvp']), 'int');
 
     // Рекорды по «одной игре» / прочее — отдельными запросами; игрок берётся по id.
     $plById = function (int $pid): ?array {
