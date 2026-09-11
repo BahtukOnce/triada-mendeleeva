@@ -159,7 +159,7 @@ if ($canEdit) {
     echo '<div class="field" style="margin:0;"><label>Название (авто)</label><input type="text" name="title" placeholder="' . (int)date('j') . ' ' . ['', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'][(int)date('n')] . '"></div>';
     echo '<div class="field" style="margin:0;min-width:140px;"><label>Локация</label>'
         . '<select name="location" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;width:100%;">'
-        . '<option value="Тушино">Тушино</option><option value="Миусы">Миусы</option><option value="Другое">Другое</option></select></div>';
+        . '<option value="Тушино">Тушино</option><option value="Миусы" selected>Миусы</option><option value="Другое">Другое</option></select></div>';
     echo '<button class="btn" type="submit">Создать и вести</button>';
     echo '</div></form></div>';
 }

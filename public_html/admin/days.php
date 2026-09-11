@@ -174,7 +174,7 @@ if ($canManageDays) {
     echo '<div class="field" style="margin:0;"><label>Название (авто, если пусто)</label><input type="text" name="title" placeholder="14 июня"></div>';
     echo '<div class="field" style="margin:0;min-width:160px;"><label>Место</label>'
         . '<select name="location" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;width:100%;">'
-        . '<option value="Тушино">Тушино</option><option value="Миусы">Миусы</option></select></div>';
+        . '<option value="Тушино">Тушино</option><option value="Миусы" selected>Миусы</option></select></div>';
     echo '<button class="btn" type="submit">Создать</button></div></form></div>';
 
     // ── Опрос «Когда играем?»: создать → разослать в бота → свод → вечер из победившего дня ──
