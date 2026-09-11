@@ -253,7 +253,8 @@ if ($rows) {
             . '<span>' . esc($row['nickname']) . casper_ghost($row['nickname']) . '</span>'
             // «!» у тех, у кого нет аккаунта на сайте (решение руководителя): подсказка по наведению.
             . ((empty($row['user_id']) && !is_casper((string)$row['nickname']))
-                ? '<span class="rt-unreg" title="Игрока пока нет в системе — не зарегистрирован на сайте">!</span>' : '')
+                ? '<span class="rt-unreg" tabindex="0" role="img" aria-label="Игрока пока нет в системе — не зарегистрирован на сайте"'
+                    . ' data-tip="Игрока пока нет в системе — не зарегистрирован на сайте">!</span>' : '')
             . '</a></td>';
         echo '<td class="num c-elo" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
         echo '<td class="num c-club" data-sort="' . (float)$row['club_score'] . '"><b>' . ($row['club_score'] !== null ? number_format((float)$row['club_score'], 2) : '—') . '</b></td>';

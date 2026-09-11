@@ -493,3 +493,18 @@
   }
   document.querySelectorAll('select[data-stepper]').forEach(enhanceStepper);
 })();
+
+// ── «!» в рейтинге (игрока нет в системе): на телефоне наведения нет — подсказка открывается
+// нажатием. Знак стоит внутри ссылки на профиль, поэтому нажатие по нему не уводит со страницы.
+(function () {
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target.closest('.rt-unreg') : null;
+    document.querySelectorAll('.rt-unreg.show').forEach(function (x) {
+      if (x !== t) x.classList.remove('show');
+    });
+    if (t) {
+      e.preventDefault();
+      t.classList.toggle('show');
+    }
+  });
+})();
