@@ -606,6 +606,9 @@ a.admin-item { text-decoration: none; color: inherit; cursor: pointer; }
 .ncard-cover::before { content: ""; position: absolute; inset: 0; background: var(--cover, none) center / cover no-repeat; filter: blur(22px) brightness(.5); transform: scale(1.25); }
 .ncard-play { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .ncard-play::before { content: ""; width: 0; height: 0; border-top: 9px solid transparent; border-bottom: 9px solid transparent; border-left: 14px solid #fff; margin-left: 3px; }
+/* Видео без постера: фирменная заглушка — кнопка ▶ в акцентном круге и подпись под ней */
+.ncard .ncard-novideo { flex-direction: column; gap: 9px; opacity: 1; color: var(--tx2); font-size: 12.5px; font-weight: 600; letter-spacing: .3px; }
+.ncard-novideo .ncard-play { position: static; transform: none; background: var(--acsf); box-shadow: inset 0 0 0 1px rgba(232,51,42,.55); }
 .post-tgvideo { display: inline-flex; align-items: center; gap: 11px; margin: 8px 0 2px; padding: 9px 16px 9px 9px; border-radius: 12px; background: var(--sf2); border: 1px solid var(--bd); color: var(--tx); font-weight: 600; text-decoration: none; transition: background .15s ease, border-color .15s ease; }
 .post-tgvideo:hover { background: var(--sf); border-color: var(--ac); color: var(--tx); }
 

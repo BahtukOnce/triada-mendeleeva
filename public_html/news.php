@@ -145,11 +145,15 @@ if ($list) {
         echo '<span class="ncard-cover"' . ($cover !== '' ? ' style="--cover:url(\'' . esc($cover) . '\')"' : '') . '>';
         if ($cover !== '') {
             echo '<img class="ncard-img" src="' . esc($cover) . '" alt="" loading="lazy">';
+            if (!empty($n['has_video'])) {
+                echo '<span class="ncard-play" aria-hidden="true"></span>';
+            }
+        } elseif (!empty($n['has_video'])) {
+            // Ролик без постера (Telegram не отдал кадр или кадр пустой) — заглушка «Видео»
+            // вместо логотипа, на который налезала кнопка ▶.
+            echo '<span class="ncard-noimg ncard-novideo"><span class="ncard-play" aria-hidden="true"></span>Видео</span>';
         } else {
             echo '<span class="ncard-noimg">' . logo_svg(34) . '</span>';
-        }
-        if (!empty($n['has_video'])) {
-            echo '<span class="ncard-play" aria-hidden="true"></span>';
         }
         echo '</span>';
         echo '<span class="ncard-body"><span class="ncard-ttl">' . esc($n['title']) . '</span>'

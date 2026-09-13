@@ -86,6 +86,39 @@ function tg_fetch(string $url): string
     return (string)@file_get_contents($url);
 }
 
+// Кадр-постер видео «пустой» — сплошь тёмный. Telegram берёт превью с первого кадра, а ролики
+// часто начинаются с затемнения: на сайте выходил чёрный прямоугольник с кнопкой ▶. Смотрим
+// самый светлый участок уменьшенной копии: ни одного заметно светлого — кадр пустой. Без GD —
+// по размеру файла: однотонный JPEG 320×180 весит около 1 КБ, настоящий кадр — десятки.
+function tg_thumb_is_blank(string $file): bool
+{
+    $size = @filesize($file);
+    if ($size === false) {
+        return true;
+    }
+    if (!function_exists('imagecreatefromstring')) {
+        return $size < 2000;
+    }
+    $img = @imagecreatefromstring((string)@file_get_contents($file));
+    if (!$img) {
+        return true;
+    }
+    $w = 24;
+    $h = 14;
+    $small = imagecreatetruecolor($w, $h);
+    imagecopyresampled($small, $img, 0, 0, 0, 0, $w, $h, imagesx($img), imagesy($img));
+    imagedestroy($img);
+    $max = 0;
+    for ($x = 0; $x < $w; $x++) {
+        for ($y = 0; $y < $h; $y++) {
+            $rgb = imagecolorat($small, $x, $y);
+            $max = max($max, ($rgb >> 16) & 0xFF, ($rgb >> 8) & 0xFF, $rgb & 0xFF);
+        }
+    }
+    imagedestroy($small);
+    return $max < 28;
+}
+
 function node_inner_html(DOMNode $node): string
 {
     $html = '';
@@ -144,6 +177,21 @@ for ($p = 0; $p < $pages; $p++) {
         $minId = min($minId, $msgId);
         $seen++;
 
+        // Служебные сообщения канала («Триада Менделеева pinned a video», смена фото или названия)
+        // — не новости, хотя у них тоже есть блок текста. Пропускаем, а если такое уже попало
+        // в новости раньше (до этой проверки) — убираем.
+        if (preg_match('/(^|\s)service_message(\s|$)/', (string)$node->getAttribute('class'))) {
+            $gone = db()->prepare('SELECT id FROM news WHERE tg_msg_id = ?');
+            $gone->execute([$msgId]);
+            $goneId = (int)($gone->fetchColumn() ?: 0);
+            if ($goneId > 0) {
+                db()->prepare('DELETE FROM news_reactions WHERE news_id = ?')->execute([$goneId]);
+                db()->prepare('DELETE FROM news WHERE id = ?')->execute([$goneId]);
+                echo "  убрано служебное сообщение #$msgId из новостей\n";
+            }
+            continue;
+        }
+
         $tnode = $xp->query(".//div[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_text ')]", $node)->item(0);
         if (!$tnode) {
             continue; // пост без текста (только фото/видео) — пропускаем
@@ -197,11 +245,17 @@ for ($p = 0; $p < $pages; $p++) {
             }
         }
         // Нативное видео Telegram: файл в превью недоступен — берём кадр-постер и помечаем has_video.
+        // Пустой (чёрный) кадр постером не ставим: карточка покажет заглушку «Видео».
         $hasVideo = 0;
+        $blankPoster = false;
         foreach ($xp->query(".//i[contains(concat(' ', normalize-space(@class), ' '), ' tgme_widget_message_video_thumb ')]", $node) as $vt) {
             $hasVideo = 1;
             if (preg_match("/background-image:url\\('([^']+)'\\)/", (string)$vt->getAttribute('style'), $mm)) {
                 $ip = $grab($mm[1]);
+                if ($ip !== null && tg_thumb_is_blank(ROOT . '/public_html' . $ip)) {
+                    $blankPoster = true;
+                    $ip = null;
+                }
                 if ($ip !== null) { $imgs[] = $ip; }
             }
         }
@@ -214,6 +268,12 @@ for ($p = 0; $p < $pages; $p++) {
         if ($imgPath !== null) { $withImg++; }
 
         $stmt->execute([$title, $text, $ts, $imgPath, $imgsJson, $hasVideo, $msgId]);
+        if ($blankPoster) {
+            // Upsert намеренно не затирает картинки пустым значением (сбой загрузки не должен их
+            // терять), поэтому чёрный постер, сохранённый до этой проверки, убираем явно.
+            db()->prepare('UPDATE news SET image = ?, images = ? WHERE tg_msg_id = ?')
+                ->execute([$imgPath, $imgsJson, $msgId]);
+        }
         $withText++;
         $pageText++;
     }
