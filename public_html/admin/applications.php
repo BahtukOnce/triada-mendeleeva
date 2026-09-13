@@ -77,7 +77,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('/admin/applications.php');
             }
             if (!empty($dup['user_id'])) {
-                flash_set('err', 'У игрока «' . $dup['nickname'] . '» уже есть аккаунт — это не дубль новой регистрации: человек может просто войти.');
+                // Человек уже зарегистрирован — часто завёл аккаунт, но так и не пришёл играть — и
+                // подал заявку снова (просьба Буханки: такого раньше нельзя было отметить дублем).
+                // Второй аккаунт на того же игрока невозможен, а пароль из новой заявки старому
+                // аккаунту НЕ присваиваем: иначе любой, кто назовётся чужим ником, получил бы чужой
+                // аккаунт. Заявку закрываем как дубль — человек входит в свой аккаунт.
+                $acc = db()->prepare('SELECT nickname FROM users WHERE id = ?');
+                $acc->execute([(int)$dup['user_id']]);
+                $accNick = (string)($acc->fetchColumn() ?: $dup['nickname']);
+                db()->prepare("UPDATE club_applications SET state = 'approved', player_id = ?, password_hash = NULL,
+                        activation_token = NULL, processed_by = ?, processed_at = NOW(),
+                        admin_note = CONCAT(COALESCE(NULLIF(admin_note, ''), ''),
+                            IF(admin_note IS NULL OR admin_note = '', '', ' · '), ?)
+                    WHERE id = ?")
+                    ->execute([(int)$dup['id'], (int)$u['id'],
+                        'дубль: у игрока «' . $dup['nickname'] . '» (#' . (int)$dup['id'] . ') уже есть аккаунт «' . $accNick . '»', $id]);
+                log_action((int)$u['id'], 'application_duplicate_account',
+                    ['id' => $id, 'player_id' => (int)$dup['id'], 'user_id' => (int)$dup['user_id']]);
+                flash_set('ok', 'Заявка закрыта как дубль: у игрока «' . $dup['nickname'] . '» уже есть аккаунт, новый не нужен. '
+                    . 'Передайте человеку: вход под ником «' . $accNick . '» и прежним паролем; если забыл пароль — '
+                    . '«Сбросить» в «Пользователях».');
                 redirect('/admin/applications.php');
             }
             // Аккаунт получает ник существующего игрока: вход = имя, под которым вся его история
@@ -272,14 +291,13 @@ if ($pending) {
         usort($found, fn($x, $y) => ($y['score'] <=> $x['score']) ?: ((int)$y['p']['games'] <=> (int)$x['p']['games']));
         $dupCands[(int)$a['id']] = array_slice($found, 0, 3);
     }
-    // Варианты для ручной пометки «дубль» — только игроки без аккаунта (к ним и привязываем).
+    // Варианты для ручной пометки «дубль» — все игроки базы: без аккаунта заявка привяжется к его
+    // истории, с аккаунтом — просто закроется как дубль (см. обработку approve выше).
     // Выпадашка с поиском в стиле сайта (select[data-search], app.js) вместо белого datalist.
     usort($basePlayers, fn($x, $y) => strcmp(mb_strtolower((string)$x['nickname']), mb_strtolower((string)$y['nickname'])));
     foreach ($basePlayers as $bp) {
-        if (empty($bp['user_id'])) {
-            $dupOptionsHtml .= '<option value="' . (int)$bp['id'] . '">' . esc($bp['nickname'])
-                . ' · ' . (int)$bp['games'] . ' игр</option>';
-        }
+        $dupOptionsHtml .= '<option value="' . (int)$bp['id'] . '">' . esc($bp['nickname'])
+            . ' · ' . (int)$bp['games'] . ' игр' . (!empty($bp['user_id']) ? ' · есть аккаунт' : '') . '</option>';
     }
 }
 
@@ -331,12 +349,20 @@ foreach ($list as $a) {
                 echo '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:3px 0;">';
                 echo '<a href="/player.php?id=' . (int)$bp['id'] . '" target="_blank" rel="noopener"><b>' . esc($bp['nickname']) . '</b></a>';
                 echo '<span style="font-size:12px;color:var(--tx2);">' . (int)$bp['games'] . ' игр · совпадает: ' . esc(implode(', ', $c['why'])) . '</span>';
+                $bpNick = esc(addslashes((string)$bp['nickname']));
+                $aNickJs = esc(addslashes((string)$a['nickname']));
                 if (!empty($bp['user_id'])) {
+                    // Уже зарегистрирован: дубль закрывает заявку, аккаунт остаётся прежним.
                     echo '<span class="tag" style="margin-left:auto;">уже есть аккаунт</span>';
+                    echo '<form method="post" action="/admin/applications.php" style="margin:0;" onsubmit="return confirm(\'Закрыть заявку «'
+                        . $aNickJs . '» как дубль игрока «' . $bpNick . '»?\\n\\nУ него уже есть аккаунт: новый не создаётся, пароль из заявки не применяется — человек входит в свой прежний аккаунт.\');">'
+                        . csrf_field()
+                        . '<input type="hidden" name="form" value="approve"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
+                        . '<input type="hidden" name="link_player_id" value="' . (int)$bp['id'] . '">'
+                        . '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12.5px;color:var(--ok);" type="submit">Это он — закрыть как дубль</button></form>';
                 } else {
-                    $bpNick = esc(addslashes((string)$bp['nickname']));
                     echo '<form method="post" action="/admin/applications.php" style="margin:0 0 0 auto;" onsubmit="return confirm(\'Принять «'
-                        . esc(addslashes((string)$a['nickname'])) . '» как дубль игрока «' . $bpNick . '»?\\n\\nНового игрока не будет: аккаунт привяжется к его истории, вход — под ником «'
+                        . $aNickJs . '» как дубль игрока «' . $bpNick . '»?\\n\\nНового игрока не будет: аккаунт привяжется к его истории, вход — под ником «'
                         . $bpNick . '».\');">' . csrf_field()
                         . '<input type="hidden" name="form" value="approve"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
                         . '<input type="hidden" name="link_player_id" value="' . (int)$bp['id'] . '">'
@@ -348,7 +374,7 @@ foreach ($list as $a) {
         }
         // Ручная пометка — если автосверка промахнулась (совсем другой ник, в базе нет Telegram).
         echo '<details style="margin:0 0 10px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--tx2);">🔗 Отметить как дубль другого игрока…</summary>';
-        echo '<form method="post" action="/admin/applications.php" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;" onsubmit="return confirm(\'Принять заявку как дубль указанного игрока?\\n\\nНового игрока не будет — аккаунт привяжется к его истории.\');">'
+        echo '<form method="post" action="/admin/applications.php" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;" onsubmit="return confirm(\'Принять заявку как дубль выбранного игрока?\\n\\nНового игрока не будет — аккаунт привяжется к его истории. Если у игрока уже есть аккаунт, заявка просто закроется: человек входит в свой прежний аккаунт.\');">'
             . csrf_field()
             . '<input type="hidden" name="form" value="approve"><input type="hidden" name="id" value="' . (int)$a['id'] . '">'
             . '<input type="hidden" name="dup_manual" value="1">'
