@@ -21,6 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('UPDATE suggestions SET status = ?, admin_note = ? WHERE id = ?')
             ->execute([$status, $note, $id]);
         log_action((int)$u['id'], 'suggestion_update', ['id' => $id, 'status' => $status]);
+        if ($status !== 'new') {
+            app_notify_clear('sugg:' . $id);   // разобрано — «Новое предложение» не висит в колокольчике ни у кого
+        }
 
         // Автор узнаёт судьбу своей идеи: колокольчик на сайте + личка бота.
         $changed = $before && ((string)$before['status'] !== $status
@@ -55,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($form === 'delete') {
         db()->prepare('DELETE FROM suggestions WHERE id = ?')->execute([$id]);
         log_action((int)$u['id'], 'suggestion_delete', ['id' => $id]);
+        app_notify_clear('sugg:' . $id);
         flash_set('ok', 'Удалено');
     }
     redirect('/admin/suggestions.php');
@@ -92,10 +96,11 @@ foreach ($list as $s) {
     if (!empty($s['images'])) {
         $imgs = json_decode((string)$s['images'], true);
         if (is_array($imgs) && $imgs) {
-            echo '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">';
+            echo '<div data-lb-group style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">';
             foreach ($imgs as $iu) {
                 if (is_string($iu) && strncmp($iu, '/uploads/', 9) === 0) {
-                    echo '<a href="' . esc($iu) . '" target="_blank" rel="noopener"><img src="' . esc($iu) . '" alt="" loading="lazy" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);"></a>';
+                    // data-lb — скриншот открывается на сайте, в окне просмотра (app.js), а не в новой вкладке
+                    echo '<a href="' . esc($iu) . '" data-lb target="_blank" rel="noopener"><img src="' . esc($iu) . '" alt="" loading="lazy" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);"></a>';
                 }
             }
             echo '</div>';

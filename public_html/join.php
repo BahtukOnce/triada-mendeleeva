@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // ── Уведомляем: колокольчик — админам И руководителю; Telegram-бот — только руководителю ──
         $tgShown = '@' . ltrim($vals['tg_username'], '@');
-        app_notify_admins('🆕 Новая заявка в клуб: ' . $vals['nickname'] . ' (' . $vals['full_name'] . ')', '/admin/applications.php');
+        app_notify_admins('🆕 Новая заявка в клуб: ' . $vals['nickname'] . ' (' . $vals['full_name'] . ')', '/admin/applications.php', 'app:' . $appId);
         try {
             $botText = "🆕 <b>Новая заявка в клуб</b>\n\n"
                 . "👤 <b>" . bot_esc($vals['full_name']) . "</b>\n"

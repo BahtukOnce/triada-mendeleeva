@@ -24,6 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('UPDATE club_applications SET state = ?, admin_note = ?, processed_by = ?, processed_at = NOW() WHERE id = ?')
             ->execute([$state, trim((string)($_POST['admin_note'] ?? '')) ?: null, (int)$u['id'], $id]);
         log_action((int)$u['id'], 'application_update', ['id' => $id, 'state' => $state]);
+        if ($state !== 'new') {
+            app_notify_clear('app:' . $id);   // разобрана — «Новая заявка» не висит в колокольчике ни у кого
+        }
         flash_set('ok', 'Заявка обновлена');
         redirect('/admin/applications.php');
     }
@@ -31,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($form === 'delete') {
         db()->prepare('DELETE FROM club_applications WHERE id = ?')->execute([$id]);
         log_action((int)$u['id'], 'application_delete', ['id' => $id]);
+        app_notify_clear('app:' . $id);
         flash_set('ok', 'Заявка удалена');
         redirect('/admin/applications.php');
     }
@@ -94,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'дубль: у игрока «' . $dup['nickname'] . '» (#' . (int)$dup['id'] . ') уже есть аккаунт «' . $accNick . '»', $id]);
                 log_action((int)$u['id'], 'application_duplicate_account',
                     ['id' => $id, 'player_id' => (int)$dup['id'], 'user_id' => (int)$dup['user_id']]);
+                app_notify_clear('app:' . $id);
                 flash_set('ok', 'Заявка закрыта как дубль: у игрока «' . $dup['nickname'] . '» уже есть аккаунт, новый не нужен. '
                     . 'Передайте человеку: вход под ником «' . $accNick . '» и прежним паролем; если забыл пароль — '
                     . '«Сбросить» в «Пользователях».');
@@ -154,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->prepare('UPDATE club_applications SET state = \'approved\', player_id = ?, activation_token = NULL, activated_at = NOW(), password_hash = NULL, processed_by = ?, processed_at = NOW() WHERE id = ?')
                 ->execute([$pid, (int)$u['id'], $id]);
             log_action((int)$u['id'], 'application_approve', ['id' => $id, 'player_id' => $pid, 'nick' => $nick, 'existing' => (bool)$ex, 'duplicate' => (bool)$dup, 'account' => $uid !== null]);
+            app_notify_clear('app:' . $id);
             flash_set('ok', $uid !== null
                 ? ($dup
                     ? 'Принято как дубль игрока «' . $nick . '»: аккаунт привязан ко всей его истории. Вход — под ником «' . $nick . '» и паролем из заявки (если в заявке был другой ник — сообщите участнику).'
@@ -166,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('UPDATE club_applications SET state = \'approved\', player_id = ?, activation_token = ?, activated_at = NULL, processed_by = ?, processed_at = NOW() WHERE id = ?')
             ->execute([$pid, $token, (int)$u['id'], $id]);
         log_action((int)$u['id'], 'application_approve', ['id' => $id, 'player_id' => $pid, 'nick' => $nick, 'existing' => (bool)$ex, 'duplicate' => (bool)$dup]);
+        app_notify_clear('app:' . $id);
         flash_set('ok', ($dup ? 'Принято как дубль игрока «' . $nick . '». ' : 'Заявка принята. ')
             . 'Отправьте новичку ссылку активации из карточки — по ней он задаст пароль и войдёт.');
         redirect('/admin/applications.php');

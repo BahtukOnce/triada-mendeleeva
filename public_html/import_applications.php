@@ -171,9 +171,10 @@ foreach ($rows as $r) {
             $full, $nick, $status ?: 'не указан', $faculty ?: null, $group ?: null,
             $exp ?: 'не указан', $src ?: 'Google-форма', $tg ?: 'не указан', $bd, $extRef,
         ]);
+    $appId = (int)db()->lastInsertId();
 
     // Уведомления — как по обычной заявке: колокольчик админам+рук-лю, бот — рук-лю.
-    app_notify_admins('🆕 Новая заявка в клуб (Google-форма): ' . $nick . ' (' . $full . ')', '/admin/applications.php');
+    app_notify_admins('🆕 Новая заявка в клуб (Google-форма): ' . $nick . ' (' . $full . ')', '/admin/applications.php', 'app:' . $appId);
     try {
         if (bot_token() !== '') {
             $botText = "🆕 <b>Новая заявка в клуб</b> (Google-форма)\n\n"

@@ -940,13 +940,32 @@ function app_notify_owners(string $text, ?string $link = null): void
     }
 }
 
-// Уведомить всех админов и руководителей на сайте — колокольчик
-function app_notify_admins(string $text, ?string $link = null): void
+// Уведомить всех админов и руководителей на сайте — колокольчик.
+// $ref — к чему относится уведомление: «app:<id>» заявка, «sugg:<id>» предложение. Когда это
+// обработают, app_notify_clear() уберёт уведомление у всех (решение руководителя: разобранные
+// заявки не должны висеть в колокольчике).
+function app_notify_admins(string $text, ?string $link = null, ?string $ref = null): void
 {
     try {
-        db()->prepare("INSERT INTO notifications (user_id, text, link)
-            SELECT id, ?, ? FROM users WHERE role IN ('admin','deputy','owner')")
-            ->execute([mb_substr($text, 0, 500), $link]);
+        db()->prepare("INSERT INTO notifications (user_id, text, link, ref)
+            SELECT id, ?, ?, ? FROM users WHERE role IN ('admin','deputy','owner')")
+            ->execute([mb_substr($text, 0, 500), $link, $ref]);
+    } catch (Throwable $e) {
+        // Колонки ref ещё нет (код уже выкачен, миграция 083 не применилась) — уведомление не теряем.
+        try {
+            db()->prepare("INSERT INTO notifications (user_id, text, link)
+                SELECT id, ?, ? FROM users WHERE role IN ('admin','deputy','owner')")
+                ->execute([mb_substr($text, 0, 500), $link]);
+        } catch (Throwable $e2) {
+        }
+    }
+}
+
+// Убрать у всех уведомления об уже обработанной заявке или предложении ($ref — как в app_notify_admins).
+function app_notify_clear(string $ref): void
+{
+    try {
+        db()->prepare('DELETE FROM notifications WHERE ref = ?')->execute([$ref]);
     } catch (Throwable $e) {
     }
 }

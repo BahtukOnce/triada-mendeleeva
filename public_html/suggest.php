@@ -29,11 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         db()->prepare('INSERT INTO suggestions (user_id, nickname, body, images) VALUES (?,?,?,?)')
             ->execute([(int)$u['id'], $myNick, $body, $imgUrls ? json_encode($imgUrls, JSON_UNESCAPED_UNICODE) : null]);
+        $suggId = (int)db()->lastInsertId();   // до log_action: он сам пишет в БД и сдвинет lastInsertId
         log_action((int)$u['id'], 'suggestion_add', ['images' => count($imgUrls)]);
 
         // Уведомляем администрацию о новом предложении: колокольчик + Telegram-бот
         // руководителю, заму и админам, у кого привязан Telegram (как у заявок в join.php).
-        app_notify_admins('💡 Новое предложение от ' . $myNick, '/admin/suggestions.php');
+        app_notify_admins('💡 Новое предложение от ' . $myNick, '/admin/suggestions.php', 'sugg:' . $suggId);
         try {
             if (bot_token() !== '') {
                 $preview = mb_substr($body, 0, 400) . (mb_strlen($body) > 400 ? '…' : '');
@@ -92,10 +93,11 @@ if ($mine) {
         if (!empty($s['images'])) {
             $imgs = json_decode((string)$s['images'], true);
             if (is_array($imgs) && $imgs) {
-                echo '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">';
+                echo '<div data-lb-group style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">';
                 foreach ($imgs as $iu) {
                     if (is_string($iu) && strncmp($iu, '/uploads/', 9) === 0) {
-                        echo '<a href="' . esc($iu) . '" target="_blank" rel="noopener"><img src="' . esc($iu) . '" alt="" loading="lazy" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);"></a>';
+                        // data-lb — скриншот открывается на сайте, в окне просмотра (app.js)
+                        echo '<a href="' . esc($iu) . '" data-lb target="_blank" rel="noopener"><img src="' . esc($iu) . '" alt="" loading="lazy" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);"></a>';
                     }
                 }
                 echo '</div>';
