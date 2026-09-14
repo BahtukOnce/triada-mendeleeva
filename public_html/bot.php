@@ -215,13 +215,8 @@ function handle_message($chatId, int $userId, string $text, ?array $from): void
                 send($chatId, 'Открытого опроса сейчас нет.');
                 return;
             }
-            $opts = $closed['options'] ?? [];
-            usort($opts, fn($a, $b) => (int)$b['votes'] <=> (int)$a['votes']);
-            $win = $opts[0] ?? null;
-            $wtxt = $win
-                ? day_poll_weekday((string)$win['date']) . ' ' . date('d.m', (int)strtotime((string)$win['date'])) . ' — ' . (int)$win['votes'] . ' голос.'
-                : '—';
-            send($chatId, "🗳 Опрос закрыт. Лидер: <b>" . $wtxt . "</b>.\nСоздать вечер на этот день можно на сайте, в разделе «Игры».");
+            [$ct, $cm] = lp_closed_view($closed);   // тот же итог, что у кнопки «Закрыть опрос»
+            send($chatId, $ct, $cm);
             return;
         case '/top':
             send_menu($chatId, $userId, top_text($arg !== '' ? (int)$arg : 10));
@@ -459,6 +454,91 @@ function handle_callback(array $cb): void
         return;
     }
 
+    // Опрос «Когда играем?» кнопками — только руководитель и зам (см. раздел lp_* ниже)
+    if ($data === 'lp' || str_starts_with($data, 'lp_')) {
+        if (!bot_is_leader($userId)) {
+            edit_menu($chatId, $msgId, $userId, '🔒 Опрос «Когда играем?» создаёт и закрывает руководитель или заместитель.');
+            return;
+        }
+        if ($data === 'lp') {
+            [$t, $m] = lp_view();
+            edit_text($chatId, $msgId, $t, $m);
+            return;
+        }
+        if ($data === 'lp_close') {
+            $m = json_encode(['inline_keyboard' => [
+                [['text' => '🔒 Да, закрыть', 'callback_data' => 'lp_close_go']],
+                [['text' => '◀ Назад', 'callback_data' => 'lp']],
+            ]], JSON_UNESCAPED_UNICODE);
+            edit_text($chatId, $msgId, "🔒 <b>Закрыть опрос?</b>\n\nГолосование остановится: кнопки у игроков перестанут засчитывать голоса.", $m);
+            return;
+        }
+        if ($data === 'lp_close_go') {
+            $closed = day_poll_close_active();
+            if (!$closed) {
+                [$t, $m] = lp_view();
+                edit_text($chatId, $msgId, "Открытого опроса уже нет.\n\n" . $t, $m);
+                return;
+            }
+            [$t, $m] = lp_closed_view($closed);
+            edit_text($chatId, $msgId, $t, $m);
+            return;
+        }
+        // Выбор дней: пока идёт другой опрос, новый не собираем — показываем текущий.
+        if (day_poll_active() && !str_starts_with($data, 'lp_go:')) {
+            [$t, $m] = lp_view();
+            edit_text($chatId, $msgId, $t, $m);
+            return;
+        }
+        [$start, $mask] = lp_parse($data);
+        if (str_starts_with($data, 'lp_pick:')) {
+            [$t, $m] = lp_picker_view($start, $mask);
+            edit_text($chatId, $msgId, $t, $m);
+            return;
+        }
+        if (str_starts_with($data, 'lp_send:')) {
+            [$t, $m] = count(lp_dates($start, $mask)) >= 2 ? lp_confirm_view($start, $mask) : lp_picker_view($start, $mask);
+            edit_text($chatId, $msgId, $t, $m);
+            return;
+        }
+        if (str_starts_with($data, 'lp_go:')) {
+            // Экран выбора мог провисеть до следующего дня — прошедшие дни не предлагаем.
+            $today = date('Y-m-d');
+            $dates = array_values(array_filter(lp_dates($start, $mask), fn($d) => $d >= $today));
+            if (count($dates) < 2) {
+                [$t, $m] = lp_picker_view(lp_start(), 0);
+                edit_text($chatId, $msgId, "⚠ Выбранные дни уже прошли — отметьте заново.\n\n" . $t, $m);
+                return;
+            }
+            // Двойное нажатие «Да, разослать» (или два руководителя разом) не должно разослать дважды.
+            $pdo = db();
+            if ((int)$pdo->query("SELECT GET_LOCK('triada_poll_create', 0)")->fetchColumn() !== 1) {
+                edit_msg($chatId, $msgId, '⏳ Опрос уже рассылается…');
+                return;
+            }
+            try {
+                $pid = day_poll_create($dates);
+                if ($pid <= 0) {
+                    [$t, $m] = lp_view();
+                    edit_text($chatId, $msgId, ($pid === -1 ? "Опрос уже создан.\n\n" : "Не получилось создать опрос.\n\n") . $t, $m);
+                    return;
+                }
+                edit_msg($chatId, $msgId, '⏳ Рассылаю опрос…');
+                $sent = bot_broadcast_day_poll($pid);
+            } finally {
+                $pdo->query("SELECT RELEASE_LOCK('triada_poll_create')");
+            }
+            $m = json_encode(['inline_keyboard' => [
+                [['text' => '🗳 Ход голосования', 'callback_data' => 'lp']],
+                [['text' => '◀ Меню', 'callback_data' => 'menu']],
+            ]], JSON_UNESCAPED_UNICODE);
+            edit_text($chatId, $msgId, "✅ <b>Опрос создан и разослан " . $sent . " игрокам</b>\n\n"
+                . implode("\n", array_map(fn($d) => '• ' . lp_label($d), $dates)), $m);
+            return;
+        }
+        return;
+    }
+
     // Сброс пароля от сайта — только для аккаунта своего привязанного ника
     if ($data === 'pwreset') {
         // Раскрываем пароль только в личном чате (в ЛС chat.id == user.id), чтобы он не попал в группу
@@ -555,7 +635,7 @@ function handle_callback(array $cb): void
             break;
         case 'menu':
         default:
-            edit_menu($chatId, $msgId, $userId, help_text());
+            edit_menu($chatId, $msgId, $userId, help_text(bot_is_leader($userId)));
     }
 }
 
@@ -756,8 +836,8 @@ function help_text(bool $leader = false): string
         . "• <b>🔑 Пароль на сайт</b> — узнать логин и сбросить пароль от личного кабинета";
     if ($leader) {
         $t .= "\n\n👑 <b>Руководителю</b>\n"
-            . "• <code>/opros_new пн ср пт</code> — создать и разослать опрос «когда играем?»\n"
-            . "• <code>/opros_close</code> — закрыть опрос и увидеть лидера";
+            . "• <b>🗳 Опрос «Когда играем?»</b> — отметить дни и разослать, следить за голосами, закрыть\n"
+            . "• то же командами: <code>/opros_new пн ср пт</code> и <code>/opros_close</code>";
     }
     return $t;
 }
@@ -1050,6 +1130,157 @@ function notify_view(int $userId): array
 }
 
 // ============================================================
+//        ОПРОС «КОГДА ИГРАЕМ?» КНОПКАМИ — ДЛЯ РУКОВОДИТЕЛЯ
+// ============================================================
+// Кнопка «🗳 Опрос» в меню руководителя и зама: раньше были только команды /opros_new и
+// /opros_close, и руководитель их не находил («в боте у меня ничего нет»). Выбор дней на сервере
+// не хранится: отмеченные дни — битовая маска в callback_data (день i = старт + i дней), и кнопка
+// дня несёт маску уже с переключённым битом. callback_data «lp_pick:20260915:16383» — 21 байт из 64.
+// Сколько дней вперёд предлагать. Функция, а не const: константа в конце файла определилась бы
+// только при выполнении этой строки, а обработка вебхука завершается раньше (exit выше).
+function lp_days(): int
+{
+    return 14;
+}
+
+// Первый предлагаемый день — завтра: опрос на сегодня уже не соберёт людей.
+function lp_start(): string
+{
+    return (new DateTimeImmutable('tomorrow'))->format('Ymd');
+}
+
+function lp_label(string $ymd): string
+{
+    return day_poll_weekday($ymd) . ' ' . date('d.m', (int)strtotime($ymd));
+}
+
+// «префикс:ГГГГММДД:маска» → [старт, маска]; мусор — завтра и пустой выбор.
+function lp_parse(string $data): array
+{
+    $parts = explode(':', $data);
+    $start = (isset($parts[1]) && preg_match('/^\d{8}$/', $parts[1]) && DateTimeImmutable::createFromFormat('!Ymd', $parts[1]))
+        ? $parts[1] : lp_start();
+    $mask = max(0, min((1 << lp_days()) - 1, (int)($parts[2] ?? 0)));
+    return [$start, $mask];
+}
+
+// Отмеченные даты (Y-m-d) по старту и маске.
+function lp_dates(string $start, int $mask): array
+{
+    $d0 = DateTimeImmutable::createFromFormat('!Ymd', $start);
+    $out = [];
+    if (!$d0) {
+        return $out;
+    }
+    for ($i = 0; $i < lp_days(); $i++) {
+        if ($mask & (1 << $i)) {
+            $out[] = $d0->modify('+' . $i . ' day')->format('Y-m-d');
+        }
+    }
+    return $out;
+}
+
+// Экран опроса: идёт опрос — ход голосования и «Закрыть», нет — выбор дней для нового.
+function lp_view(): array
+{
+    $poll = day_poll_active();
+    if (!$poll) {
+        return lp_picker_view(lp_start(), 0);
+    }
+    $vq = db()->prepare('SELECT COUNT(DISTINCT v.player_id) FROM day_poll_votes v
+        JOIN day_poll_options o ON o.id = v.option_id WHERE o.poll_id = ?');
+    $vq->execute([(int)$poll['id']]);
+    $voters = (int)$vq->fetchColumn();
+    $max = 0;
+    foreach ($poll['options'] as $o) {
+        $max = max($max, (int)$o['votes']);
+    }
+    $lines = [];
+    $leaders = [];
+    foreach ($poll['options'] as $o) {
+        $isTop = $max > 0 && (int)$o['votes'] === $max;
+        $lines[] = ($isTop ? '🔥 ' : '• ') . lp_label((string)$o['date']) . ' — <b>' . (int)$o['votes'] . '</b>';
+        if ($isTop) {
+            $leaders[] = lp_label((string)$o['date']);
+        }
+    }
+    $t = "🗳 <b>Идёт опрос «Когда играем?»</b>\n\n" . implode("\n", $lines) . "\n\n"
+        . ($voters > 0
+            ? 'Проголосовали: <b>' . $voters . '</b> · ' . (count($leaders) > 1 ? 'лидируют: ' : 'лидирует: ') . '<b>' . implode(', ', $leaders) . '</b>'
+            : 'Голосов пока нет.');
+    $m = json_encode(['inline_keyboard' => [
+        [['text' => '🔄 Обновить', 'callback_data' => 'lp'], ['text' => '🔒 Закрыть опрос', 'callback_data' => 'lp_close']],
+        [['text' => '◀ Меню', 'callback_data' => 'menu']],
+    ]], JSON_UNESCAPED_UNICODE);
+    return [$t, $m];
+}
+
+// Выбор дней для нового опроса: две недели вперёд, по два дня в ряд.
+function lp_picker_view(string $start, int $mask): array
+{
+    $d0 = DateTimeImmutable::createFromFormat('!Ymd', $start) ?: new DateTimeImmutable('tomorrow');
+    $start = $d0->format('Ymd');
+    $sel = lp_dates($start, $mask);
+    $t = "🗳 <b>Новый опрос «Когда играем?»</b>\n\n"
+        . "Отметьте дни, которые предложить игрокам, — минимум 2. Повторное нажатие снимает отметку."
+        . ($sel ? "\n\nВыбрано: <b>" . implode(', ', array_map('lp_label', $sel)) . '</b>' : '');
+    $rows = [];
+    $row = [];
+    for ($i = 0; $i < lp_days(); $i++) {
+        $ymd = $d0->modify('+' . $i . ' day')->format('Y-m-d');
+        $on = ($mask & (1 << $i)) !== 0;
+        $row[] = ['text' => ($on ? '✅ ' : '') . lp_label($ymd), 'callback_data' => 'lp_pick:' . $start . ':' . ($mask ^ (1 << $i))];
+        if (count($row) === 2) {
+            $rows[] = $row;
+            $row = [];
+        }
+    }
+    if ($row) {
+        $rows[] = $row;
+    }
+    $rows[] = count($sel) >= 2
+        ? [['text' => '📣 Разослать опрос · ' . count($sel) . ' дн.', 'callback_data' => 'lp_send:' . $start . ':' . $mask]]
+        : [['text' => 'Отметьте минимум 2 дня', 'callback_data' => 'noop']];
+    $rows[] = [['text' => '◀ Меню', 'callback_data' => 'menu']];
+    return [$t, json_encode(['inline_keyboard' => $rows], JSON_UNESCAPED_UNICODE)];
+}
+
+// Подтверждение перед рассылкой: опрос уходит в личку всем подписанным — случайно не отправить.
+function lp_confirm_view(string $start, int $mask): array
+{
+    $sel = lp_dates($start, $mask);
+    $t = "📣 <b>Разослать опрос?</b>\n\nВарианты:\n" . implode("\n", array_map(fn($d) => '• ' . lp_label($d), $sel))
+        . "\n\nОпрос придёт в личку всем, кто привязан к боту и не отключил уведомления, — <b>" . count(bot_recipients()) . '</b>.';
+    $m = json_encode(['inline_keyboard' => [
+        [['text' => '✅ Да, разослать', 'callback_data' => 'lp_go:' . $start . ':' . $mask]],
+        [['text' => '◀ Изменить дни', 'callback_data' => 'lp_pick:' . $start . ':' . $mask]],
+    ]], JSON_UNESCAPED_UNICODE);
+    return [$t, $m];
+}
+
+// Итог закрытого опроса (для кнопки и для /opros_close): лидер и кнопка создать вечер на этот день.
+function lp_closed_view(array $closed): array
+{
+    $opts = $closed['options'] ?? [];
+    usort($opts, fn($a, $b) => [(int)$b['votes'], (string)$a['date']] <=> [(int)$a['votes'], (string)$b['date']]);
+    $win = $opts[0] ?? null;
+    $rows = [];
+    if ($win && (int)$win['votes'] > 0) {
+        $lines = array_map(fn($o) => '• ' . lp_label((string)$o['date']) . ' — ' . (int)$o['votes'], $opts);
+        $t = "🗳 <b>Опрос закрыт</b>\n\nЛидер: <b>" . lp_label((string)$win['date']) . '</b> — ' . (int)$win['votes'] . " голос.\n\n"
+            . implode("\n", $lines);
+        $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+        // Сайт подставит дату в форму создания вечера (admin/days.php?date=).
+        $rows[] = [['text' => '📅 Создать вечер · ' . lp_label((string)$win['date']),
+            'url' => $base . '/admin/days.php?date=' . rawurlencode((string)$win['date'])]];
+    } else {
+        $t = "🗳 <b>Опрос закрыт</b>\n\nГолосов не было.";
+    }
+    $rows[] = [['text' => '◀ Меню', 'callback_data' => 'menu']];
+    return [$t, json_encode(['inline_keyboard' => $rows], JSON_UNESCAPED_UNICODE)];
+}
+
+// ============================================================
 //                      TELEGRAM-ОБЁРТКИ
 // ============================================================
 function menu_markup(int $userId = 0): string
@@ -1061,6 +1292,10 @@ function menu_markup(int $userId = 0): string
         [['text' => '⚖ Судьи', 'callback_data' => 'judges'], ['text' => '🔍 Найти игрока', 'callback_data' => 'find']],
         [['text' => '🔔 Уведомления', 'callback_data' => 'notify'], ['text' => '🔑 Пароль на сайт', 'callback_data' => 'account']],
     ];
+    if ($userId && bot_is_leader($userId)) {
+        // Руководителю и заму: опрос кнопками — команды /opros_new и /opros_close никто не находил.
+        $rows[] = [['text' => '🗳 Опрос «Когда играем?»', 'callback_data' => 'lp']];
+    }
     if ($userId && bot_is_admin($userId)) {
         $rows[] = [['text' => '🛠 Админка', 'callback_data' => 'admin']];
     }
