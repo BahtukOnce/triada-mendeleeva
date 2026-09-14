@@ -683,6 +683,23 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .img-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; transform: scale(.9); transition: transform .26s cubic-bezier(.2,.9,.25,1); }
 .img-lightbox.show img { transform: scale(1); }
 @media (prefers-reduced-motion: reduce) { .img-lightbox, .img-lightbox img { transition: none; } }
+/* Кнопки лайтбокса: закрыть, листать (при нескольких фото) и счётчик «2 / 5» */
+.img-lightbox .lb-btn { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(20,20,24,.72); color: #fff; cursor: pointer; line-height: 1;
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); transition: background .15s ease, border-color .15s ease; }
+.img-lightbox .lb-btn:hover { background: var(--acsf); border-color: var(--ac); }
+.img-lightbox .lb-x { top: 14px; right: 14px; width: 42px; height: 42px; border-radius: 50%; font-size: 16px; }
+.img-lightbox .lb-prev, .img-lightbox .lb-next { top: 50%; transform: translateY(-50%); width: 48px; height: 64px; border-radius: 12px; font-size: 34px; }
+.img-lightbox .lb-prev { left: 14px; }
+.img-lightbox .lb-next { right: 14px; }
+.img-lightbox .lb-count { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 5px 12px; border-radius: 20px;
+  background: rgba(20,20,24,.72); color: #fff; font-size: 13px; font-variant-numeric: tabular-nums; cursor: default; }
+.img-lightbox .lb-btn[hidden], .img-lightbox .lb-count[hidden] { display: none; }
+@media (max-width: 640px) {
+  .img-lightbox .lb-prev, .img-lightbox .lb-next { width: 40px; height: 54px; font-size: 28px; }
+  .img-lightbox .lb-prev { left: 6px; }
+  .img-lightbox .lb-next { right: 6px; }
+}
 .pf-ava-zoom { cursor: zoom-in; }
 
 .progress { height: 6px; background: var(--sf2); border-radius: 3px; overflow: hidden; }

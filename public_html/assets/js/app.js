@@ -296,46 +296,8 @@
     });
   }
 
-  // ── лайтбокс: фото поста открывается в полный размер (плавно) ──
-  var lb = null, lbImg = null, lbT = null;
-  function ensureLb() {
-    if (lb) return;
-    lb = document.createElement('div');
-    lb.className = 'img-lightbox';
-    lb.hidden = true;
-    lb.innerHTML = '<img alt="">';
-    document.body.appendChild(lb);
-    lbImg = lb.querySelector('img');
-    lb.addEventListener('click', hideLb);
-  }
-  function showLb(src) {
-    ensureLb();
-    if (lbT) { clearTimeout(lbT); lbT = null; }
-    lbImg.src = src;
-    lb.hidden = false;
-    // два кадра — чтобы сработал CSS-переход (плавное появление + зум)
-    requestAnimationFrame(function () { requestAnimationFrame(function () { lb.classList.add('show'); }); });
-  }
-  function hideLb() {
-    if (!lb) return;
-    lb.classList.remove('show');
-    lbT = setTimeout(function () { lb.hidden = true; }, 220);
-  }
-  document.addEventListener('click', function (e) {
-    var im = e.target.closest('.post-imgs img');
-    if (!im) return;
-    e.preventDefault();
-    e.stopPropagation();
-    showLb(im.currentSrc || im.src);
-  });
-  // аватар профиля — клик открывает фото в полный размер (не уводя в кабинет)
-  document.addEventListener('click', function (e) {
-    var z = e.target.closest('.pf-ava-zoom');
-    if (!z || !z.getAttribute('data-full')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    showLb(z.getAttribute('data-full'));
-  });
+  // Просмотр фото (лайтбокс) переехал в общий блок ниже: здесь он жил после раннего return и
+  // на неновостных страницах не работал вовсе (в т.ч. увеличение аватарки в профиле).
   // эмодзи-картинки Telegram: если не загрузилась — вернуть системный символ (alt)
   document.addEventListener('error', function (e) {
     var t = e.target;
@@ -375,10 +337,111 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    if (lb && !lb.hidden) { hideLb(); return; }
-    closeModal();
+    closeModal();   // открытое фото закрывается раньше — его обработчик останавливает Escape
   });
 
+})();
+
+// ── Просмотр фото поверх страницы (лайтбокс) — на всех страницах ──
+// Фото новостей (.post-imgs img), аватар профиля (.pf-ava-zoom[data-full]) и любые ссылки на фото
+// с data-lb (скриншоты предложений, альбомы): открываются внутри сайта, а не в новой вкладке.
+// Несколько фото в одной группе ([data-lb-group], иначе родитель ссылки) листаются стрелками,
+// клавишами ← → и свайпом. Ctrl/⌘-клик по ссылке по-прежнему открывает файл в новой вкладке.
+(function () {
+  var lb = null, lbImg, lbPrev, lbNext, lbCount, lbT = null, list = [], idx = 0;
+  function ensure() {
+    if (lb) return;
+    lb = document.createElement('div');
+    lb.className = 'img-lightbox';
+    lb.hidden = true;
+    lb.innerHTML = '<img alt="">'
+      + '<button type="button" class="lb-btn lb-x" aria-label="Закрыть">✕</button>'
+      + '<button type="button" class="lb-btn lb-prev" aria-label="Предыдущее фото">‹</button>'
+      + '<button type="button" class="lb-btn lb-next" aria-label="Следующее фото">›</button>'
+      + '<span class="lb-count"></span>';
+    document.body.appendChild(lb);
+    lbImg = lb.querySelector('img');
+    lbPrev = lb.querySelector('.lb-prev');
+    lbNext = lb.querySelector('.lb-next');
+    lbCount = lb.querySelector('.lb-count');
+    lb.addEventListener('click', function (e) {
+      if (e.target === lbPrev) { step(-1); return; }
+      if (e.target === lbNext) { step(1); return; }
+      hide();                                   // фон, само фото или ✕ — закрыть
+    });
+    var x0 = null;                              // свайп на телефоне
+    lb.addEventListener('touchstart', function (e) {
+      x0 = e.touches.length === 1 ? e.touches[0].clientX : null;
+    }, { passive: true });
+    lb.addEventListener('touchend', function (e) {
+      if (x0 === null || list.length < 2) return;
+      var dx = e.changedTouches[0].clientX - x0;
+      x0 = null;
+      if (Math.abs(dx) > 45) { e.preventDefault(); step(dx < 0 ? 1 : -1); }
+    });
+  }
+  function render() {
+    lbImg.src = list[idx];
+    var many = list.length > 1;
+    lbPrev.hidden = !many;
+    lbNext.hidden = !many;
+    lbCount.hidden = !many;
+    lbCount.textContent = (idx + 1) + ' / ' + list.length;
+  }
+  function step(d) {
+    if (list.length < 2) return;
+    idx = (idx + d + list.length) % list.length;
+    render();
+  }
+  function show(src, group) {
+    ensure();
+    if (lbT) { clearTimeout(lbT); lbT = null; }
+    list = group && group.length ? group : [src];
+    idx = Math.max(0, list.indexOf(src));
+    render();
+    lb.hidden = false;
+    // два кадра — чтобы сработал CSS-переход (плавное появление + зум)
+    requestAnimationFrame(function () { requestAnimationFrame(function () { lb.classList.add('show'); }); });
+  }
+  function hide() {
+    if (!lb) return;
+    lb.classList.remove('show');
+    lbT = setTimeout(function () { lb.hidden = true; }, 220);
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var im = t.closest('.post-imgs img');
+    if (im) {
+      e.preventDefault();
+      e.stopPropagation();
+      var imgs = [].map.call(im.closest('.post-imgs').querySelectorAll('img'), function (x) { return x.currentSrc || x.src; });
+      show(im.currentSrc || im.src, imgs);
+      return;
+    }
+    var z = t.closest('.pf-ava-zoom');
+    if (z && z.getAttribute('data-full')) {
+      e.preventDefault();
+      e.stopPropagation();
+      show(z.getAttribute('data-full'));
+      return;
+    }
+    var a = t.closest('a[data-lb]');
+    if (a && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      var box = a.closest('[data-lb-group]') || a.parentNode;
+      show(a.href, [].map.call(box.querySelectorAll('a[data-lb]'), function (x) { return x.href; }));
+    }
+  });
+  // Escape и стрелки; в фазе погружения — чтобы Escape закрыл фото, а не модалку новости под ним
+  // (кнопка «Назад» в приложении тоже шлёт Escape).
+  document.addEventListener('keydown', function (e) {
+    if (!lb || lb.hidden || !lb.classList.contains('show')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); hide(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+  }, true);
 })();
 
 // ── Выпадашка с поиском: <select data-search> ──
