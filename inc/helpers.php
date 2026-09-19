@@ -291,6 +291,17 @@ function lh_seats_colored(array $rolesBySeat, int $s1, int $s2, int $s3): string
     return implode(' ', $parts);
 }
 
+// Русское склонение по числу: ru_plural(3, 'игра', 'игры', 'игр') → «игры».
+function ru_plural(int $n, string $one, string $few, string $many): string
+{
+    $n = abs($n) % 100;
+    if ($n >= 11 && $n <= 14) {
+        return $many;
+    }
+    $n %= 10;
+    return $n === 1 ? $one : ($n >= 2 && $n <= 4 ? $few : $many);
+}
+
 // Медаль за место (1–3) или само место
 function rank_medal(int $pos): string
 {

@@ -100,6 +100,54 @@ if (db_ready()) {
     $list = $st->fetchAll();
 }
 
+// Подробности для карточек вечеров: сколько было игроков, как делились победы, кто взял больше
+// всех ELO, и сколько записалось на ещё не сыгранный вечер. Отдельными запросами по уже
+// отобранным дням — в самом списке это были бы четыре подзапроса на строку.
+$dayWins = [];   // day_id => ['red'=>n,'black'=>n,'draw'=>n]
+$dayPlayers = [];
+$dayBest = [];   // day_id => ['nick'=>…, 'flair'=>…, 'delta'=>float]
+$dayRegs = [];
+$dayIds = array_map('intval', array_column($list, 'id'));
+if ($dayIds) {
+    $in = implode(',', array_fill(0, count($dayIds), '?'));
+    try {
+        $q = db()->prepare("SELECT day_id, winner, COUNT(*) c FROM games
+            WHERE day_id IN ($in) AND status = 'finished' GROUP BY day_id, winner");
+        $q->execute($dayIds);
+        foreach ($q->fetchAll() as $row) {
+            $dayWins[(int)$row['day_id']][(string)$row['winner']] = (int)$row['c'];
+        }
+        $q = db()->prepare("SELECT g.day_id, COUNT(DISTINCT gs.player_id) c
+            FROM game_seats gs JOIN games g ON g.id = gs.game_id
+            WHERE g.day_id IN ($in) GROUP BY g.day_id");
+        $q->execute($dayIds);
+        foreach ($q->fetchAll() as $row) {
+            $dayPlayers[(int)$row['day_id']] = (int)$row['c'];
+        }
+        $q = db()->prepare("SELECT t.day_id, t.d, p.nickname, p.flair FROM (
+                SELECT g.day_id, eh.player_id, SUM(eh.delta) d
+                FROM elo_history eh JOIN games g ON g.id = eh.game_id
+                WHERE g.day_id IN ($in) GROUP BY g.day_id, eh.player_id
+            ) t JOIN players p ON p.id = t.player_id
+            ORDER BY t.day_id, t.d DESC");
+        $q->execute($dayIds);
+        foreach ($q->fetchAll() as $row) {
+            $did = (int)$row['day_id'];
+            if (!isset($dayBest[$did]) && (float)$row['d'] > 0) {
+                $dayBest[$did] = ['nick' => (string)$row['nickname'], 'flair' => (string)($row['flair'] ?? ''), 'delta' => (float)$row['d']];
+            }
+        }
+        $q = db()->prepare("SELECT day_id, COUNT(*) c FROM day_registrations
+            WHERE day_id IN ($in) AND cancelled_at IS NULL GROUP BY day_id");
+        $q->execute($dayIds);
+        foreach ($q->fetchAll() as $row) {
+            $dayRegs[(int)$row['day_id']] = (int)$row['c'];
+        }
+    } catch (Throwable $e) {
+        // подробности — украшение, без них карточки остаются как были
+    }
+}
+
 $statusLabel = [
     'draft' => 'черновик', 'reg_open' => 'запись открыта', 'reg_closed' => 'запись закрыта',
     'live' => 'идёт сейчас', 'finished' => 'завершён',
@@ -193,8 +241,38 @@ if ($list) {
         }
         echo '<div class="day-meta">';
         echo '<span>' . ($d['location'] ? esc($d['location']) : '<span style="color:var(--tx3);">без локации</span>') . '</span>';
-        echo '<span class="day-games"><b>' . (int)$d['games_cnt'] . '</b> игр</span>';
-        echo '</div></a>';
+        $gc = (int)$d['games_cnt'];
+        echo '<span class="day-games"><b>' . $gc . '</b> ' . ru_plural($gc, 'игра', 'игры', 'игр') . '</span>';
+        echo '</div>';
+        // Чем закончился вечер: чья сторона брала верх, сколько было игроков и кто поднялся в ELO.
+        // У несыгранного вечера вместо этого — сколько уже записалось.
+        $did = (int)$d['id'];
+        $wR = (int)($dayWins[$did]['red'] ?? 0);
+        $wB = (int)($dayWins[$did]['black'] ?? 0);
+        $wD = (int)($dayWins[$did]['draw'] ?? 0);
+        if ($wR + $wB + $wD > 0) {
+            $tot = $wR + $wB + $wD;
+            echo '<div class="day-bar" title="Победы: красные ' . $wR . ', чёрные ' . $wB . ($wD ? ', ничьи ' . $wD : '') . '">'
+                . '<span class="db-red" style="width:' . round($wR / $tot * 100, 2) . '%;"></span>'
+                . '<span class="db-black" style="width:' . round($wB / $tot * 100, 2) . '%;"></span></div>';
+            echo '<div class="day-sub"><span>' . role_dot('civ') . $wR . ' &nbsp; ' . role_dot('maf') . $wB . '</span>';
+            $pc = (int)($dayPlayers[$did] ?? 0);
+            if ($pc) {
+                echo '<span>' . $pc . ' ' . ru_plural($pc, 'игрок', 'игрока', 'игроков') . '</span>';
+            }
+            echo '</div>';
+            if (!empty($dayBest[$did])) {
+                $bst = $dayBest[$did];
+                echo '<div class="day-mvp">👑 ' . esc($bst['nick'])
+                    . ($bst['flair'] !== '' ? ' <span class="flair">' . esc($bst['flair']) . '</span>' : '')
+                    . ' <b>+' . (int)round($bst['delta']) . '</b> ELO</div>';
+            }
+        } elseif (!empty($dayRegs[$did])) {
+            $rc = (int)$dayRegs[$did];
+            echo '<div class="day-sub"><span>Записались: <b style="color:var(--tx);">' . $rc . '</b></span>'
+                . '<span>' . ($rc >= 10 ? 'стол собран' : 'нужно ещё ' . (10 - $rc)) . '</span></div>';
+        }
+        echo '</a>';
     }
     echo '</div>';
 } elseif ($season === 'cur' && $seasons) {
