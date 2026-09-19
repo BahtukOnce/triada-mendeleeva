@@ -31,44 +31,52 @@ function day_card_available(): bool
         && is_file(day_card_font()) && is_file(day_card_font(true));
 }
 
-// Ширина строки с межбуквенным интервалом (GD его не умеет — считаем по символам).
+// Сколько текст занимает по ширине БЕЗ разрядки. Считаем по всей строке: у букв разные боковые
+// просветы, и посимвольная сумма ставила «Л» вплотную к соседке, а другие пары растягивала.
+// Хвостовые пробелы bbox не учитывает — добавляем их сами.
+function day_card_adv(float $size, string $font, string $s): float
+{
+    if ($s === '') {
+        return 0.0;
+    }
+    $trim = rtrim($s, ' ');
+    $spaces = mb_strlen($s) - mb_strlen($trim);
+    $w = 0.0;
+    if ($trim !== '') {
+        $b = imagettfbbox($size, 0, $font, $trim);
+        $w = (float)($b[2] - $b[0]);
+    }
+    return $w + $spaces * $size * 0.42;
+}
+
+// Ширина строки с учётом разрядки (GD её не умеет).
 function day_card_text_w(float $size, string $font, string $text, float $spacing = 0.0): float
 {
+    $w = day_card_adv($size, $font, $text);
     if ($spacing <= 0) {
-        $b = imagettfbbox($size, 0, $font, $text);
-        return (float)($b[2] - $b[0]);
+        return $w;
     }
-    $w = 0.0;
-    foreach (preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $ch) {
-        $w += day_card_char_w($size, $font, $ch) + $spacing;
-    }
-    return $w > 0 ? $w - $spacing : 0.0;
+    $n = mb_strlen($text);
+    return $w + max(0, $n - 1) * $spacing;
 }
 
-function day_card_char_w(float $size, string $font, string $ch): float
-{
-    if ($ch === ' ') {
-        return $size * 0.33;   // у пробела bbox нулевой — иначе буквы слипнутся
-    }
-    $b = imagettfbbox($size, 0, $font, $ch);
-    return (float)($b[2] - $b[0]);
-}
-
-// Текст с межбуквенным интервалом. Возвращает x после последнего символа.
+// Текст с разрядкой. Каждая буква ставится по шагу шрифта для уже набранного куска плюс разрядка.
+// Возвращает x после последнего символа.
 function day_card_text($im, float $size, float $x, int $y, int $color, string $font, string $text, float $spacing = 0.0): float
 {
     if ($spacing <= 0) {
         imagettftext($im, $size, 0, (int)round($x), $y, $color, $font, $text);
-        return $x + day_card_text_w($size, $font, $text);
+        return $x + day_card_adv($size, $font, $text);
     }
-    $cx = $x;
-    foreach (preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $ch) {
+    $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $prefix = '';
+    foreach ($chars as $i => $ch) {
         if ($ch !== ' ') {
-            imagettftext($im, $size, 0, (int)round($cx), $y, $color, $font, $ch);
+            imagettftext($im, $size, 0, (int)round($x + day_card_adv($size, $font, $prefix) + $i * $spacing), $y, $color, $font, $ch);
         }
-        $cx += day_card_char_w($size, $font, $ch) + $spacing;
+        $prefix .= $ch;
     }
-    return $cx - $spacing;
+    return $x + day_card_adv($size, $font, $text) + max(0, count($chars) - 1) * $spacing;
 }
 
 // Скруглённый прямоугольник (GD такого не умеет).
