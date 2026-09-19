@@ -583,22 +583,18 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
             <option value="1" <?= (int)($es['removal'] ?? 0) === 1 ? 'selected' : '' ?>>уд</option>
             <option value="2" <?= (int)($es['removal'] ?? 0) === 2 ? 'selected' : '' ?>>уд!</option>
           </select></td>
-          <td><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal"
-              value="<?= $es && (float)$es['plus'] ? rtrim(rtrim(number_format((float)$es['plus'], 1, '.', ''), '0'), '.') : '' ?>" style="width:42px;"></td>
-          <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal"
-              value="<?= $es && (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 1, '.', ''), '0'), '.') : '' ?>" style="width:42px;"></td>
+          <?php /* Допы и минусы — кнопками −/+ по 0.1, как фолы (просьба руководителя; заменили
+                   панель «Быстрый ввод»). Вписать число, в т.ч. «0,5» с запятой, тоже можно. */ ?>
+          <td><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal" placeholder="0"
+              data-stepper data-min="0" data-max="9.9" data-step="0.1"
+              value="<?= $es && (float)$es['plus'] ? rtrim(rtrim(number_format((float)$es['plus'], 1, '.', ''), '0'), '.') : '' ?>"></td>
+          <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal" placeholder="0"
+              data-stepper data-min="0" data-max="9.9" data-step="0.1"
+              value="<?= $es && (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 1, '.', ''), '0'), '.') : '' ?>"></td>
           <td class="num"><b class="f-total">0</b></td>
         </tr>
         <?php endfor; ?>
       </table>
-    </div>
-
-    <div id="dop-pad" style="margin-top:10px;padding:9px 11px;background:var(--sf2);border-radius:9px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <span style="font-size:12px;color:var(--tx2);">Быстрый ввод → <b id="dop-target" style="color:var(--ac);">кликни поле «+» или «−»</b>:</span>
-      <?php for ($d = 1; $d <= 15; $d++): $vv = number_format($d / 10, 1, '.', ''); ?>
-        <button type="button" class="btn btn-ghost dop-b" data-v="<?= $vv ?>" style="padding:3px 9px;font-size:12.5px;"><?= $vv ?></button>
-      <?php endfor; ?>
-      <button type="button" class="btn btn-ghost dop-b" data-v="0" style="padding:3px 11px;font-size:12.5px;" title="очистить">×</button>
     </div>
 
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;align-items:end;">
@@ -988,34 +984,6 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
   }
   document.getElementById('game-form').addEventListener('input', markNewNicks);
   markNewNicks();
-
-  // ── Быстрые кнопки (применяются к последнему выбранному полю «+» или «−») ──
-  var lastField = null, dopTarget = document.getElementById('dop-target');
-  function bindQuick(sel, kind) {
-    document.querySelectorAll(sel).forEach(function (inp) {
-      inp.addEventListener('focus', function () {
-        lastField = inp;
-        var tr = inp.closest('tr[data-seat]');
-        if (dopTarget && tr) {
-          var ni = tr.querySelector('input[name^="nick"]');
-          var nick = ni ? ni.value.trim() : '';
-          dopTarget.textContent = kind + ' · место ' + tr.dataset.seat + (nick ? ' · ' + nick : '');
-        }
-      });
-    });
-  }
-  bindQuick('.f-plus', 'доп +');
-  bindQuick('.f-minus', 'минус −');
-  document.querySelectorAll('.dop-b').forEach(function (b) {
-    b.addEventListener('mousedown', function (e) { e.preventDefault(); });
-    b.addEventListener('click', function () {
-      if (!lastField) return;
-      var v = b.getAttribute('data-v');
-      lastField.value = (v === '0') ? '' : v;
-      lastField.dispatchEvent(new Event('input', { bubbles: true }));
-      lastField.focus();
-    });
-  });
 })();
 </script>
 <?php page_foot(); ?>

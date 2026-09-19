@@ -1234,9 +1234,6 @@ body::before {
   /* iOS зумит страницу при фокусе полей с шрифтом <16px — протоколы и формы */
   .protocol-tbl input, .protocol-tbl select { font-size: 16px; padding: 9px 8px; }
   .field input, .field select, .field textarea { font-size: 16px; }
-  /* Панель быстрого ввода допов: липнет к низу экрана, кнопки под палец */
-  #dop-pad { position: sticky; bottom: 8px; z-index: 30; box-shadow: 0 6px 22px rgba(0,0,0,.5); }
-  .dop-b { min-height: 40px; padding: 8px 12px !important; font-size: 14px !important; }
   /* Таймер судьи: компактнее, кнопки крупнее */
   .timer-card { gap: 10px; }
   .timer-display { font-size: 30px; }
@@ -1338,11 +1335,15 @@ a.chron-step:hover { border-color: var(--ac); color: var(--tx); }
 .stp-zero .stp-v { color: var(--tx3); font-weight: 400; }   /* нули приглушены — ненулевое видно сразу */
 .stp-max .stp-v { color: var(--ac); }                      /* 4 фола / удаление на крит. круг */
 @media (pointer: coarse) { .stp-b { width: 32px; height: 34px; font-size: 18px; } }  /* под палец */
-/* Числовое поле между кнопками −/+ (input[type=number][data-stepper]) — можно и вписать число */
-.stp.stp-num input[type="number"] { width: 46px; margin: 0; padding: 4px 2px; border: 0; border-radius: 6px;
+/* Числовое поле между кнопками −/+ (input[data-stepper]) — можно и вписать число. Пустое
+   текстовое поле (допы/минусы в протоколе) = 0: плейсхолдер «0» приглушён, как нули у фолов. */
+.stp.stp-num input { width: 46px; margin: 0; padding: 4px 2px; border: 0; border-radius: 6px;
   background: transparent; color: var(--tx); box-shadow: none; text-align: center;
   font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.stp.stp-num input[type="number"]:focus { outline: none; background: var(--sf); }
+.stp.stp-num input:focus { outline: none; background: var(--sf); }
+.stp.stp-num input::placeholder { color: var(--tx3); font-weight: 400; opacity: 1; }
+.protocol-tbl .stp.stp-num input { width: 36px; }
+@media (pointer: coarse) { .stp.stp-num input { font-size: 16px; } }   /* iOS не зумит поле < 16px */
 
 /* ── «!» в рейтинге: игрока нет в системе (нет аккаунта). Красный, как просил руководитель.
    Подсказка своя — появляется сразу при наведении (системный title ждёт ~секунду), на телефоне

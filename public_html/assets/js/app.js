@@ -524,34 +524,55 @@
   }
   // Числовое поле (input[type=number][data-stepper]): те же −/+, уважаем min/max/step, число
   // можно и вписать руками. Событие input отдаём наружу — фильтры страницы срабатывают как раньше.
+  // Текстовое поле с data-stepper — допы и минусы в протоколе (шаг 0.1, просьба руководителя):
+  // type=number не везде принимает «0,5» с запятой, а судьи так пишут. Пределы и шаг — в
+  // data-min/max/step, ноль — пустое поле (сервер читает его как 0), ↑/↓ тоже шагают.
   function enhanceNumber(inp) {
     if (inp.getAttribute('data-stepper-ready')) return;
     inp.setAttribute('data-stepper-ready', '1');
+    var isText = inp.type !== 'number';
     var wrap = document.createElement('span');
     wrap.className = 'stp stp-num';
     var dec = btn('−', 'меньше'), inc = btn('+', 'больше');
     inp.parentNode.insertBefore(wrap, inp);
     wrap.appendChild(dec); wrap.appendChild(inp); wrap.appendChild(inc);
-    function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
+    function num(v, d) { var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? d : n; }
+    function lim(name, d) {
+      var a = inp.getAttribute(name);
+      if (a === null || a === '') a = inp.getAttribute('data-' + name);
+      return a === null || a === '' ? d : num(a, d);
+    }
+    function decs(x) { var s = String(x), i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
     function sync() {
       var v = num(inp.value, 0);
-      dec.disabled = v <= num(inp.min, -Infinity);
-      inc.disabled = v >= num(inp.max, Infinity);
+      dec.disabled = v <= lim('min', -Infinity);
+      inc.disabled = v >= lim('max', Infinity);
     }
     function step(dir) {
-      var min = num(inp.min, -Infinity), max = num(inp.max, Infinity), st = num(inp.step, 1) || 1;
-      var v = num(inp.value, min > -Infinity ? min : 0) + dir * st;
-      inp.value = String(Math.min(max, Math.max(min, v)));
+      var min = lim('min', -Infinity), max = lim('max', Infinity), st = lim('step', 1) || 1;
+      var cur = num(inp.value, min > -Infinity ? min : 0);
+      // Округляем до знаков шага, иначе 0.1 + 0.2 дало бы 0.30000000000000004.
+      var v = +(cur + dir * st).toFixed(Math.max(decs(st), decs(cur)));
+      v = Math.min(max, Math.max(min, v));
+      inp.value = (isText && v === 0) ? '' : String(v);
       inp.dispatchEvent(new Event('input', { bubbles: true }));
       inp.dispatchEvent(new Event('change', { bubbles: true }));
     }
     dec.addEventListener('click', function () { step(-1); });
     inc.addEventListener('click', function () { step(1); });
+    if (isText) {
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          step(e.key === 'ArrowUp' ? 1 : -1);
+        }
+      });
+    }
     inp.addEventListener('input', sync);
     inp.addEventListener('change', sync);
     sync();
   }
-  document.querySelectorAll('input[type="number"][data-stepper]').forEach(enhanceNumber);
+  document.querySelectorAll('input[type="number"][data-stepper], input[type="text"][data-stepper]').forEach(enhanceNumber);
 
   function enhanceStepper(sel) {
     if (sel.getAttribute('data-stepper-ready')) return;

@@ -110,7 +110,7 @@ function day_draft_card(array $d, array $gameNos, string $actionsHtml = '', bool
             $total = seat_total($s, $winner, $pu === $i, $bmBonus, 0.0);
             $h .= '<tr><td>' . $i . '</td><td>'
                 . ($p
-                    ? '<a href="/player.php?id=' . (int)$p['id'] . '">' . esc($p['nickname']) . '</a>'
+                    ? '<a href="/player.php?id=' . (int)$p['id'] . '" style="' . me_nick_style(false) . '">' . esc($p['nickname']) . '</a>'
                         . (!empty($p['flair']) ? ' <span class="flair">' . esc($p['flair']) . '</span>' : '')
                     : '<span style="color:var(--tx3);" title="Нет на платформе — заведётся при сохранении игры">' . esc($s['nick']) . '</span>')
                 . ($pu === $i ? ' <span class="tag">ПУ</span>' : '')
