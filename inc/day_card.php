@@ -12,11 +12,17 @@ function day_card_font(bool $bold = false): string
     return ROOT . '/public_html/assets/fonts/DejaVuSans' . ($bold ? '-Bold' : '') . '.ttf';
 }
 
-// Шрифт названия клуба. Если файла нет (старый деплой) — жирный DejaVu.
+// Шрифт названия клуба на карточке — Montserrat Light (выбор руководителя; только карточка,
+// сайт не трогаем). Если файла нет (старый деплой) — узкий PT Sans Narrow, затем жирный DejaVu.
 function day_card_brand_font(): string
 {
-    $f = ROOT . '/public_html/assets/fonts/PTSansNarrow-Bold.ttf';
-    return is_file($f) ? $f : day_card_font(true);
+    foreach (['Montserrat-Light', 'PTSansNarrow-Bold'] as $name) {
+        $f = ROOT . '/public_html/assets/fonts/' . $name . '.ttf';
+        if (is_file($f)) {
+            return $f;
+        }
+    }
+    return day_card_font(true);
 }
 
 function day_card_available(): bool
@@ -189,9 +195,15 @@ function day_card_png(array $d): ?string
             $textX = 58.0 + $dw + 16;
         }
     }
-    // Обе строки опущены на 6px: логотип выше их блока, и так он смотрится соразмерно
-    day_card_text($im, 29, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5);
-    day_card_text($im, 14, $textX + 2, 107, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 4.5);
+    // Обе строки опущены на 6px: логотип выше их блока, и так он смотрится соразмерно.
+    // Размер названия подгоняем под свободное место — Montserrat шире прежнего узкого шрифта.
+    $brandMax = $W - 62 - 148 - 40 - $textX;   // до аватара справа
+    $brandSize = 29.0;
+    while ($brandSize > 18 && day_card_text_w($brandSize, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5) > $brandMax) {
+        $brandSize -= 1;
+    }
+    day_card_text($im, $brandSize, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5);
+    day_card_text($im, 13, $textX + 2, 107, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 4.5);
 
     // Аватар справа (круглый)
     $avSize = 148;
@@ -250,8 +262,8 @@ function day_card_png(array $d): ?string
     if ($emoji) {
         $em = @imagecreatefrompng($emoji);
         if ($em) {
-            // Смайлик — по высоте строчных букв и стоит ровно на базовой линии ника
-            $es = (int)round($sizeNick * 0.72);
+            // Смайлик стоит на базовой линии ника, ростом примерно с заглавную букву
+            $es = (int)round($sizeNick * 0.9);
             imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es, 0, 0, $es, $es, imagesx($em), imagesy($em));
             imagedestroy($em);
         }
