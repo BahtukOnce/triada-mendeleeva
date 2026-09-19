@@ -479,31 +479,62 @@
       input.value = isEmpty(o.value) ? '' : o.text;
       menu.hidden = true;
     }
+    // Подходящие варианты и выделенный из них: при наборе первый выделяется сразу, чтобы
+    // Enter его подставлял (просьба руководителя), ↑/↓ переключают.
+    var found = [], on = -1;
+    function mark() {
+      var items = menu.querySelectorAll('.ss-item');
+      [].forEach.call(items, function (el, i) { el.classList.toggle('on', i === on); });
+      var el = items[on];
+      if (!el) return;
+      if (el.offsetTop < menu.scrollTop) {
+        menu.scrollTop = el.offsetTop;
+      } else if (el.offsetTop + el.offsetHeight > menu.scrollTop + menu.clientHeight) {
+        menu.scrollTop = el.offsetTop + el.offsetHeight - menu.clientHeight;
+      }
+    }
     function render(f) {
       f = (f || '').toLowerCase().trim();
-      menu.innerHTML = ''; var shown = 0;
+      menu.innerHTML = ''; found = [];
       opts.forEach(function (o) {
         if (isEmpty(o.value) && f) return;
         if (f && o.low.indexOf(f) === -1) return;
-        if (shown >= 80) return;
-        shown++;
+        if (found.length >= 80) return;
+        found.push(o);
         var it = document.createElement('div');
         it.className = 'ss-item' + (o.value === sel.value ? ' sel' : '');
         it.textContent = o.text;
         it.addEventListener('mousedown', function (e) { e.preventDefault(); choose(o); });
         menu.appendChild(it);
       });
-      if (!shown) {
+      if (!found.length) {
         var n = document.createElement('div');
         n.className = 'ss-item ss-none'; n.textContent = 'Ничего не найдено';
         menu.appendChild(n);
       }
+      on = (f && found.length) ? 0 : -1;
+      mark();
     }
     input.addEventListener('focus', function () { render(''); menu.hidden = false; input.select(); });
     input.addEventListener('input', function () { render(input.value); menu.hidden = false; });
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !menu.hidden) { e.preventDefault(); }
-      else if (e.key === 'Escape') { menu.hidden = true; sync(); input.blur(); }
+      if (e.key === 'Enter') {
+        // Первый Enter подставляет выделенный вариант, второй (меню уже закрыто) отправляет форму.
+        if (!menu.hidden && on >= 0 && found[on]) {
+          e.preventDefault();
+          choose(found[on]);
+        }
+      } else if (e.key === 'ArrowDown' && !menu.hidden) {
+        e.preventDefault();
+        on = Math.min(on + 1, found.length - 1);
+        mark();
+      } else if (e.key === 'ArrowUp' && !menu.hidden) {
+        e.preventDefault();
+        on = Math.max(on - 1, 0);
+        mark();
+      } else if (e.key === 'Escape') {
+        menu.hidden = true; sync(); input.blur();
+      }
     });
     document.addEventListener('click', function (e) {
       if (!wrap.contains(e.target)) { menu.hidden = true; sync(); }
