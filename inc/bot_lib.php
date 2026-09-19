@@ -1092,6 +1092,24 @@ function bot_notify_day_results(int $dayId): int
         }
     } catch (Throwable $e) {
     }
+    // Разбивка по играм (просьба руководителя): в какой игре сколько ELO прибавилось или ушло —
+    // из «за вечер +9.60» не видно, что было две игры с разным исходом.
+    $perGame = [];
+    try {
+        $pg = db()->prepare("SELECT eh.player_id, g.game_no, g.winner, gs.role, eh.delta
+            FROM elo_history eh
+            JOIN games g ON g.id = eh.game_id
+            LEFT JOIN game_seats gs ON gs.game_id = g.id AND gs.player_id = eh.player_id
+            WHERE g.day_id = ?
+            ORDER BY g.game_no, g.id");
+        $pg->execute([$dayId]);
+        foreach ($pg->fetchAll() as $pr) {
+            $perGame[(int)$pr['player_id']][] = $pr;
+        }
+    } catch (Throwable $e) {
+    }
+    $roleIcon = ['civ' => '😐', 'sheriff' => '🌟', 'maf' => '🔪', 'don' => '😈'];
+
     $bestPid = 0;
     $bestNet = null;
     foreach ($rows as $r) {
@@ -1110,12 +1128,25 @@ function bot_notify_day_results(int $dayId): int
         $emoji = $net > 0 ? '📈' : ($net < 0 ? '📉' : '➖');
         $record = ((float)$r['day_peak'] >= (float)$r['all_peak'] - 0.05) && $net > 0;
         $isTop = $pid === $bestPid && $net > 0;
+        $byGame = '';
+        foreach ($perGame[$pid] ?? [] as $gr) {
+            $isRed = in_array((string)$gr['role'], ['civ', 'sheriff'], true);
+            $res = $gr['winner'] === 'draw'
+                ? 'ничья'
+                : ((($gr['winner'] === 'red') === $isRed) ? 'победа' : 'поражение');
+            $d = (float)$gr['delta'];
+            $byGame .= 'Игра ' . (int)$gr['game_no'] . ': '
+                . ($roleIcon[(string)$gr['role']] ?? '🎭') . ' ' . ($roleRu[(string)$gr['role']] ?? '—')
+                . ' · ' . $res . ' — <b>'
+                . ($d > 0 ? '+' : ($d < 0 ? '−' : '±')) . bot_num(abs($d)) . "</b>\n";
+        }
         $text = "🎲 <b>Итоги вечера</b>\n"
             . "<b>" . bot_esc((string)$day['title']) . "</b> · " . bot_date((string)$day['date']) . "\n\n"
             . "Сыграно игр: <b>" . (int)$r['games'] . "</b>\n"
             . "$emoji ELO: <b>" . bot_num((float)$r['cur']) . "</b> (за вечер $netStr)\n"
             . ($record ? "🏆 Новый личный рекорд ELO!\n" : "")
             . ($isTop ? "🔥 Лучший ELO вечера!\n" : "")
+            . ($byGame !== '' ? "\n<b>По играм</b>\n" . $byGame : '')
             . "\nПодробная статистика — /me";
         // Личка (уважает mute): фото-карточка с подписью; при сбое — обычный текст
         $tgSt = db()->prepare('SELECT tg_user_id FROM players WHERE id = ? AND tg_user_id IS NOT NULL AND notify_enabled = 1');

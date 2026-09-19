@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 // Динамический ELO. Старт 1000 у каждого. Команда красных vs чёрных,
 // каждый игрок обновляется против среднего ELO соперников, с поправкой на вклад
-// (его «+»/«−» в игре относительно средней по команде). Полный пересчёт по
+// (его личный итог за игру относительно средней по команде). Полный пересчёт по
 // всем завершённым играм в хронологическом порядке — включая исторические игры
 // (они хранятся как обычные games с реальными датами, раньше текущих).
+
+require_once __DIR__ . '/rating.php';   // seat_total(), bm_bonus_for(), ci_value() — вклад считаем как рейтинг
 
 const ELO_START = 1000.0;
 const ELO_K = 310.0;            // размах командной дельты (масштаб шкалы)
@@ -14,6 +16,13 @@ const ELO_DIV_INDIV = 900.0;    // логистика для деления вн
 const ELO_SURPRISE_BASE = 0.35; // база доли, чтобы у фаворита тоже что-то капало
 const ELO_LOSS_MULT = 0.6;      // проигрыш мягче победы (компромисс доброты и инфляции)
 const ELO_FLOOR = 100.0;        // нижний предел
+// Вес личного вклада в дележе командной дельты. Был 0.25 — личная игра сдвигала долю процентов
+// на десять, и лучший в проигравшей команде терял больше всех просто потому, что рейтинг выше
+// (решение руководителя, сентябрь 2026).
+const ELO_CONTRIB = 0.6;
+// Первоубиенному поражение бьёт мягче: играть ему не дали. Только на потерю — заработанное
+// (ЛХ, допы) остаётся полностью.
+const ELO_PU_LOSS_MULT = 0.7;
 
 function elo_recompute(): void
 {
@@ -45,7 +54,8 @@ function elo_recompute_body(PDO $pdo): void
     $pdo->exec('UPDATE players SET elo = ' . ELO_START);
     $pdo->exec('DELETE FROM elo_history');
 
-    $games = $pdo->query("SELECT g.id, g.winner, COALESCE(d.date, t.date_from) AS gdate
+    // g.* — нужны ПУ и места ЛХ (в старых базах колонок vote0_* может не быть, поэтому не перечисляем)
+    $games = $pdo->query("SELECT g.*, COALESCE(d.date, t.date_from) AS gdate
         FROM games g
         LEFT JOIN game_days d ON d.id = g.day_id
         LEFT JOIN tournaments t ON t.id = g.tournament_id
@@ -57,7 +67,7 @@ function elo_recompute_body(PDO $pdo): void
 
     $ids = array_column($games, 'id');
     $in = implode(',', array_fill(0, count($ids), '?'));
-    $st = $pdo->prepare("SELECT game_id, player_id, role, plus, minus FROM game_seats WHERE game_id IN ($in)");
+    $st = $pdo->prepare("SELECT * FROM game_seats WHERE game_id IN ($in)");
     $st->execute($ids);
     $seatsByGame = [];
     foreach ($st->fetchAll() as $s) {
@@ -70,21 +80,47 @@ function elo_recompute_body(PDO $pdo): void
     };
     $hist = $pdo->prepare('INSERT INTO elo_history (player_id, game_id, gdate, elo_after, delta) VALUES (?,?,?,?,?)');
 
+    // Дистанция для Ci на момент игры (игр сыграно / раз был ПУ за красных). Считаем по ходу
+    // пересчёта, а не по сезонному кэшу рейтинга: иначе ELO зависел бы от того, пересчитан ли
+    // рейтинг, и перестал бы воспроизводиться сам по себе.
+    $gamesSoFar = [];
+    $puSoFar = [];
+
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         if (count($seats) < 4) {
             continue;
         }
+        // Личный вклад = итог игрока за игру без командного балла за победу: допы, минуса, ЛХ,
+        // Ci и штрафы. Раньше считались только «+»/«−» судьи, и большой ЛХ первоубиенного
+        // на ELO не влиял вовсе.
+        $bonusPu = max(0.0, bm_bonus_for($seats, (int)($g['bm_seat1'] ?? 0), (int)($g['bm_seat2'] ?? 0), (int)($g['bm_seat3'] ?? 0)));
+        $bonusV0 = max(0.0, bm_bonus_for($seats, (int)($g['vote0_bm1'] ?? 0), (int)($g['vote0_bm2'] ?? 0), (int)($g['vote0_bm3'] ?? 0)));
+        $puSeat = (int)($g['first_killed_seat'] ?? 0);
+        $v0Seat = (int)($g['vote0_seat'] ?? 0);
         $red = [];
         $black = [];
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
-            $score = (float)$s['plus'] - (float)$s['minus'];
-            $entry = ['pid' => $pid, 'elo' => $get($pid), 'score' => $score];
-            if (in_array($s['role'], ['civ', 'sheriff'], true)) {
+            $seatNo = (int)$s['seat'];
+            $isRed = in_array($s['role'], ROLE_RED, true);
+            $isPu = $puSeat > 0 && $seatNo === $puSeat;
+            $isV0 = $v0Seat > 0 && $seatNo === $v0Seat;
+            $won = $g['winner'] !== 'draw' && (($g['winner'] === 'red') === $isRed);
+            $ci = $isPu
+                ? ci_value($s['role'], $g['winner'], $puSoFar[$pid] ?? 0, $gamesSoFar[$pid] ?? 0, $bonusPu)
+                : 0.0;
+            $seatBonus = $isPu ? $bonusPu : ($isV0 ? $bonusV0 : 0.0);
+            $score = seat_total($s, $g['winner'], $isPu || $isV0, $seatBonus, $ci) - ($won ? 1.0 : 0.0);
+            $entry = ['pid' => $pid, 'elo' => $get($pid), 'score' => $score, 'is_pu' => $isPu];
+            if ($isRed) {
                 $red[] = $entry;
             } else {
                 $black[] = $entry;
+            }
+            $gamesSoFar[$pid] = ($gamesSoFar[$pid] ?? 0) + 1;
+            if ($isPu && $isRed) {
+                $puSoFar[$pid] = ($puSoFar[$pid] ?? 0) + 1;
             }
         }
         if (!$red || !$black) {
@@ -108,7 +144,7 @@ function elo_recompute_body(PDO $pdo): void
             foreach ($team as $p) {
                 $exp = 1.0 / (1.0 + pow(10, ($oppAvg - $p['elo']) / ELO_DIV_INDIV));
                 $surprise = ELO_SURPRISE_BASE + abs($teamResult - $exp);
-                $contrib = max(0.4, 1.0 + 0.25 * $sgn * ($p['score'] - $teamMean));
+                $contrib = max(0.4, 1.0 + ELO_CONTRIB * $sgn * ($p['score'] - $teamMean));
                 $weights[] = $surprise * $contrib;
             }
             $wsum = array_sum($weights) ?: count($team);
@@ -116,6 +152,9 @@ function elo_recompute_body(PDO $pdo): void
                 $delta = $teamDelta * $weights[$i] / $wsum;
                 if ($delta < 0) {
                     $delta *= ELO_LOSS_MULT; // проигрыш мягче
+                    if (!empty($p['is_pu'])) {
+                        $delta *= ELO_PU_LOSS_MULT; // первоубиенного убили первой ночью — играть не дали
+                    }
                 }
                 $cur = $get($p['pid']);
                 $newElo = max(ELO_FLOOR, $cur + $delta);
