@@ -16,7 +16,7 @@ function day_card_font(bool $bold = false): string
 // сайт не трогаем). Если файла нет (старый деплой) — узкий PT Sans Narrow, затем жирный DejaVu.
 function day_card_brand_font(): string
 {
-    foreach (['Montserrat-Light', 'PTSansNarrow-Bold'] as $name) {
+    foreach (['Montserrat-Regular', 'PTSansNarrow-Bold'] as $name) {
         $f = ROOT . '/public_html/assets/fonts/' . $name . '.ttf';
         if (is_file($f)) {
             return $f;
@@ -199,11 +199,11 @@ function day_card_png(array $d): ?string
     // Размер названия подгоняем под свободное место — Montserrat шире прежнего узкого шрифта.
     $brandMax = $W - 62 - 148 - 40 - $textX;   // до аватара справа
     $brandSize = 29.0;
-    while ($brandSize > 18 && day_card_text_w($brandSize, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5) > $brandMax) {
+    while ($brandSize > 18 && day_card_text_w($brandSize, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 1.5) > $brandMax) {
         $brandSize -= 1;
     }
-    day_card_text($im, $brandSize, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5);
-    day_card_text($im, 13, $textX + 2, 107, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 4.5);
+    day_card_text($im, $brandSize, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 1.5);
+    day_card_text($im, 13, $textX + 2, 107, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 3.5);
 
     // Аватар справа (круглый)
     $avSize = 148;
@@ -262,9 +262,9 @@ function day_card_png(array $d): ?string
     if ($emoji) {
         $em = @imagecreatefrompng($emoji);
         if ($em) {
-            // Смайлик стоит на базовой линии ника, ростом примерно с заглавную букву
-            $es = (int)round($sizeNick * 0.9);
-            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es, 0, 0, $es, $es, imagesx($em), imagesy($em));
+            // Смайлик ростом со строчную «т» и по её же линиям (просьба руководителя)
+            $es = (int)round($sizeNick * 0.75);
+            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es - 2, 0, 0, $es, $es, imagesx($em), imagesy($em));
             imagedestroy($em);
         }
     }
