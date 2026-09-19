@@ -1077,7 +1077,6 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
     $rows = $q->fetchAll();
     // Роли и победы каждого за вечер + лучший ELO вечера (для шэрибл-карточки)
     $roleRu = ['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'];
-    $rolesBy = [];
     $winsBy = [];
     try {
         $rq = db()->prepare("SELECT gs.player_id, gs.role, COUNT(*) c,
@@ -1089,7 +1088,6 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
         $rq->execute([$dayId]);
         foreach ($rq->fetchAll() as $rr) {
             $pid0 = (int)$rr['player_id'];
-            $rolesBy[$pid0][$roleRu[$rr['role']] ?? $rr['role']] = (int)$rr['c'];
             $winsBy[$pid0] = ($winsBy[$pid0] ?? 0) + (int)$rr['w'];
         }
     } catch (Throwable $e) {
@@ -1121,7 +1119,7 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
         }
     }
     require_once __DIR__ . '/day_card.php';
-    $avaSt = db()->prepare('SELECT nickname, avatar FROM players WHERE id = ?');
+    $avaSt = db()->prepare('SELECT nickname, avatar, flair FROM players WHERE id = ?');
     $sent = 0;
     foreach ($rows as $r) {
         $pid = (int)$r['player_id'];
@@ -1166,12 +1164,12 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
             $pl = $avaSt->fetch() ?: ['nickname' => '?', 'avatar' => null];
             $card = day_card_png([
                 'nickname' => (string)$pl['nickname'],
+                'flair' => (string)($pl['flair'] ?? ''),
                 'avatar' => $pl['avatar'] ?? null,
                 'day_title' => (string)$day['title'],
                 'day_date' => bot_date((string)$day['date']),
                 'games' => (int)$r['games'],
                 'wins' => (int)($winsBy[$pid] ?? 0),
-                'roles' => $rolesBy[$pid] ?? [],
                 'net' => $net,
                 'elo' => (float)$r['cur'],
                 'record' => $record,
