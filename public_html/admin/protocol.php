@@ -603,25 +603,61 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
     var first = Array.from(String(n))[0] || '?';
     return '<span class="avatar-circle">' + escHtml(first.toUpperCase()) + '</span>';
   }
+  // Транслит и раскладка (просьба руководителя: «лулу» не находил «Lulu»). Ник и запрос
+  // сводим к одному латинскому ключу: «лулу» → lulu = «Lulu», «вспышка» → vspyshka. Запрос,
+  // набранный не в той раскладке («Дгдг» вместо «Lulu»), тоже переводим и сверяем.
+  var TR = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z',
+    'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's',
+    'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y',
+    'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya' };
+  function nkey(s) {
+    s = String(s).toLowerCase().replace(/[^0-9a-zа-яё]/g, '');
+    var out = '';
+    for (var i = 0; i < s.length; i++) { out += Object.prototype.hasOwnProperty.call(TR, s[i]) ? TR[s[i]] : s[i]; }
+    return out.replace(/sch/g, 'sh').replace(/kh/g, 'h').replace(/ts/g, 'c').replace(/ph/g, 'f').replace(/ck/g, 'k')
+      .replace(/w/g, 'v').replace(/j/g, 'y').replace(/q/g, 'k').replace(/x/g, 'ks').replace(/(.)\1+/g, '$1');
+  }
+  var LAY_EN = "qwertyuiop[]asdfghjkl;'zxcvbnm,.`", LAY_RU = 'йцукенгшщзхъфывапролджэячсмитьбюё';
+  function swapLayout(s) {
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var a = LAY_EN.indexOf(s[i]), b = LAY_RU.indexOf(s[i]);
+      out += a >= 0 ? LAY_RU[a] : (b >= 0 ? LAY_EN[b] : s[i]);
+    }
+    return out;
+  }
+  var nickKeys = {};
+  function keyOf(n) {
+    var s = String(n);
+    if (!Object.prototype.hasOwnProperty.call(nickKeys, s)) nickKeys[s] = nkey(s);
+    return nickKeys[s];
+  }
   function findNicks(self) {
-    var q = self.value.trim().toLowerCase(), taken = {}, seen = {}, head = [], tail = [];
+    var q = self.value.trim().toLowerCase(), taken = {}, seen = {}, tiers = [[], [], [], []];
     seatNickInputs.forEach(function (i) {
       var v = i.value.trim().toLowerCase();
       if (i !== self && v) taken[v] = true;
     });
+    // Порядок: буквально с начала ника, буквально внутри, по транслиту/раскладке с начала, внутри.
+    var fuzzy = q.length >= 2;
+    var qk = fuzzy ? nkey(q) : '', qsk = fuzzy ? nkey(swapLayout(q)) : '';
     function scan(list) {
       list.forEach(function (n) {
         var k = String(n).toLowerCase();
         if (seen[k] || taken[k]) return;
-        var pos = q === '' ? 0 : k.indexOf(q);
-        if (pos === -1) return;
+        var tier = -1, pos = q === '' ? 0 : k.indexOf(q);
+        if (pos === 0) { tier = 0; } else if (pos > 0) { tier = 1; } else if (fuzzy) {
+          var nk = keyOf(n), p1 = qk ? nk.indexOf(qk) : -1, p2 = qsk ? nk.indexOf(qsk) : -1;
+          if (p1 === 0 || p2 === 0) { tier = 2; } else if (p1 > 0 || p2 > 0) { tier = 3; }
+        }
+        if (tier < 0) return;
         seen[k] = true;
-        if (pos === 0) { head.push(n); } else { tail.push(n); }   // совпадение с начала ника — выше
+        tiers[tier].push(n);
       });
     }
     scan(recentNicks);
     if (q.length >= 2) scan(allNicks);
-    var out = head.concat(tail);
+    var out = tiers[0].concat(tiers[1], tiers[2], tiers[3]);
     // Ник, набранный целиком, — первым: Enter подставит ровно его, а не более длинный похожий
     // («Rain», а не «Rainbow»).
     for (var i = 0; i < out.length; i++) {
