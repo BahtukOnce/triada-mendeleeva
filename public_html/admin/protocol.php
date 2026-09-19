@@ -628,7 +628,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
       </div>
       <div class="field" style="margin:0;">
         <label>Победа</label>
-        <select name="winner" id="f-winner" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;">
+        <select name="winner" id="f-winner" class="f-win">
           <option value="">—</option>
           <option value="red" <?= ($editGame['winner'] ?? '') === 'red' ? 'selected' : '' ?>>Красные</option>
           <option value="black" <?= ($editGame['winner'] ?? '') === 'black' ? 'selected' : '' ?>>Чёрные</option>

@@ -711,12 +711,14 @@
   }, true);
 })();
 
-// ── Роль в протоколе — цветом: data-role на select.f-role, красит CSS (мирный, мафия, дон, шериф) ──
+// ── Роль и победа в протоколе — цветом: data-role на select.f-role (мирный, мафия, дон, шериф)
+// и data-win на select.f-win (красные, чёрные, ничья), красит CSS ──
 (function () {
-  function paint(s) { s.setAttribute('data-role', s.value); }
-  document.querySelectorAll('select.f-role').forEach(paint);
+  var SEL = 'select.f-role, select.f-win';
+  function paint(s) { s.setAttribute(s.classList.contains('f-win') ? 'data-win' : 'data-role', s.value); }
+  document.querySelectorAll(SEL).forEach(paint);
   document.addEventListener('change', function (e) {
     var t = e.target;
-    if (t && t.matches && t.matches('select.f-role')) paint(t);
+    if (t && t.matches && t.matches(SEL)) paint(t);
   });
 })();

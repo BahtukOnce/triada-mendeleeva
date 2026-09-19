@@ -359,7 +359,7 @@ function page_foot(): void
             . '</nav>';
     }
 
-    echo '<script src="/assets/js/app.js?v=27"></script>';
+    echo '<script src="/assets/js/app.js?v=28"></script>';
     if (is_app()) {
         echo '<script src="/assets/js/app-native.js?v=1"></script>';
     }

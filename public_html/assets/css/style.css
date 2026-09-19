@@ -742,6 +742,17 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .protocol-tbl select.f-role option { background: var(--sf); color: var(--tx); font-weight: 600; }
 .protocol-tbl select.f-role option[value="civ"] { color: #ff9189; }
 .protocol-tbl select.f-role option[value="sheriff"] { color: #f2c75c; }
+/* «Победа» в протоколе — цветом команды, как роли: красные — красным, чёрные — чёрным (как мафия).
+   Базовый вид здесь, а не inline: inline-стиль перебил бы цвет. data-win выставляет app.js. */
+select.f-win {
+  background: var(--sf2); color: var(--tx); border: 1px solid var(--bd); border-radius: 7px;
+  padding: 7px 10px; font-size: 13px; font-family: inherit; font-weight: 600;
+}
+select.f-win:focus { outline: none; border-color: var(--ac); }
+select.f-win[data-win="red"] { background-color: rgba(232,51,42,.18); border-color: rgba(232,51,42,.65); color: #ff9189; }
+select.f-win[data-win="black"] { background-color: #50505a; border-color: #6c6c78; color: #fff; }
+select.f-win option { background: var(--sf); color: var(--tx); font-weight: 600; }
+select.f-win option[value="red"] { color: #ff9189; }
 /* Черновик протокола: плашка над таблицей открытого черновика и его строка в списке черновиков. */
 .draft-note {
   margin: 0 0 12px; padding: 9px 12px; border-radius: 9px; font-size: 13px; line-height: 1.45;

@@ -293,7 +293,7 @@ page_head('Протокол — ' . $g['t_title'], '');
       </div>
       <div class="field" style="margin:0;">
         <label>Победа</label>
-        <select name="winner" id="f-winner" required style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;">
+        <select name="winner" id="f-winner" class="f-win" required>
           <option value="">—</option>
           <option value="red" <?= ($g['winner'] ?? '') === 'red' ? 'selected' : '' ?>>Красные</option>
           <option value="black" <?= ($g['winner'] ?? '') === 'black' ? 'selected' : '' ?>>Чёрные</option>
