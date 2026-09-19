@@ -600,12 +600,31 @@ function achievement_earners(): array
         foreach (db()->query("SELECT player_id, MAX(elo_after) m FROM elo_history GROUP BY player_id") as $r) {
             $peakElo[(int)$r['player_id']] = (float)$r['m'];
         }
-        // тройка в ЛХ
+        // Тройка в ЛХ — у первоубиенного И у заголосованного на нулевом круге: «Точность ЛХ»
+        // в профиле считает оба события, а ачивка видела только ПУ, и полный ход заголосованного
+        // нигде не отражался. В старых базах колонок vote0_* может не быть — тогда по-старому.
         $triples = [];
-        foreach (db()->query("SELECT DISTINCT me.player_id FROM games g
-            JOIN game_seats me ON me.game_id=g.id AND me.seat=g.first_killed_seat AND me.role IN ('civ','sheriff')
-            WHERE g.status='finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
-            AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id=g.id AND s.seat IN (g.bm_seat1,g.bm_seat2,g.bm_seat3) AND s.role IN ('maf','don'))=3") as $r) {
+        $tripleSql = "SELECT DISTINCT me.player_id FROM games g
+            JOIN game_seats me ON me.game_id = g.id AND me.role IN ('civ','sheriff')
+                AND me.seat IN (g.first_killed_seat, g.vote0_seat)
+            WHERE g.status = 'finished' AND (
+                (me.seat = g.first_killed_seat
+                    AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+                    AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id = g.id
+                         AND s.seat IN (g.bm_seat1, g.bm_seat2, g.bm_seat3) AND s.role IN ('maf','don')) = 3)
+                OR (me.seat = g.vote0_seat
+                    AND g.vote0_bm1 BETWEEN 1 AND 10 AND g.vote0_bm2 BETWEEN 1 AND 10 AND g.vote0_bm3 BETWEEN 1 AND 10
+                    AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id = g.id
+                         AND s.seat IN (g.vote0_bm1, g.vote0_bm2, g.vote0_bm3) AND s.role IN ('maf','don')) = 3))";
+        try {
+            $tripleRows = db()->query($tripleSql)->fetchAll();
+        } catch (Throwable $e) {
+            $tripleRows = db()->query("SELECT DISTINCT me.player_id FROM games g
+                JOIN game_seats me ON me.game_id=g.id AND me.seat=g.first_killed_seat AND me.role IN ('civ','sheriff')
+                WHERE g.status='finished' AND g.bm_seat1 BETWEEN 1 AND 10 AND g.bm_seat2 BETWEEN 1 AND 10 AND g.bm_seat3 BETWEEN 1 AND 10
+                AND (SELECT COUNT(*) FROM game_seats s WHERE s.game_id=g.id AND s.seat IN (g.bm_seat1,g.bm_seat2,g.bm_seat3) AND s.role IN ('maf','don'))=3")->fetchAll();
+        }
+        foreach ($tripleRows as $r) {
             $triples[(int)$r['player_id']] = true;
         }
         // «Чуйка»: чёрные, у которых первой же ночью выстрел лёг в шерифа. Считаем по

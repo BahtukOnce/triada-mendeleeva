@@ -261,9 +261,11 @@ function day_card_png(array $d): ?string
     $arrow = $net > 0 ? ' ▲' : ($net < 0 ? ' ▼' : '');
     $left = $sign . round(abs($net)) . $arrow;
     $right = (string)round((float)$d['elo']);
+    // Размер цифр — 46: при 52 они почти упирались в края плашки.
+    $numSize = 46;
     $pad = 30;
-    $wL = max(day_card_text_w(52, $FB, $left), day_card_text_w(14, $F, 'ELO за вечер'));
-    $wR = max(day_card_text_w(52, $FB, $right), day_card_text_w(14, $F, 'ELO сейчас'));
+    $wL = max(day_card_text_w($numSize, $FB, $left), day_card_text_w(14, $F, 'ELO за вечер'));
+    $wR = max(day_card_text_w($numSize, $FB, $right), day_card_text_w(14, $F, 'ELO сейчас'));
     $x1 = 60;
     $y1 = 282;
     $y2 = 400;
@@ -274,10 +276,10 @@ function day_card_png(array $d): ?string
     $sepX = (int)round($cxL + $wL + $pad);
     imagefilledrectangle($im, $sepX, $y1 + 14, $sepX, $y2 - 14, $bd);
     $cxR = $sepX + $pad;
-    imagettftext($im, 52, 0, (int)round($cxL + ($wL - day_card_text_w(52, $FB, $left)) / 2), $y1 + 62, $col, $FB, $left);
-    imagettftext($im, 14, 0, (int)round($cxL + ($wL - day_card_text_w(14, $F, 'ELO за вечер')) / 2), $y1 + 94, $tx2, $F, 'ELO за вечер');
-    imagettftext($im, 52, 0, (int)round($cxR + ($wR - day_card_text_w(52, $FB, $right)) / 2), $y1 + 62, $tx, $FB, $right);
-    imagettftext($im, 14, 0, (int)round($cxR + ($wR - day_card_text_w(14, $F, 'ELO сейчас')) / 2), $y1 + 94, $tx2, $F, 'ELO сейчас');
+    imagettftext($im, $numSize, 0, (int)round($cxL + ($wL - day_card_text_w($numSize, $FB, $left)) / 2), $y1 + 62, $col, $FB, $left);
+    imagettftext($im, 14, 0, (int)round($cxL + ($wL - day_card_text_w(14, $F, 'ELO за вечер')) / 2), $y1 + 96, $tx2, $F, 'ELO за вечер');
+    imagettftext($im, $numSize, 0, (int)round($cxR + ($wR - day_card_text_w($numSize, $FB, $right)) / 2), $y1 + 62, $tx, $FB, $right);
+    imagettftext($im, 14, 0, (int)round($cxR + ($wR - day_card_text_w(14, $F, 'ELO сейчас')) / 2), $y1 + 96, $tx2, $F, 'ELO сейчас');
 
     // Игры и победы
     imagettftext($im, 22, 0, 62, 452, $tx, $FB, 'Игр: ' . (int)$d['games'] . ' · Побед: ' . (int)$d['wins']);
