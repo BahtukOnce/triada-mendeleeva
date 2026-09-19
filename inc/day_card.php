@@ -250,9 +250,9 @@ function day_card_png(array $d): ?string
     if ($emoji) {
         $em = @imagecreatefrompng($emoji);
         if ($em) {
-            // Смайлик по середине заглавных букв: раньше он свисал ниже базовой линии
+            // Смайлик вровень с верхом букв: свисающий вниз смотрелся криво
             $es = (int)round($sizeNick * 1.02);
-            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es + 1, 0, 0, $es, $es, imagesx($em), imagesy($em));
+            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es - 5, 0, 0, $es, $es, imagesx($em), imagesy($em));
             imagedestroy($em);
         }
     }
@@ -264,8 +264,8 @@ function day_card_png(array $d): ?string
     $arrow = $net > 0 ? ' ▲' : ($net < 0 ? ' ▼' : '');
     $left = $sign . round(abs($net)) . $arrow;
     $right = (string)round((float)$d['elo']);
-    // Размер цифр — 40: при 52 они упирались в края плашки, при 46 руководителю всё ещё крупно.
-    $numSize = 40;
+    // Размер цифр — 36: при 52 и 46 они упирались в края плашки.
+    $numSize = 36;
     $pad = 30;
     $wL = max(day_card_text_w($numSize, $FB, $left), day_card_text_w(14, $F, 'ELO за вечер'));
     $wR = max(day_card_text_w($numSize, $FB, $right), day_card_text_w(14, $F, 'ELO сейчас'));
