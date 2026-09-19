@@ -199,7 +199,7 @@ page_head('Протокол — ' . $g['t_title'], '');
   </div>
 </div>
 
-<form method="post" action="/admin/tournament_protocol.php?game=<?= $gid ?>" id="game-form">
+<form method="post" action="/admin/tournament_protocol.php?game=<?= $gid ?>" id="game-form" autocomplete="off">
   <?= csrf_field() ?>
   <input type="hidden" name="form" value="save_game">
 

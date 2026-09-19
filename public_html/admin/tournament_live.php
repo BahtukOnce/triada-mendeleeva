@@ -201,7 +201,7 @@ page_head('Ведение игры — ' . $g['t_title'], '');
       var last = idx === cands.length - 1;
       h += '<div style="display:flex;gap:8px;align-items:center;margin:5px 0;">'
         + '<span style="width:180px;">за ' + s + ' · ' + esc(nickOf[s]) + ':</span>'
-        + '<input type="number" min="0" class="lv-vote" inputmode="numeric" data-seat="' + s + '"' + (last ? ' disabled value="0"' : ' value=""') + ' style="width:74px;">'
+        + '<input type="number" min="0" class="lv-vote" inputmode="numeric" autocomplete="off" data-seat="' + s + '"' + (last ? ' disabled value="0"' : ' value=""') + ' style="width:74px;">'
         + (last ? ' <span style="color:var(--tx3);">остаток</span>' : '') + '</div>';
     });
     h += '<div id="lv-remain" style="margin-top:6px;color:var(--tx3);"></div>';

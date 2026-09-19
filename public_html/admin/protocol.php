@@ -336,7 +336,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
 </div>
 
 <!-- Форма игры -->
-<form method="post" action="/admin/protocol.php?day=<?= $dayId ?>" id="game-form">
+<form method="post" action="/admin/protocol.php?day=<?= $dayId ?>" id="game-form" autocomplete="off">
   <?= csrf_field() ?>
   <input type="hidden" name="form" value="save_game">
   <input type="hidden" name="game_id" value="<?= $editGid ?>">
