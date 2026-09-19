@@ -199,10 +199,10 @@ function day_card_png(array $d): ?string
     // Размер названия подгоняем под свободное место — Montserrat шире прежнего узкого шрифта.
     $brandMax = $W - 62 - 148 - 40 - $textX;   // до аватара справа
     $brandSize = 29.0;
-    while ($brandSize > 18 && day_card_text_w($brandSize, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 1.5) > $brandMax) {
+    while ($brandSize > 18 && day_card_text_w($brandSize, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.0) > $brandMax) {
         $brandSize -= 1;
     }
-    day_card_text($im, $brandSize, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 1.5);
+    day_card_text($im, $brandSize, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.0);
     day_card_text($im, 13, $textX + 2, 107, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 3.5);
 
     // Аватар справа (круглый)
