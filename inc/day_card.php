@@ -240,7 +240,7 @@ function day_card_png(array $d): ?string
     $nick = (string)$d['nickname'];
     $emoji = day_card_emoji_png((string)($d['flair'] ?? ''));
     $maxNickW = $avX - 62 - 26 - ($emoji ? 58 : 0);
-    $sizeNick = 46;
+    $sizeNick = 44;   // как в прежней карточке — размер руководитель просил вернуть
     while ($sizeNick > 20 && day_card_text_w($sizeNick, $FB, $nick) > $maxNickW) {
         $sizeNick -= 2;
     }
