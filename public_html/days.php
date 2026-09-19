@@ -214,7 +214,9 @@ if ($canEdit) {
 
 if ($seasons) {
     echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">';
-    $tabs = [['cur', 'Текущий сезон']];
+    // Вкладка текущего сезона подписана его названием («Сезон 2026/2027»), а не словом
+    // «Текущий»: так сразу видно, о каком сезоне речь (просьба руководителя).
+    $tabs = [['cur', current_season_bounds()[2]]];
     foreach ($seasons as $s) {
         $tabs[] = [$s, $s];
     }

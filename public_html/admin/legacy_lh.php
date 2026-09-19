@@ -51,12 +51,16 @@ if ($skip) {
 }
 
 echo '<div class="card"><h2 style="margin-top:0;">Сопоставлено (' . $ok . ')</h2>';
-echo '<table class="tbl"><tr><th>Дата</th><th>Игра</th><th>ПУ</th><th>ЛХ</th><th class="num">Допы было</th><th class="num">станет</th></tr>';
+echo '<table class="tbl"><tr><th>Наш вечер</th><th>Игра</th><th>ПУ</th><th>ЛХ</th><th>Как нашли</th>'
+    . '<th class="num">Допы было</th><th class="num">станет</th></tr>';
 foreach ($rep['ok'] as $r) {
     $chg = abs($r['plus_was'] - $r['plus_now']) > 0.001;
-    echo '<tr><td>' . esc($r['date']) . '</td><td>№' . (int)$r['game_no'] . '</td>'
-        . '<td>место ' . (int)$r['pu'] . ' · ' . esc($r['nick']) . '</td>'
-        . '<td>' . esc(implode(', ', $r['bm'])) . ($r['bonus'] > 0 ? ' <span style="color:var(--ok);">+' . $r['bonus'] . '</span>' : '') . '</td>'
+    echo '<tr><td style="white-space:nowrap;">' . esc($r['our_date'])
+        . ($r['our_date'] !== $r['date'] ? ' <span style="color:var(--tx3);font-size:11.5px;">(в источнике ' . esc($r['date']) . ')</span>' : '') . '</td>'
+        . '<td>№' . (int)$r['game_no'] . '</td>'
+        . '<td>место ' . (int)$r['our_pu'] . ' · ' . esc($r['nick']) . '</td>'
+        . '<td>' . esc(implode(', ', $r['our_bm'])) . ($r['bonus'] > 0 ? ' <span style="color:var(--ok);">+' . $r['bonus'] . '</span>' : '') . '</td>'
+        . '<td style="color:var(--tx2);font-size:12.5px;">' . esc($r['way']) . '</td>'
         . '<td class="num">' . number_format($r['plus_was'], 2) . '</td>'
         . '<td class="num"' . ($chg ? ' style="color:var(--ac);"' : '') . '>' . number_format($r['plus_now'], 2) . '</td></tr>';
 }

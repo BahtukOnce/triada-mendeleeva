@@ -58,7 +58,7 @@ if ($isJudge) {
 // Вкладки сезонов — как на «Игровых вечерах».
 if ($hasCur || $pastSeasons) {
     echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">';
-    $tabs = [['cur', 'Текущий сезон']];
+    $tabs = [['cur', current_season_bounds()[2]]];   // «Сезон 2026/2027» вместо «Текущий сезон»
     foreach ($pastSeasons as $s) {
         $tabs[] = [$s, $s];
     }
