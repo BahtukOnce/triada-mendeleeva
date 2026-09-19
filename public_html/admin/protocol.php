@@ -621,7 +621,13 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
     }
     scan(recentNicks);
     if (q.length >= 2) scan(allNicks);
-    return head.concat(tail).slice(0, 30);
+    var out = head.concat(tail);
+    // Ник, набранный целиком, — первым: Enter подставит ровно его, а не более длинный похожий
+    // («Rain», а не «Rainbow»).
+    for (var i = 0; i < out.length; i++) {
+      if (String(out[i]).toLowerCase() === q) { out.unshift(out.splice(i, 1)[0]); break; }
+    }
+    return out.slice(0, 30);
   }
   function placeDd() {
     if (!ddOpen || !ddInput) return;
@@ -668,13 +674,17 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
         + '<span class="nick-dd-name">' + name + '</span>'
         + (todayNicks[k] ? '<span class="nick-dd-tag">сегодня</span>' : '') + '</div>';
     });
-    html += '<div class="nick-dd-foot">' + (ddItems.length === 1 ? 'Enter — подставить' : '↑ ↓ — выбрать · Enter — подставить') + '</div>';
+    html += '<div class="nick-dd-foot">' + (q !== ''
+      ? 'Enter — выделенный · ↑ ↓ — другой · Esc — оставить набранное'
+      : '↑ ↓ — выбрать · Enter — подставить') + '</div>';
     dd.innerHTML = html;
     dd.style.minWidth = Math.max(210, Math.round(inp.getBoundingClientRect().width)) + 'px';
     dd.style.display = 'block';
     ddOpen = true;
     placeDd();
-    setOn(ddItems.length === 1 ? 0 : -1);   // единственный вариант — сразу под Enter
+    // Первый вариант сразу выделен — Enter подставляет его (просьба руководителя). В пустом поле
+    // не выделяем: там список — просто недавние игроки, и случайный Enter ничего не вставит.
+    setOn(q !== '' ? 0 : -1);
     markNewNicks();
   }
   function pickNick(i) {
