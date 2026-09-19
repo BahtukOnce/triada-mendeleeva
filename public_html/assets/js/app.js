@@ -710,3 +710,13 @@
     });
   }, true);
 })();
+
+// ── Роль в протоколе — цветом: data-role на select.f-role, красит CSS (мирный, мафия, дон, шериф) ──
+(function () {
+  function paint(s) { s.setAttribute('data-role', s.value); }
+  document.querySelectorAll('select.f-role').forEach(paint);
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t && t.matches && t.matches('select.f-role')) paint(t);
+  });
+})();

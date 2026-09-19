@@ -731,6 +731,17 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .protocol-tbl input:focus, .protocol-tbl select:focus { outline: none; border-color: var(--ac); }
 .protocol-tbl td { padding: 5px 6px; }
 .protocol-tbl .f-total { font-size: 14px; }
+/* Роль в протоколе — цветом, в палитре сайта (role_color): мирный — красный, шериф — жёлтый,
+   мафия — чёрная (графит), дон — ещё темнее. data-role выставляет app.js по выбранной роли. */
+.protocol-tbl select.f-role { font-weight: 600; }
+.protocol-tbl select.f-role[data-role="civ"] { background-color: rgba(232,51,42,.18); border-color: rgba(232,51,42,.65); color: #ff9189; }
+.protocol-tbl select.f-role[data-role="sheriff"] { background-color: rgba(230,177,58,.18); border-color: rgba(230,177,58,.7); color: #f2c75c; }
+.protocol-tbl select.f-role[data-role="maf"] { background-color: #50505a; border-color: #6c6c78; color: #fff; }
+.protocol-tbl select.f-role[data-role="don"] { background-color: #0e0e12; border-color: #50505a; color: #fff; }
+.protocol-tbl select.f-role:focus { border-color: var(--ac); }
+.protocol-tbl select.f-role option { background: var(--sf); color: var(--tx); font-weight: 600; }
+.protocol-tbl select.f-role option[value="civ"] { color: #ff9189; }
+.protocol-tbl select.f-role option[value="sheriff"] { color: #f2c75c; }
 
 .site-footer { border-top: 1px solid var(--bd); background: var(--sf); margin-top: 40px; }
 .footer-row {

@@ -124,7 +124,7 @@ function page_head(string $title, string $active = '', array $meta = []): void
     // на любом устройстве. Google отдаёт шрифт кусками по unicode-range — грузятся только нужные эмодзи.
     echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
     echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap">';
-    echo '<link rel="stylesheet" href="/assets/css/style.css?v=122">';
+    echo '<link rel="stylesheet" href="/assets/css/style.css?v=123">';
 
     // Structured data (schema.org): помогает Google/Яндексу понять, что это за
     // организация, показать её как единый бренд и построить sitelinks-поиск.
@@ -359,7 +359,7 @@ function page_foot(): void
             . '</nav>';
     }
 
-    echo '<script src="/assets/js/app.js?v=26"></script>';
+    echo '<script src="/assets/js/app.js?v=27"></script>';
     if (is_app()) {
         echo '<script src="/assets/js/app-native.js?v=1"></script>';
     }
