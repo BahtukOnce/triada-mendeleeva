@@ -26,9 +26,17 @@ function legacy_lh_rows(): array
         return [];
     }
     $out = [];
+    $alias = [];   // ник в источнике => ник у нас (строки @alias)
     foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
         $line = trim($line);
         if ($line === '' || $line[0] === '#') {
+            continue;
+        }
+        if (strncmp($line, '@alias|', 7) === 0) {
+            $a = explode('|', $line);
+            if (count($a) >= 3) {
+                $alias[nick_key($a[1])] = nick_key($a[2]);
+            }
             continue;
         }
         $p = explode('|', $line);
@@ -40,7 +48,8 @@ function legacy_lh_rows(): array
         $seatKeys = [];
         foreach ($nicks as $i => $n) {
             if ($n !== '') {
-                $seatKeys[$i + 1] = nick_key($n);
+                $k = nick_key($n);
+                $seatKeys[$i + 1] = $alias[$k] ?? $k;   // ник источника приводим к нашему
             }
         }
         $out[] = [
@@ -149,12 +158,24 @@ function legacy_lh_run(bool $apply): array
             continue;
         }
         if (count($cands) > 1) {
+            // Один и тот же состав в один день бывает: разводим по дате, затем по порядку игры
             $sameDate = array_values(array_filter($cands, fn($gid) => $games[$gid]['date'] === $r['date']));
-            if (count($sameDate) === 1) {
+            if ($sameDate) {
                 $cands = $sameDate;
-            } else {
-                $report['skip'][] = $r + ['why' => 'подходит несколько игр (' . count($cands) . ') с тем же составом'];
-                continue;
+            }
+            if (count($cands) > 1) {
+                // Порядок игр в источнике за этот день = порядок наших game_no
+                $dayRows = array_values(array_filter($rows, fn($x) => $x['date'] === $r['date'] && $x['src'] === $r['src']));
+                usort($dayRows, fn($a, $b) => $a['gno'] <=> $b['gno']);
+                $rank = 0;
+                foreach ($dayRows as $k => $x) {
+                    if ($x['gno'] === $r['gno']) {
+                        $rank = $k;
+                    }
+                }
+                usort($cands, fn($a, $b) => $games[$a]['game_no'] <=> $games[$b]['game_no']);
+                $cands = isset($cands[$rank]) ? [$cands[$rank]] : [$cands[0]];
+                $way .= ', по порядку игр';
             }
         }
         $gid = (int)$cands[0];
@@ -164,6 +185,8 @@ function legacy_lh_run(bool $apply): array
         foreach ($g['seats'] as $seat => $s) {
             $seatOfKey[$s['key']] = (int)$seat;
         }
+        // Переименования разбираются списком @alias в db/legacy_lh.txt — вслепую ники не
+        // сопоставляем: один такой «единственный расходящийся ник» оказался чужим игроком.
         $puKey = $recKeys[$r['pu']] ?? null;
         $ourPu = $puKey !== null ? ($seatOfKey[$puKey] ?? 0) : 0;
         if (!$ourPu) {
