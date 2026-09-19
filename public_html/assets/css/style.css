@@ -321,6 +321,11 @@ body.app .header-row { gap: 8px; }
    карточки обрывались на разной высоте из-за двухстрочных ников и пометок Ci/ПУ. */
 .tables-grid.grid-equal { align-items: stretch; }
 .tables-grid.grid-equal > .card { display: flex; flex-direction: column; }
+/* Игры вечера: не больше трёх карточек в ряд (просьба руководителя). При четырёх колонка «Игрок»
+   становилась такой узкой, что ник с пометкой «ПУ» переносился на вторую строку и строки таблицы
+   прыгали по высоте. Минимум трека — 1/3 ширины сетки за вычетом двух зазоров, но не уже 330px:
+   на узком экране колонок само станет две, а одна-две игры по-прежнему растягиваются на всю ширину. */
+.games-grid { grid-template-columns: repeat(auto-fit, minmax(max(330px, (100% - 28px) / 3), 1fr)); }
 .table-col { min-width: 0; }
 .table-col > .card:first-of-type { margin-top: 0; }
 
@@ -1225,6 +1230,11 @@ body::before {
   .rating-tbl tr.rt-2 > td:nth-child(-n+2) { background: linear-gradient(rgba(212,216,223,.11), rgba(212,216,223,.11)), var(--sf); }
   .rating-tbl tr.rt-3 > td:nth-child(-n+2) { background: linear-gradient(rgba(227,168,120,.11), rgba(227,168,120,.11)), var(--sf); }
   .rating-tbl tr:hover > td:nth-child(-n+2) { background: var(--sf2); }
+  /* Красные горизонтальные следы при прокрутке: браузер перерисовывал только полосу экрана, и
+     тонкие красные разделители колонок (inset-тени) вместе с прилипшими ячейками размазывались
+     поперёк. Отдельный слой отрисовки у прокручиваемой таблицы и у прилипших ячеек убирает хвосты. */
+  table.tbl { transform: translateZ(0); }
+  .rating-tbl tr > :nth-child(-n+2) { backface-visibility: hidden; }
   /* Тач-таргеты: пальцу нужно ≥40px */
   .react-btn { padding: 9px 13px; }
   .ava-actions button { padding: 8px 12px; font-size: 13px; }

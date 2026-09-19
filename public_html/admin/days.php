@@ -9,6 +9,27 @@ $canManageDays = user_perm($u, 'manage_days');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $form = (string)($_POST['form'] ?? '');
+
+    // «Карточка себе» — бот шлёт итоги вечера только нажавшему: посмотреть, как это выглядит
+    // в Telegram, не рассылая всем. Поэтому до проверки прав на управление вечерами.
+    if ($form === 'card_self') {
+        $id = (int)($_POST['day_id'] ?? 0);
+        $mp = current_player();
+        if (!$mp) {
+            flash_set('err', 'Сначала привяжите игровой ник в личном кабинете');
+        } else {
+            $n = 0;
+            try {
+                $n = bot_notify_day_results($id, (int)$mp['id']);
+            } catch (Throwable $e) {
+            }
+            flash_set($n ? 'ok' : 'err', $n
+                ? 'Карточка вечера отправлена вам в Telegram'
+                : 'Не отправилось: нет привязки к боту, выключены уведомления или вы не играли в этот вечер');
+        }
+        redirect('/admin/days.php');
+    }
+
     if (!$canManageDays) {
         flash_set('err', 'Управление вечерами вам не разрешено (таблица прав)');
         redirect('/admin/days.php');
@@ -301,6 +322,13 @@ if ($list) {
             . '</td><td>';
         if (in_array($d['status'], ['reg_closed', 'live', 'finished'], true) || $dDrafts) {
             echo '<a class="btn" style="padding:4px 12px;font-size:12px;" href="/admin/protocol.php?day=' . (int)$d['id'] . '">Вести игры</a> ';
+        }
+        // Итоги вечера в боте — только себе: посмотреть, как это выглядит, никого не беспокоя
+        if ((int)$d['games'] > 0) {
+            echo '<form method="post" action="/admin/days.php" style="display:inline;">' . csrf_field();
+            echo '<input type="hidden" name="form" value="card_self"><input type="hidden" name="day_id" value="' . (int)$d['id'] . '">';
+            echo '<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" type="submit"'
+                . ' title="Бот пришлёт карточку этого вечера только вам">📤 Карточка себе</button></form> ';
         }
         foreach ($canManageDays ? $nextStatus[$d['status']] : [] as [$to, $lbl]) {
             echo '<form method="post" action="/admin/days.php" style="display:inline;">' . csrf_field();

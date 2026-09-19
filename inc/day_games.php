@@ -163,7 +163,7 @@ function day_games_grid(array $games, array $seatsByGame, int $mePid = 0, ?calla
     } catch (Throwable $e) {
     }
 
-    echo '<div class="tables-grid grid-equal" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr));">';
+    echo '<div class="tables-grid grid-equal games-grid">';
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats);

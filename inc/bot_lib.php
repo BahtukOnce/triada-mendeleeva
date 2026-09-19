@@ -1055,7 +1055,9 @@ function bot_notify_day_open(int $dayId): int
 }
 
 // Вечер завершён → каждому участнику личный итог: сыграно игр + изменение ELO (+ рекорд).
-function bot_notify_day_results(int $dayId): int
+// $onlyPid — отправить только этому игроку («прислать карточку себе» из админки: посмотреть,
+// как выглядят итоги в боте, не беспокоя остальных).
+function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
 {
     $st = db()->prepare('SELECT * FROM game_days WHERE id = ?');
     $st->execute([$dayId]);
@@ -1123,6 +1125,9 @@ function bot_notify_day_results(int $dayId): int
     $sent = 0;
     foreach ($rows as $r) {
         $pid = (int)$r['player_id'];
+        if ($onlyPid !== null && $pid !== $onlyPid) {
+            continue;
+        }
         $net = (float)$r['net'];
         $netStr = ($net > 0 ? '+' : ($net < 0 ? '−' : '±')) . bot_num(abs($net));
         $emoji = $net > 0 ? '📈' : ($net < 0 ? '📉' : '➖');
