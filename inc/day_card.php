@@ -229,10 +229,11 @@ function day_card_png(array $d): ?string
         }
     }
 
-    // Дата вечера. Название часто совпадает с датой («11 июля») — тогда не дублируем
-    $when = trim((string)$d['day_title']) === trim((string)$d['day_date'])
-        ? (string)$d['day_date']
-        : $d['day_date'] . ' · ' . $d['day_title'];
+    // Дата вечера. Название обычно и есть дата («19 сентября» при «19 сентября 2026») —
+    // тогда не дублируем; показываем только по-настоящему другое название.
+    $dTitle = trim((string)$d['day_title']);
+    $dDate = trim((string)$d['day_date']);
+    $when = ($dTitle === '' || mb_strpos($dDate, $dTitle) !== false) ? $dDate : $dDate . ' · ' . $dTitle;
     imagettftext($im, 16, 0, 62, 168, $tx2, $F, $when);
 
     // Ник + смайлик профиля (картинкой: цветные эмодзи GD не рисует)

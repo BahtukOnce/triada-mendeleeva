@@ -197,7 +197,7 @@ if ($mjId) {
     if ($mj) {
         $sub = [];
         if ($mj['elo'] !== null) {
-            $sub[] = 'ЭЛО ' . (int)round((float)$mj['elo']);
+            $sub[] = 'ELO ' . (int)round((float)$mj['elo']);
         }
         if ((int)($mj['judged'] ?? 0) > 0) {
             $sub[] = '<a href="/my_judged.php?id=' . $mjId . '" style="color:var(--ac);">судил игр: ' . (int)$mj['judged'] . '</a>';

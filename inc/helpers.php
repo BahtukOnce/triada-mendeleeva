@@ -164,18 +164,27 @@ function casper_ghost(?string $nick): string
 // Личный счёт пары игроков по всем завершённым играм: сколько раз были в ОДНОЙ
 // команде (и сколько та команда выиграла) и личные встречи в РАЗНЫХ командах
 // (победы A / B / ничьи). Возвращает [together, together_win, a_win, b_win, draw].
-function pair_record(int $aId, int $bId): array
+// $season — метка сезона («Сезон 2025/2026»); null — за всё время.
+function pair_record(int $aId, int $bId, ?string $season = null): array
 {
     $r = ['together' => 0, 'together_win' => 0, 'a_win' => 0, 'b_win' => 0, 'draw' => 0];
     if ($aId < 1 || $bId < 1 || $aId === $bId) {
         return $r;
     }
+    $params = [$aId, $bId];
+    $where = '';
+    if ($season !== null) {
+        $where = ' AND ' . season_expr_sql() . ' = ?';
+        $params[] = $season;
+    }
     $st = db()->prepare("SELECT g.winner, sa.role AS ra, sb.role AS rb
         FROM games g
         JOIN game_seats sa ON sa.game_id = g.id AND sa.player_id = ?
         JOIN game_seats sb ON sb.game_id = g.id AND sb.player_id = ?
-        WHERE g.status = 'finished'");
-    $st->execute([$aId, $bId]);
+        LEFT JOIN game_days d ON d.id = g.day_id
+        LEFT JOIN tournaments t ON t.id = g.tournament_id
+        WHERE g.status = 'finished'" . $where);
+    $st->execute($params);
     $team = fn($role) => in_array($role, ['civ', 'sheriff'], true) ? 'red' : 'black';
     foreach ($st->fetchAll() as $g) {
         $ta = $team($g['ra']);
@@ -289,6 +298,16 @@ function lh_seats_colored(array $rolesBySeat, int $s1, int $s2, int $s3): string
             . 'padding:1px 5px;border-radius:5px;background:' . $bg . ';border:1px solid ' . $bd . ';color:' . $tc . ';">' . $n . '</span>';
     }
     return implode(' ', $parts);
+}
+
+// Сезон игры в SQL: у легаси-вечеров уважаем метку game_days.season, иначе считаем по дате
+// (1 сентября — 31 августа), как и везде на сайте. Требует в запросе JOIN game_days d и
+// tournaments t (турнирные игры живут без дня, дата у них — t.date_from).
+function season_expr_sql(): string
+{
+    $dt = 'COALESCE(d.date, t.date_from)';
+    $y = "(YEAR($dt) - (MONTH($dt) < 9))";
+    return "COALESCE(d.season, CONCAT('Сезон ', $y, '/', $y + 1))";
 }
 
 // Русское склонение по числу: ru_plural(3, 'игра', 'игры', 'игр') → «игры».

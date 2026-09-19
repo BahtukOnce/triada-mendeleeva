@@ -107,7 +107,10 @@ $duelSelect = function (string $name, string $label, ?array $cur) use ($allP): s
     return $h . '</select></div>';
 };
 echo $duelSelect('an', 'Игрок 1', $pa);
-echo '<div style="align-self:center;font-weight:800;color:var(--tx2);padding:0 2px;">vs</div>';
+// «vs» — в такой же обёртке, как поля выбора (пустая подпись сверху), иначе при
+// align-items:end он висел выше середины выпадашек.
+echo '<div class="field" style="margin:0;flex:none;"><label>&nbsp;</label>'
+    . '<div style="font-weight:800;color:var(--tx2);padding:10px 4px;">vs</div></div>';
 echo $duelSelect('bn', 'Игрок 2', $pb);
 echo '<button class="btn" type="submit">Сравнить</button>';
 echo '</form></div>';
@@ -231,6 +234,130 @@ if ($pa && $pb) {
     if ($verdict) {
         echo '<p style="margin:12px 0 0;padding-top:12px;border-top:1px solid var(--bd);font-size:14px;">' . $verdict . '</p>';
     }
+    echo '</div>';
+
+    // ── Полное сравнение: показатели, роли, места за столом ───────────────────────────────
+    // Сюда переехала бывшая «Очная ставка» (/vs.php): страницы делали одно и то же.
+    // Всё считается по протоколам за выбранный сезон — поэтому работает и «за всё время».
+    $vsStats = function (int $pid) use ($vsWhere, $vsArgs): array {
+        $out = ['g' => 0, 'w' => 0, 'plus' => 0.0, 'minus' => 0.0, 'pu' => 0,
+            'roles' => ['civ' => [0, 0], 'sheriff' => [0, 0], 'maf' => [0, 0], 'don' => [0, 0]],
+            'seats' => []];
+        for ($i = 1; $i <= 10; $i++) {
+            $out['seats'][$i] = [0, 0];
+        }
+        try {
+            $st = db()->prepare("SELECT gs.role, gs.seat, COUNT(*) g,
+                    SUM((g.winner='red' AND gs.role IN ('civ','sheriff')) OR (g.winner='black' AND gs.role IN ('maf','don'))) w,
+                    SUM(gs.plus) plus, SUM(gs.minus) minus,
+                    SUM(g.first_killed_seat = gs.seat AND gs.role IN ('civ','sheriff')) pu
+                FROM game_seats gs
+                JOIN games g ON g.id = gs.game_id
+                LEFT JOIN game_days d ON d.id = g.day_id
+                LEFT JOIN tournaments t ON t.id = g.tournament_id
+                WHERE gs.player_id = ? AND g.status = 'finished' AND g.winner IS NOT NULL" . $vsWhere . "
+                GROUP BY gs.role, gs.seat");
+            $st->execute(array_merge([$pid], $vsArgs));
+            foreach ($st->fetchAll() as $r) {
+                $gg = (int)$r['g'];
+                $ww = (int)$r['w'];
+                $out['g'] += $gg;
+                $out['w'] += $ww;
+                $out['plus'] += (float)$r['plus'];
+                $out['minus'] += (float)$r['minus'];
+                $out['pu'] += (int)$r['pu'];
+                $role = (string)$r['role'];
+                if (isset($out['roles'][$role])) {
+                    $out['roles'][$role][0] += $gg;
+                    $out['roles'][$role][1] += $ww;
+                }
+                $seat = (int)$r['seat'];
+                if (isset($out['seats'][$seat])) {
+                    $out['seats'][$seat][0] += $gg;
+                    $out['seats'][$seat][1] += $ww;
+                }
+            }
+        } catch (Throwable $e) {
+        }
+        return $out;
+    };
+    $cA = $vsStats((int)$pa['id']);
+    $cB = $vsStats((int)$pb['id']);
+    $periodLbl = $vsSel === 'all' ? 'за всё время' : $vsSel;
+
+    echo '<div class="card"><h2 style="margin-top:0;">📊 Полное сравнение '
+        . '<span style="color:var(--tx3);font-weight:400;font-size:13px;">· ' . esc($periodLbl) . '</span></h2>';
+
+    // Показатели: чей больше — подсвечиваем. У минусов лучше меньше.
+    $rows = [
+        ['Игр', (float)$cA['g'], (float)$cB['g'], 0, '', false],
+        ['Побед', (float)$cA['w'], (float)$cB['w'], 0, '', false],
+        ['Винрейт', (float)$pct($cA['w'], $cA['g']), (float)$pct($cB['w'], $cB['g']), 0, '%', false],
+        ['Допы', $cA['plus'], $cB['plus'], 1, '', false],
+        ['Минуса', $cA['minus'], $cB['minus'], 1, '', true],
+        ['Первоубиенным', (float)$cA['pu'], (float)$cB['pu'], 0, '', true],
+        ['ELO сейчас', (float)$pa['elo'], (float)$pb['elo'], 0, '', false],
+    ];
+    echo '<table class="tbl vs-tbl">';
+    foreach ($rows as [$lbl, $va, $vb, $dec, $suf, $less]) {
+        $fa = ($dec ? number_format($va, $dec) : (string)(int)round($va)) . $suf;
+        $fb = ($dec ? number_format($vb, $dec) : (string)(int)round($vb)) . $suf;
+        $aWins = $less ? $va < $vb : $va > $vb;
+        $bWins = $less ? $vb < $va : $vb > $va;
+        echo '<tr><td class="num vs-a' . ($aWins ? ' vs-win' : '') . '">' . $fa . '</td>'
+            . '<td class="vs-mid">' . $lbl . '</td>'
+            . '<td class="num vs-b' . ($bWins ? ' vs-win' : '') . '">' . $fb . '</td></tr>';
+    }
+    echo '</table>';
+
+    // Винрейт по ролям — встречными полосками от центра
+    echo '<h3 style="margin:18px 0 10px;font-size:15px;">Винрейт по ролям</h3>';
+    echo '<div class="vs-bars">';
+    foreach (['civ' => 'Мирный', 'sheriff' => 'Шериф', 'maf' => 'Мафия', 'don' => 'Дон'] as $rk => $rl) {
+        [$ag, $aw] = $cA['roles'][$rk];
+        [$bg, $bw] = $cB['roles'][$rk];
+        $ap = $pct($aw, $ag);
+        $bp = $pct($bw, $bg);
+        echo '<div class="vs-bar-row">'
+            . '<div class="vs-bar-side">'
+                . '<span class="vs-bar-val">' . ($ag ? $ap . '%' : '—') . '</span>'
+                . '<span class="vs-bar left" title="' . $aw . ' из ' . $ag . '"><span style="width:' . $ap . '%;"></span></span>'
+                . '<span class="vs-bar-g">' . $ag . '</span>'
+            . '</div>'
+            . '<div class="vs-bar-lbl">' . role_dot($rk) . $rl . '</div>'
+            . '<div class="vs-bar-side rev">'
+                . '<span class="vs-bar-val">' . ($bg ? $bp . '%' : '—') . '</span>'
+                . '<span class="vs-bar right" title="' . $bw . ' из ' . $bg . '"><span style="width:' . $bp . '%;"></span></span>'
+                . '<span class="vs-bar-g">' . $bg . '</span>'
+            . '</div></div>';
+    }
+    echo '</div>';
+
+    // Места за столом: винрейт с каждого места
+    echo '<h3 style="margin:18px 0 8px;font-size:15px;">Винрейт по местам за столом</h3>';
+    echo '<div style="overflow-x:auto;"><table class="tbl vs-seats"><tr><th>Игрок</th>';
+    for ($i = 1; $i <= 10; $i++) {
+        echo '<th class="num">' . $i . '</th>';
+    }
+    echo '</tr>';
+    foreach ([[$pa, $cA], [$pb, $cB]] as [$P, $C]) {
+        echo '<tr><td style="white-space:nowrap;">' . esc((string)$P['nickname']) . '</td>';
+        for ($i = 1; $i <= 10; $i++) {
+            [$sg, $sw] = $C['seats'][$i];
+            if (!$sg) {
+                echo '<td class="num" style="color:var(--tx3);">—</td>';
+                continue;
+            }
+            $sp = $pct($sw, $sg);
+            $col = $sp >= 60 ? 'var(--ok)' : ($sp < 42 ? 'var(--ac)' : 'var(--tx)');
+            echo '<td class="num" title="' . $sw . ' побед из ' . $sg . '">'
+                . '<b style="color:' . $col . ';">' . $sp . '%</b>'
+                . '<div style="font-size:10.5px;color:var(--tx3);">' . $sg . '</div></td>';
+        }
+        echo '</tr>';
+    }
+    echo '</table></div>';
+    echo '<p style="color:var(--tx3);font-size:12px;margin:10px 0 0;">Под процентом — сколько игр сыграно с этого места. Считаются вечера и турниры.</p>';
     echo '</div>';
 
     if (!$joint) {

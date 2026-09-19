@@ -192,7 +192,7 @@ if ($games) {
     uasort($standing, fn($a, $b) => [round($b['sum'], 2), round($b['sum_plus'], 2)] <=> [round($a['sum'], 2), round($a['sum_plus'], 2)]);
     // ELO в таблице вечера — ПО ИТОГАМ вечера (после последней игры), а не входной:
     // у дебютанта входной равен стартовой 1000 и колонка выглядела незаполненной.
-    // Рядом стоит «ЭЛО за вечер» — вместе они дают полную картину.
+    // Рядом стоит «ELO за вечер» — вместе они дают полную картину.
     $enterElo = event_exit_elo(array_column($games, 'id'));
     foreach ($standing as $pid => &$rowE) {
         if (isset($enterElo[$pid])) {
@@ -225,7 +225,7 @@ if ($games) {
     echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
         . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
-        . '<th class="num" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">ELO</th><th class="num" data-type="num">ЭЛО за вечер</th></tr></thead><tbody>';
+        . '<th class="num" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">ELO</th><th class="num" data-type="num">ELO за вечер</th></tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
