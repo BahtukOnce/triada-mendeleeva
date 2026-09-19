@@ -2,6 +2,7 @@
 require dirname(__DIR__, 2) . '/inc/bootstrap.php';
 require ROOT . '/inc/rating.php';
 require ROOT . '/inc/elo.php';
+require_once ROOT . '/inc/day_games.php'; // карточки игр — как на странице вечера
 require_once ROOT . '/inc/bot_lib.php'; // уведомление о подходе к 100 играм
 $u = require_judge();
 
@@ -691,29 +692,20 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
 </div>
 <?php endif; ?>
 
-<?php if ($games): ?>
-<div class="card">
-  <h2 style="margin-top:0;">Игры вечера (<?= count($games) ?>)</h2>
-  <table class="tbl">
-    <tr><th>№</th><th>Победа</th><th>Судья</th><th>ПУ</th><th></th></tr>
-    <?php $winLbl = ['red' => 'Красные', 'black' => 'Чёрные', 'draw' => 'Ничья'];
-    foreach ($games as $g): ?>
-      <tr>
-        <td><?= (int)$g['game_no'] ?></td>
-        <td><?= $g['winner'] ? $winLbl[$g['winner']] : '—' ?></td>
-        <td><?= esc($g['judge_nick'] ?? '—') ?></td>
-        <td><?= $g['first_killed_seat'] ? 'место ' . (int)$g['first_killed_seat'] : 'промах' ?></td>
-        <td>
-          <a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/protocol.php?day=<?= $dayId ?>&game=<?= (int)$g['id'] ?>">Изменить</a>
-          <form method="post" action="/admin/protocol.php?day=<?= $dayId ?>" style="display:inline;" onsubmit="return confirm('Удалить игру?');"><?= csrf_field() ?>
-            <input type="hidden" name="form" value="delete_game"><input type="hidden" name="game_id" value="<?= (int)$g['id'] ?>">
-            <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button>
-          </form>
-        </td>
-      </tr>
-    <?php endforeach; ?>
-  </table>
-</div>
+<?php if ($games):
+    // Игры вечера — такими же плашками, как на странице вечера (просьба руководителя): весь стол,
+    // роли, итоги и ЛХ видны сразу. Правка и удаление — в шапке карточки, правящаяся игра подсвечена.
+    $meP = current_player(); ?>
+<h2 style="margin:22px 0 4px;">Игры вечера (<?= count($games) ?>)</h2>
+<?php day_games_grid($games, day_games_seats(array_column($games, 'id')), $meP ? (int)$meP['id'] : 0,
+    fn(array $g) => ((int)$g['id'] === $editGid
+            ? '<span class="tag tag-open">правится</span>'
+            : '<a class="tag" href="/admin/protocol.php?day=' . $dayId . '&game=' . (int)$g['id'] . '">изменить</a>')
+        . ' <form method="post" action="/admin/protocol.php?day=' . $dayId . '" class="tag-form" onsubmit="return confirm(\'Удалить игру ' . (int)$g['game_no'] . '?\');">'
+        . csrf_field()
+        . '<input type="hidden" name="form" value="delete_game"><input type="hidden" name="game_id" value="' . (int)$g['id'] . '">'
+        . '<button class="tag tag-del" type="submit">удалить</button></form>',
+    $editGid); ?>
 <?php endif; ?>
 
 <script>
