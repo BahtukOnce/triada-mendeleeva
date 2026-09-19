@@ -91,6 +91,14 @@ function run_migrations(): array
                 require_once ROOT . '/inc/rating.php';
                 rating_recompute_all();
                 $log[] = 'rating recomputed';
+                // Если в имени есть ещё и «elo» — перестроить историю ELO. Сам по себе пересчёт
+                // рейтинга её не трогает, а при смене формулы (inc/elo.php) её надо пересобрать
+                // целиком: elo_history строится одним проходом по всем играм.
+                if (strpos($line, 'elo') !== false && is_file(ROOT . '/inc/elo.php')) {
+                    require_once ROOT . '/inc/elo.php';
+                    elo_recompute();
+                    $log[] = 'elo recomputed';
+                }
             } catch (Throwable $e) {
                 $log[] = 'recompute error: ' . $e->getMessage();
             }
