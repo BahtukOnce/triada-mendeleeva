@@ -189,8 +189,9 @@ function day_card_png(array $d): ?string
             $textX = 58.0 + $dw + 16;
         }
     }
-    day_card_text($im, 29, $textX, 74, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5);
-    day_card_text($im, 14, $textX + 2, 101, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 4.5);
+    // Обе строки опущены на 6px: логотип выше их блока, и так он смотрится соразмерно
+    day_card_text($im, 29, $textX, 80, $tx, $FBR, 'ТРИАДА МЕНДЕЛЕЕВА', 2.5);
+    day_card_text($im, 14, $textX + 2, 107, $ac, $FBR, 'ИТОГИ ВЕЧЕРА', 4.5);
 
     // Аватар справа (круглый)
     $avSize = 148;
