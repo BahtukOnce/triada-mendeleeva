@@ -766,8 +766,10 @@ select.f-win option[value="red"] { color: #ff9189; }
   background: rgba(230,177,58,.1); border: 1px solid rgba(230,177,58,.45); color: var(--tx2);
 }
 .draft-note b { color: #f2c75c; }
-.draft-card { border-color: rgba(230,177,58,.45); }
-.draft-card tr.draft-on td { background: rgba(230,177,58,.08); }
+/* Карточка черновика в сетке игр (протокол и страница вечера): пунктир — «ещё не игра». */
+.card.draft-game { border: 1px dashed rgba(230,177,58,.6); }
+.card.draft-game.game-on { border-style: solid; border-color: #f2c75c; box-shadow: inset 0 0 0 1px #f2c75c; }
+.draft-err { margin: 8px 0 0; font-size: 12px; line-height: 1.45; color: #f2c75c; }
 
 .site-footer { border-top: 1px solid var(--bd); background: var(--sf); margin-top: 40px; }
 .footer-row {

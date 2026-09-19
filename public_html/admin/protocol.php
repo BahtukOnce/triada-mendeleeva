@@ -328,17 +328,8 @@ $gamesSt = db()->prepare("SELECT g.*, jp.nickname AS judge_nick FROM games g
 $gamesSt->execute([$dayId]);
 $games = $gamesSt->fetchAll();
 
-// Черновики вечера (миграция 084). Пока таблицы нет (миграция не прошла) — просто без черновиков.
-$drafts = [];
-try {
-    $dq = db()->prepare('SELECT d.*, u.nickname AS by_nick FROM protocol_drafts d
-        LEFT JOIN users u ON u.id = d.updated_by
-        WHERE d.day_id = ? ORDER BY d.updated_at DESC, d.id DESC');
-    $dq->execute([$dayId]);
-    $drafts = $dq->fetchAll();
-} catch (Throwable $e) {
-    $drafts = [];
-}
+// Черновики вечера (миграция 084).
+$drafts = day_drafts($dayId);
 // Открытый черновик (?draft=): форма заполняется им, при сохранении игры он удаляется.
 $draft = null;
 $draftId = (int)($_GET['draft'] ?? 0);
@@ -545,6 +536,12 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
           <br>Поправить: <?= esc((string)$draft['errors']) ?>
         <?php endif; ?>
       </div>
+    <?php elseif ($drafts): ?>
+      <div class="draft-note">
+        <b>📝 У вечера <?= count($drafts) === 1 ? 'есть черновик' : 'есть черновики (' . count($drafts) . ')' ?></b> — игры с ошибками, в рейтинг не попали.
+        <a href="/admin/protocol.php?day=<?= $dayId ?>&draft=<?= (int)$drafts[0]['id'] ?>">Открыть<?= count($drafts) > 1 ? ' последний' : '' ?></a>
+        · <a href="#games">показать внизу</a>
+      </div>
     <?php endif; ?>
 
     <?php if ($rosterList): ?>
@@ -653,50 +650,24 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
   </div>
 </form>
 
-<?php if ($drafts): ?>
-<div class="card draft-card">
-  <h2 style="margin-top:0;">📝 Черновики (<?= count($drafts) ?>)</h2>
-  <p style="font-size:12.5px;color:var(--tx2);margin:-6px 0 10px;">Игры с ошибками или отложенные — в рейтинг и статистику не попали. Откройте, поправьте и сохраните.</p>
-  <table class="tbl">
-    <tr><th>Игра</th><th>Что поправить</th><th>Когда</th><th></th></tr>
-    <?php foreach ($drafts as $d):
-        $dData = json_decode((string)$d['data'], true);
-        $dPlayers = 0;
-        for ($i = 1; $i <= 10; $i++) {
-            if (is_array($dData) && trim((string)($dData["nick$i"] ?? '')) !== '') {
-                $dPlayers++;
-            }
-        }
-        $dGid = (int)$d['game_id'];
-        $dErr = trim((string)$d['errors']); ?>
-      <tr<?= (int)$d['id'] === $draftId ? ' class="draft-on"' : '' ?>>
-        <td style="white-space:nowrap;"><?= isset($gameNos[$dGid]) ? 'правка игры ' . $gameNos[$dGid] : 'новая игра' ?>
-          <div style="font-size:11.5px;color:var(--tx3);">за столом: <?= $dPlayers ?></div></td>
-        <td style="font-size:12.5px;color:var(--tx2);"><?= $dErr !== '' ? esc(mb_strimwidth($dErr, 0, 160, '…')) : 'отложена судьёй' ?></td>
-        <td style="white-space:nowrap;font-size:12.5px;color:var(--tx2);"><?= date('d.m H:i', strtotime((string)$d['updated_at'])) ?>
-          <?php if ($d['by_nick']): ?><div style="font-size:11.5px;color:var(--tx3);"><?= esc($d['by_nick']) ?></div><?php endif; ?></td>
-        <td style="white-space:nowrap;">
-          <?php if ((int)$d['id'] !== $draftId): ?>
-            <a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/protocol.php?day=<?= $dayId ?>&draft=<?= (int)$d['id'] ?>">Открыть</a>
-          <?php else: ?>
-            <span style="font-size:12px;color:var(--tx3);margin-right:6px;">открыт</span>
-          <?php endif; ?>
-          <form method="post" action="/admin/protocol.php?day=<?= $dayId ?>" style="display:inline;" onsubmit="return confirm('Удалить черновик? Введённое в нём пропадёт.');"><?= csrf_field() ?>
-            <input type="hidden" name="form" value="delete_draft"><input type="hidden" name="draft_id" value="<?= (int)$d['id'] ?>">
-            <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button>
-          </form>
-        </td>
-      </tr>
-    <?php endforeach; ?>
-  </table>
-</div>
-<?php endif; ?>
-
-<?php if ($games):
+<?php if ($games || $drafts):
     // Игры вечера — такими же плашками, как на странице вечера (просьба руководителя): весь стол,
     // роли, итоги и ЛХ видны сразу. Правка и удаление — в шапке карточки, правящаяся игра подсвечена.
-    $meP = current_player(); ?>
-<h2 style="margin:22px 0 4px;">Игры вечера (<?= count($games) ?>)</h2>
+    // Черновики — карточками в той же сетке, после игр.
+    $meP = current_player();
+    $draftHtml = '';
+    foreach ($drafts as $d) {
+        $draftHtml .= day_draft_card($d, $gameNos,
+            ((int)$d['id'] === $draftId
+                ? '<span class="tag tag-open">открыт</span>'
+                : '<a class="tag" href="/admin/protocol.php?day=' . $dayId . '&draft=' . (int)$d['id'] . '">открыть</a>')
+            . ' <form method="post" action="/admin/protocol.php?day=' . $dayId . '" class="tag-form" onsubmit="return confirm(\'Удалить черновик? Введённое в нём пропадёт.\');">'
+            . csrf_field()
+            . '<input type="hidden" name="form" value="delete_draft"><input type="hidden" name="draft_id" value="' . (int)$d['id'] . '">'
+            . '<button class="tag tag-del" type="submit">удалить</button></form>',
+            (int)$d['id'] === $draftId);
+    } ?>
+<h2 style="margin:22px 0 4px;" id="games">Игры вечера (<?= count($games) ?>)<?= $drafts ? ' <span style="color:#f2c75c;font-size:.8em;">· 📝 черновиков: ' . count($drafts) . '</span>' : '' ?></h2>
 <?php day_games_grid($games, day_games_seats(array_column($games, 'id')), $meP ? (int)$meP['id'] : 0,
     fn(array $g) => ((int)$g['id'] === $editGid
             ? '<span class="tag tag-open">правится</span>'
@@ -705,7 +676,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
         . csrf_field()
         . '<input type="hidden" name="form" value="delete_game"><input type="hidden" name="game_id" value="' . (int)$g['id'] . '">'
         . '<button class="tag tag-del" type="submit">удалить</button></form>',
-    $editGid); ?>
+    $editGid, $draftHtml); ?>
 <?php endif; ?>
 
 <script>

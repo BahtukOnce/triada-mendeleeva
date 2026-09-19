@@ -245,11 +245,20 @@ if ($games) {
 }
 
 // ── Игры вечера (сеткой) ──
-if ($games) {
+// Черновики протокола (игры с ошибками) — карточками в той же сетке, но только судьям: в рейтинг
+// они не попали и сами по себе с ошибками, игрокам показывать их рано.
+$drafts = $canEdit ? day_drafts($id) : [];
+if ($games || $drafts) {
+    $gameNos = array_column($games, 'game_no', 'id');
+    $draftHtml = '';
+    foreach ($drafts as $d) {
+        $draftHtml .= day_draft_card($d, $gameNos,
+            '<a class="tag" href="/admin/protocol.php?day=' . $id . '&draft=' . (int)$d['id'] . '">открыть</a>');
+    }
     echo '<h2>Игры вечера</h2>';
     day_games_grid($games, $seatsByGame, $mePid, $canEdit
         ? fn(array $g) => '<a class="tag" href="/admin/protocol.php?day=' . $id . '&game=' . (int)$g['id'] . '">изменить</a>'
-        : null);
+        : null, 0, $draftHtml);
 } else {
     empty_state('Протоколов пока нет', 'Игры этого вечера ещё не записаны.'
         . ($canEdit ? ' Нажмите «Вести / редактировать игры», чтобы добавить.' : ''));
