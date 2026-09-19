@@ -252,7 +252,7 @@ function day_card_png(array $d): ?string
         if ($em) {
             // Смайлик вровень с верхом букв: свисающий вниз смотрелся криво
             $es = (int)round($sizeNick * 1.02);
-            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es - 5, 0, 0, $es, $es, imagesx($em), imagesy($em));
+            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es - 2, 0, 0, $es, $es, imagesx($em), imagesy($em));
             imagedestroy($em);
         }
     }
