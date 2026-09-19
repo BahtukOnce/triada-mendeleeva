@@ -742,6 +742,14 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .protocol-tbl select.f-role option { background: var(--sf); color: var(--tx); font-weight: 600; }
 .protocol-tbl select.f-role option[value="civ"] { color: #ff9189; }
 .protocol-tbl select.f-role option[value="sheriff"] { color: #f2c75c; }
+/* Черновик протокола: плашка над таблицей открытого черновика и его строка в списке черновиков. */
+.draft-note {
+  margin: 0 0 12px; padding: 9px 12px; border-radius: 9px; font-size: 13px; line-height: 1.45;
+  background: rgba(230,177,58,.1); border: 1px solid rgba(230,177,58,.45); color: var(--tx2);
+}
+.draft-note b { color: #f2c75c; }
+.draft-card { border-color: rgba(230,177,58,.45); }
+.draft-card tr.draft-on td { background: rgba(230,177,58,.08); }
 
 .site-footer { border-top: 1px solid var(--bd); background: var(--sf); margin-top: 40px; }
 .footer-row {

@@ -156,6 +156,14 @@ $list = db_ready() ? db()->query('SELECT d.*,
         (SELECT COUNT(*) FROM day_registrations r WHERE r.day_id = d.id AND r.cancelled_at IS NULL) AS regs,
         (SELECT COUNT(*) FROM games g WHERE g.day_id = d.id) AS games
     FROM game_days d ORDER BY d.date DESC LIMIT 60')->fetchAll() : [];
+// Черновики протокола (игры с ошибками, миграция 084) — помечаем вечер, чтобы их не забыли доделать.
+$draftCnt = [];
+try {
+    foreach (db()->query('SELECT day_id, COUNT(*) AS c FROM protocol_drafts GROUP BY day_id')->fetchAll() as $dc) {
+        $draftCnt[(int)$dc['day_id']] = (int)$dc['c'];
+    }
+} catch (Throwable $e) {
+}
 
 $statusLabel = ['draft' => 'черновик', 'reg_open' => 'запись открыта', 'reg_closed' => 'запись закрыта',
     'live' => 'идёт', 'finished' => 'завершён'];
@@ -287,8 +295,11 @@ if ($list) {
         echo '<tr><td>' . date('d.m.Y', strtotime($d['date'])) . '</td>';
         echo '<td><a href="/day.php?id=' . (int)$d['id'] . '">' . esc($d['title']) . '</a></td>';
         echo '<td><span class="tag ' . ($d['status'] === 'reg_open' ? 'tag-open' : '') . '">' . $statusLabel[$d['status']] . '</span></td>';
-        echo '<td class="num">' . (int)$d['regs'] . '</td><td class="num">' . (int)$d['games'] . '</td><td>';
-        if (in_array($d['status'], ['reg_closed', 'live', 'finished'], true)) {
+        $dDrafts = $draftCnt[(int)$d['id']] ?? 0;
+        echo '<td class="num">' . (int)$d['regs'] . '</td><td class="num">' . (int)$d['games']
+            . ($dDrafts ? ' <span style="color:#f2c75c;white-space:nowrap;" title="черновики: игры с ошибками, в рейтинг не попали">+📝' . $dDrafts . '</span>' : '')
+            . '</td><td>';
+        if (in_array($d['status'], ['reg_closed', 'live', 'finished'], true) || $dDrafts) {
             echo '<a class="btn" style="padding:4px 12px;font-size:12px;" href="/admin/protocol.php?day=' . (int)$d['id'] . '">Вести игры</a> ';
         }
         foreach ($canManageDays ? $nextStatus[$d['status']] : [] as [$to, $lbl]) {

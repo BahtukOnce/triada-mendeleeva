@@ -16,10 +16,54 @@ if (!$day) {
     exit;
 }
 
+// Черновик протокола (protocol_drafts, миграция 084): сырые поля формы без служебных — в JSON.
+// Правка того же черновика ($draftId) обновляет его, иначе заводится новый. Возвращает id.
+function protocol_draft_save(int $dayId, int $gameId, int $draftId, array $post, array $errors, int $userId): int
+{
+    $keep = [];
+    foreach (['judge', 'winner', 'pu', 'bm1', 'bm2', 'bm3', 'comment'] as $k) {
+        if (isset($post[$k]) && !is_array($post[$k])) {
+            $keep[$k] = mb_substr((string)$post[$k], 0, 500);
+        }
+    }
+    for ($i = 1; $i <= 10; $i++) {
+        foreach (['nick', 'role', 'fouls', 'tech', 'bigtech', 'removal', 'plus', 'minus'] as $f) {
+            if (isset($post[$f . $i]) && !is_array($post[$f . $i])) {
+                $keep[$f . $i] = mb_substr((string)$post[$f . $i], 0, 80);
+            }
+        }
+    }
+    $json = json_encode($keep, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    $err = mb_substr(implode('; ', $errors), 0, 1000);
+    if ($draftId > 0) {
+        $ex = db()->prepare('SELECT id FROM protocol_drafts WHERE id = ? AND day_id = ?');
+        $ex->execute([$draftId, $dayId]);
+        if ($ex->fetchColumn()) {
+            db()->prepare('UPDATE protocol_drafts SET data = ?, errors = ?, game_id = ?, updated_by = ? WHERE id = ?')
+                ->execute([$json, $err, $gameId ?: null, $userId, $draftId]);
+            return $draftId;
+        }
+    }
+    db()->prepare('INSERT INTO protocol_drafts (day_id, game_id, data, errors, updated_by) VALUES (?,?,?,?,?)')
+        ->execute([$dayId, $gameId ?: null, $json, $err, $userId]);
+    return (int)db()->lastInsertId();
+}
+
 // ── Сохранение игры ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $form = (string)($_POST['form'] ?? '');
+
+    if ($form === 'delete_draft') {
+        $did = (int)($_POST['draft_id'] ?? 0);
+        try {
+            db()->prepare('DELETE FROM protocol_drafts WHERE id = ? AND day_id = ?')->execute([$did, $dayId]);
+        } catch (Throwable $e) {
+        }
+        log_action((int)$u['id'], 'protocol_draft_delete', ['draft_id' => $did, 'day_id' => $dayId]);
+        flash_set('ok', 'Черновик удалён');
+        redirect('/admin/protocol.php?day=' . $dayId);
+    }
 
     if ($form === 'delete_game') {
         $gid = (int)($_POST['game_id'] ?? 0);
@@ -61,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // «Уже за столом»: известных сверяем по id, новых — по нику без регистра.
             $dupKey = $pid ? 'p' . $pid : 'n' . mb_strtolower($nick);
             if (isset($usedPlayers[$dupKey])) {
-                $errors[] = "Место $i: игрок «" . esc($nick) . "» уже за столом";
+                $errors[] = "Место $i: игрок «" . $nick . "» уже за столом";   // flash и черновик экранируют сами
                 continue;
             }
             $usedPlayers[$dupKey] = true;
@@ -104,17 +148,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Игра, если редактируем, должна принадлежать ЭТОМУ вечеру — иначе последующие
         // DELETE/INSERT game_seats по game_id из POST затрут чужую игру (UPDATE с
         // «AND day_id» молча не сработает, но seats всё равно перезапишутся).
+        $foreignGame = false;
         if ($gid) {
             $own = db()->prepare('SELECT 1 FROM games WHERE id = ? AND day_id = ?');
             $own->execute([$gid, $dayId]);
             if (!$own->fetchColumn()) {
                 $errors[] = 'Игра не принадлежит этому вечеру';
+                $foreignGame = true;
             }
         }
 
-        if ($errors) {
+        // Черновик (решение руководителя): игра с ошибками не теряется, а ложится черновиком вечера —
+        // его видит и может доделать любой судья, в рейтинг и статистику он не попадает. Кнопкой
+        // «📝 В черновик» судья откладывает и игру без ошибок. Подменённую чужую игру не сохраняем.
+        $asDraft = !empty($_POST['as_draft']);
+        if ($errors || $asDraft) {
+            $draftId = 0;
+            if (!$foreignGame) {
+                try {
+                    $draftId = protocol_draft_save($dayId, $gid, (int)($_POST['draft_id'] ?? 0), $_POST, $errors, (int)$u['id']);
+                } catch (Throwable $e) {
+                    $draftId = 0;   // таблицы черновиков ещё нет — по-старому, через сессию
+                }
+            }
+            if ($draftId > 0) {
+                log_action((int)$u['id'], 'protocol_draft_save', ['draft_id' => $draftId, 'day_id' => $dayId, 'game_id' => $gid]);
+                if ($asDraft) {
+                    flash_set('ok', '📝 Черновик сохранён' . ($errors ? '. Перед сохранением игры поправить: ' . implode('; ', $errors) : ''));
+                } else {
+                    flash_set('err', '📝 В игре ошибки — она сохранена черновиком и в рейтинг не попала. Поправьте и сохраните: ' . implode('; ', $errors));
+                }
+                redirect('/admin/protocol.php?day=' . $dayId . '&draft=' . $draftId);
+            }
             $_SESSION['protocol_old'] = $_POST; // не терять введённое: восстановим форму после redirect
-            flash_set('err', implode('; ', $errors));
+            flash_set('err', $errors ? implode('; ', $errors) : 'Черновик не сохранился — попробуйте ещё раз');
             redirect('/admin/protocol.php?day=' . $dayId . ($gid ? '&game=' . $gid : ''));
         }
 
@@ -127,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($newPid <= 0) {
                 $pdo->rollBack();
                 $_SESSION['protocol_old'] = $_POST;
-                flash_set('err', 'Не удалось добавить игрока «' . esc($newNick) . '»');
+                flash_set('err', 'Не удалось добавить игрока «' . $newNick . '»');
                 redirect('/admin/protocol.php?day=' . $dayId . ($gid ? '&game=' . $gid : ''));
             }
             $seats[$seatNo]['player_id'] = $newPid;
@@ -169,6 +236,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $oldOut[(int)$s['player_id']] ?? null]);
         }
         $pdo->commit();
+
+        // Игра сохранена из черновика — черновик больше не нужен.
+        $postedDraft = (int)($_POST['draft_id'] ?? 0);
+        if ($postedDraft > 0) {
+            try {
+                db()->prepare('DELETE FROM protocol_drafts WHERE id = ? AND day_id = ?')->execute([$postedDraft, $dayId]);
+            } catch (Throwable $e) {
+            }
+        }
 
         // Страховка для вечеров, созданных до появления автопривязки (или другим путём):
         // без строки в rating_days игра не попала бы в клубный рейтинг, а сообщение
@@ -251,10 +327,42 @@ $gamesSt = db()->prepare("SELECT g.*, jp.nickname AS judge_nick FROM games g
 $gamesSt->execute([$dayId]);
 $games = $gamesSt->fetchAll();
 
+// Черновики вечера (миграция 084). Пока таблицы нет (миграция не прошла) — просто без черновиков.
+$drafts = [];
+try {
+    $dq = db()->prepare('SELECT d.*, u.nickname AS by_nick FROM protocol_drafts d
+        LEFT JOIN users u ON u.id = d.updated_by
+        WHERE d.day_id = ? ORDER BY d.updated_at DESC, d.id DESC');
+    $dq->execute([$dayId]);
+    $drafts = $dq->fetchAll();
+} catch (Throwable $e) {
+    $drafts = [];
+}
+// Открытый черновик (?draft=): форма заполняется им, при сохранении игры он удаляется.
+$draft = null;
+$draftId = (int)($_GET['draft'] ?? 0);
+foreach ($drafts as $d) {
+    if ((int)$d['id'] === $draftId) {
+        $draft = $d;
+    }
+}
+if (!$draft) {
+    $draftId = 0;
+}
+$gameNos = [];
+foreach ($games as $g) {
+    $gameNos[(int)$g['id']] = (int)$g['game_no'];
+}
+
 // Редактируемая игра
 $editGame = null;
 $editSeats = [];
 $editGid = (int)($_GET['game'] ?? 0);
+if ($draft) {
+    // Черновик правки существующей игры — правим её же; если игру тем временем удалили,
+    // черновик сохранится новой игрой.
+    $editGid = isset($gameNos[(int)$draft['game_id']]) ? (int)$draft['game_id'] : 0;
+}
 if ($editGid) {
     foreach ($games as $g) {
         if ((int)$g['id'] === $editGid) {
@@ -270,11 +378,17 @@ if ($editGid) {
         }
     }
 }
+if (!$editGame) {
+    $editGid = 0;   // чужая или удалённая игра — форма новой игры
+}
 
 // Восстановление введённого после ошибки валидации (одноразово, из сессии) —
 // иначе redirect с flash стирал всю заполненную форму на 10 игроков.
 $old = $_SESSION['protocol_old'] ?? null;
 unset($_SESSION['protocol_old']);
+if ($draft) {
+    $old = json_decode((string)$draft['data'], true);
+}
 if (is_array($old)) {
     $editGame = is_array($editGame) ? $editGame : [];
     $editGame['judge_player_id'] = (int)($old['judge'] ?? 0);
@@ -297,6 +411,55 @@ if (is_array($old)) {
         ];
     }
 }
+
+// Судья (просьба руководителя): не вся база в ~250 ников, а судящие — сверху те, кто судил вечера
+// сезона этого вечера (по числу игр), ниже остальные с правом вести протоколы: новый судья выберет
+// себя и с нулём игр. Гостевой судья — через «Другой игрок…», JS раскроет всю базу.
+[$jsFrom, $jsTo] = current_season_bounds((string)$day['date']);
+$judgeCnt = [];
+$jc = db()->prepare('SELECT g.judge_player_id AS pid, COUNT(*) AS c FROM games g
+    JOIN game_days d ON d.id = g.day_id
+    WHERE g.judge_player_id IS NOT NULL AND d.date BETWEEN ? AND ?
+    GROUP BY g.judge_player_id');
+$jc->execute([$jsFrom, $jsTo]);
+foreach ($jc->fetchAll() as $r) {
+    $judgeCnt[(int)$r['pid']] = (int)$r['c'];
+}
+$judgeClub = [];
+try {
+    $jr = db()->query("SELECT p.id FROM players p JOIN users u ON u.id = p.user_id
+        WHERE u.is_judge = 1 OR u.role IN ('judge','admin','deputy','owner')");
+    foreach ($jr->fetchAll(PDO::FETCH_COLUMN) as $jpid) {
+        $judgeClub[(int)$jpid] = true;
+    }
+} catch (Throwable $e) {
+}
+$nickById = array_column($allPlayers, 'nickname', 'id');
+$selJudge = (int)($editGame['judge_player_id'] ?? 0);
+if ($selJudge > 0 && !isset($nickById[$selJudge])) {
+    // Судья игры забанен и в $allPlayers его нет — всё равно показываем, иначе правка игры молча
+    // стёрла бы судью.
+    $jn = db()->prepare('SELECT nickname FROM players WHERE id = ?');
+    $jn->execute([$selJudge]);
+    $jnick = $jn->fetchColumn();
+    if ($jnick !== false) {
+        $nickById[$selJudge] = (string)$jnick;
+    }
+}
+$judgeSeason = [];   // [id, ник, игр] — судили в этом сезоне
+$judgeOther = [];    // [id, ник] — судьи клуба без игр в сезоне (и выбранный судья вне списков)
+foreach ($judgeCnt as $jpid => $jcnt) {
+    if (isset($nickById[$jpid])) {
+        $judgeSeason[] = [$jpid, (string)$nickById[$jpid], $jcnt];
+    }
+}
+usort($judgeSeason, fn($a, $b) => ($b[2] <=> $a[2]) ?: strcmp(mb_strtolower($a[1]), mb_strtolower($b[1])));
+foreach ($judgeClub + ($selJudge > 0 ? [$selJudge => true] : []) as $jpid => $_) {
+    if (!isset($judgeCnt[$jpid]) && isset($nickById[$jpid])) {
+        $judgeOther[] = [$jpid, (string)$nickById[$jpid]];
+    }
+}
+usort($judgeOther, fn($a, $b) => strcmp(mb_strtolower($a[1]), mb_strtolower($b[1])));
 
 $roleOpts = ['civ' => 'Мирный', 'maf' => 'Мафия', 'sheriff' => 'Шериф', 'don' => 'Дон'];
 
@@ -340,6 +503,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
   <?= csrf_field() ?>
   <input type="hidden" name="form" value="save_game">
   <input type="hidden" name="game_id" value="<?= $editGid ?>">
+  <input type="hidden" name="draft_id" value="<?= $draftId ?>">
 
   <datalist id="players-dl">
     <?php foreach ($suggest as $snick): ?>
@@ -349,17 +513,38 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
 
   <div class="card">
     <div class="section-head" style="margin-bottom:10px;">
-      <h2 style="margin:0;"><?= $editGame ? 'Игра ' . (int)$editGame['game_no'] : 'Новая игра ' . (count($games) + 1) ?></h2>
+      <h2 style="margin:0;"><?= $draft ? '📝 Черновик · ' : '' ?><?= $editGid ? 'Игра ' . (int)$gameNos[$editGid] : 'Новая игра ' . (count($games) + 1) ?></h2>
       <div style="display:flex;gap:8px;align-items:center;">
         <label style="font-size:13px;color:var(--tx2);">Судья:</label>
-        <select name="judge" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;">
+        <select name="judge" id="f-judge" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;">
           <option value="0">—</option>
-          <?php foreach ($allPlayers as $p): ?>
-            <option value="<?= (int)$p['id'] ?>" <?= $editGame && (int)$editGame['judge_player_id'] === (int)$p['id'] ? 'selected' : '' ?>><?= esc($p['nickname']) ?></option>
-          <?php endforeach; ?>
+          <?php if ($judgeSeason): ?>
+            <optgroup label="Судили в этом сезоне">
+              <?php foreach ($judgeSeason as [$jpid, $jnick, $jcnt]): ?>
+                <option value="<?= $jpid ?>" <?= $selJudge === $jpid ? 'selected' : '' ?>><?= esc($jnick) ?> · <?= $jcnt ?></option>
+              <?php endforeach; ?>
+            </optgroup>
+          <?php endif; ?>
+          <?php if ($judgeOther): ?>
+            <optgroup label="<?= $judgeSeason ? 'Ещё судьи клуба' : 'Судьи клуба' ?>">
+              <?php foreach ($judgeOther as [$jpid, $jnick]): ?>
+                <option value="<?= $jpid ?>" <?= $selJudge === $jpid ? 'selected' : '' ?>><?= esc($jnick) ?></option>
+              <?php endforeach; ?>
+            </optgroup>
+          <?php endif; ?>
+          <option value="more">Другой игрок…</option>
         </select>
       </div>
     </div>
+
+    <?php if ($draft): ?>
+      <div class="draft-note">
+        <b>📝 Черновик</b> — в рейтинг и статистику не попал<?= $draft['by_nick'] ? ' · ' . esc($draft['by_nick']) : '' ?>, <?= date('d.m H:i', strtotime((string)$draft['updated_at'])) ?>.
+        <?php if (trim((string)$draft['errors']) !== ''): ?>
+          <br>Поправить: <?= esc((string)$draft['errors']) ?>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
 
     <?php if ($rosterList): ?>
       <p style="font-size:12.5px;color:var(--tx2);margin:0 0 10px;">Записаны:
@@ -443,7 +628,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
       </div>
       <div class="field" style="margin:0;">
         <label>Победа</label>
-        <select name="winner" id="f-winner" required style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;">
+        <select name="winner" id="f-winner" style="background:var(--sf2);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;">
           <option value="">—</option>
           <option value="red" <?= ($editGame['winner'] ?? '') === 'red' ? 'selected' : '' ?>>Красные</option>
           <option value="black" <?= ($editGame['winner'] ?? '') === 'black' ? 'selected' : '' ?>>Чёрные</option>
@@ -457,14 +642,54 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
       <input type="text" name="comment" value="<?= esc($editGame['comment'] ?? '') ?>">
     </div>
 
-    <div style="margin-top:14px;display:flex;gap:10px;">
-      <button class="btn" type="submit"><?= $editGame ? 'Сохранить изменения' : 'Сохранить игру' ?></button>
-      <?php if ($editGame): ?><a class="btn btn-ghost" href="/admin/protocol.php?day=<?= $dayId ?>">Отмена</a><?php endif; ?>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn" type="submit"><?= $editGid ? 'Сохранить изменения' : 'Сохранить игру' ?></button>
+      <button class="btn btn-ghost" type="submit" name="as_draft" value="1" title="Отложить: игра не попадёт в рейтинг, пока её не сохранят">📝 В черновик</button>
+      <?php if ($editGid || $draft): ?><a class="btn btn-ghost" href="/admin/protocol.php?day=<?= $dayId ?>"><?= $draft ? 'Закрыть черновик' : 'Отмена' ?></a><?php endif; ?>
     </div>
     <p style="font-size:12px;color:var(--tx2);margin:10px 0 0;">Ci (компенсация ПУ) считается автоматически при сохранении. Итог в таблице — предварительный, без Ci.<br>
       Штрафы: 4 фола −0.6 · тех −0.3 · бол.тех −0.6 (макс 2) · <b>уд</b> (удаление) −0.6 · <b>уд!</b> (на критический круг) −1.2.</p>
   </div>
 </form>
+
+<?php if ($drafts): ?>
+<div class="card draft-card">
+  <h2 style="margin-top:0;">📝 Черновики (<?= count($drafts) ?>)</h2>
+  <p style="font-size:12.5px;color:var(--tx2);margin:-6px 0 10px;">Игры с ошибками или отложенные — в рейтинг и статистику не попали. Откройте, поправьте и сохраните.</p>
+  <table class="tbl">
+    <tr><th>Игра</th><th>Что поправить</th><th>Когда</th><th></th></tr>
+    <?php foreach ($drafts as $d):
+        $dData = json_decode((string)$d['data'], true);
+        $dPlayers = 0;
+        for ($i = 1; $i <= 10; $i++) {
+            if (is_array($dData) && trim((string)($dData["nick$i"] ?? '')) !== '') {
+                $dPlayers++;
+            }
+        }
+        $dGid = (int)$d['game_id'];
+        $dErr = trim((string)$d['errors']); ?>
+      <tr<?= (int)$d['id'] === $draftId ? ' class="draft-on"' : '' ?>>
+        <td style="white-space:nowrap;"><?= isset($gameNos[$dGid]) ? 'правка игры ' . $gameNos[$dGid] : 'новая игра' ?>
+          <div style="font-size:11.5px;color:var(--tx3);">за столом: <?= $dPlayers ?></div></td>
+        <td style="font-size:12.5px;color:var(--tx2);"><?= $dErr !== '' ? esc(mb_strimwidth($dErr, 0, 160, '…')) : 'отложена судьёй' ?></td>
+        <td style="white-space:nowrap;font-size:12.5px;color:var(--tx2);"><?= date('d.m H:i', strtotime((string)$d['updated_at'])) ?>
+          <?php if ($d['by_nick']): ?><div style="font-size:11.5px;color:var(--tx3);"><?= esc($d['by_nick']) ?></div><?php endif; ?></td>
+        <td style="white-space:nowrap;">
+          <?php if ((int)$d['id'] !== $draftId): ?>
+            <a class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" href="/admin/protocol.php?day=<?= $dayId ?>&draft=<?= (int)$d['id'] ?>">Открыть</a>
+          <?php else: ?>
+            <span style="font-size:12px;color:var(--tx3);margin-right:6px;">открыт</span>
+          <?php endif; ?>
+          <form method="post" action="/admin/protocol.php?day=<?= $dayId ?>" style="display:inline;" onsubmit="return confirm('Удалить черновик? Введённое в нём пропадёт.');"><?= csrf_field() ?>
+            <input type="hidden" name="form" value="delete_draft"><input type="hidden" name="draft_id" value="<?= (int)$d['id'] ?>">
+            <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--ac);" type="submit">Удалить</button>
+          </form>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+  </table>
+</div>
+<?php endif; ?>
 
 <?php if ($games): ?>
 <div class="card">
@@ -574,6 +799,19 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
   // ── Данные для подсказки ника: вся база (сверяться надо со всеми, а предлагать — недавних),
   // аватары и сегодняшние участники.
   var allNicks = <?= json_encode(array_column($allPlayers, 'nickname'), $jsonFlags) ?: '[]' ?>;
+
+  // «Другой игрок…» в списке судей: гостевой судья — раскрываем всю базу игроков.
+  var judgeSel = document.getElementById('f-judge');
+  var allPlayerIds = <?= json_encode(array_map('intval', array_column($allPlayers, 'id')), $jsonFlags) ?: '[]' ?>;
+  judgeSel.addEventListener('change', function () {
+    if (judgeSel.value !== 'more') return;
+    var html = '<option value="0">—</option>';
+    allNicks.forEach(function (n, i) { html += '<option value="' + allPlayerIds[i] + '">' + escHtml(n) + '</option>'; });
+    judgeSel.innerHTML = html;
+    judgeSel.value = '0';
+    judgeSel.focus();
+    try { judgeSel.showPicker(); } catch (e) {}
+  });
   var nickAvatars = <?= json_encode((object)$nickAvatars, $jsonFlags) ?: '{}' ?>;
   var todayNicks = {};
   (<?= json_encode($todayNicks, $jsonFlags) ?: '[]' ?>).forEach(function (n) { todayNicks[String(n).toLowerCase()] = true; });
