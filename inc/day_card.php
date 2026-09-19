@@ -250,9 +250,9 @@ function day_card_png(array $d): ?string
     if ($emoji) {
         $em = @imagecreatefrompng($emoji);
         if ($em) {
-            // Смайлик вровень с верхом букв: свисающий вниз смотрелся криво
-            $es = (int)round($sizeNick * 1.02);
-            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es - 4, 0, 0, $es, $es, imagesx($em), imagesy($em));
+            // Смайлик — по высоте строчных букв и стоит ровно на базовой линии ника
+            $es = (int)round($sizeNick * 0.72);
+            imagecopyresampled($im, $em, (int)round($nickEnd) + 14, $nickBase - $es, 0, 0, $es, $es, imagesx($em), imagesy($em));
             imagedestroy($em);
         }
     }
