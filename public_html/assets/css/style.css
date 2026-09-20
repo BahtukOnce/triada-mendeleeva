@@ -1022,7 +1022,11 @@ body::before {
 .vs-player:hover { color: var(--tx); border-color: var(--ac); }
 .vs-name { font-weight: 700; font-size: 17px; max-width: 100%; overflow-wrap: anywhere; }
 .vs-elo { font-size: 13px; color: var(--tx2); }
+/* Жёсткие колонки: иначе ширину подбирало содержимое, и названия показателей уезжали
+   от центра тем сильнее, чем длиннее числа с одной стороны. */
+.vs-tbl { table-layout: fixed; }
 .vs-tbl td { padding: 9px 12px; }
+.vs-tbl .vs-a, .vs-tbl .vs-b { width: 33%; }
 .vs-tbl .vs-mid { text-align: center; color: var(--tx2); font-size: 12.5px; width: 34%; }
 .vs-tbl .vs-a { text-align: right; }
 .vs-tbl .vs-b { text-align: left; }
