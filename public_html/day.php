@@ -181,22 +181,26 @@ if ($games) {
         $tt = game_display_totals($g, $seats);
         foreach ($seats as $s) {
             $pid = (int)$s['player_id'];
-            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'flair' => $s['flair'] ?? '', 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0, 'sum_plus' => 0.0,
-                'g_civ' => 0, 'w_civ' => 0, 'd_civ' => 0.0, 'g_sheriff' => 0, 'w_sheriff' => 0, 'd_sheriff' => 0.0,
-                'g_maf' => 0, 'w_maf' => 0, 'd_maf' => 0.0, 'g_don' => 0, 'w_don' => 0, 'd_don' => 0.0];
+            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'flair' => $s['flair'] ?? '', 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0, 'sum_plus' => 0.0, 'bonus' => 0.0,
+                'g_civ' => 0, 'w_civ' => 0, 'p_civ' => 0.0, 'g_sheriff' => 0, 'w_sheriff' => 0, 'p_sheriff' => 0.0,
+                'g_maf' => 0, 'w_maf' => 0, 'p_maf' => 0.0, 'g_don' => 0, 'w_don' => 0, 'p_don' => 0.0];
             $cell = $tt[(int)$s['seat']] ?? [];
+            $role = (string)$s['role'];
+            $isRedSeat = in_array($role, ROLE_RED, true);
+            $won = $g['winner'] !== null && $g['winner'] !== 'draw' && (($g['winner'] === 'red') === $isRedSeat);
             $standing[$pid]['games']++;
             $standing[$pid]['sum'] += $cell['total'] ?? 0;
             $standing[$pid]['sum_plus'] += (float)$s['plus'] + (float)($cell['lh'] ?? 0) + (float)($cell['ci'] ?? 0);
+            // Доп-баллы = всё сверх победного балла: допы, ЛХ и Ci за вычетом минусов и б/теха.
+            // По ним считается MVP вечера — минуса тоже идут в зачёт (решение руководителя).
+            $standing[$pid]['bonus'] += (float)($cell['total'] ?? 0) - ($won ? 1.0 : 0.0);
             // По ролям — для номинаций вечера
-            $role = (string)$s['role'];
             if (isset($standing[$pid]['g_' . $role])) {
-                $isRedSeat = in_array($role, ROLE_RED, true);
                 $standing[$pid]['g_' . $role]++;
-                if ($g['winner'] !== 'draw' && (($g['winner'] === 'red') === $isRedSeat)) {
+                if ($won) {
                     $standing[$pid]['w_' . $role]++;
                 }
-                $standing[$pid]['d_' . $role] += (float)$s['plus'];
+                $standing[$pid]['p_' . $role] += (float)($cell['total'] ?? 0);   // баллы, набранные в этой роли
             }
         }
     }
@@ -235,38 +239,59 @@ if ($games) {
         return '<span style="color:' . ($r > 0 ? 'var(--ok)' : 'var(--ac)') . ';font-weight:600;">' . ($r > 0 ? '+' : '−') . abs($r) . '</span>';
     };
     // ── Номинации вечера: MVP и лучшие в ролях именно за этот день (просьба руководителя).
-    // Правила те же, что у клубных: винрейт в роли, при равенстве — больше игр в роли,
-    // затем больше допов за неё. Порог — одна игра: за вечер ролей у человека мало.
-    $bestRole = function (string $rk) use ($standing) {
+    // Считаем по БАЛЛАМ, а не по винрейту: в роли за вечер одна-две игры, и «100%» ничего не значит.
+    // Роли — по сумме баллов, набранных именно в этой роли; при равенстве выше тот, у кого больше
+    // побед, затем — кто набрал их за меньшее число игр. MVP — по доп-баллам (см. ниже).
+    $bestRole = function (string $rk, string $hint) use ($standing) {
         $best = null;
-        $bw = -1.0;
         foreach ($standing as $pid => $r) {
-            $g = (int)$r['g_' . $rk];
-            if ($g < 1) {
+            if ((int)$r['g_' . $rk] < 1) {
                 continue;
             }
-            $wr = (int)$r['w_' . $rk] / $g;
-            $better = $wr > $bw + 1e-9;
-            if (!$better && $best && abs($wr - $bw) < 1e-9) {
-                $bg = (int)$standing[$best]['g_' . $rk];
-                $better = $g > $bg
-                    || ($g === $bg && (float)$r['d_' . $rk] > (float)$standing[$best]['d_' . $rk] + 1e-9);
+            if ($best === null) {
+                $best = $pid;
+                continue;
             }
+            $b = $standing[$best];
+            $d = (float)$r['p_' . $rk] - (float)$b['p_' . $rk];
+            $better = $d > 1e-9 || (abs($d) < 1e-9 && ((int)$r['w_' . $rk] > (int)$b['w_' . $rk]
+                    || ((int)$r['w_' . $rk] === (int)$b['w_' . $rk] && (int)$r['g_' . $rk] < (int)$b['g_' . $rk])));
             if ($better) {
-                $bw = $wr;
                 $best = $pid;
             }
         }
-        return $best === null ? null : [$best, $bw, (int)$standing[$best]['g_' . $rk]];
+        if ($best === null) {
+            return null;
+        }
+        $cnt = (int)$standing[$best]['g_' . $rk];
+        return [$best, 'Σ ' . number_format((float)$standing[$best]['p_' . $rk], 2) . ' ' . $hint
+            . ' · ' . $cnt . ' ' . ru_plural($cnt, 'игра', 'игры', 'игр')];
     };
-    $mvpPid = array_key_first($standing);
+    // MVP вечера — по дополнительным баллам (допы + ЛХ + Ci минус минуса и б/тех): побеждает не тот,
+    // кому повезло с командой, а тот, кто наиграл сверх победного балла. Тай-брейк — Σ, затем меньше игр.
+    $mvpPid = null;
+    foreach ($standing as $pid => $r) {
+        if ($mvpPid === null) {
+            $mvpPid = $pid;
+            continue;
+        }
+        $b = $standing[$mvpPid];
+        $d = (float)$r['bonus'] - (float)$b['bonus'];
+        $ds = (float)$r['sum'] - (float)$b['sum'];
+        if ($d > 1e-9 || (abs($d) < 1e-9
+                && ($ds > 1e-9 || (abs($ds) < 1e-9 && (int)$r['games'] < (int)$b['games'])))) {
+            $mvpPid = $pid;
+        }
+    }
     $dayNoms = [
-        ['🥇 MVP вечера', $mvpPid === null ? null : [$mvpPid, null, (int)$standing[$mvpPid]['games']],
-            $mvpPid === null ? '' : 'Σ ' . number_format((float)$standing[$mvpPid]['sum'], 2) . ' за вечер'],
-        ['😈 Лучший дон', $bestRole('don'), 'за дона'],
-        ['🌟 Лучший шериф', $bestRole('sheriff'), 'за шерифа'],
-        ['🔴 Лучший красный', $bestRole('civ'), 'за мирного'],
-        ['⚫ Лучший чёрный', $bestRole('maf'), 'за мафию'],
+        ['🥇 MVP вечера', $mvpPid === null ? null : [$mvpPid,
+            'допы ' . ((float)$standing[$mvpPid]['bonus'] < -1e-9 ? '−' : '+')
+            . number_format(abs((float)$standing[$mvpPid]['bonus']), 2)
+            . ' · Σ ' . number_format((float)$standing[$mvpPid]['sum'], 2) . ' за вечер']],
+        ['😈 Лучший дон', $bestRole('don', 'за дона')],
+        ['🌟 Лучший шериф', $bestRole('sheriff', 'за шерифа')],
+        ['🔴 Лучший красный', $bestRole('civ', 'за мирного')],
+        ['⚫ Лучший чёрный', $bestRole('maf', 'за мафию')],
     ];
     $hasNoms = false;
     foreach ($dayNoms as $n) {
@@ -277,11 +302,11 @@ if ($games) {
     if ($hasNoms) {
         echo '<h2 style="margin-bottom:10px;">Номинации вечера</h2>';
         echo '<div class="noms-grid">';
-        foreach ($dayNoms as [$title, $data, $hint]) {
+        foreach ($dayNoms as [$title, $data]) {
             if (!$data) {
                 continue;
             }
-            [$pid, $wr, $cnt] = $data;
+            [$pid, $meta] = $data;
             $row = $standing[$pid];
             echo '<div class="nom-card">';
             echo '<div class="nom-title">' . $title . '</div>';
@@ -289,9 +314,7 @@ if ($games) {
                 . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 34)
                 . '<span>' . esc((string)$row['nick'])
                 . ($row['flair'] !== '' ? ' <span class="flair">' . esc((string)$row['flair']) . '</span>' : '') . '</span></a>';
-            echo '<div class="nom-meta">'
-                . ($wr !== null ? round($wr * 100) . '% · ' . $hint . ' · ' . $cnt . ' ' . ru_plural($cnt, 'игра', 'игры', 'игр') : esc($hint))
-                . '</div>';
+            echo '<div class="nom-meta">' . esc($meta) . '</div>';
             echo '</div>';
         }
         echo '</div>';
