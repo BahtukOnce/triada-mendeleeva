@@ -465,7 +465,10 @@
     menu.className = 'ss-menu'; menu.hidden = true;
     wrap.appendChild(menu);
     var opts = Array.prototype.map.call(sel.options, function (o) {
-      return { value: o.value, text: o.text, low: o.text.toLowerCase() };
+      return {
+        value: o.value, text: o.text, low: o.text.toLowerCase(),
+        ava: o.getAttribute('data-ava') || '', flair: o.getAttribute('data-flair') || ''
+      };
     });
     function isEmpty(v) { return v === '' || v === '0'; }
     function sync() {
@@ -503,7 +506,27 @@
         found.push(o);
         var it = document.createElement('div');
         it.className = 'ss-item' + (o.value === sel.value ? ' sel' : '');
-        it.textContent = o.text;
+        // С аватаркой — как подсказка ника в протоколе; без файла аватара кружок с буквой
+        if (o.ava || o.flair || o.value) {
+          var av = document.createElement('span');
+          av.className = 'ss-ava';
+          if (o.ava) {
+            var img = document.createElement('img');
+            img.src = o.ava;
+            img.alt = '';
+            av.appendChild(img);
+          } else {
+            var c = document.createElement('span');
+            c.className = 'avatar-circle';
+            c.textContent = (Array.from(o.text)[0] || '?').toUpperCase();
+            av.appendChild(c);
+          }
+          it.appendChild(av);
+        }
+        var nm = document.createElement('span');
+        nm.className = 'ss-name';
+        nm.textContent = o.text + (o.flair ? ' ' + o.flair : '');
+        it.appendChild(nm);
         it.addEventListener('mousedown', function (e) { e.preventDefault(); choose(o); });
         menu.appendChild(it);
       });

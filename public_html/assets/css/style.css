@@ -655,6 +655,10 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .ss-wrap { position: relative; }
 .ss-menu { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; margin-top: 4px; max-height: 260px; overflow-y: auto; background: var(--sf); border: 1px solid var(--bd); border-radius: 10px; box-shadow: 0 16px 44px rgba(0,0,0,.55); }
 .ss-item { padding: 9px 12px; cursor: pointer; font-size: 14px; color: var(--tx); }
+.ss-item { display: flex; align-items: center; gap: 9px; }
+.ss-ava { flex: none; width: 26px; height: 26px; }
+.ss-ava img, .ss-ava .avatar-circle { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; font-size: 11px; }
+.ss-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-item:hover, .ss-item.sel, .ss-item.on { background: var(--sf2); }
 .ss-item.on { box-shadow: inset 2px 0 0 var(--ac); }   /* по нему сработает Enter */
 .ss-item.sel { color: var(--ac); }

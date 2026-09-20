@@ -39,7 +39,7 @@ $pa = $loadP($aId);
 $pb = $aId !== $bId ? $loadP($bId) : null;
 
 // Все игроки с играми — для выпадашек
-$allP = db()->query("SELECT p.id, p.nickname FROM players p
+$allP = db()->query("SELECT p.id, p.nickname, p.avatar, p.flair FROM players p
     WHERE p.banned_at IS NULL AND EXISTS (SELECT 1 FROM game_seats gs WHERE gs.player_id = p.id)
     ORDER BY p.nickname")->fetchAll();
 $allP = array_values(array_filter($allP, fn($p) => !is_casper($p['nickname'])));
@@ -102,7 +102,15 @@ $duelSelect = function (string $name, string $label, ?array $cur) use ($allP): s
         . '<select name="' . $name . '" data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
     foreach ($allP as $p) {
         $nick = (string)$p['nickname'];
+        // data-ava и data-flair — чтобы выпадашка показывала игроков с аватарками, как подсказка
+        // ника в протоколе (просьба руководителя). Аватар отдаём, только если файл на месте.
+        $ava = (string)($p['avatar'] ?? '');
+        if ($ava !== '' && !is_file(ROOT . '/public_html' . $ava)) {
+            $ava = '';
+        }
         $h .= '<option value="' . esc($nick) . '"'
+            . ($ava !== '' ? ' data-ava="' . esc($ava) . '"' : '')
+            . (!empty($p['flair']) ? ' data-flair="' . esc((string)$p['flair']) . '"' : '')
             . (($cur && (string)$cur['nickname'] === $nick) ? ' selected' : '') . '>' . esc($nick) . '</option>';
     }
     return $h . '</select></div>';
