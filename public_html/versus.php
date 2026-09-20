@@ -93,12 +93,12 @@ echo '<h1 style="display:flex;align-items:center;gap:10px;">⚔️ Дуэль</h
 echo '<p style="color:var(--tx2);font-size:14px;margin-top:-6px;">Очные встречи двух игроков: счёт по разные стороны, винрейт в одной команде, история совместных столов.</p>';
 
 // ── Форма выбора пары ──
-echo '<div class="card"><form method="get" action="/versus.php" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">';
+echo '<div class="card"><form method="get" action="/versus.php" class="duel-form">';
 // Выбор игрока — <select data-search>: его подхватывает enhanceSearchSelect и делает
 // выпадашку с поиском. Раньше здесь был нативный datalist: по клику на треугольник
 // показывался весь список без поиска (жалоба из «Предложений»).
 $duelSelect = function (string $name, string $label, ?array $cur) use ($allP): string {
-    $h = '<div class="field" style="margin:0;flex:1;min-width:180px;"><label>' . $label . '</label>'
+    $h = '<div class="field" style="margin:0;min-width:0;"><label>' . $label . '</label>'
         . '<select name="' . $name . '" data-search="Поиск игрока…"><option value="">— выбери игрока —</option>';
     foreach ($allP as $p) {
         $nick = (string)$p['nickname'];
@@ -119,8 +119,8 @@ echo $duelSelect('an', 'Игрок 1', $pa);
 // «vs» — в такой же обёртке, как поля выбора (пустая подпись сверху), иначе при
 // align-items:end он висел выше середины выпадашек.
 // Высота как у поля ввода (40px) и выравнивание по центру: иначе «vs» висел выше полей
-echo '<div class="field" style="margin:0;flex:none;"><label>&nbsp;</label>'
-    . '<div style="height:40px;display:flex;align-items:center;font-weight:800;color:var(--tx2);padding:0 4px;">vs</div></div>';
+echo '<div class="field" style="margin:0;"><label>&nbsp;</label>'
+    . '<div class="duel-vs">vs</div></div>';
 echo $duelSelect('bn', 'Игрок 2', $pb);
 echo '<button class="btn" type="submit">Сравнить</button>';
 echo '</form></div>';

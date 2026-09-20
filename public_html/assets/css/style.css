@@ -1100,6 +1100,18 @@ body::before {
 .day-date { font-size: 12.5px; color: var(--tx3); }
 .day-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--bd); font-size: 13px; color: var(--tx2); }
 .day-games b { color: var(--tx); font-size: 16px; }
+/* Форма выбора пары: те же три колонки, что у карточек игроков и таблицы показателей, —
+   «vs» в форме стоит на той же вертикальной оси, что и «VS» ниже (просьба руководителя).
+   Кнопка «Сравнить» уходит на свою строку, иначе она сдвигала ось влево. */
+.duel-form { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px 12px; align-items: end; }
+.duel-form > .btn { grid-column: 1 / -1; justify-self: center; min-width: 160px; }
+.duel-vs { height: 40px; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; color: var(--tx2); padding: 0 4px; }
+@media (max-width: 700px) {
+  .duel-form { grid-template-columns: 1fr; }
+  .duel-form .duel-vs { height: auto; padding: 2px 0; }
+  .duel-form .field:nth-child(2) label { display: none; }
+}
 /* Счёт по показателям в «Дуэли»: каждый выигранный критерий — балл. */
 .vs-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
   background: var(--sf2); border: 1px solid var(--bd); border-radius: 14px; padding: 14px 16px; }
