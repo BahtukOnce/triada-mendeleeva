@@ -60,6 +60,17 @@ $pl = db()->prepare('SELECT nickname, avatar, flair FROM players WHERE id = ?');
 $pl->execute([$pid]);
 $p = $pl->fetch() ?: ['nickname' => '?', 'avatar' => null, 'flair' => ''];
 $net = (float)$row['net'];
+// Место в клубном рейтинге — как в бейдже профиля (по club_score)
+$rank = 0;
+$mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+if ($mainId) {
+    $rq = db()->prepare('SELECT COUNT(*) + 1 FROM rating_cache
+        WHERE rating_id = ? AND club_score > (SELECT club_score FROM rating_cache WHERE rating_id = ? AND player_id = ?)');
+    $rq->execute([$mainId, $mainId, $pid]);
+    $has = db()->prepare('SELECT 1 FROM rating_cache WHERE rating_id = ? AND player_id = ?');
+    $has->execute([$mainId, $pid]);
+    $rank = $has->fetchColumn() ? (int)$rq->fetchColumn() : 0;
+}
 
 $png = day_card_png([
     'nickname' => (string)$p['nickname'],
@@ -71,6 +82,7 @@ $png = day_card_png([
     'wins' => (int)$w->fetchColumn(),
     'net' => $net,
     'elo' => (float)$row['cur'],
+    'rank' => $rank,
     'record' => ((float)$row['day_peak'] >= (float)$row['all_peak'] - 0.05) && $net > 0,
     'top' => false,
 ]);

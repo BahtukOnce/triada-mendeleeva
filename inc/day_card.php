@@ -277,32 +277,47 @@ function day_card_png(array $d): ?string
         }
     }
 
-    // ELO: «за вечер» и «сейчас» одной плашкой
+    // Плашка: ELO за вечер, ELO сейчас и место в общем рейтинге клуба (просьба руководителя —
+    // одна дельта ELO не показывает, куда человек забрался). Место рисуем, только если известно.
     $net = (float)$d['net'];
     $col = $net > 0 ? $ok : ($net < 0 ? $ac : $tx2);
     $sign = $net > 0 ? '+' : ($net < 0 ? '−' : '±');
     $arrow = $net > 0 ? ' ▲' : ($net < 0 ? ' ▼' : '');
-    $left = $sign . round(abs($net)) . $arrow;
-    $right = (string)round((float)$d['elo']);
     // Размер цифр — 36: при 52 и 46 они упирались в края плашки.
     $numSize = 36;
     $pad = 30;
-    $wL = max(day_card_text_w($numSize, $FB, $left), day_card_text_w(14, $F, 'ELO за вечер'));
-    $wR = max(day_card_text_w($numSize, $FB, $right), day_card_text_w(14, $F, 'ELO сейчас'));
+    $rank = (int)($d['rank'] ?? 0);
+    $cells = [
+        [$sign . round(abs($net)) . $arrow, 'ELO за вечер', $col],
+        [(string)round((float)$d['elo']), 'ELO сейчас', $tx],
+    ];
+    if ($rank > 0) {
+        $cells[] = ['#' . $rank, 'место в клубе', $rank <= 3 ? $gold : $tx];
+    }
+    $ws = [];
+    foreach ($cells as [$big, $lbl]) {
+        $ws[] = max(day_card_text_w($numSize, $FB, $big), day_card_text_w(14, $F, $lbl));
+    }
     $x1 = 60;
     $y1 = 282;
     $y2 = 400;
-    $x2 = (int)round($x1 + $pad + $wL + $pad + 1 + $pad + $wR + $pad);
+    $x2 = $x1 + count($cells) - 1;
+    foreach ($ws as $w) {
+        $x2 = (int)round($x2 + $pad + $w + $pad);
+    }
     day_card_round($im, $x1, $y1, $x2, $y2, 16, $bd);
     day_card_round($im, $x1 + 1, $y1 + 1, $x2 - 1, $y2 - 1, 15, $sf2);
-    $cxL = $x1 + $pad;
-    $sepX = (int)round($cxL + $wL + $pad);
-    imagefilledrectangle($im, $sepX, $y1 + 14, $sepX, $y2 - 14, $bd);
-    $cxR = $sepX + $pad;
-    imagettftext($im, $numSize, 0, (int)round($cxL + ($wL - day_card_text_w($numSize, $FB, $left)) / 2), $y1 + 62, $col, $FB, $left);
-    imagettftext($im, 14, 0, (int)round($cxL + ($wL - day_card_text_w(14, $F, 'ELO за вечер')) / 2), $y1 + 96, $tx2, $F, 'ELO за вечер');
-    imagettftext($im, $numSize, 0, (int)round($cxR + ($wR - day_card_text_w($numSize, $FB, $right)) / 2), $y1 + 62, $tx, $FB, $right);
-    imagettftext($im, 14, 0, (int)round($cxR + ($wR - day_card_text_w(14, $F, 'ELO сейчас')) / 2), $y1 + 96, $tx2, $F, 'ELO сейчас');
+    $cx = (float)$x1;
+    foreach ($cells as $i => [$big, $lbl, $c]) {
+        if ($i > 0) {
+            imagefilledrectangle($im, (int)round($cx), $y1 + 14, (int)round($cx), $y2 - 14, $bd);
+            $cx += 1;
+        }
+        $w = $ws[$i];
+        imagettftext($im, $numSize, 0, (int)round($cx + $pad + ($w - day_card_text_w($numSize, $FB, $big)) / 2), $y1 + 62, $c, $FB, $big);
+        imagettftext($im, 14, 0, (int)round($cx + $pad + ($w - day_card_text_w(14, $F, $lbl)) / 2), $y1 + 96, $tx2, $F, $lbl);
+        $cx += $pad + $w + $pad;
+    }
 
     // Игры и победы
     imagettftext($im, 22, 0, 62, 452, $tx, $FB, 'Игр: ' . (int)$d['games'] . ' · Побед: ' . (int)$d['wins']);

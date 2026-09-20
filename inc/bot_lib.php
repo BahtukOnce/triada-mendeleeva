@@ -1118,6 +1118,65 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
             $bestPid = (int)$r['player_id'];
         }
     }
+    // Места в рейтингах (просьба руководителя): «+9.60 за вечер» само по себе ни о чём не говорит,
+    // а место сразу показывает, куда человек забрался — и за вечер, и в клубе.
+    require_once __DIR__ . '/rating.php';
+    require_once __DIR__ . '/day_games.php';
+    $dayPlace = [];
+    $dayTotal = 0;
+    try {
+        $gq = db()->prepare('SELECT * FROM games WHERE day_id = ? ORDER BY table_no, game_no');
+        $gq->execute([$dayId]);
+        $dayGames = $gq->fetchAll();
+        $seatsByGame = day_games_seats(array_column($dayGames, 'id'));
+        $daySum = [];
+        foreach ($dayGames as $g0) {
+            $seats0 = $seatsByGame[(int)$g0['id']] ?? [];
+            $tt0 = game_display_totals($g0, $seats0);
+            foreach ($seats0 as $s0) {
+                $p0 = (int)$s0['player_id'];
+                $daySum[$p0] = ($daySum[$p0] ?? 0) + (float)($tt0[(int)$s0['seat']]['total'] ?? 0);
+            }
+        }
+        arsort($daySum);
+        $i = 0;
+        $prevV = null;
+        $prevPlace = 0;
+        foreach ($daySum as $p0 => $v0) {
+            $i++;
+            $place = ($prevV !== null && abs($v0 - $prevV) < 1e-9) ? $prevPlace : $i;
+            $dayPlace[$p0] = $place;
+            $prevV = $v0;
+            $prevPlace = $place;
+        }
+        $dayTotal = $i;
+    } catch (Throwable $e) {
+    }
+    // Место в клубном рейтинге — по club_score, как бейдж «#N в рейтинге» в профиле
+    $clubPlace = [];
+    $clubTotal = 0;
+    try {
+        $mainId = (int)db()->query('SELECT id FROM ratings WHERE is_main = 1 LIMIT 1')->fetchColumn();
+        if ($mainId) {
+            $cq = db()->prepare('SELECT player_id, club_score FROM rating_cache WHERE rating_id = ? ORDER BY club_score DESC');
+            $cq->execute([$mainId]);
+            $i = 0;
+            $prevV = null;
+            $prevPlace = 0;
+            foreach ($cq->fetchAll() as $cr) {
+                $i++;
+                $v0 = (float)$cr['club_score'];
+                $place = ($prevV !== null && abs($v0 - $prevV) < 1e-9) ? $prevPlace : $i;
+                $clubPlace[(int)$cr['player_id']] = $place;
+                $prevV = $v0;
+                $prevPlace = $place;
+            }
+            $clubTotal = $i;
+        }
+    } catch (Throwable $e) {
+    }
+    $base = rtrim((string)($GLOBALS['cfg']['base_url'] ?? 'https://triada-mendeleeva.ru'), '/');
+
     require_once __DIR__ . '/day_card.php';
     $avaSt = db()->prepare('SELECT nickname, avatar, flair FROM players WHERE id = ?');
     $sent = 0;
@@ -1143,13 +1202,20 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
                 . ' · ' . $res . ' — <b>'
                 . ($d > 0 ? '+' : ($d < 0 ? '−' : '±')) . bot_num(abs($d)) . "</b>\n";
         }
+        $medal = fn(int $p): string => $p === 1 ? '🥇' : ($p === 2 ? '🥈' : ($p === 3 ? '🥉' : '🏅'));
+        $dPl = $dayPlace[$pid] ?? 0;
+        $cPl = $clubPlace[$pid] ?? 0;
         $text = "🎲 <b>Итоги вечера</b>\n"
             . "<b>" . bot_esc((string)$day['title']) . "</b> · " . bot_date((string)$day['date']) . "\n\n"
             . "Сыграно игр: <b>" . (int)$r['games'] . "</b>\n"
+            . ($dPl ? $medal($dPl) . " Место за вечер: <b>$dPl</b> из $dayTotal\n" : '')
+            . ($cPl ? "📊 В рейтинге клуба: <b>#$cPl</b> из $clubTotal\n" : '')
             . "$emoji ELO: <b>" . bot_num((float)$r['cur']) . "</b> (за вечер $netStr)\n"
             . ($record ? "🏆 Новый личный рекорд ELO!\n" : "")
             . ($isTop ? "🔥 Лучший ELO вечера!\n" : "")
             . ($byGame !== '' ? "\n<b>По играм</b>\n" . $byGame : '')
+            . "\n<a href=\"$base/day.php?id=$dayId\">Рейтинг вечера</a> · "
+            . "<a href=\"$base/rating.php\">Общий рейтинг клуба</a>"
             . "\nПодробная статистика — /me";
         // Личка (уважает mute): фото-карточка с подписью; при сбое — обычный текст
         $tgSt = db()->prepare('SELECT tg_user_id FROM players WHERE id = ? AND tg_user_id IS NOT NULL AND notify_enabled = 1');
@@ -1172,6 +1238,7 @@ function bot_notify_day_results(int $dayId, ?int $onlyPid = null): int
                 'wins' => (int)($winsBy[$pid] ?? 0),
                 'net' => $net,
                 'elo' => (float)$r['cur'],
+                'rank' => $cPl,
                 'record' => $record,
                 'top' => $isTop,
             ]);
