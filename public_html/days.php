@@ -230,7 +230,10 @@ if ($seasons) {
 
 if ($list) {
     echo '<div class="days-grid">';
+    $canFinish = user_perm(current_user(), 'manage_days');
+    $backTo = '/days.php' . ($season !== 'cur' ? '?season=' . urlencode($season) : '');
     foreach ($list as $d) {
+        echo '<div class="day-cell">';
         echo '<a class="day-card" href="/day.php?id=' . (int)$d['id'] . '">';
         echo '<div class="day-card-top"><span class="day-title">' . esc($d['title']) . '</span>';
         if ($d['status'] === 'reg_open') {
@@ -275,6 +278,20 @@ if ($list) {
                 . '<span>' . ($rc >= 10 ? 'стол собран' : 'нужно ещё ' . (10 - $rc)) . '</span></div>';
         }
         echo '</a>';
+        // Завершить вечер прямо отсюда (просьба руководителя — чтобы не лезть в админку).
+        // Кнопка та же, что в админке: смена статуса рассылает участникам итоги в бота.
+        if ($canFinish && in_array($d['status'], ['reg_closed', 'live'], true)) {
+            echo '<form method="post" action="/admin/days.php" class="day-finish"'
+                . ' onsubmit="return confirm(\'Завершить вечер «' . esc(addslashes((string)$d['title']))
+                . '»? Всем участникам уйдут итоги в бота, и рассылка повторно не отправится.\');">'
+                . csrf_field()
+                . '<input type="hidden" name="form" value="status">'
+                . '<input type="hidden" name="day_id" value="' . (int)$d['id'] . '">'
+                . '<input type="hidden" name="to" value="finished">'
+                . '<input type="hidden" name="back" value="' . esc($backTo) . '">'
+                . '<button class="btn btn-ghost" type="submit">🏁 Завершить вечер</button></form>';
+        }
+        echo '</div>';
     }
     echo '</div>';
 } elseif ($season === 'cur' && $seasons) {

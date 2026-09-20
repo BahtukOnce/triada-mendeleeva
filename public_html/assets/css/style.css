@@ -1093,6 +1093,11 @@ body::before {
 
 /* Игровые вечера — сетка карточек */
 .days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+/* Ячейка вечера: карточка плюс кнопка «Завершить» под ней (кнопка не может жить внутри ссылки) */
+.day-cell { display: flex; flex-direction: column; }
+.day-cell > .day-card { flex: 1; }
+.day-finish { margin-top: 8px; }
+.day-finish .btn { width: 100%; padding: 7px 10px; font-size: 12.5px; }
 .day-card { display: flex; flex-direction: column; gap: 4px; background: var(--sf); border: 1px solid var(--bd); border-radius: 14px; padding: 14px 16px; color: var(--tx); text-decoration: none; transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease; }
 .day-card:hover { transform: translateY(-2px); border-color: var(--ac); box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
 .day-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
