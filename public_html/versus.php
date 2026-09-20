@@ -118,8 +118,9 @@ $duelSelect = function (string $name, string $label, ?array $cur) use ($allP): s
 echo $duelSelect('an', 'Игрок 1', $pa);
 // «vs» — в такой же обёртке, как поля выбора (пустая подпись сверху), иначе при
 // align-items:end он висел выше середины выпадашек.
+// Высота как у поля ввода (40px) и выравнивание по центру: иначе «vs» висел выше полей
 echo '<div class="field" style="margin:0;flex:none;"><label>&nbsp;</label>'
-    . '<div style="font-weight:800;color:var(--tx2);padding:10px 4px;">vs</div></div>';
+    . '<div style="height:40px;display:flex;align-items:center;font-weight:800;color:var(--tx2);padding:0 4px;">vs</div></div>';
 echo $duelSelect('bn', 'Игрок 2', $pb);
 echo '<button class="btn" type="submit">Сравнить</button>';
 echo '</form></div>';
@@ -339,6 +340,58 @@ if ($pa && $pb) {
 
     echo '<div class="card"><h2 style="margin-top:0;">📊 Полное сравнение '
         . '<span style="color:var(--tx3);font-weight:400;font-size:13px;">· ' . esc($periodLbl) . '</span></h2>';
+
+    // ── Счёт по показателям (просьба руководителя): каждый критерий — балл тому, кто лучше.
+    // Берём только то, что говорит о силе игрока: результат, баллы, дисциплина, роли и очные
+    // встречи. Число сыгранных игр в счёт не идёт — это опыт, а не мастерство.
+    $avgA = $cA['g'] ? $cA['sum'] / $cA['g'] : 0.0;
+    $avgB = $cB['g'] ? $cB['sum'] / $cB['g'] : 0.0;
+    $crit = [
+        ['винрейт', (float)$pct($cA['w'], $cA['g']), (float)$pct($cB['w'], $cB['g']), false, $cA['g'] && $cB['g']],
+        ['средний балл', $avgA, $avgB, false, $cA['g'] && $cB['g']],
+        ['допы', $cA['plus'], $cB['plus'], false, $cA['g'] && $cB['g']],
+        ['дисциплина', $cA['minus'], $cB['minus'], true, $cA['g'] && $cB['g']],
+        ['ELO', (float)$pa['elo'], (float)$pb['elo'], false, true],
+        ['очные встречи', (float)$aWin, (float)$bWin, false, ($aWin + $bWin) > 0],
+    ];
+    foreach (['civ' => 'за мирного', 'sheriff' => 'за шерифа', 'maf' => 'за мафию', 'don' => 'за дона'] as $rk => $rl) {
+        [$ag2, $aw2] = $cA['roles'][$rk];
+        [$bg2, $bw2] = $cB['roles'][$rk];
+        $crit[] = [$rl, (float)$pct($aw2, $ag2), (float)$pct($bw2, $bg2), false, $ag2 > 0 && $bg2 > 0];
+    }
+    $scoreA = $scoreB = 0;
+    $wonA = $wonB = [];
+    foreach ($crit as [$lbl, $va, $vb, $less, $usable]) {
+        if (!$usable || abs($va - $vb) < 0.0001) {
+            continue;
+        }
+        $aBetter = $less ? $va < $vb : $va > $vb;
+        if ($aBetter) {
+            $scoreA++;
+            $wonA[] = $lbl;
+        } else {
+            $scoreB++;
+            $wonB[] = $lbl;
+        }
+    }
+    $lead = $scoreA === $scoreB ? null : ($scoreA > $scoreB ? $pa : $pb);
+    echo '<div class="vs-score">'
+        . '<div class="vs-score-side' . ($scoreA > $scoreB ? ' lead' : '') . '"><b>' . $scoreA . '</b><span>' . esc((string)$pa['nickname']) . '</span></div>'
+        . '<div class="vs-score-mid">счёт по показателям<span>' . count($wonA) . ' + ' . count($wonB) . ' из ' . count($crit) . '</span></div>'
+        . '<div class="vs-score-side' . ($scoreB > $scoreA ? ' lead' : '') . '"><b>' . $scoreB . '</b><span>' . esc((string)$pb['nickname']) . '</span></div>'
+        . '</div>';
+    echo '<p style="text-align:center;font-size:13.5px;color:var(--tx2);margin:10px 0 0;">'
+        . ($lead
+            ? '🏆 <b style="color:var(--tx);">' . esc((string)$lead['nickname']) . '</b> сильнее по большинству показателей'
+            : '⚖️ Поровну — каждый в своём')
+        . '</p>';
+    if ($wonA || $wonB) {
+        echo '<p style="text-align:center;font-size:12.5px;color:var(--tx3);margin:6px 0 0;line-height:1.7;">'
+            . ($wonA ? esc((string)$pa['nickname']) . ': ' . esc(implode(', ', $wonA)) : '')
+            . ($wonA && $wonB ? ' &nbsp;·&nbsp; ' : '')
+            . ($wonB ? esc((string)$pb['nickname']) . ': ' . esc(implode(', ', $wonB)) : '')
+            . '</p>';
+    }
 
     // Показатели: чей больше — подсвечиваем. У минусов лучше меньше.
     $rows = [
