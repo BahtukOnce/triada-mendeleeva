@@ -287,7 +287,8 @@ if ($games) {
         ['🥇 MVP вечера', $mvpPid === null ? null : [$mvpPid,
             'допы ' . ((float)$standing[$mvpPid]['bonus'] < -1e-9 ? '−' : '+')
             . number_format(abs((float)$standing[$mvpPid]['bonus']), 2)
-            . ' · Σ ' . number_format((float)$standing[$mvpPid]['sum'], 2) . ' за вечер']],
+            . ' · ' . (int)$standing[$mvpPid]['games'] . ' ' . ru_plural((int)$standing[$mvpPid]['games'], 'игра', 'игры', 'игр'),
+            'Допы + ЛХ + Ci за вычетом минусов и большого техфола']],
         ['😈 Лучший дон', $bestRole('don', 'за дона')],
         ['🌟 Лучший шериф', $bestRole('sheriff', 'за шерифа')],
         ['🔴 Лучший красный', $bestRole('civ', 'за мирного')],
@@ -307,6 +308,7 @@ if ($games) {
                 continue;
             }
             [$pid, $meta] = $data;
+            $tip = $data[2] ?? '';
             $row = $standing[$pid];
             echo '<div class="nom-card">';
             echo '<div class="nom-title">' . $title . '</div>';
@@ -314,7 +316,7 @@ if ($games) {
                 . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 34)
                 . '<span>' . esc((string)$row['nick'])
                 . ($row['flair'] !== '' ? ' <span class="flair">' . esc((string)$row['flair']) . '</span>' : '') . '</span></a>';
-            echo '<div class="nom-meta">' . esc($meta) . '</div>';
+            echo '<div class="nom-meta"' . ($tip !== '' ? ' title="' . esc($tip) . '"' : '') . '>' . esc($meta) . '</div>';
             echo '</div>';
         }
         echo '</div>';
