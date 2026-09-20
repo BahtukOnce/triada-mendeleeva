@@ -81,12 +81,52 @@ if (!$day) {
 
 $canEdit = user_can_judge(current_user());
 
-echo '<h1>' . esc($day['title']) . ' · ' . esc(date('d.m.Y', strtotime($day['date']))) . '</h1>';
-echo '<p style="color:var(--tx2);margin-top:-6px;">Игр сыграно: ' . count($games)
-    . ($day['location'] ? ' · ' . esc($day['location']) : '') . '</p>';
-if ($canEdit) {
-    echo '<p style="margin:0 0 12px;"><a class="btn" href="/admin/protocol.php?day=' . $id . '">Вести / редактировать игры</a></p>';
+// ── Шапка вечера: карточка с датой и итогами дня вместо голой строки «Игр сыграно: N»
+$redW = 0;
+$blkW = 0;
+foreach ($games as $g) {
+    if ($g['winner'] === 'red') {
+        $redW++;
+    } elseif ($g['winner'] === 'black') {
+        $blkW++;
+    }
 }
+$dayPids = [];
+foreach ($seatsByGame as $ss) {
+    foreach ($ss as $s) {
+        $dayPids[(int)$s['player_id']] = 1;
+    }
+}
+echo '<div class="day-hero">';
+echo '<div class="day-hero-head"><div>';
+echo '<h1 class="day-hero-title">' . esc($day['title']) . '</h1>';
+echo '<div class="day-hero-date">' . esc(day_poll_weekday((string)$day['date'])) . ', '
+    . esc(date('d.m.Y', strtotime($day['date'])))
+    . ($day['location'] ? ' · 📍 ' . esc($day['location']) : '') . '</div>';
+echo '</div>';
+if ($canEdit) {
+    echo '<a class="btn" href="/admin/protocol.php?day=' . $id . '">Вести / редактировать игры</a>';
+}
+echo '</div>';
+if ($games) {
+    $stat = function (string $val, string $lbl, string $cls = ''): string {
+        return '<div class="dh-stat' . ($cls ? ' ' . $cls : '') . '"><div class="dh-val">' . $val
+            . '</div><div class="dh-lbl">' . $lbl . '</div></div>';
+    };
+    echo '<div class="day-hero-stats">'
+        . $stat((string)count($games), 'игр')
+        . $stat((string)count($dayPids), 'игроков')
+        . $stat((string)$redW, 'побед красных', 'dh-red')
+        . $stat((string)$blkW, 'побед чёрных', 'dh-black')
+        . '</div>';
+    if ($redW + $blkW > 0) {
+        $rp = round($redW / ($redW + $blkW) * 100);
+        echo '<div class="day-bar" title="Красные ' . $redW . ' · Чёрные ' . $blkW . '">'
+            . '<div class="db-red" style="width:' . $rp . '%"></div>'
+            . '<div class="db-black" style="width:' . (100 - $rp) . '%"></div></div>';
+    }
+}
+echo '</div>';
 
 if (in_array($day['status'], ['reg_open', 'reg_closed'], true)) {
     $st = db()->prepare('SELECT r.*, p.nickname, p.avatar, p.flair, p.id AS pid FROM day_registrations r
@@ -192,15 +232,17 @@ if ($games) {
             $standing[$pid]['sum'] += $cell['total'] ?? 0;
             $standing[$pid]['sum_plus'] += (float)$s['plus'] + (float)($cell['lh'] ?? 0) + (float)($cell['ci'] ?? 0);
             // Доп-баллы = всё сверх победного балла: допы, ЛХ и Ci за вычетом минусов и б/теха.
-            // По ним считается MVP вечера — минуса тоже идут в зачёт (решение руководителя).
-            $standing[$pid]['bonus'] += (float)($cell['total'] ?? 0) - ($won ? 1.0 : 0.0);
+            // По ним считаются все номинации вечера — победный балл в зачёт не идёт, минуса идут
+            // (решение руководителя): иначе номинация достаётся тому, кому повезло с командой.
+            $bonus = (float)($cell['total'] ?? 0) - ($won ? 1.0 : 0.0);
+            $standing[$pid]['bonus'] += $bonus;
             // По ролям — для номинаций вечера
             if (isset($standing[$pid]['g_' . $role])) {
                 $standing[$pid]['g_' . $role]++;
                 if ($won) {
                     $standing[$pid]['w_' . $role]++;
                 }
-                $standing[$pid]['p_' . $role] += (float)($cell['total'] ?? 0);   // баллы, набранные в этой роли
+                $standing[$pid]['p_' . $role] += $bonus;   // доп-баллы, набранные в этой роли
             }
         }
     }
@@ -239,9 +281,9 @@ if ($games) {
         return '<span style="color:' . ($r > 0 ? 'var(--ok)' : 'var(--ac)') . ';font-weight:600;">' . ($r > 0 ? '+' : '−') . abs($r) . '</span>';
     };
     // ── Номинации вечера: MVP и лучшие в ролях именно за этот день (просьба руководителя).
-    // Считаем по БАЛЛАМ, а не по винрейту: в роли за вечер одна-две игры, и «100%» ничего не значит.
-    // Роли — по сумме баллов, набранных именно в этой роли; при равенстве выше тот, у кого больше
-    // побед, затем — кто набрал их за меньшее число игр. MVP — по доп-баллам (см. ниже).
+    // Считаем по ДОП-БАЛЛАМ, а не по винрейту и не по общей сумме: за вечер в роли одна-две игры,
+    // «100%» ничего не значит, а победный балл говорит о команде, а не об игроке. При равных допах
+    // выше тот, у кого больше побед, затем — кто набрал их за меньшее число игр.
     $bestRole = function (string $rk, string $hint) use ($standing) {
         $best = null;
         foreach ($standing as $pid => $r) {
@@ -264,11 +306,12 @@ if ($games) {
             return null;
         }
         $cnt = (int)$standing[$best]['g_' . $rk];
-        return [$best, 'Σ ' . number_format((float)$standing[$best]['p_' . $rk], 2) . ' ' . $hint
-            . ' · ' . $cnt . ' ' . ru_plural($cnt, 'игра', 'игры', 'игр')];
+        $v = (float)$standing[$best]['p_' . $rk];
+        return [$best, 'допы ' . ($v < -1e-9 ? '−' : '+') . number_format(abs($v), 2) . ' ' . $hint
+            . ' · ' . $cnt . ' ' . ru_plural($cnt, 'игра', 'игры', 'игр'),
+            'Допы + ЛХ + Ci за вычетом минусов и большого техфола'];
     };
-    // MVP вечера — по дополнительным баллам (допы + ЛХ + Ci минус минуса и б/тех): побеждает не тот,
-    // кому повезло с командой, а тот, кто наиграл сверх победного балла. Тай-брейк — Σ, затем меньше игр.
+    // MVP вечера — по тем же доп-баллам за весь вечер. Тай-брейк — Σ, затем меньше игр.
     $mvpPid = null;
     foreach ($standing as $pid => $r) {
         if ($mvpPid === null) {
