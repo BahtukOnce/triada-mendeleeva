@@ -226,9 +226,10 @@ if ($pa && $pb) {
             . ' · игр ' . $g . ' · <b style="color:' . $col . ';">' . ($g ? $wr . '%' : '—') . '</b> побед</span></span></a>';
     };
     echo '<div class="card">';
-    echo '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">';
+    // Сетка, а не гибкая строка: при переносе «VS» оставался сбоку, а не между игроками
+    echo '<div class="vs-pair">';
     echo $card($pa, $aG, $aW);
-    echo '<div style="font-size:26px;font-weight:800;color:var(--ac);flex:none;">VS</div>';
+    echo '<div class="vs-sep">VS</div>';
     echo $card($pb, $bG, $bW, true);
     echo '</div>';
     if ($verdict) {
