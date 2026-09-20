@@ -347,18 +347,27 @@ if ($pa && $pb) {
     $avgA = $cA['g'] ? $cA['sum'] / $cA['g'] : 0.0;
     $avgB = $cB['g'] ? $cB['sum'] / $cB['g'] : 0.0;
     $crit = [
-        ['винрейт', (float)$pct($cA['w'], $cA['g']), (float)$pct($cB['w'], $cB['g']), false, $cA['g'] && $cB['g']],
-        ['средний балл', $avgA, $avgB, false, $cA['g'] && $cB['g']],
-        ['допы', $cA['plus'], $cB['plus'], false, $cA['g'] && $cB['g']],
-        ['дисциплина', $cA['minus'], $cB['minus'], true, $cA['g'] && $cB['g']],
-        ['ELO', (float)$pa['elo'], (float)$pb['elo'], false, true],
-        ['очные встречи', (float)$aWin, (float)$bWin, false, ($aWin + $bWin) > 0],
+        ['винрейт', (float)$pct($cA['w'], $cA['g']), (float)$pct($cB['w'], $cB['g']), false, (bool)($cA['g'] && $cB['g']), 'pct'],
+        ['средний балл за игру', $avgA, $avgB, false, (bool)($cA['g'] && $cB['g']), 'num2'],
+        ['допы', $cA['plus'], $cB['plus'], false, (bool)($cA['g'] && $cB['g']), 'num1'],
+        ['дисциплина (меньше минусов)', $cA['minus'], $cB['minus'], true, (bool)($cA['g'] && $cB['g']), 'num1'],
+        ['ELO', (float)$pa['elo'], (float)$pb['elo'], false, true, 'int'],
+        ['очные встречи', (float)$aWin, (float)$bWin, false, ($aWin + $bWin) > 0, 'int'],
     ];
-    foreach (['civ' => 'за мирного', 'sheriff' => 'за шерифа', 'maf' => 'за мафию', 'don' => 'за дона'] as $rk => $rl) {
+    foreach (['civ' => 'винрейт за мирного', 'sheriff' => 'винрейт за шерифа', 'maf' => 'винрейт за мафию', 'don' => 'винрейт за дона'] as $rk => $rl) {
         [$ag2, $aw2] = $cA['roles'][$rk];
         [$bg2, $bw2] = $cB['roles'][$rk];
-        $crit[] = [$rl, (float)$pct($aw2, $ag2), (float)$pct($bw2, $bg2), false, $ag2 > 0 && $bg2 > 0];
+        $crit[] = [$rl, (float)$pct($aw2, $ag2), (float)$pct($bw2, $bg2), false, $ag2 > 0 && $bg2 > 0, 'pct'];
     }
+    $critFmt = function (float $v, string $fmt): string {
+        if ($fmt === 'pct') {
+            return (int)round($v) . '%';
+        }
+        if ($fmt === 'int') {
+            return (string)(int)round($v);
+        }
+        return number_format($v, $fmt === 'num2' ? 2 : 1);
+    };
     $scoreA = $scoreB = 0;
     $wonA = $wonB = [];
     foreach ($crit as [$lbl, $va, $vb, $less, $usable]) {
@@ -385,13 +394,21 @@ if ($pa && $pb) {
             ? '🏆 <b style="color:var(--tx);">' . esc((string)$lead['nickname']) . '</b> сильнее по большинству показателей'
             : '⚖️ Поровну — каждый в своём')
         . '</p>';
-    if ($wonA || $wonB) {
-        echo '<p style="text-align:center;font-size:12.5px;color:var(--tx3);margin:6px 0 0;line-height:1.7;">'
-            . ($wonA ? esc((string)$pa['nickname']) . ': ' . esc(implode(', ', $wonA)) : '')
-            . ($wonA && $wonB ? ' &nbsp;·&nbsp; ' : '')
-            . ($wonB ? esc((string)$pb['nickname']) . ': ' . esc(implode(', ', $wonB)) : '')
-            . '</p>';
+    // Разбивка: за что и кому балл (просьба руководителя — компактной таблицей в том же блоке)
+    echo '<table class="tbl vs-crit"><tr><th>Показатель</th>'
+        . '<th class="num">' . esc((string)$pa['nickname']) . '</th>'
+        . '<th class="num">' . esc((string)$pb['nickname']) . '</th></tr>';
+    foreach ($crit as [$lbl, $va, $vb, $less, $usable, $fmt]) {
+        $tie = $usable && abs($va - $vb) < 0.0001;
+        $aWins = $usable && !$tie && ($less ? $va < $vb : $va > $vb);
+        $bWins = $usable && !$tie && !$aWins;
+        $note = !$usable ? ' <span class="vs-crit-no">нет данных</span>' : ($tie ? ' <span class="vs-crit-no">поровну</span>' : '');
+        echo '<tr><td>' . esc($lbl) . $note . '</td>'
+            . '<td class="num' . ($aWins ? ' pt' : '') . '">' . ($usable ? esc($critFmt($va, $fmt)) . ($aWins ? ' <b>+1</b>' : '') : '—') . '</td>'
+            . '<td class="num' . ($bWins ? ' pt' : '') . '">' . ($usable ? esc($critFmt($vb, $fmt)) . ($bWins ? ' <b>+1</b>' : '') : '—') . '</td></tr>';
     }
+    echo '<tr class="total"><td>Итого</td><td class="num">' . $scoreA . '</td><td class="num">' . $scoreB . '</td></tr>';
+    echo '</table>';
 
     // Показатели: чей больше — подсвечиваем. У минусов лучше меньше.
     $rows = [
