@@ -2,6 +2,7 @@
 // ⚔️ Дуэль: очные встречи двух игроков + автоматические связи (соратники/немезиды/жертвы).
 // Всё считается по реальным сыгранным играм (game_seats × games), за всю историю клуба.
 require dirname(__DIR__) . '/inc/bootstrap.php';
+require_once ROOT . '/inc/rating.php';   // game_display_totals() — настоящие итоги за игру
 
 const V_RED = ['civ', 'sheriff'];
 $team = fn(string $role): string => in_array($role, V_RED, true) ? 'red' : 'black';
@@ -252,7 +253,7 @@ if ($pa && $pb) {
     // Сюда переехала бывшая «Очная ставка» (/vs.php): страницы делали одно и то же.
     // Всё считается по протоколам за выбранный сезон — поэтому работает и «за всё время».
     $vsStats = function (int $pid) use ($vsWhere, $vsArgs): array {
-        $out = ['g' => 0, 'w' => 0, 'plus' => 0.0, 'minus' => 0.0, 'pu' => 0,
+        $out = ['g' => 0, 'w' => 0, 'plus' => 0.0, 'minus' => 0.0, 'pu' => 0, 'sum' => 0.0,
             'roles' => ['civ' => [0, 0], 'sheriff' => [0, 0], 'maf' => [0, 0], 'don' => [0, 0]],
             'seats' => []];
         for ($i = 1; $i <= 10; $i++) {
@@ -291,6 +292,37 @@ if ($pa && $pb) {
             }
         } catch (Throwable $e) {
         }
+        // Сумма баллов — настоящая, как в рейтинге: победный балл, допы, минуса, ЛХ, Ci и штрафы.
+        // Считаем по играм этого игрока, поэтому нужен весь стол каждой игры (ЛХ зависит от ролей).
+        try {
+            $gq = db()->prepare("SELECT g.* FROM games g
+                JOIN game_seats gs ON gs.game_id = g.id AND gs.player_id = ?
+                LEFT JOIN game_days d ON d.id = g.day_id
+                LEFT JOIN tournaments t ON t.id = g.tournament_id
+                WHERE g.status = 'finished' AND g.winner IS NOT NULL" . $vsWhere);
+            $gq->execute(array_merge([$pid], $vsArgs));
+            $myGames = $gq->fetchAll();
+            if ($myGames) {
+                $ids = array_column($myGames, 'id');
+                $in = implode(',', array_fill(0, count($ids), '?'));
+                $sq = db()->prepare("SELECT * FROM game_seats WHERE game_id IN ($in)");
+                $sq->execute($ids);
+                $byGame = [];
+                foreach ($sq->fetchAll() as $s) {
+                    $byGame[(int)$s['game_id']][] = $s;
+                }
+                foreach ($myGames as $g) {
+                    $seats = $byGame[(int)$g['id']] ?? [];
+                    $tt = game_display_totals($g, $seats);
+                    foreach ($seats as $s) {
+                        if ((int)$s['player_id'] === $pid) {
+                            $out['sum'] += (float)($tt[(int)$s['seat']]['total'] ?? 0);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+        }
         return $out;
     };
     $cA = $vsStats((int)$pa['id']);
@@ -305,6 +337,8 @@ if ($pa && $pb) {
         ['Игр', (float)$cA['g'], (float)$cB['g'], 0, '', false],
         ['Побед', (float)$cA['w'], (float)$cB['w'], 0, '', false],
         ['Винрейт', (float)$pct($cA['w'], $cA['g']), (float)$pct($cB['w'], $cB['g']), 0, '%', false],
+        ['Σ баллов', $cA['sum'], $cB['sum'], 2, '', false],
+        ['Средний балл за игру', $cA['g'] ? $cA['sum'] / $cA['g'] : 0.0, $cB['g'] ? $cB['sum'] / $cB['g'] : 0.0, 2, '', false],
         ['Допы', $cA['plus'], $cB['plus'], 1, '', false],
         ['Минуса', $cA['minus'], $cB['minus'], 1, '', true],
         ['Первоубиенным', (float)$cA['pu'], (float)$cB['pu'], 0, '', true],
