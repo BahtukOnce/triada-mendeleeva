@@ -1194,6 +1194,10 @@ body::before {
 /* Пустая ячейка над «ELO» в строке групп — без рамки и подкраски: иначе над заголовком висела
    отдельная красная «коробка». Рамка ELO начинается с самого заголовка. */
 .rating-tbl .rt-groups .c-elo { background: transparent; box-shadow: none; }
+/* На вечере в рамке ELO две колонки — «ELO» и «за вечер»: рамку рисуем только по краям пары,
+   иначе между ними встаёт лишняя красная линия. */
+.rating-tbl .c-elo-l { background: rgba(232,51,42,0.06); box-shadow: inset 2px 0 0 var(--ac); }
+.rating-tbl .c-elo-r { background: rgba(232,51,42,0.06); box-shadow: inset -2px 0 0 var(--ac); }
 .rating-tbl .rt-groups th { font-size: 11px; font-weight: 600; color: var(--tx2); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; padding: 7px 8px 5px; border-bottom: none; }
 .rating-tbl tr.rt-top td { background: rgba(232,51,42,0.045); }
 .rating-tbl tr.rt-top:hover td { background: var(--sf2); }

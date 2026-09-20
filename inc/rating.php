@@ -406,10 +406,12 @@ function wr_cell(int $w, int $g, float $tie = 0.0): string
         . '<div style="font-size:11px;color:var(--tx2);">' . $w . '/' . $g . '</div></div></td>';
 }
 
-// Полный агрегат по произвольному набору игр (итоговая таблица турнира и т.п.).
+// Полный агрегат по произвольному набору игр (итоговая таблица турнира, рейтинг вечера).
 // Итог/Ci берутся через game_display_totals (как в протоколе и основном рейтинге).
 // Порог минимума игр НЕ применяется — ~Σ/~Σ×Σ считаются всем (у турниров мало игр).
-function standings_from_games(array $games, array $seatsByGame): array
+// $ownDistance: у турнира дистанция для Ci своя (только его игры), у вечера — клубная,
+// как в протоколе; иначе Ci в таблице вечера разошёлся бы с карточками игр.
+function standings_from_games(array $games, array $seatsByGame, bool $ownDistance = true): array
 {
     $roleKey = ['civ' => 'civ', 'maf' => 'maf', 'sheriff' => 'sher', 'don' => 'don'];
     $rows = [];
@@ -425,7 +427,7 @@ function standings_from_games(array $games, array $seatsByGame): array
             }
         }
     }
-    $distTotals = ['games' => $distGames, 'pu' => $distPu];
+    $distTotals = $ownDistance ? ['games' => $distGames, 'pu' => $distPu] : null;
     foreach ($games as $g) {
         $seats = $seatsByGame[(int)$g['id']] ?? [];
         $totals = game_display_totals($g, $seats, $distTotals);
@@ -435,11 +437,13 @@ function standings_from_games(array $games, array $seatsByGame): array
             if (!isset($rows[$pid])) {
                 $rows[$pid] = [
                     'pid' => $pid, 'nick' => $s['nickname'], 'avatar' => $s['avatar'],
-                    'elo' => $s['elo'] ?? 1000,
+                    'flair' => $s['flair'] ?? '', 'elo' => $s['elo'] ?? 1000,
                     'games' => 0, 'sum' => 0.0, 'sum_plus' => 0.0, 'plus' => 0.0,
                     'pu_count' => 0, 'lh_sum' => 0.0, 'dop_sum' => 0.0, 'minus_sum' => 0.0, 'ci_sum' => 0.0,
                     'w_civ' => 0, 'g_civ' => 0, 'w_maf' => 0, 'g_maf' => 0,
                     'w_sher' => 0, 'g_sher' => 0, 'w_don' => 0, 'g_don' => 0,
+                    // доп-баллы (итог минус победный балл) — всего и по ролям: по ним номинации вечера
+                    'bonus' => 0.0, 'b_civ' => 0.0, 'b_maf' => 0.0, 'b_sher' => 0.0, 'b_don' => 0.0,
                 ];
             }
             $r = &$rows[$pid];
@@ -455,11 +459,15 @@ function standings_from_games(array $games, array $seatsByGame): array
                 $r['pu_count']++;
             }
             $r['lh_sum'] += (float)($tt['lh'] ?? 0); // ЛХ уже начислен только красным/шерифу
+            $won = ($winner === 'red' && in_array($s['role'], ROLE_RED, true))
+                || ($winner === 'black' && in_array($s['role'], ROLE_BLACK, true));
+            $bonus = (float)$tt['total'] - ($won ? 1.0 : 0.0);
+            $r['bonus'] += $bonus;
             $rk = $roleKey[$s['role']] ?? null;
             if ($rk) {
                 $r['g_' . $rk]++;
-                if (($winner === 'red' && in_array($s['role'], ROLE_RED, true))
-                    || ($winner === 'black' && in_array($s['role'], ROLE_BLACK, true))) {
+                $r['b_' . $rk] += $bonus;
+                if ($won) {
                     $r['w_' . $rk]++;
                 }
             }

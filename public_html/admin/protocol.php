@@ -263,7 +263,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         log_action((int)$u['id'], 'game_save', ['game_id' => $gid, 'day_id' => $dayId]);
         flash_set('ok', 'Игра сохранена, рейтинг обновлён');
-        redirect('/admin/protocol.php?day=' . $dayId);
+        // После сохранения — на страницу вечера (просьба руководителя): там сразу видно, как игра
+        // легла в рейтинг и номинации. Черновики и ошибки по-прежнему оставляют в протоколе.
+        redirect('/day.php?id=' . $dayId);
     }
 }
 

@@ -215,39 +215,10 @@ $mePid = $mp ? (int)$mp['id'] : 0;
 
 // ── Рейтинг вечера ──
 if ($games) {
-    $standing = [];
-    foreach ($games as $g) {
-        $seats = $seatsByGame[(int)$g['id']] ?? [];
-        $tt = game_display_totals($g, $seats);
-        foreach ($seats as $s) {
-            $pid = (int)$s['player_id'];
-            $standing[$pid] = $standing[$pid] ?? ['nick' => $s['nickname'], 'avatar' => $s['avatar'], 'flair' => $s['flair'] ?? '', 'elo' => $s['elo'], 'games' => 0, 'sum' => 0.0, 'sum_plus' => 0.0, 'bonus' => 0.0,
-                'g_civ' => 0, 'w_civ' => 0, 'p_civ' => 0.0, 'g_sheriff' => 0, 'w_sheriff' => 0, 'p_sheriff' => 0.0,
-                'g_maf' => 0, 'w_maf' => 0, 'p_maf' => 0.0, 'g_don' => 0, 'w_don' => 0, 'p_don' => 0.0];
-            $cell = $tt[(int)$s['seat']] ?? [];
-            $role = (string)$s['role'];
-            $isRedSeat = in_array($role, ROLE_RED, true);
-            $won = $g['winner'] !== null && $g['winner'] !== 'draw' && (($g['winner'] === 'red') === $isRedSeat);
-            $standing[$pid]['games']++;
-            $standing[$pid]['sum'] += $cell['total'] ?? 0;
-            $standing[$pid]['sum_plus'] += (float)$s['plus'] + (float)($cell['lh'] ?? 0) + (float)($cell['ci'] ?? 0);
-            // Доп-баллы = всё сверх победного балла: допы, ЛХ и Ci за вычетом минусов и б/теха.
-            // По ним считаются все номинации вечера — победный балл в зачёт не идёт, минуса идут
-            // (решение руководителя): иначе номинация достаётся тому, кому повезло с командой.
-            $bonus = (float)($cell['total'] ?? 0) - ($won ? 1.0 : 0.0);
-            $standing[$pid]['bonus'] += $bonus;
-            // По ролям — для номинаций вечера
-            if (isset($standing[$pid]['g_' . $role])) {
-                $standing[$pid]['g_' . $role]++;
-                if ($won) {
-                    $standing[$pid]['w_' . $role]++;
-                }
-                $standing[$pid]['p_' . $role] += $bonus;   // доп-баллы, набранные в этой роли
-            }
-        }
-    }
-    // Рейтинг вечера — по Σ; тай-брейк по Σ+ (бонусным баллам), с округлением для стабильности
-    uasort($standing, fn($a, $b) => [round($b['sum'], 2), round($b['sum_plus'], 2)] <=> [round($a['sum'], 2), round($a['sum_plus'], 2)]);
+    // Тот же агрегат, что в итоговой таблице турнира и в основном рейтинге (Σ, Σ+, допы, ПУ, ЛХ,
+    // Ci, винрейты по ролям) — общая функция, чтобы колонки вечера не разъезжались с рейтингом.
+    // Дистанция для Ci — клубная, как в карточках игр (потому false).
+    $standing = standings_from_games($games, $seatsByGame, false);
     // ELO в таблице вечера — ПО ИТОГАМ вечера (после последней игры), а не входной:
     // у дебютанта входной равен стартовой 1000 и колонка выглядела незаполненной.
     // Рядом стоит «ELO за вечер» — вместе они дают полную картину.
@@ -295,7 +266,7 @@ if ($games) {
                 continue;
             }
             $b = $standing[$best];
-            $d = (float)$r['p_' . $rk] - (float)$b['p_' . $rk];
+            $d = (float)$r['b_' . $rk] - (float)$b['b_' . $rk];
             $better = $d > 1e-9 || (abs($d) < 1e-9 && ((int)$r['w_' . $rk] > (int)$b['w_' . $rk]
                     || ((int)$r['w_' . $rk] === (int)$b['w_' . $rk] && (int)$r['g_' . $rk] < (int)$b['g_' . $rk])));
             if ($better) {
@@ -306,7 +277,7 @@ if ($games) {
             return null;
         }
         $cnt = (int)$standing[$best]['g_' . $rk];
-        $v = (float)$standing[$best]['p_' . $rk];
+        $v = (float)$standing[$best]['b_' . $rk];
         return [$best, 'допы ' . ($v < -1e-9 ? '−' : '+') . number_format(abs($v), 2) . ' ' . $hint
             . ' · ' . $cnt . ' ' . ru_plural($cnt, 'игра', 'игры', 'игр'),
             'Допы + ЛХ + Ci за вычетом минусов и большого техфола'];
@@ -333,7 +304,7 @@ if ($games) {
             . ' · ' . (int)$standing[$mvpPid]['games'] . ' ' . ru_plural((int)$standing[$mvpPid]['games'], 'игра', 'игры', 'игр'),
             'Допы + ЛХ + Ci за вычетом минусов и большого техфола']],
         ['😈 Лучший дон', $bestRole('don', 'за дона')],
-        ['🌟 Лучший шериф', $bestRole('sheriff', 'за шерифа')],
+        ['🌟 Лучший шериф', $bestRole('sher', 'за шерифа')],
         ['🔴 Лучший красный', $bestRole('civ', 'за мирного')],
         ['⚫ Лучший чёрный', $bestRole('maf', 'за мафию')],
     ];
@@ -365,26 +336,61 @@ if ($games) {
         echo '</div>';
     }
 
-    echo '<div class="card"><h2 style="margin-top:0;">Рейтинг вечера</h2>';
-    echo '<table class="tbl sortable"><thead><tr><th data-type="num">#</th><th>Игрок</th>'
-        . '<th class="num" data-type="num">Игр</th><th class="num" data-type="num">Σ за вечер</th>'
-        . '<th class="num" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">ELO</th><th class="num" data-type="num">ELO за вечер</th></tr></thead><tbody>';
+    // Таблица вечера — один в один как основной рейтинг (просьба руководителя): те же колонки,
+    // группы «Баллы и суммы» / «По картам» и сортировка кликом. Своя колонка одна — «ELO за вечер».
+    echo '<div class="card" style="overflow-x:auto;padding:8px 10px;"><h2 style="margin:6px 2px 10px;">Рейтинг вечера</h2>';
+    echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
+    echo '<thead>'
+        . '<tr class="rt-groups"><th colspan="2"></th><th colspan="2"></th>'
+        . '<th colspan="11">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
+        . '<tr>'
+        . '<th data-type="num">#</th><th>Игрок</th>'
+        . '<th class="num c-elo-l" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">ELO</th>'
+        . '<th class="num c-elo-r" data-type="num">за вечер</th>'
+        . '<th class="num c-club" data-type="num">~Σ×Σ</th><th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
+        . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
+        . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
+        . '<th class="c-cards c-cards-first" data-type="num">Общ</th><th class="c-cards" data-type="num">Мир</th>'
+        . '<th class="c-cards" data-type="num">Маф</th><th class="c-cards" data-type="num">Шер</th><th class="c-cards" data-type="num">Дон</th>'
+        . '</tr></thead><tbody>';
     $pos = 0;
     foreach ($standing as $pid => $row) {
         $pos++;
+        $w = (int)$row['w_civ'] + (int)$row['w_maf'] + (int)$row['w_sher'] + (int)$row['w_don'];
+        $avgDop = (int)$row['games'] ? (float)$row['dop_sum'] / (int)$row['games'] : 0;
         $isMe = $mePid && (int)$pid === $mePid;
-        echo '<tr' . ($pos <= 3 ? ' class="rt-top"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>'
-            . '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>'
-            . '<td><a href="/player.php?id=' . $pid . '" style="' . me_nick_style($isMe) . '">'
-            . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 24, 'margin-right:7px;')
-            . '<span style="vertical-align:middle;">' . esc($row['nick'])
-            . (!empty($row['flair']) ? ' <span class="flair">' . esc($row['flair']) . '</span>' : '') . '</span></a></td>'
-            . '<td class="num" data-sort="' . $row['games'] . '">' . $row['games'] . '</td>'
-            . '<td class="num" data-sort="' . round($row['sum'], 2) . '"><b>' . number_format($row['sum'], 2) . '</b></td>'
-            . '<td class="num" data-sort="' . (float)$row['elo'] . '">' . number_format((float)$row['elo'], 0, '.', '') . '</td>'
-            . '<td class="num" data-sort="' . round($eloDayDelta[$pid] ?? 0, 1) . '">' . $eloDeltaFmt($eloDayDelta[$pid] ?? null) . '</td></tr>';
+        echo '<tr data-games="' . (int)$row['games'] . '"' . ($pos <= 3 ? ' class="rt-' . $pos . '"' : '') . ($isMe ? ' style="' . me_row_style() . '"' : '') . '>';
+        echo '<td data-sort="' . $pos . '">' . ($pos <= 3 ? '<span style="font-size:15px;">' . rank_medal($pos) . '</span>' : $pos) . '</td>';
+        echo '<td><a class="rt-player" href="/player.php?id=' . (int)$pid . '" style="' . me_nick_style($isMe) . '">'
+            . avatar_html(['nickname' => $row['nick'], 'avatar' => $row['avatar']], 26, 'margin-right:8px;')
+            . '<span>' . esc((string)$row['nick'])
+            . (!empty($row['flair']) ? ' <span class="flair">' . esc((string)$row['flair']) . '</span>' : '')
+            . casper_ghost((string)$row['nick']) . '</span></a></td>';
+        echo '<td class="num c-elo-l" data-sort="' . (float)$row['elo'] . '"><b>' . number_format((float)$row['elo'], 0, '.', '') . '</b></td>';
+        echo '<td class="num c-elo-r" data-sort="' . round($eloDayDelta[$pid] ?? 0, 1) . '">' . $eloDeltaFmt($eloDayDelta[$pid] ?? null) . '</td>';
+        echo '<td class="num c-club" data-sort="' . round((float)$row['club_score'], 3) . '"><b>' . number_format((float)$row['club_score'], 2) . '</b></td>';
+        echo '<td class="num" data-sort="' . round((float)$row['avg_total'], 3) . '">' . number_format((float)$row['avg_total'], 2) . '</td>';
+        echo '<td class="num" data-sort="' . round((float)$row['sum'], 2) . '">' . number_format((float)$row['sum'], 2) . '</td>';
+        echo '<td class="num" data-sort="' . round((float)$row['sum_plus'], 2) . '">' . number_format((float)$row['sum_plus'], 2) . '</td>';
+        echo '<td class="num" data-sort="' . (int)$row['games'] . '">' . (int)$row['games'] . '</td>';
+        echo '<td class="num" data-sort="' . (int)$row['pu_count'] . '">' . (int)$row['pu_count'] . '</td>';
+        echo '<td class="num" data-sort="' . (float)$row['lh_sum'] . '">' . number_format((float)$row['lh_sum'], 1) . '</td>';
+        echo '<td class="num" data-sort="' . (float)$row['dop_sum'] . '">' . number_format((float)$row['dop_sum'], 1) . '</td>';
+        echo '<td class="num c-club" data-sort="' . round($avgDop, 3) . '"><b>' . number_format($avgDop, 2) . '</b></td>';
+        echo '<td class="num" data-sort="' . (float)$row['minus_sum'] . '">' . number_format((float)$row['minus_sum'], 1) . '</td>';
+        echo '<td class="num" data-sort="' . (float)$row['ci_sum'] . '">' . number_format((float)$row['ci_sum'], 2) . '</td>';
+        echo str_replace('c-cards"', 'c-cards c-cards-first"', wr_cell($w, (int)$row['games'], (float)$row['dop_sum']));
+        echo wr_cell((int)$row['w_civ'], (int)$row['g_civ'], (float)$row['b_civ']);
+        echo wr_cell((int)$row['w_maf'], (int)$row['g_maf'], (float)$row['b_maf']);
+        echo wr_cell((int)$row['w_sher'], (int)$row['g_sher'], (float)$row['b_sher']);
+        echo wr_cell((int)$row['w_don'], (int)$row['g_don'], (float)$row['b_don']);
+        echo '</tr>';
     }
-    echo '</tbody></table></div>';
+    echo '</tbody></table>';
+    echo '<p style="color:var(--tx2);font-size:12.5px;margin:8px 2px 2px;">Σ — сумма итогов; Σ+ — допы + ЛХ + Ci; '
+        . '~Σ — средний балл; ~Σ×Σ — клубный счёт; ПУ — первоубиенный; ЛХ — лучший ход; Ci — компенсации. '
+        . 'Клик по заголовку — сортировка.</p>';
+    echo '</div>';
 }
 
 // ── Игры вечера (сеткой) ──
