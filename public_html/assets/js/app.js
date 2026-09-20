@@ -640,6 +640,40 @@
   document.querySelectorAll('select[data-stepper]').forEach(enhanceStepper);
 })();
 
+// ── Кнопка «скопировать ссылку» (data-copy): дуэль и всё, чем захочется поделиться ──
+// Clipboard API работает только по https и по жесту пользователя; если недоступен —
+// выделяем адрес во временном поле и копируем по-старому, а совсем при отказе показываем текст.
+(function () {
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-copy]') : null;
+    if (!b) return;
+    e.preventDefault();
+    var text = b.getAttribute('data-copy');
+    var done = b.getAttribute('data-copy-done') || 'Скопировано';
+    var old = b.textContent;
+    function ok() {
+      b.textContent = '✓ ' + done;
+      setTimeout(function () { b.textContent = old; }, 1800);
+    }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      var okOld = false;
+      try { okOld = document.execCommand('copy'); } catch (err) {}
+      ta.remove();
+      if (okOld) { ok(); } else if (window.triadaAlert) { triadaAlert(text); } else { prompt('Скопируйте ссылку:', text); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+
 // ── «!» в рейтинге (игрока нет в системе): на телефоне наведения нет — подсказка открывается
 // нажатием. Знак стоит внутри ссылки на профиль, поэтому нажатие по нему не уводит со страницы.
 (function () {

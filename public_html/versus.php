@@ -234,6 +234,17 @@ if ($pa && $pb) {
     if ($verdict) {
         echo '<p style="margin:12px 0 0;padding-top:12px;border-top:1px solid var(--bd);font-size:14px;">' . $verdict . '</p>';
     }
+    // Ссылка на эту дуэль — чтобы кинуть её в чат (просьба руководителя). В адресе id игроков,
+    // а не ники: так ссылка переживает переименование и не разваливается на кириллице.
+    $shareQ = ['a' => (int)$pa['id'], 'b' => (int)$pb['id']];
+    if ($vsSel !== 'all') {
+        $shareQ['season'] = $vsSel;
+    }
+    $shareUrl = rtrim((string)cfg('base_url', 'https://triada-mendeleeva.ru'), '/')
+        . '/versus.php?' . http_build_query($shareQ);
+    echo '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bd);display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'
+        . '<button class="btn btn-ghost" type="button" data-copy="' . esc($shareUrl) . '" data-copy-done="Ссылка скопирована">🔗 Скопировать ссылку на дуэль</button>'
+        . '<span style="font-size:12.5px;color:var(--tx3);">откроется сразу с этой парой' . ($vsSel !== 'all' ? ' и сезоном' : '') . '</span></div>';
     echo '</div>';
 
     // ── Полное сравнение: показатели, роли, места за столом ───────────────────────────────
