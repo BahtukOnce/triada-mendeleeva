@@ -1109,6 +1109,8 @@ body::before {
 .vs-bar.left { justify-content: flex-end; }   /* левая половина растёт к центру */
 .vs-bar > span { display: block; height: 100%; background: var(--ac); border-radius: 5px; }
 .vs-bar-val { min-width: 42px; text-align: center; font-size: 13px; font-weight: 700; color: var(--tx); font-variant-numeric: tabular-nums; }
+.vs-bar-val.win { color: var(--ok); }    /* в этой роли сильнее */
+.vs-bar-val.lose { color: var(--ac); }
 .vs-bar-g { min-width: 22px; text-align: center; font-size: 11px; color: var(--tx3); }
 .vs-bar-lbl { text-align: center; font-size: 13px; color: var(--tx2); white-space: nowrap; }
 .vs-seats th, .vs-seats td { padding: 6px 8px; text-align: center; }

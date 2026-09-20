@@ -330,15 +330,22 @@ if ($pa && $pb) {
         [$bg, $bw] = $cB['roles'][$rk];
         $ap = $pct($aw, $ag);
         $bp = $pct($bw, $bg);
+        // Кто в этой роли сильнее — зелёным, кто слабее — красным (как в таблице показателей).
+        // Если у одного роли не было, никого не красим: сравнивать не с чем.
+        $aCls = $bCls = '';
+        if ($ag && $bg && $ap !== $bp) {
+            $aCls = $ap > $bp ? ' win' : ' lose';
+            $bCls = $bp > $ap ? ' win' : ' lose';
+        }
         echo '<div class="vs-bar-row">'
             . '<div class="vs-bar-side">'
-                . '<span class="vs-bar-val">' . ($ag ? $ap . '%' : '—') . '</span>'
+                . '<span class="vs-bar-val' . $aCls . '">' . ($ag ? $ap . '%' : '—') . '</span>'
                 . '<span class="vs-bar left" title="' . $aw . ' из ' . $ag . '"><span style="width:' . $ap . '%;"></span></span>'
                 . '<span class="vs-bar-g">' . $ag . '</span>'
             . '</div>'
             . '<div class="vs-bar-lbl">' . role_dot($rk) . $rl . '</div>'
             . '<div class="vs-bar-side rev">'
-                . '<span class="vs-bar-val">' . ($bg ? $bp . '%' : '—') . '</span>'
+                . '<span class="vs-bar-val' . $bCls . '">' . ($bg ? $bp . '%' : '—') . '</span>'
                 . '<span class="vs-bar right" title="' . $bw . ' из ' . $bg . '"><span style="width:' . $bp . '%;"></span></span>'
                 . '<span class="vs-bar-g">' . $bg . '</span>'
             . '</div></div>';
