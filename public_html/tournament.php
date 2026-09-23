@@ -188,6 +188,7 @@ echo '</div></div>';
 
 // ── Главный судья — отдельной плашкой в самом верху страницы ──
 $mjId = (int)($t['main_judge_player_id'] ?? 0);
+$judgeHero = '';
 if ($mjId) {
     $mjq = db()->prepare('SELECT nickname, avatar, elo,
         (SELECT COUNT(*) FROM games gg WHERE gg.judge_player_id = players.id) AS judged
@@ -202,13 +203,19 @@ if ($mjId) {
         if ((int)($mj['judged'] ?? 0) > 0) {
             $sub[] = '<a href="/my_judged.php?id=' . $mjId . '" style="color:var(--ac);">судил игр: ' . (int)$mj['judged'] . '</a>';
         }
-        echo '<div class="judge-hero" style="margin:6px 0 16px;">'
+        $judgeHero = '<div class="judge-hero">'
             . avatar_html(['nickname' => $mj['nickname'], 'avatar' => $mj['avatar']], 54)
             . '<div><div class="jh-label">⚖ Главный судья</div>'
             . '<a class="jh-name" href="/player.php?id=' . $mjId . '">' . esc($mj['nickname']) . '</a>'
             . ($sub ? '<div class="jh-sub">' . implode(' · ', $sub) . '</div>' : '')
             . '</div></div>';
     }
+}
+// У идущего турнира в шапке только судья — выводим сразу. У предстоящего он встаёт в одну строку
+// со статами, датой и местом (просьба руководителя), поэтому ждёт до инфо-строки ниже.
+$isRunning = in_array((string)($t['status'] ?? ''), ['live', 'review', 'finished'], true);
+if ($isRunning && $judgeHero !== '') {
+    echo $judgeHero;   // отступы у .judge-hero свои
 }
 
 // ── Итоговая таблица — НАВЕРХУ, считается вживую по уже СЫГРАННЫМ играм ──
@@ -360,9 +367,11 @@ if ($nP === 0) { // предстоящий турнир — берём подт�
     } catch (Throwable $e) {
     }
 }
-// Когда турнир идёт/сверяется/завершён — в шапке оставляем только главного судью
-$isRunning = in_array((string)($t['status'] ?? ''), ['live', 'review', 'finished'], true);
+// Когда турнир идёт/сверяется/завершён — в шапке оставляем только главного судью (он уже выведен)
 $blocks = [];
+if (!$isRunning && $judgeHero !== '') {
+    $blocks[] = $judgeHero;   // судья — первым в той же строке, что статы и дата
+}
 if (!$isRunning) {
     $blocks[] = '<div class="t-stats">'
         . '<div><b>' . $nT . '</b><span>' . $plural($nT, 'стол', 'стола', 'столов') . '</span></div>'

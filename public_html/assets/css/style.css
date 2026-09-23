@@ -665,6 +665,17 @@ img.tg-e { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline
 .ss-none { color: var(--tx3); cursor: default; }
 .bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; color: var(--tx2); text-decoration: none; flex: none; }
 .bell:hover { background: var(--sf2); color: var(--tx); }
+/* Лента уведомлений: строка во всю ширину, текст слева, дата справа */
+.ntf-list { display: flex; flex-direction: column; gap: 8px; }
+.ntf { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0; padding: 14px 18px; color: var(--tx); text-decoration: none; }
+a.ntf:hover { border-color: var(--ac); color: var(--tx); }
+.ntf-text { font-size: 14.5px; line-height: 1.5; min-width: 0; }
+.ntf-time { font-size: 12px; color: var(--tx3); white-space: nowrap; flex: none; }
+.ntf-new { border-color: rgba(232,51,42,.5); }
+@media (max-width: 560px) {
+  .ntf { flex-direction: column; align-items: flex-start; gap: 5px; }
+}
+
 .bell-badge { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--ac); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
 .judge-hero { display: inline-flex; align-items: center; gap: 14px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 14px; padding: 10px 22px 10px 10px; margin: 6px 0 12px; }
 .jh-label { font-size: 11px; color: var(--ac); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }

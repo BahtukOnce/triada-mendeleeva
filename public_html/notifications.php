@@ -19,17 +19,19 @@ page_head('Уведомления', '');
 echo '<h1>Уведомления</h1>';
 
 if ($rows) {
-    echo '<div style="display:flex;flex-direction:column;gap:8px;max-width:680px;">';
+    // Карточки во всю ширину страницы (просьба руководителя): при max-width 680px на мониторе
+    // они выглядели зажатыми. Дата ушла вправо — иначе широкая строка кажется полупустой.
+    echo '<div class="ntf-list">';
     foreach ($rows as $n) {
         $fresh = (int)$n['is_read'] === 0;
         $time = date('d.m.Y H:i', strtotime((string)$n['created_at']));
-        $body = '<div style="font-size:14px;line-height:1.5;color:var(--tx);">' . nl2br(esc((string)$n['text'])) . '</div>'
-            . '<div style="font-size:12px;color:var(--tx3);margin-top:4px;">' . $time . '</div>';
-        $style = 'margin:0;display:block;text-decoration:none;' . ($fresh ? 'border-color:rgba(232,51,42,.5);' : '');
+        $cls = 'card ntf' . ($fresh ? ' ntf-new' : '');
+        $body = '<div class="ntf-text">' . nl2br(esc((string)$n['text'])) . '</div>'
+            . '<div class="ntf-time">' . $time . '</div>';
         if (!empty($n['link'])) {
-            echo '<a href="' . esc((string)$n['link']) . '" class="card" style="' . $style . '">' . $body . '</a>';
+            echo '<a href="' . esc((string)$n['link']) . '" class="' . $cls . '">' . $body . '</a>';
         } else {
-            echo '<div class="card" style="' . $style . '">' . $body . '</div>';
+            echo '<div class="' . $cls . '">' . $body . '</div>';
         }
     }
     echo '</div>';
