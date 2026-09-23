@@ -58,6 +58,7 @@ function render_player_stats(int $id, bool $own = false): void
             $rank = (int)$st->fetchColumn();
         }
     }
+    $mainRc = $stats;   // строка клубного рейтинга текущего сезона — $stats ниже перезапишется сводкой
     // ── Фильтр статистики по сезонам (сезон = 1 сентября–31 августа, по дате игры) ──
     // ELO-график и ачивки считаются всегда за всю историю — здесь не фильтруются.
     $mainTitle = (string)(db()->query("SELECT title FROM ratings WHERE is_main = 1 LIMIT 1")->fetchColumn() ?: 'Текущий сезон');
@@ -75,8 +76,10 @@ function render_player_stats(int $id, bool $own = false): void
     foreach ($sst->fetchAll() as $r) {
         $seasonsAvail[(string)$r['s']] = (int)$r['c'];
     }
-    // По умолчанию — текущий сезон (1 сент–31 авг). Нет игр в нём → «Все сезоны».
-    $defaultSeason = current_season_bounds()[2];
+    // По умолчанию — «Все сезоны» (решение руководителя): в начале сезона игр мало, и личная
+    // статистика вместе с турнирами выглядела пустой. Клубный счёт ~Σ×Σ при этом — всегда текущего
+    // сезона (см. $mainRc ниже): он и есть место в рейтинге клуба.
+    $defaultSeason = 'all';
     $season = isset($_GET['season']) ? (string)$_GET['season'] : $defaultSeason;
     if ($season !== 'all' && !isset($seasonsAvail[$season])) {
         $season = 'all';
@@ -382,8 +385,10 @@ function render_player_stats(int $id, bool $own = false): void
         echo '<div class="stat"><div class="lbl">Σ+</div><div class="val">' . number_format((float)$stats['sum_plus'], 2) . '</div></div>';
         echo '<div class="stat"><div class="lbl">~Σ</div><div class="val">'
             . ($stats['avg_total'] !== null ? number_format((float)$stats['avg_total'], 2) : '—') . '</div></div>';
-        echo '<div class="stat"><div class="lbl">~Σ×Σ</div><div class="val">'
-            . ($stats['club_score'] !== null ? number_format((float)$stats['club_score'], 1) : '—') . '</div></div>';
+        // Клубный счёт — всегда текущего сезона, как в рейтинге клуба, при любом выбранном периоде
+        $curClub = $mainRc['club_score'] ?? null;
+        echo '<div class="stat" title="Клубный счёт в рейтинге текущего сезона"><div class="lbl">~Σ×Σ · сезон</div><div class="val">'
+            . ($curClub !== null ? number_format((float)$curClub, 1) : '—') . '</div></div>';
         echo '</div>';
 
         // ── «Как это считается»: расшифровка метрик и периодов (по просьбе — было непонятно) ──
@@ -400,7 +405,8 @@ function render_player_stats(int $id, bool $own = false): void
             . '<li><b>Σ</b> — сумма всех баллов, набранных за игры периода.</li>'
             . '<li><b>Σ+</b> — только «плюсы»: допы + ЛХ + Ci (без штрафов и базовых очков).</li>'
             . '<li><b>~Σ</b> — средний балл за игру (Σ ÷ число игр).</li>'
-            . '<li><b>~Σ×Σ</b> — клубный балл в рейтинге: средний балл × сумму. Награждает и стабильность, и наигранный объём.</li>'
+            . '<li><b>~Σ×Σ</b> — клубный балл в рейтинге: средний балл × сумму. Награждает и стабильность, и наигранный объём. '
+            . 'Всегда за <b>текущий сезон</b> — как в рейтинге клуба, какой бы период ни был выбран.</li>'
             . '<li><b>ПУ</b> — сколько раз игрок был первоубиенным (первым выбыл из игры).</li>'
             . '<li><b>ЛХ</b> — бонусы за «лучший ход» (угадка мафии первоубиенным).</li>'
             . '<li><b>Допы</b> — дополнительные баллы, которые судья ставит за игру.</li>'
@@ -547,12 +553,14 @@ function render_player_stats(int $id, bool $own = false): void
         // «Топ X% клуба» по клубному счёту среди попавших в рейтинг
         $pctileVal = '—';
         try {
-            if ($stats['club_score'] !== null) {
+            // Сравниваем счёт текущего сезона с текущим же рейтингом — со сводкой за всё время
+            // сравнение с сезонным рейтингом было бы яблоками с апельсинами.
+            if (($mainRc['club_score'] ?? null) !== null) {
                 $tt = db()->prepare('SELECT COUNT(*) FROM rating_cache WHERE rating_id = ? AND club_score IS NOT NULL');
                 $tt->execute([$mainId]);
                 $totalRanked = (int)$tt->fetchColumn();
                 $bt = db()->prepare('SELECT COUNT(*) FROM rating_cache WHERE rating_id = ? AND club_score > ?');
-                $bt->execute([$mainId, (float)$stats['club_score']]);
+                $bt->execute([$mainId, (float)$mainRc['club_score']]);
                 if ($totalRanked > 0) {
                     $pctileVal = 'топ <b>' . max(1, (int)ceil(((int)$bt->fetchColumn() + 1) / $totalRanked * 100)) . '%</b> клуба';
                 }

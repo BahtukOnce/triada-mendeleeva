@@ -341,12 +341,12 @@ if ($games) {
     echo '<div class="card" style="overflow-x:auto;padding:8px 10px;"><h2 style="margin:6px 2px 10px;">Рейтинг вечера</h2>';
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
     echo '<thead>'
-        . '<tr class="rt-groups"><th colspan="2"></th><th colspan="2"></th>'
+        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo-both" colspan="2">ELO</th>'
         . '<th colspan="11">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
         . '<th data-type="num">#</th><th>Игрок</th>'
-        . '<th class="num c-elo-l" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">ELO</th>'
-        . '<th class="num c-elo-r" data-type="num">за вечер</th>'
+        . '<th class="num c-elo-l" data-type="num" title="ELO по итогам вечера — после последней сыгранной игры">итог</th>'
+        . '<th class="num c-elo-r" data-type="num" title="Изменение ELO за вечер">за вечер</th>'
         . '<th class="num c-club" data-type="num">~Σ×Σ</th><th class="num" data-type="num">~Σ</th><th class="num" data-type="num">Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'
