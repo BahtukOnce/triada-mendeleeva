@@ -1211,7 +1211,9 @@ body::before {
 .rating-tbl .c-elo-r { background: rgba(232,51,42,0.06); box-shadow: inset -2px 0 0 var(--ac); }
 /* Над парой — одна объединённая ячейка «ELO» по центру: рамка идёт с самого верха шапки,
    на одном уровне с разделителем «По картам» (просьба руководителя). */
-.rating-tbl .rt-groups .c-elo-both { background: rgba(232,51,42,0.06); box-shadow: inset 2px 0 0 var(--ac), inset -2px 0 0 var(--ac); color: var(--tx); text-align: center; }
+/* Селектор с th и .tbl — иначе центр перебивает правило «вторая колонка (Игрок) влево»: в строке
+   групп ячейка ELO как раз вторая по счёту. */
+.tbl.rating-tbl .rt-groups th.c-elo-both { background: rgba(232,51,42,0.06); box-shadow: inset 2px 0 0 var(--ac), inset -2px 0 0 var(--ac); color: var(--tx); text-align: center; }
 .rating-tbl .rt-groups th { font-size: 11px; font-weight: 600; color: var(--tx2); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; padding: 7px 8px 5px; border-bottom: none; }
 .rating-tbl tr.rt-top td { background: rgba(232,51,42,0.045); }
 .rating-tbl tr.rt-top:hover td { background: var(--sf2); }
