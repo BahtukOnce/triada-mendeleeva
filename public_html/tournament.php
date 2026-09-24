@@ -253,10 +253,11 @@ if ($standing && (!$standingsHidden || $canManageT)) {
     echo '</div>';
     echo '<table class="tbl sortable rating-tbl" style="font-size:13px;">';
     echo '<thead>'
-        . '<tr class="rt-groups"><th colspan="2"></th><th class="c-elo"></th>'
+        // «ELO» — одна ячейка на обе строки шапки, как в основном рейтинге
+        . '<tr class="rt-groups"><th colspan="2"></th><th class="num c-elo c-elo-span" rowspan="2" data-type="num" title="ELO по итогам турнира — после последней сыгранной в нём игры">ELO</th>'
         . '<th colspan="10">Баллы и суммы</th><th class="c-cards-first" colspan="5">По картам</th></tr>'
         . '<tr>'
-        . '<th data-type="num">#</th><th>Игрок</th><th class="num c-elo" data-type="num" title="ELO по итогам турнира — после последней сыгранной в нём игры">ELO</th>'
+        . '<th data-type="num">#</th><th>Игрок</th>'
         . '<th class="num" data-type="num">Σ</th><th class="num" data-type="num">~Σ</th>'
         . '<th class="num" data-type="num">Σ+</th><th class="num" data-type="num">Игр</th><th class="num" data-type="num">ПУ</th><th class="num" data-type="num">ЛХ</th>'
         . '<th class="num" data-type="num">Допы</th><th class="num c-club" data-type="num">ср.доп</th><th class="num" data-type="num">−</th><th class="num" data-type="num">Ci</th>'

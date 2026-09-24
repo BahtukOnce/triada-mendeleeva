@@ -86,14 +86,35 @@
 
   // Сортировка таблиц по клику на заголовок
   document.querySelectorAll('table.sortable').forEach(function (table) {
-    var heads = table.querySelectorAll('thead tr:last-child th');
-    heads.forEach(function (th, idx) {
+    // Номер колонки каждого заголовка — с учётом rowspan/colspan: в рейтинге «ELO» объединена
+    // на обе строки шапки и в последней строке её нет, поэтому индекс в строке не годится.
+    // Сортируемые — ячейки шириной в одну колонку, доходящие до последней строки шапки.
+    var hrows = table.querySelectorAll('thead tr');
+    var lastRow = hrows.length - 1;
+    var taken = [];
+    var heads = [];
+    Array.prototype.forEach.call(hrows, function (tr, r) {
+      taken[r] = taken[r] || [];
+      var c = 0;
+      Array.prototype.forEach.call(tr.children, function (cell) {
+        while (taken[r][c]) c++;
+        var rs = cell.rowSpan || 1, cs = cell.colSpan || 1;
+        for (var i = 0; i < rs; i++) {
+          taken[r + i] = taken[r + i] || [];
+          for (var j = 0; j < cs; j++) taken[r + i][c + j] = true;
+        }
+        if (r + rs - 1 === lastRow && cs === 1) heads.push({ th: cell, idx: c });
+        c += cs;
+      });
+    });
+    heads.forEach(function (hd) {
+      var th = hd.th, idx = hd.idx;
       th.addEventListener('click', function () {
         var tbody = table.querySelector('tbody');
         var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
         // первый клик — по убыванию, повторный — по возрастанию
         var asc = th.classList.contains('sorted-desc');
-        heads.forEach(function (h) { h.classList.remove('sorted-asc', 'sorted-desc'); });
+        heads.forEach(function (h) { h.th.classList.remove('sorted-asc', 'sorted-desc'); });
         th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
         rows.sort(function (a, b) {
           var ca = a.children[idx], cb = b.children[idx];

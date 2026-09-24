@@ -1202,9 +1202,11 @@ body::before {
 
 .rating-tbl .c-club { background: rgba(232,51,42,0.07); }
 .rating-tbl .c-elo { background: rgba(232,51,42,0.06); box-shadow: inset 2px 0 0 var(--ac), inset -2px 0 0 var(--ac); }
-/* Пустая ячейка над «ELO» в строке групп — без рамки и подкраски: иначе над заголовком висела
-   отдельная красная «коробка». Рамка ELO начинается с самого заголовка. */
-.rating-tbl .rt-groups .c-elo { background: transparent; box-shadow: none; }
+/* «ELO» в рейтинге и турнире — одна ячейка на обе строки шапки (rowspan=2), по центру: рамка
+   начинается с самого верха, на одном уровне с разделителем «По картам» (просьба руководителя).
+   Шрифт — как у обычных заголовков колонок, а не мелкий капс строки групп. Селектор с .tbl и th —
+   иначе центр перебивает правило «вторая колонка (Игрок) влево»: в строке групп ELO вторая. */
+.tbl.rating-tbl .rt-groups th.c-elo-span { vertical-align: middle; text-align: center; font-size: 12px; font-weight: 550; text-transform: none; letter-spacing: 0; color: var(--tx2); padding: 8px 10px; border-bottom: 1px solid var(--bd); }
 /* На вечере в рамке ELO две колонки — «ELO» и «за вечер»: рамку рисуем только по краям пары,
    иначе между ними встаёт лишняя красная линия. */
 .rating-tbl .c-elo-l { background: rgba(232,51,42,0.06); box-shadow: inset 2px 0 0 var(--ac); }
