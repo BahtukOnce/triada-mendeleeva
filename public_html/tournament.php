@@ -447,11 +447,12 @@ usort($rConfirmed, fn($a, $b) => (float)$b['elo'] <=> (float)$a['elo']); // си
 usort($rInvited, fn($a, $b) => strcmp((string)$a['nickname'], (string)$b['nickname']));
 $avgElo = $rConfirmed ? (int)round(array_sum(array_map(fn($r) => (float)$r['elo'], $rConfirmed)) / count($rConfirmed)) : 0;
 
-// Игры/винрейт/средний доп по ролям — за ТЕКУЩИЙ сезон, из game_seats (вечера + турниры),
+// Игры/винрейт/средний доп по ролям — ЗА ВСЕ СЕЗОНЫ (решение руководителя: в начале сезона у
+// участников по 1–7 игр, и по ним не видно, кто есть кто), из game_seats (вечера + турниры),
 // чтобы попадали и те, кто играл только турниры (нет строки в rating_cache).
-[$seasonStart, $seasonEnd] = current_season_bounds();
+// «Клубный рейтинг» в той же таблице — текущего сезона, он берётся из rating_cache выше.
 $dopByRole = [];
-$seasonAgg = []; // player_id => ['games'=>, 'wins'=>]
+$allAgg = []; // player_id => ['games'=>, 'wins'=>]
 if ($rConfirmed) {
     $pids = array_map(fn($r) => (int)$r['player_id'], $rConfirmed);
     $in2 = implode(',', array_fill(0, count($pids), '?'));
@@ -459,17 +460,14 @@ if ($rConfirmed) {
             SUM(CASE WHEN (g.winner='red' AND gs.role IN ('civ','sheriff'))
                       OR (g.winner='black' AND gs.role IN ('maf','don')) THEN 1 ELSE 0 END) AS w
         FROM game_seats gs JOIN games g ON g.id = gs.game_id
-        LEFT JOIN game_days d ON d.id = g.day_id
-        LEFT JOIN tournaments t ON t.id = g.tournament_id
         WHERE gs.player_id IN ($in2) AND g.status = 'finished' AND g.winner IS NOT NULL
-          AND COALESCE(d.date, t.date_from) BETWEEN ? AND ?
         GROUP BY gs.player_id, gs.role");
-    $dq->execute(array_merge($pids, [$seasonStart, $seasonEnd]));
+    $dq->execute($pids);
     foreach ($dq->fetchAll() as $row) {
         $pid0 = (int)$row['player_id'];
         $dopByRole[$pid0][$row['role']] = ['avg' => (float)$row['avg_dop'], 'g' => (int)$row['g']];
-        $seasonAgg[$pid0]['games'] = ($seasonAgg[$pid0]['games'] ?? 0) + (int)$row['g'];
-        $seasonAgg[$pid0]['wins'] = ($seasonAgg[$pid0]['wins'] ?? 0) + (int)$row['w'];
+        $allAgg[$pid0]['games'] = ($allAgg[$pid0]['games'] ?? 0) + (int)$row['g'];
+        $allAgg[$pid0]['wins'] = ($allAgg[$pid0]['wins'] ?? 0) + (int)$row['w'];
     }
 }
 
@@ -514,17 +512,18 @@ if (!$isRunning && ($rosterRows || $regOpen)) {
             return '<span style="display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;font-variant-numeric:tabular-nums;font-size:12.5px;">' . $out . '</span>';
         };
         echo '<div style="overflow-x:auto;"><table class="tbl tp-tbl"><tr>'
-            . '<th class="num">#</th><th class="tp-name-col">Игрок</th><th class="num">ELO</th><th class="num">Игр</th><th class="num">Винрейт</th>'
+            . '<th class="num">#</th><th class="tp-name-col">Игрок</th><th class="num">ELO</th>'
+            . '<th class="num" title="За все сезоны: вечера и турниры">Игр</th><th class="num" title="За все сезоны: вечера и турниры">Винрейт</th>'
             . '<th>Любимая карта</th>'
-            . '<th style="text-align:center;">Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;">'
+            . '<th style="text-align:center;" title="Средний доп за игру в каждой роли — за все сезоны">Ср. доп по ролям<br><span style="font-weight:400;font-size:10px;display:inline-grid;grid-template-columns:repeat(4,42px);gap:4px;text-align:center;">'
             . '<span style="color:#e8332a;">мир</span><span style="color:var(--tx3);">маф</span><span style="color:#e6b13a;">шер</span><span style="color:var(--tx3);">дон</span></span></th>'
-            . '<th class="num">Клубный рейтинг</th></tr>';
+            . '<th class="num" title="Клубный счёт ~Σ×Σ в рейтинге текущего сезона">Клубный рейтинг</th></tr>';
         $pos = 0;
         foreach ($rConfirmed as $r) {
             $pos++;
             $pid0 = (int)$r['player_id'];
-            $g = (int)($seasonAgg[$pid0]['games'] ?? 0);
-            $wr = $g > 0 ? (round((int)($seasonAgg[$pid0]['wins'] ?? 0) / $g * 100) . '%') : '—';
+            $g = (int)($allAgg[$pid0]['games'] ?? 0);
+            $wr = $g > 0 ? (round((int)($allAgg[$pid0]['wins'] ?? 0) / $g * 100) . '%') : '—';
             $fav = (string)($r['fav_role'] ?? '');
             $favCell = $fav !== ''
                 ? '<span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><span style="width:9px;height:9px;border-radius:50%;background:' . role_color($fav) . ';flex:none;"></span>' . esc($roleLabel[$fav] ?? $fav) . '</span>'
