@@ -1355,7 +1355,11 @@ body::before {
      тонкие красные разделители колонок (inset-тени) вместе с прилипшими ячейками размазывались
      поперёк. Отдельный слой отрисовки у прокручиваемой таблицы и у прилипших ячеек убирает хвосты. */
   table.tbl { transform: translateZ(0); }
-  .rating-tbl tr > :nth-child(-n+2) { backface-visibility: hidden; }
+  /* Только прилипшие ячейки. В строке групп вторая ячейка — «ELO» (объединённая на две строки
+     шапки), она не прилипает; со своим слоем отрисовки над ней появлялась красная горизонтальная
+     черта. */
+  .rating-tbl tr:not(.rt-groups) > :nth-child(-n+2),
+  .rating-tbl tr.rt-groups > :first-child { backface-visibility: hidden; }
   /* Тач-таргеты: пальцу нужно ≥40px */
   .react-btn { padding: 9px 13px; }
   .ava-actions button { padding: 8px 12px; font-size: 13px; }
