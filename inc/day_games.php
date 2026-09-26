@@ -136,6 +136,7 @@ function day_draft_card(array $d, array $gameNos, string $actionsHtml = '', bool
     if ($meta) {
         $h .= '<p style="color:var(--tx2);font-size:12px;margin:8px 0 0;line-height:2;">' . implode(' &nbsp;·&nbsp; ', $meta) . '</p>';
     }
+    $h .= game_votes_html(isset($data['votes']) ? (string)$data['votes'] : null);   // голосование по кругам
     if (trim((string)$d['errors']) !== '') {
         $h .= '<p class="draft-err">⚠ Поправить: ' . esc((string)$d['errors']) . '</p>';
     }
@@ -251,6 +252,7 @@ function day_games_grid(array $games, array $seatsByGame, int $mePid = 0, ?calla
         if ($meta) {
             echo '<p style="color:var(--tx2);font-size:12px;margin:8px 0 0;line-height:2;">' . implode(' &nbsp;·&nbsp; ', $meta) . '</p>';
         }
+        echo game_votes_html($g['votes'] ?? null);   // голосование по кругам
         echo '</div>';
     }
     echo $tail . '</div>';

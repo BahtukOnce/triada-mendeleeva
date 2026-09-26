@@ -1060,3 +1060,123 @@
     rearm = setTimeout(arm, 1800);   // повторно не нажали — снова страхуем
   });
 })();
+
+// ── Голосование по кругам в протоколе (просьба руководителя). Под столом на каждом круге судья
+// нажимает номера выставленных — по порядку, номер не больше раза за круг (повторный клик
+// снимает); среди выставленных отмечает заголосованных; после круга — кого убили ночью.
+// Выбывшие на следующих кругах не предлагаются. «+ Следующий круг» — новое голосование.
+// Убитый в первую ночь — это ПУ: если поле ПУ пустое, подставляем его. Значение — JSON в
+// скрытом input[name=votes], сервер перепроверяет правила (game_votes_parse в inc/helpers.php).
+(function () {
+  var box = document.querySelector('.votes-box');
+  if (!box) return;
+  var inp = box.querySelector('input[name="votes"]');
+  var max = +(box.getAttribute('data-max') || 10);
+  var rounds = [];
+  try { rounds = JSON.parse(inp.value || '[]') || []; } catch (e) { rounds = []; }
+  if (!Array.isArray(rounds)) rounds = [];
+  rounds = rounds.map(function (r) {
+    return { n: (r.n || []).map(Number), out: (r.out || []).map(Number), kill: +r.kill || 0 };
+  });
+  if (!rounds.length) rounds.push({ n: [], out: [], kill: 0 });
+  var cur = rounds.length - 1;   // раскрытый круг
+
+  var ui = document.createElement('div');
+  ui.className = 'votes-ui';
+  box.appendChild(ui);
+
+  function deadBefore(k) {
+    var d = {};
+    for (var i = 0; i < k; i++) {
+      rounds[i].out.forEach(function (s) { d[s] = 1; });
+      if (rounds[i].kill) d[rounds[i].kill] = 1;
+    }
+    return d;
+  }
+  // Правка раннего круга может «оживить» или убить игрока — поздние круги чистим по правилам
+  function normalize() {
+    var dead = {};
+    rounds.forEach(function (r) {
+      r.n = r.n.filter(function (s, i, a) { return !dead[s] && a.indexOf(s) === i; });
+      r.out = r.out.filter(function (s, i, a) { return r.n.indexOf(s) >= 0 && a.indexOf(s) === i; });
+      if (r.kill && (dead[r.kill] || r.out.indexOf(r.kill) >= 0)) r.kill = 0;
+      r.out.forEach(function (s) { dead[s] = 1; });
+      if (r.kill) dead[r.kill] = 1;
+    });
+  }
+  function save() {
+    normalize();
+    inp.value = JSON.stringify(rounds);
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function summary(r) {
+    var p = [r.n.length ? 'выставлены ' + r.n.join(', ') : 'никого не выставили'];
+    if (r.out.length) p.push((r.out.length > 1 ? 'ушли ' : 'ушёл ') + r.out.join(', '));
+    else if (r.n.length) p.push('никто не ушёл');
+    if (r.kill) p.push('ночью убит ' + r.kill);
+    return p.join(' · ');
+  }
+  function seatBtn(s, act, cls, inner) {
+    return '<button type="button" class="vb' + (cls ? ' ' + cls : '') + '" data-act="' + act + '" data-seat="' + s + '">'
+      + (inner || s) + '</button>';
+  }
+  function render() {
+    var html = '<div class="votes-head"><b>Голосование</b>'
+      + '<span class="votes-hint">номер — не больше раза за круг, выбывшие дальше не предлагаются</span></div>';
+    rounds.forEach(function (r, k) {
+      var dead = deadBefore(k), open = k === cur, last = k === rounds.length - 1;
+      html += '<div class="vr' + (open ? ' open' : '') + '">'
+        + '<div class="vr-top"><button type="button" class="vr-name" data-act="open" data-k="' + k + '">' + (k + 1) + ' круг</button>'
+        + '<span class="vr-sum">' + summary(r) + '</span>'
+        + (last && (rounds.length > 1 || r.n.length || r.kill) ? '<button type="button" class="vr-del" data-act="del" title="Убрать этот круг">×</button>' : '')
+        + '</div>';
+      if (open) {
+        var nb = '', ob = '', kb = '';
+        for (var s = 1; s <= max; s++) {
+          if (dead[s]) { nb += '<button type="button" class="vb dead" disabled title="Выбыл на прошлых кругах">' + s + '</button>'; continue; }
+          var idx = r.n.indexOf(s);
+          nb += seatBtn(s, 'n', (idx >= 0 ? 'on' : '') + (r.out.indexOf(s) >= 0 ? ' out' : ''),
+            s + (idx >= 0 ? '<sup>' + (idx + 1) + '</sup>' : ''));
+          if (r.out.indexOf(s) < 0) kb += seatBtn(s, 'kill', r.kill === s ? 'kill' : '');
+        }
+        r.n.forEach(function (t) { ob += seatBtn(t, 'out', r.out.indexOf(t) >= 0 ? 'out' : ''); });
+        html += '<div class="vr-row"><span class="vr-lbl">Выставлены</span><div class="vr-seats">' + nb + '</div></div>'
+          + '<div class="vr-row"><span class="vr-lbl">Заголосован</span><div class="vr-seats">'
+          + (ob || '<span class="vr-empty">сначала отметьте выставленных</span>') + '</div></div>'
+          + '<div class="vr-row"><span class="vr-lbl">Ночью убит</span><div class="vr-seats">' + kb + '</div></div>';
+      }
+      html += '</div>';
+    });
+    html += '<button type="button" class="votes-add" data-act="add">+ Следующий круг</button>';
+    ui.innerHTML = html;
+  }
+  ui.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b || b.disabled) return;
+    var act = b.getAttribute('data-act'), r = rounds[cur], s = +b.getAttribute('data-seat');
+    if (act === 'open') { cur = +b.getAttribute('data-k'); render(); return; }
+    if (act === 'add') { rounds.push({ n: [], out: [], kill: 0 }); cur = rounds.length - 1; save(); render(); return; }
+    if (act === 'del') {
+      rounds.pop();
+      if (!rounds.length) rounds.push({ n: [], out: [], kill: 0 });
+      cur = rounds.length - 1; save(); render(); return;
+    }
+    if (act === 'n') {
+      var i = r.n.indexOf(s);
+      if (i >= 0) r.n.splice(i, 1); else r.n.push(s);
+    } else if (act === 'out') {
+      var j = r.out.indexOf(s);
+      if (j >= 0) r.out.splice(j, 1); else r.out.push(s);
+    } else if (act === 'kill') {
+      r.kill = r.kill === s ? 0 : s;
+      // Убитый в первую ночь — ПУ: подставляем в поле ПУ, если оно ещё пустое
+      var pu = document.getElementById('f-pu');
+      if (cur === 0 && r.kill && pu && (pu.value === '0' || pu.value === '')) {
+        pu.value = String(r.kill);
+        pu.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    save(); render();
+  });
+  render();
+})();

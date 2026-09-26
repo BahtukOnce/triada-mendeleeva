@@ -27,6 +27,9 @@ function protocol_draft_save(int $dayId, int $gameId, int $draftId, array $post,
             $keep[$k] = mb_substr((string)$post[$k], 0, 500);
         }
     }
+    if (isset($post['votes']) && !is_array($post['votes'])) {
+        $keep['votes'] = (string)game_votes_parse((string)$post['votes'], 10);   // голосование по кругам
+    }
     for ($i = 1; $i <= 10; $i++) {
         foreach (['nick', 'role', 'fouls', 'tech', 'bigtech', 'removal', 'plus', 'minus', 'calls'] as $f) {
             if (isset($post[$f . $i]) && !is_array($post[$f . $i])) {
@@ -87,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $v = (int)($_POST[$k] ?? 0);
             $bm[] = ($v >= 1 && $v <= 10) ? $v : null;
         }
+        $votes = game_votes_parse((string)($_POST['votes'] ?? ''), 10);   // голосование по кругам
 
         // Собираем места
         $seats = [];
@@ -215,20 +219,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($gid) {
             $pdo->prepare('UPDATE games SET judge_player_id=?, winner=?, first_killed_seat=?,
-                bm_seat1=?, bm_seat2=?, bm_seat3=?, comment=?, status=\'finished\', finished_at=NOW()
+                bm_seat1=?, bm_seat2=?, bm_seat3=?, comment=?, votes=?, status=\'finished\', finished_at=NOW()
                 WHERE id=? AND day_id=?')
                 ->execute([$judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
-                    trim((string)($_POST['comment'] ?? '')) ?: null, $gid, $dayId]);
+                    trim((string)($_POST['comment'] ?? '')) ?: null, $votes, $gid, $dayId]);
             $pdo->prepare('DELETE FROM game_seats WHERE game_id = ?')->execute([$gid]);
         } else {
             $stmt = $pdo->prepare('SELECT COALESCE(MAX(game_no),0)+1 FROM games WHERE day_id = ?');
             $stmt->execute([$dayId]);
             $nextNo = (int)$stmt->fetchColumn();
             $pdo->prepare("INSERT INTO games (context, day_id, table_no, game_no, judge_player_id, winner,
-                first_killed_seat, bm_seat1, bm_seat2, bm_seat3, comment, status, finished_at)
-                VALUES ('day', ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'finished', NOW())")
+                first_killed_seat, bm_seat1, bm_seat2, bm_seat3, comment, votes, status, finished_at)
+                VALUES ('day', ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'finished', NOW())")
                 ->execute([$dayId, $nextNo, $judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
-                    trim((string)($_POST['comment'] ?? '')) ?: null]);
+                    trim((string)($_POST['comment'] ?? '')) ?: null, $votes]);
             $gid = (int)$pdo->lastInsertId();
         }
         $insS = $pdo->prepare('INSERT INTO game_seats
@@ -395,6 +399,7 @@ if (is_array($old)) {
     $editGame['bm_seat2'] = (int)($old['bm2'] ?? 0);
     $editGame['bm_seat3'] = (int)($old['bm3'] ?? 0);
     $editGame['comment'] = (string)($old['comment'] ?? '');
+    $editGame['votes'] = game_votes_parse((string)($old['votes'] ?? ''), 10);
     for ($i = 1; $i <= 10; $i++) {
         $editSeats[$i] = [
             'nickname' => trim((string)($old["nick$i"] ?? '')),
@@ -606,6 +611,12 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
         </tr>
         <?php endfor; ?>
       </table>
+    </div>
+
+    <?php /* Голосование по кругам (просьба руководителя): кого выставили, кого заголосовали, кого
+             убили ночью. Кнопки — в app.js (.votes-box), здесь только значение JSON. */ ?>
+    <div class="votes-box" data-max="10">
+      <input type="hidden" name="votes" value="<?= esc((string)game_votes_parse((string)($editGame['votes'] ?? ''), 10)) ?>">
     </div>
 
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;align-items:end;">

@@ -840,11 +840,13 @@ foreach ($byTable as $tableNo => $tGames) {
             if ($puNick !== '') { echo $mini('🔪 Первоубитый', esc($puNick)); }
             echo '</div>'; // grid
             foreach ($lhBlocks as $b) { echo $lhBlockHtml($b); } // ЛХ — в панель, подписью по нику/месту
+            echo game_votes_html($g['votes'] ?? null);   // голосование по кругам
             echo '</div>'; // stats-col
             echo '</div>'; // flex-row
         } elseif ($lhBlocks) {
             // многостольный вид — боковой панели нет, показываем ЛХ под таблицей
             foreach ($lhBlocks as $b) { echo $lhBlockHtml($b); }
+            echo game_votes_html($g['votes'] ?? null);   // голосование по кругам
         }
         echo '</div>'; // card
     }

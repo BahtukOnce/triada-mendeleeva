@@ -109,15 +109,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/admin/tournament_protocol.php?game=' . $gid);
         }
 
+        $votes = game_votes_parse((string)($_POST['votes'] ?? ''), $maxSeatNo);   // голосование по кругам
         $pdo = db();
         $pdo->beginTransaction();
         $pdo->prepare("UPDATE games SET judge_player_id=?, winner=?, first_killed_seat=?,
             bm_seat1=?, bm_seat2=?, bm_seat3=?, vote0_seat=?, vote0_bm1=?, vote0_bm2=?, vote0_bm3=?,
-            comment=?, status='finished', finished_at=NOW()
+            comment=?, votes=?, status='finished', finished_at=NOW()
             WHERE id=? AND context='tournament'")
             ->execute([$judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
                 $vote0, $v0bm[0], $v0bm[1], $v0bm[2],
-                trim((string)($_POST['comment'] ?? '')) ?: null, $gid]);
+                trim((string)($_POST['comment'] ?? '')) ?: null, $votes, $gid]);
         $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, removal=?, plus=?, minus=?, calls=?
             WHERE game_id=? AND seat=?');
         foreach ($upd as $seat => $s) {
@@ -176,6 +177,7 @@ if (is_array($old)) {
     $g['vote0_bm2'] = (int)($old['v0bm2'] ?? 0);
     $g['vote0_bm3'] = (int)($old['v0bm3'] ?? 0);
     $g['comment'] = (string)($old['comment'] ?? '');
+    $g['votes'] = game_votes_parse((string)($old['votes'] ?? ''), 10);
 }
 $allPlayers = db()->query('SELECT id, nickname FROM players WHERE banned_at IS NULL ORDER BY nickname')->fetchAll();
 $roleOpts = ['civ' => 'Мирный', 'maf' => 'Мафия', 'sheriff' => 'Шериф', 'don' => 'Дон'];
@@ -271,6 +273,12 @@ page_head('Протокол — ' . $g['t_title'], '');
         </tr>
         <?php endforeach; ?>
       </table>
+    </div>
+
+    <?php /* Голосование по кругам (просьба руководителя): кого выставили, кого заголосовали, кого
+             убили ночью. Кнопки — в app.js (.votes-box), здесь только значение JSON. */ ?>
+    <div class="votes-box" data-max="<?= (int)$maxSeat ?>">
+      <input type="hidden" name="votes" value="<?= esc((string)game_votes_parse((string)($g['votes'] ?? ''), (int)$maxSeat)) ?>">
     </div>
 
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;align-items:end;">

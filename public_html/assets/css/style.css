@@ -801,6 +801,47 @@ a.ntf:hover { border-color: var(--ac); color: var(--tx); }
 .cp-clear, .cp-done { padding: 4px 8px; border-radius: 7px; border: 1px solid var(--bd); background: var(--sf2);
   color: var(--tx2); font-size: 12px; cursor: pointer; margin-left: 4px; }
 .cp-done { background: var(--ac); border-color: var(--ac); color: #fff; }
+
+/* ── Голосование по кругам (протокол): выставленные по порядку (цифра порядка в углу),
+   заголосованные — красной заливкой, убитый ночью — тёмной, выбывшие раньше — зачёркнуты ── */
+.votes-box { margin: 14px 0 4px; padding: 12px 14px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 12px; }
+.votes-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.votes-hint { font-size: 11.5px; color: var(--tx3); }
+.vr { border-top: 1px solid var(--bd); padding: 8px 0; }
+.votes-head + .vr { border-top: 0; }
+.vr-top { display: flex; align-items: center; gap: 10px; }
+.vr-name { background: none; border: 0; padding: 0; color: var(--tx); font-weight: 700; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.vr:not(.open) .vr-name { color: var(--tx2); text-decoration: underline dotted; }
+.vr-sum { flex: 1; min-width: 0; font-size: 12.5px; color: var(--tx2); }
+.vr-del { background: none; border: 0; padding: 0 4px; color: var(--tx3); font-size: 18px; line-height: 1; cursor: pointer; }
+.vr-del:hover { color: var(--ac); }
+.vr-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.vr-lbl { width: 96px; flex: none; font-size: 12px; color: var(--tx2); }
+.vr-seats { display: flex; flex-wrap: wrap; gap: 6px; }
+.vr-empty { font-size: 12px; color: var(--tx3); }
+.vb { position: relative; min-width: 34px; height: 32px; padding: 0 6px; border: 1px solid var(--bd); border-radius: 8px;
+  background: var(--sf); color: var(--tx); font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.vb:hover:not(:disabled) { border-color: var(--tx3); }
+.vb.on { border-color: var(--ac); background: rgba(232,51,42,.16); }
+.vb sup { position: absolute; top: -7px; right: -6px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px;
+  background: var(--ac); color: #fff; font-size: 9.5px; line-height: 15px; }
+.vb.out { background: var(--ac); border-color: var(--ac); color: #fff; }
+.vb.kill { background: #17171d; border-color: #8a8a96; color: #fff; }
+.vb.dead { opacity: .3; text-decoration: line-through; cursor: default; }
+.votes-add { margin-top: 6px; padding: 6px 12px; border: 1px dashed var(--bd); border-radius: 8px; background: transparent;
+  color: var(--tx2); font-size: 12.5px; cursor: pointer; }
+.votes-add:hover { border-color: var(--ac); color: var(--tx); }
+@media (pointer: coarse) { .vb { min-width: 40px; height: 38px; } }
+/* В карточке игры: строка на круг */
+.vt-card { margin-top: 8px; padding: 8px 10px; background: var(--sf2); border-radius: 8px; font-size: 12px; }
+.vt-title { margin-bottom: 4px; color: var(--tx3); font-size: 11px; }
+.vt-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; line-height: 1.9; }
+.vt-k { min-width: 52px; color: var(--tx2); }
+.vt-seat { display: inline-block; min-width: 20px; padding: 0 4px; border: 1px solid var(--bd); border-radius: 5px;
+  font-weight: 700; line-height: 18px; text-align: center; }
+.vt-seat.out { background: var(--ac); border-color: var(--ac); color: #fff; }
+.vt-none { color: var(--tx3); }
+.vt-kill { margin-left: 4px; color: var(--tx2); }
 .protocol-tbl .f-total { font-size: 14px; }
 /* Роль в протоколе — цветом, в палитре сайта (role_color): мирный — красный, шериф — жёлтый,
    мафия — чёрная (графит), дон — ещё темнее. data-role выставляет app.js по выбранной роли. */

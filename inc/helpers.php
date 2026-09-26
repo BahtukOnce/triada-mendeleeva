@@ -368,6 +368,90 @@ function seat_calls_chips(?string $calls, array $rolesBySeat = []): string
     return '<span class="calls" title="' . esc($title) . '">' . $chips . '</span>';
 }
 
+// ── Голосование по кругам (просьба руководителя): кого выставили на каждом круге, кого
+// заголосовали и кого убили ночью. games.votes — JSON [{"n":[3,7,5],"out":[7],"kill":2}, …]
+// (миграция 088). Разбор перепроверяет правила: номер — не больше раза за круг, заголосовать
+// можно только выставленного, выбывшие (заголосованные и убитые) на следующих кругах не участвуют.
+
+// Круги в каноническом виде (массив) — из сырого JSON формы или из базы.
+function game_votes_rounds(?string $raw, int $maxSeat = 10): array
+{
+    $data = json_decode((string)$raw, true);
+    if (!is_array($data)) {
+        return [];
+    }
+    $rounds = [];
+    $dead = [];
+    foreach (array_slice($data, 0, 20) as $r) {
+        if (!is_array($r)) {
+            continue;
+        }
+        $n = [];
+        foreach ((array)($r['n'] ?? []) as $s) {
+            $s = (int)$s;
+            if ($s >= 1 && $s <= $maxSeat && !isset($dead[$s]) && !in_array($s, $n, true)) {
+                $n[] = $s;
+            }
+        }
+        $out = [];
+        foreach ((array)($r['out'] ?? []) as $s) {
+            $s = (int)$s;
+            if (in_array($s, $n, true) && !in_array($s, $out, true)) {
+                $out[] = $s;
+            }
+        }
+        $kill = (int)($r['kill'] ?? 0);
+        if ($kill < 1 || $kill > $maxSeat || isset($dead[$kill]) || in_array($kill, $out, true)) {
+            $kill = 0;
+        }
+        foreach ($out as $s) {
+            $dead[$s] = true;
+        }
+        if ($kill) {
+            $dead[$kill] = true;
+        }
+        $rounds[] = ['n' => $n, 'out' => $out, 'kill' => $kill];
+    }
+    // Пустые круги в конце (открыли «следующий круг» и ничего не отметили) не храним
+    while ($rounds && !$rounds[count($rounds) - 1]['n'] && !$rounds[count($rounds) - 1]['kill']) {
+        array_pop($rounds);
+    }
+    return $rounds;
+}
+
+// Для записи в games.votes: JSON или NULL, если голосование не вели.
+function game_votes_parse(?string $raw, int $maxSeat = 10): ?string
+{
+    $rounds = game_votes_rounds($raw, $maxSeat);
+    return $rounds ? json_encode($rounds) : null;
+}
+
+// Голосование в карточке игры: по строке на круг — выставленные по порядку, кто ушёл, кто убит.
+function game_votes_html(?string $votes): string
+{
+    $rounds = game_votes_rounds($votes);
+    if (!$rounds) {
+        return '';
+    }
+    $rows = '';
+    foreach ($rounds as $k => $r) {
+        $parts = [];
+        $seats = '';
+        foreach ($r['n'] as $s) {
+            $seats .= '<span class="vt-seat' . (in_array($s, $r['out'], true) ? ' out' : '') . '">' . $s . '</span>';
+        }
+        $parts[] = $r['n'] ? $seats : '<span class="vt-none">никого не выставили</span>';
+        if ($r['n'] && !$r['out']) {
+            $parts[] = '<span class="vt-none">никто не ушёл</span>';
+        }
+        if ($r['kill']) {
+            $parts[] = '<span class="vt-kill" title="Убит ночью">🌙 ' . $r['kill'] . '</span>';
+        }
+        $rows .= '<div class="vt-row"><span class="vt-k">' . ($k + 1) . ' круг</span>' . implode(' ', $parts) . '</div>';
+    }
+    return '<div class="vt-card"><div class="vt-title">Голосование</div>' . $rows . '</div>';
+}
+
 // Сезон игры в SQL: у легаси-вечеров уважаем метку game_days.season, иначе считаем по дате
 // (1 сентября — 31 августа), как и везде на сайте. Требует в запросе JOIN game_days d и
 // tournaments t (турнирные игры живут без дня, дата у них — t.date_from).
