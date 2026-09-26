@@ -300,6 +300,74 @@ function lh_seats_colored(array $rolesBySeat, int $s1, int $s2, int $s3): string
     return implode(' ', $parts);
 }
 
+// ── Версия игрока («5ч, 4к») — кого из соседей по столу участник считает красным, а кого чёрным.
+// Решение руководителя (сентябрь 2026): версию вправе оставить каждый участник, судья вносит её
+// в протокол и сам смотрит при выставлении допов — автоматически баллы не начисляются.
+// Своё место отметить нельзя. Хранение — game_seats.calls строкой «4r,5b» (миграция 087).
+
+// Разбор ввода в канонический вид. Понимает и «4r,5b», и «4к 5ч»; чужое и своё место отбрасывает.
+function seat_calls_parse(string $raw, int $ownSeat, int $maxSeat = 10): ?string
+{
+    $marks = [];
+    foreach (preg_split('/[\s,;]+/u', mb_strtolower(trim($raw))) ?: [] as $tok) {
+        if (!preg_match('/^(\d{1,2})([rbкч])$/u', $tok, $m)) {
+            continue;
+        }
+        $seat = (int)$m[1];
+        if ($seat < 1 || $seat > $maxSeat || $seat === $ownSeat) {
+            continue;
+        }
+        $marks[$seat] = ($m[2] === 'b' || $m[2] === 'ч') ? 'b' : 'r';
+    }
+    if (!$marks) {
+        return null;
+    }
+    ksort($marks);
+    $out = [];
+    foreach ($marks as $seat => $c) {
+        $out[] = $seat . $c;
+    }
+    return implode(',', $out);
+}
+
+// Сохранённая версия как [место => 'r'|'b'].
+function seat_calls_list(?string $calls): array
+{
+    $out = [];
+    foreach (explode(',', (string)$calls) as $tok) {
+        if (preg_match('/^(\d{1,2})([rb])$/', trim($tok), $m)) {
+            $out[(int)$m[1]] = $m[2];
+        }
+    }
+    return $out;
+}
+
+// Фишки версии: цвет — что назвал игрок (к — красная, ч — тёмная). Если роли стола известны,
+// верная отметка обведена зелёным, ошибочная приглушена и зачёркнута. Пустая версия — ''.
+function seat_calls_chips(?string $calls, array $rolesBySeat = []): string
+{
+    $list = seat_calls_list($calls);
+    if (!$list) {
+        return '';
+    }
+    $hit = 0;
+    $known = 0;
+    $chips = '';
+    foreach ($list as $seat => $c) {
+        $cls = 'call call-' . $c;
+        $role = (string)($rolesBySeat[$seat] ?? '');
+        if ($role !== '') {
+            $known++;
+            $ok = ($c === 'b') === in_array($role, ['maf', 'don'], true);
+            $hit += $ok ? 1 : 0;
+            $cls .= $ok ? ' ok' : ' bad';
+        }
+        $chips .= '<span class="' . $cls . '">' . $seat . ($c === 'b' ? 'ч' : 'к') . '</span>';
+    }
+    $title = 'Версия игрока' . ($known ? ': верно ' . $hit . ' из ' . $known : '');
+    return '<span class="calls" title="' . esc($title) . '">' . $chips . '</span>';
+}
+
 // Сезон игры в SQL: у легаси-вечеров уважаем метку game_days.season, иначе считаем по дате
 // (1 сентября — 31 августа), как и везде на сайте. Требует в запросе JOIN game_days d и
 // tournaments t (турнирные игры живут без дня, дата у них — t.date_from).

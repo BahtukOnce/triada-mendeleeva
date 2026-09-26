@@ -854,3 +854,149 @@
     if (t && t.matches && t.matches(SEL)) paint(t);
   });
 })();
+// ── Версия игрока в протоколе («5ч, 4к») — кого из стола участник считает красным, а кого
+// чёрным. Решение руководителя: версию вправе оставить каждый, судья вносит её кнопками мест и
+// сам смотрит при выставлении допов — баллы не начисляются. Клик по месту: пусто → к → ч → пусто,
+// своё место выключено. Когда расклад ролей в форме полный (1 дон, 1 шериф, 2 мафии, 6 мирных),
+// верные отметки обводятся зелёным, ошибочные зачёркиваются, рядом — «верно из скольких».
+// Значение живёт в скрытом input.f-calls («4r,5b»), сервер его перепроверяет.
+(function () {
+  var inputs = document.querySelectorAll('input.f-calls');
+  if (!inputs.length) return;
+
+  function parse(v) {
+    var m = {};
+    String(v || '').split(',').forEach(function (t) {
+      var r = /^(\d{1,2})([rb])$/.exec(t.trim());
+      if (r) m[+r[1]] = r[2];
+    });
+    return m;
+  }
+  function seatsOf(m) {
+    return Object.keys(m).map(Number).sort(function (a, b) { return a - b; });
+  }
+  function serialize(m) {
+    return seatsOf(m).map(function (s) { return s + m[s]; }).join(',');
+  }
+  // Роли стола из формы; null — расклад ещё не полный, и отмечать верность рано
+  function tableRoles() {
+    var roles = {}, cnt = { civ: 0, sheriff: 0, maf: 0, don: 0 }, n = 0;
+    document.querySelectorAll('tr[data-seat] select.f-role').forEach(function (sel) {
+      roles[+sel.closest('tr[data-seat]').getAttribute('data-seat')] = sel.value;
+      if (cnt[sel.value] !== undefined) cnt[sel.value]++;
+      n++;
+    });
+    if (n === 10 && !(cnt.don === 1 && cnt.sheriff === 1 && cnt.maf === 2 && cnt.civ === 6)) return null;
+    return n ? roles : null;
+  }
+  function isBlack(role) { return role === 'maf' || role === 'don'; }
+
+  var openPop = null;
+  function closePop() { if (openPop) { openPop.hidden = true; openPop = null; } }
+  document.addEventListener('click', function (e) {
+    if (openPop && !e.target.closest('.calls-pop') && !e.target.closest('.calls-view')) closePop();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePop(); });
+  // Окно прибито к экрану (position: fixed) — при прокрутке оно оторвалось бы от кнопки
+  window.addEventListener('scroll', closePop, true);
+  window.addEventListener('resize', closePop);
+
+  var renders = [];
+  inputs.forEach(function (inp) {
+    var own = +inp.getAttribute('data-own');
+    var max = +(inp.getAttribute('data-max') || 10);
+    var view = document.createElement('button');
+    view.type = 'button';
+    view.className = 'calls-view';
+    view.title = 'Версия игрока: кого он считает красным (к) и чёрным (ч)';
+    inp.parentNode.insertBefore(view, inp);
+
+    var pop = document.createElement('div');
+    pop.className = 'calls-pop';
+    pop.hidden = true;
+    var html = '<div class="cp-title">Версия места ' + own + '</div><div class="cp-grid">';
+    for (var s = 1; s <= max; s++) {
+      html += '<button type="button" class="cp-seat" data-seat="' + s + '"'
+        + (s === own ? ' disabled title="Своё место отметить нельзя"' : '') + '>'
+        + s + '<small>' + (s === own ? 'я' : '') + '</small></button>';
+    }
+    html += '</div><div class="cp-foot"><span class="cp-hint">клик: к → ч → пусто</span>'
+      + '<span><button type="button" class="cp-clear">Очистить</button>'
+      + '<button type="button" class="cp-done">Готово</button></span></div>';
+    pop.innerHTML = html;
+    document.body.appendChild(pop);
+
+    function render() {
+      var m = parse(inp.value), roles = tableRoles(), keys = seatsOf(m);
+      if (!keys.length) {
+        view.classList.remove('has');
+        view.innerHTML = '<span class="calls-add">+ версия</span>';
+      } else {
+        var hit = 0, known = 0;
+        var chips = keys.map(function (s) {
+          var cls = 'call call-' + m[s];
+          if (roles && roles[s]) {
+            known++;
+            var ok = (m[s] === 'b') === isBlack(roles[s]);
+            if (ok) hit++;
+            cls += ok ? ' ok' : ' bad';
+          }
+          return '<span class="' + cls + '">' + s + (m[s] === 'b' ? 'ч' : 'к') + '</span>';
+        }).join('');
+        view.classList.add('has');
+        view.innerHTML = '<span class="calls">' + chips + '</span>'
+          + (known ? '<span class="calls-sum" title="Верно ' + hit + ' из ' + known + '">' + hit + '/' + known + '</span>' : '');
+      }
+      pop.querySelectorAll('.cp-seat').forEach(function (b) {
+        if (b.disabled) return;
+        var st = m[+b.getAttribute('data-seat')] || '';
+        b.classList.toggle('r', st === 'r');
+        b.classList.toggle('b', st === 'b');
+        b.querySelector('small').textContent = st === 'r' ? 'к' : (st === 'b' ? 'ч' : '');
+      });
+    }
+    function save(m) {
+      inp.value = serialize(m);
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+      render();
+    }
+    function place() {
+      var r = view.getBoundingClientRect();
+      var pw = pop.offsetWidth, ph = pop.offsetHeight;
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      var top = r.bottom + 6;
+      if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+    }
+    view.addEventListener('click', function () {
+      if (openPop === pop) { closePop(); return; }
+      closePop();
+      pop.hidden = false;
+      openPop = pop;
+      place();
+    });
+    pop.addEventListener('click', function (e) {
+      var b = e.target.closest('.cp-seat');
+      if (b && !b.disabled) {
+        var m = parse(inp.value), s = +b.getAttribute('data-seat');
+        if (!m[s]) m[s] = 'r';
+        else if (m[s] === 'r') m[s] = 'b';
+        else delete m[s];
+        save(m);
+      } else if (e.target.closest('.cp-clear')) {
+        save({});
+      } else if (e.target.closest('.cp-done')) {
+        closePop();
+      }
+    });
+    renders.push(render);
+    render();
+  });
+  // Сменили роль в форме — пересчитать отметки верности у всех версий
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.matches && e.target.matches('select.f-role')) {
+      renders.forEach(function (f) { f(); });
+    }
+  });
+})();

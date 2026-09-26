@@ -28,7 +28,7 @@ function protocol_draft_save(int $dayId, int $gameId, int $draftId, array $post,
         }
     }
     for ($i = 1; $i <= 10; $i++) {
-        foreach (['nick', 'role', 'fouls', 'tech', 'bigtech', 'removal', 'plus', 'minus'] as $f) {
+        foreach (['nick', 'role', 'fouls', 'tech', 'bigtech', 'removal', 'plus', 'minus', 'calls'] as $f) {
             if (isset($post[$f . $i]) && !is_array($post[$f . $i])) {
                 $keep[$f . $i] = mb_substr((string)$post[$f . $i], 0, 80);
             }
@@ -125,6 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Верхний предел — защита от опечатки (15 вместо 1.5), реальные баллы столько не набирают
                 'plus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0')))),
                 'minus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0')))),
+                // Версия игрока («5ч, 4к»): своё место отбрасывается, баллы не начисляются
+                'calls' => seat_calls_parse((string)($_POST["calls$i"] ?? ''), $i),
             ];
         }
 
@@ -230,11 +232,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $gid = (int)$pdo->lastInsertId();
         }
         $insS = $pdo->prepare('INSERT INTO game_seats
-            (game_id, seat, player_id, role, fouls, tech_fouls, big_tech, removal, plus, minus, out_order)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+            (game_id, seat, player_id, role, fouls, tech_fouls, big_tech, removal, plus, minus, out_order, calls)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
         foreach ($seats as $seat => $s) {
             $insS->execute([$gid, $seat, $s['player_id'], $s['role'], $s['fouls'],
-                $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $oldOut[(int)$s['player_id']] ?? null]);
+                $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $oldOut[(int)$s['player_id']] ?? null,
+                $s['calls']]);
         }
         $pdo->commit();
 
@@ -402,6 +405,7 @@ if (is_array($old)) {
             'removal' => (int)($old["removal$i"] ?? 0),
             'plus' => (float)str_replace(',', '.', (string)($old["plus$i"] ?? '0')),
             'minus' => (float)str_replace(',', '.', (string)($old["minus$i"] ?? '0')),
+            'calls' => seat_calls_parse((string)($old["calls$i"] ?? ''), $i),
         ];
     }
 }
@@ -557,6 +561,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
           <th>#</th><th>Игрок</th><th>Роль</th><th class="pt-sep">Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th class="pt-sep">+</th><th>−</th><th class="num">Итог</th>
+          <th class="pt-sep" title="Версия игрока: кого из стола он считает красным (к) и чёрным (ч). Судья смотрит её при выставлении допов, баллы сами не начисляются">Версия</th>
         </tr>
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
         <tr data-seat="<?= $i ?>">
@@ -594,6 +599,9 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
               data-stepper data-min="0" data-max="9.9" data-step="0.1"
               value="<?= $es && (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 1, '.', ''), '0'), '.') : '' ?>"></td>
           <td class="num"><b class="f-total">0</b></td>
+          <?php /* Версия игрока — кнопки мест в app.js (input.f-calls), здесь только значение */ ?>
+          <td class="pt-sep"><input type="hidden" name="calls<?= $i ?>" class="f-calls" data-own="<?= $i ?>" data-max="10"
+              value="<?= esc((string)seat_calls_parse((string)($es['calls'] ?? ''), $i)) ?>"></td>
         </tr>
         <?php endfor; ?>
       </table>

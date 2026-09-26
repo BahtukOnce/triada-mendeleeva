@@ -753,6 +753,11 @@ foreach ($byTable as $tableNo => $tGames) {
             . '<th class="num" style="width:54px">+</th><th class="num" style="width:54px">−</th>'
             . '<th class="num" style="width:58px">ЛХ</th><th class="num" style="width:58px">Ci</th>'
             . '<th class="num" style="width:78px">Итог</th></tr>';
+        // Роли по местам — для отметки верных и ошибочных мест в версиях игроков
+        $rolesBySeat = [];
+        foreach ($seats as $s0) {
+            $rolesBySeat[(int)$s0['seat']] = (string)$s0['role'];
+        }
         foreach ($seats as $s) {
             $tt = $totals[(int)$s['seat']] ?? ['total' => 0, 'is_pu' => false];
             $isMeSeat = $myPid && (int)$s['player_id'] === $myPid;
@@ -760,6 +765,7 @@ foreach ($byTable as $tableNo => $tGames) {
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMeSeat) . '">' . player_label($s) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . penalty_badges($s)
+                . (($callsHtml = seat_calls_chips($s['calls'] ?? null, $rolesBySeat)) !== '' ? '<div class="calls-line">' . $callsHtml . '</div>' : '')
                 . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'

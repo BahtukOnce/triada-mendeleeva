@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $upd = [];
         $cnt = ['civ' => 0, 'maf' => 0, 'sheriff' => 0, 'don' => 0];
+        $maxSeatNo = $seatNos ? max($seatNos) : 10;
         foreach ($seatNos as $i) {
             $role = (string)($_POST["role$i"] ?? 'civ');
             $role = in_array($role, ['civ', 'maf', 'sheriff', 'don'], true) ? $role : 'civ';
@@ -92,6 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Верхний предел — защита от опечатки (15 вместо 1.5)
                 'plus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["plus$i"] ?? '0')))),
                 'minus' => min(9.9, max(0, (float)str_replace(',', '.', (string)($_POST["minus$i"] ?? '0')))),
+                // Версия игрока («5ч, 4к»): своё место отбрасывается, баллы не начисляются
+                'calls' => seat_calls_parse((string)($_POST["calls$i"] ?? ''), $i, $maxSeatNo),
             ];
         }
         if (!$winner) {
@@ -115,10 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$judgePid, $winner, $pu, $bm[0], $bm[1], $bm[2],
                 $vote0, $v0bm[0], $v0bm[1], $v0bm[2],
                 trim((string)($_POST['comment'] ?? '')) ?: null, $gid]);
-        $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, removal=?, plus=?, minus=?
+        $us = $pdo->prepare('UPDATE game_seats SET role=?, fouls=?, tech_fouls=?, big_tech=?, removal=?, plus=?, minus=?, calls=?
             WHERE game_id=? AND seat=?');
         foreach ($upd as $seat => $s) {
-            $us->execute([$s['role'], $s['fouls'], $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'], $gid, $seat]);
+            $us->execute([$s['role'], $s['fouls'], $s['tech_fouls'], $s['big_tech'], $s['removal'], $s['plus'], $s['minus'],
+                $s['calls'], $gid, $seat]);
         }
         $pdo->commit();
 
@@ -158,6 +162,7 @@ if (is_array($old)) {
         $esRef['removal'] = (int)($old["removal$i"] ?? 0);
         $esRef['plus'] = (float)str_replace(',', '.', (string)($old["plus$i"] ?? '0'));
         $esRef['minus'] = (float)str_replace(',', '.', (string)($old["minus$i"] ?? '0'));
+        $esRef['calls'] = seat_calls_parse((string)($old["calls$i"] ?? ''), $i);
     }
     unset($esRef);
     $g['judge_player_id'] = (int)($old['judge'] ?? 0);
@@ -223,6 +228,7 @@ page_head('Протокол — ' . $g['t_title'], '');
           <th>#</th><th>Игрок</th><th>Роль</th><th class="pt-sep">Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th class="pt-sep">+</th><th>−</th><th class="num">Итог</th>
+          <th class="pt-sep" title="Версия игрока: кого из стола он считает красным (к) и чёрным (ч). Судья смотрит её при выставлении допов, баллы сами не начисляются">Версия</th>
         </tr>
         <?php foreach ($seats as $es): $i = (int)$es['seat']; ?>
         <tr data-seat="<?= $i ?>">
@@ -258,6 +264,9 @@ page_head('Протокол — ' . $g['t_title'], '');
               data-stepper data-min="0" data-max="9.9" data-step="0.1"
               value="<?= (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 2, '.', ''), '0'), '.') : '' ?>"></td>
           <td class="num"><b class="f-total">0</b></td>
+          <?php /* Версия игрока — кнопки мест в app.js (input.f-calls), здесь только значение */ ?>
+          <td class="pt-sep"><input type="hidden" name="calls<?= $i ?>" class="f-calls" data-own="<?= $i ?>" data-max="<?= (int)$maxSeat ?>"
+              value="<?= esc((string)seat_calls_parse((string)($es['calls'] ?? ''), $i, (int)$maxSeat)) ?>"></td>
         </tr>
         <?php endforeach; ?>
       </table>
