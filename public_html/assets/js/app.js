@@ -1000,3 +1000,63 @@
     }
   });
 })();
+
+// ── «Назад» в мобильном браузере на Android (просьба руководителя: «как на ПК»). На первой
+// странице вкладки — например, открытой по ссылке из Telegram — системное «Назад» закрывало
+// вкладку и выкидывало из браузера. Как в приложении (app-native.js, там свой обработчик):
+// первое «Назад» закрывает открытое меню или окно, со внутренней страницы ведёт на главную,
+// на главной показывает «Ещё раз «Назад» — выход»; второе нажатие за 1.8 с выходит.
+// Для этого на первой странице ставится «страховочная» запись истории. Когда назад есть куда —
+// ничего не трогаем, браузер вернёт на прошлую страницу сам. iOS не трогаем: там жест назад
+// на первой странице и так никуда не уводит.
+(function () {
+  if (window.Capacitor || document.body.classList.contains('app')) return;
+  if (!/Android/i.test(navigator.userAgent) || !window.history || !history.pushState) return;
+
+  var st = history.state || {};
+  if (!st.triadaGuard) {
+    if (history.length > 1 && !st.triadaBase) return;   // есть куда возвращаться
+    history.replaceState({ triadaBase: 1 }, '');
+    history.pushState({ triadaGuard: 1 }, '');
+  }
+  function arm() { history.pushState({ triadaGuard: 1 }, ''); }
+
+  function toast(msg) {
+    var t = document.createElement('div');
+    t.className = 'app-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    setTimeout(function () {
+      t.classList.remove('show');
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 260);
+    }, 1600);
+  }
+  // Открытые меню и окна закрываются «Назадом» — как в приложении
+  function closeTopOverlay() {
+    var nav = document.getElementById('site-nav');
+    if (nav && nav.classList.contains('open')) {
+      var c = document.getElementById('nav-close') || document.getElementById('nav-burger');
+      if (c) c.click();
+      return true;
+    }
+    var um = document.getElementById('user-menu');
+    if (um && um.classList.contains('open')) { um.classList.remove('open'); return true; }
+    if (document.querySelector('.post-modal:not([hidden]), .img-lightbox:not([hidden]), .ach-modal.open, .calls-pop:not([hidden])')) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      return true;
+    }
+    return false;
+  }
+
+  var onHome = location.pathname === '/' || location.pathname === '/index.php';
+  var rearm = 0;
+  window.addEventListener('popstate', function (e) {
+    if (!e.state || !e.state.triadaBase) return;
+    clearTimeout(rearm);
+    if (closeTopOverlay()) { arm(); return; }
+    if (!onHome) { location.replace('/'); return; }
+    toast('Ещё раз «Назад» — выход');
+    rearm = setTimeout(arm, 1800);   // повторно не нажали — снова страхуем
+  });
+})();
