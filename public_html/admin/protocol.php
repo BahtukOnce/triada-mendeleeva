@@ -560,8 +560,8 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
         <tr>
           <th>#</th><th>Игрок</th><th>Роль</th><th class="pt-sep">Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
-          <th class="pt-sep">+</th><th>−</th><th class="num">Итог</th>
           <th class="pt-sep" title="Версия игрока: кого из стола он считает красным (к) и чёрным (ч). Судья смотрит её при выставлении допов, баллы сами не начисляются">Версия</th>
+          <th class="pt-sep">+</th><th>−</th><th class="num">Итог</th>
         </tr>
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
         <tr data-seat="<?= $i ?>">
@@ -590,6 +590,10 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
             <option value="1" <?= (int)($es['removal'] ?? 0) === 1 ? 'selected' : '' ?>>уд</option>
             <option value="2" <?= (int)($es['removal'] ?? 0) === 2 ? 'selected' : '' ?>>уд!</option>
           </select></td>
+          <?php /* Версия игрока — кнопки мест в app.js (input.f-calls), здесь только значение.
+                   Стоит перед «+»: судья смотрит версию, когда ставит допы. */ ?>
+          <td class="pt-sep"><input type="hidden" name="calls<?= $i ?>" class="f-calls" data-own="<?= $i ?>" data-max="10"
+              value="<?= esc((string)seat_calls_parse((string)($es['calls'] ?? ''), $i)) ?>"></td>
           <?php /* Допы и минусы — кнопками −/+ по 0.1, как фолы (просьба руководителя; заменили
                    панель «Быстрый ввод»). Вписать число, в т.ч. «0,5» с запятой, тоже можно. */ ?>
           <td class="pt-sep"><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal" placeholder="0"
@@ -599,9 +603,6 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
               data-stepper data-min="0" data-max="9.9" data-step="0.1"
               value="<?= $es && (float)$es['minus'] ? rtrim(rtrim(number_format((float)$es['minus'], 1, '.', ''), '0'), '.') : '' ?>"></td>
           <td class="num"><b class="f-total">0</b></td>
-          <?php /* Версия игрока — кнопки мест в app.js (input.f-calls), здесь только значение */ ?>
-          <td class="pt-sep"><input type="hidden" name="calls<?= $i ?>" class="f-calls" data-own="<?= $i ?>" data-max="10"
-              value="<?= esc((string)seat_calls_parse((string)($es['calls'] ?? ''), $i)) ?>"></td>
         </tr>
         <?php endfor; ?>
       </table>

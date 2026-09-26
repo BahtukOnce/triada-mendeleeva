@@ -918,7 +918,7 @@
     for (var s = 1; s <= max; s++) {
       html += '<button type="button" class="cp-seat" data-seat="' + s + '"'
         + (s === own ? ' disabled title="Своё место отметить нельзя"' : '') + '>'
-        + s + '<small>' + (s === own ? 'я' : '') + '</small></button>';
+        + s + '<small></small></button>';
     }
     html += '</div><div class="cp-foot"><span class="cp-hint">клик: к → ч → пусто</span>'
       + '<span><button type="button" class="cp-clear">Очистить</button>'
