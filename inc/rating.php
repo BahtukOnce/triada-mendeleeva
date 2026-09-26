@@ -146,6 +146,41 @@ function rating_games(int $ratingId): array
     return [$games, $seatsByGame];
 }
 
+// Протоколы сезона для номинаций по доп-баллам: сайтовые вечера — через rating_days; у
+// исторических сезонов с mafiauniverse строк в rating_days нет (это и держит их вне клубного
+// рейтинга), их вечера помечены game_days.season = название сезона. Исторический турнир
+// протоколов не имеет — вернётся пусто.
+function rating_season_games(array $rating): array
+{
+    $st = db()->prepare("SELECT g.* FROM games g
+        JOIN rating_days rd ON rd.day_id = g.day_id
+        WHERE rd.rating_id = ? AND g.context = 'day' AND g.status = 'finished'
+        ORDER BY g.day_id, g.table_no, g.game_no");
+    $st->execute([(int)$rating['id']]);
+    $games = $st->fetchAll();
+    if (!$games) {
+        $st = db()->prepare("SELECT g.* FROM games g JOIN game_days d ON d.id = g.day_id
+            WHERE d.season = ? AND g.status = 'finished'
+            ORDER BY d.date, g.table_no, g.game_no");
+        $st->execute([(string)$rating['title']]);
+        $games = $st->fetchAll();
+    }
+    if (!$games) {
+        return [[], []];
+    }
+    // Места — с ником и аватаром: их ждёт standings_from_games()
+    $ids = array_column($games, 'id');
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $st = db()->prepare("SELECT gs.*, p.nickname, p.avatar, p.flair, p.elo FROM game_seats gs
+        JOIN players p ON p.id = gs.player_id WHERE gs.game_id IN ($in) ORDER BY gs.game_id, gs.seat");
+    $st->execute($ids);
+    $seatsByGame = [];
+    foreach ($st->fetchAll() as $s) {
+        $seatsByGame[(int)$s['game_id']][] = $s;
+    }
+    return [$games, $seatsByGame];
+}
+
 // Полный пересчёт кэша рейтинга
 function rating_recompute(int $ratingId): void
 {

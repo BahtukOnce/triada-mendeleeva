@@ -185,6 +185,78 @@ if ($rows) {
         ['Лучший красный', $bestBy($cands, fn($r) => (int)$r['w_civ'], fn($r) => (int)$r['g_civ'], fn($r) => (float)($r['dop_civ'] ?? 0), 10), 'мирный'],
         ['Лучший чёрный', $bestBy($cands, fn($r) => (int)$r['w_maf'], fn($r) => (int)$r['g_maf'], fn($r) => (float)($r['dop_maf'] ?? 0), 8), 'мафия'],
     ];
+    // Подпись под ником: у старых номинаций — винрейт и роль
+    foreach ($noms as &$nm) {
+        $nm[1] = $nm[1] ? [$nm[1][0], ($nm[1][1] !== null ? round($nm[1][1] * 100) . '% · ' : '') . $nm[2]] : null;
+    }
+    unset($nm);
+    $nomNote = 'Номинации — среди игроков от ' . $minG . ' игр.';
+
+    // Номинации сезона — по доп-баллам, как номинации вечера (решение руководителя): MVP — больше
+    // всех доп-баллов за сезон (допы + ЛХ + Ci минус минуса и б/тех), лучшие в ролях — больше всех
+    // доп-баллов в этой роли. Порогов по играм нет: сумма сама отсекает случайных, и номинации
+    // есть с первых вечеров сезона. Винрейт с порогами выше остаётся только историческим
+    // турнирам — у них нет протоколов.
+    [$sGames, $sSeats] = $current ? rating_season_games($current) : [[], []];
+    if ($sGames) {
+        $sst = standings_from_games($sGames, $sSeats, true);   // дистанция Ci — сам сезон, как в кэше
+        $byPid = [];
+        foreach ($rows as $r) {
+            $byPid[(int)$r['player_id']] = $r;
+        }
+        $who = fn(int $pid): array => $byPid[$pid] ?? ['player_id' => $pid, 'nickname' => $sst[$pid]['nick'],
+            'avatar' => $sst[$pid]['avatar'], 'flair' => $sst[$pid]['flair'] ?? ''];
+        $sign = fn(float $v): string => ($v < -1e-9 ? '−' : '+') . number_format(abs($v), 2);
+        $gTxt = fn(int $n): string => $n . ' ' . ru_plural($n, 'игра', 'игры', 'игр');
+        // Больше доп-баллов; при равенстве — больше побед в роли, затем меньше игр в ней
+        $bestRole = function (string $rk) use ($sst): ?int {
+            $best = null;
+            foreach ($sst as $pid => $r) {
+                if ((int)$r['g_' . $rk] < 1) {
+                    continue;
+                }
+                if ($best === null) {
+                    $best = $pid;
+                    continue;
+                }
+                $b = $sst[$best];
+                $d = (float)$r['b_' . $rk] - (float)$b['b_' . $rk];
+                if ($d > 1e-9 || (abs($d) < 1e-9 && ((int)$r['w_' . $rk] > (int)$b['w_' . $rk]
+                        || ((int)$r['w_' . $rk] === (int)$b['w_' . $rk] && (int)$r['g_' . $rk] < (int)$b['g_' . $rk])))) {
+                    $best = $pid;
+                }
+            }
+            return $best;
+        };
+        // MVP — больше всех доп-баллов за сезон; при равенстве — больше Σ, затем меньше игр
+        $mvpPid = null;
+        foreach ($sst as $pid => $r) {
+            if ($mvpPid === null) {
+                $mvpPid = $pid;
+                continue;
+            }
+            $b = $sst[$mvpPid];
+            $d = (float)$r['bonus'] - (float)$b['bonus'];
+            $ds = (float)$r['sum'] - (float)$b['sum'];
+            if ($d > 1e-9 || (abs($d) < 1e-9 && ($ds > 1e-9 || (abs($ds) < 1e-9 && (int)$r['games'] < (int)$b['games'])))) {
+                $mvpPid = $pid;
+            }
+        }
+        $roleNom = function (string $rk, string $hint) use ($sst, $bestRole, $who, $sign, $gTxt): ?array {
+            $pid = $bestRole($rk);
+            return $pid === null ? null : [$who($pid), 'допы ' . $sign((float)$sst[$pid]['b_' . $rk]) . ' ' . $hint
+                . ' · ' . $gTxt((int)$sst[$pid]['g_' . $rk])];
+        };
+        $noms = [
+            ['MVP клуба', $mvpPid === null ? null
+                : [$who($mvpPid), 'допы ' . $sign((float)$sst[$mvpPid]['bonus']) . ' · ' . $gTxt((int)$sst[$mvpPid]['games'])], ''],
+            ['Лучший дон', $roleNom('don', 'за дона'), ''],
+            ['Лучший шериф', $roleNom('sher', 'за шерифа'), ''],
+            ['Лучший красный', $roleNom('civ', 'за мирного'), ''],
+            ['Лучший чёрный', $roleNom('maf', 'за мафию'), ''],
+        ];
+        $nomNote = 'Номинации — по доп-баллам (допы + ЛХ + Ci минус минуса и б/тех), как на вечерах.';
+    }
     $hasNoms = false;
     foreach ($noms as $n) {
         if ($n[1]) {
@@ -197,20 +269,20 @@ if ($rows) {
             if (!$data) {
                 continue;
             }
-            [$row, $wr] = $data;
+            [$row, $meta] = $data;
             echo '<div class="nom-card">';
             echo '<div class="nom-title">' . esc($title) . '</div>';
             echo '<a class="nom-player" href="/player.php?id=' . (int)$row['player_id'] . '">'
                 . avatar_html(['nickname' => $row['nickname'], 'avatar' => $row['avatar']], 34)
                 . '<span>' . player_label($row) . '</span></a>';   // ник + эмодзи из профиля
-            echo '<div class="nom-meta">' . ($wr !== null ? round($wr * 100) . '% · ' : '') . esc($hint) . '</div>';
+            echo '<div class="nom-meta">' . esc($meta) . '</div>';
             echo '</div>';
         }
         echo '</div>';
     }
 
     echo '<p style="color:var(--tx2);font-size:12.5px;margin:0 0 8px;">Рейтинг по принципу клуба (~Σ×Σ). '
-        . 'Нажмите на заголовок колонки, чтобы отсортировать. Номинации — среди игроков от ' . $minG . ' игр.</p>';
+        . 'Нажмите на заголовок колонки, чтобы отсортировать. ' . esc($nomNote) . '</p>';
 
     echo '<div style="display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap;">';
     echo '<label style="font-size:13px;color:var(--tx2);">Показывать игроков от</label>';
