@@ -220,7 +220,7 @@ page_head('Протокол — ' . $g['t_title'], '');
     <div style="overflow-x:auto;">
       <table class="tbl protocol-tbl">
         <tr>
-          <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
+          <th>#</th><th>Игрок</th><th>Роль</th><th class="pt-sep">Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
           <th class="pt-sep">+</th><th>−</th><th class="num">Итог</th>
         </tr>
@@ -235,7 +235,7 @@ page_head('Протокол — ' . $g['t_title'], '');
               <?php endforeach; ?>
             </select>
           </td>
-          <td><select name="fouls<?= $i ?>" class="f-fouls" data-stepper data-stepper-warn><?php for ($f = 0; $f <= 4; $f++): ?>
+          <td class="pt-sep"><select name="fouls<?= $i ?>" class="f-fouls" data-stepper data-stepper-warn data-stepper-caution="3"><?php for ($f = 0; $f <= 4; $f++): ?>
             <option value="<?= $f ?>" <?= (int)($es['fouls'] ?? 0) === $f ? 'selected' : '' ?>><?= $f ?></option>
           <?php endfor; ?></select></td>
           <td><select name="tech<?= $i ?>" class="f-tech" data-stepper><?php for ($f = 0; $f <= 2; $f++): ?>

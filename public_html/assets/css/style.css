@@ -1472,6 +1472,9 @@ a.chron-step:hover { border-color: var(--ac); color: var(--tx); }
   font-variant-numeric: tabular-nums; }
 .stp-zero .stp-v { color: var(--tx3); font-weight: 400; }   /* нули приглушены — ненулевое видно сразу */
 .stp-max .stp-v { color: var(--ac); }                      /* 4 фола / удаление на крит. круг */
+/* 3 фола — жёлтым, всей плашкой (просьба руководителя): следующий фол — удаление */
+.stp.stp-caution { background: rgba(230,177,58,.14); border-color: rgba(230,177,58,.7); }
+.stp-caution .stp-v { color: #f2c75c; }
 @media (pointer: coarse) { .stp-b { width: 32px; height: 34px; font-size: 18px; } }  /* под палец */
 /* Числовое поле между кнопками −/+ (input[data-stepper]) — можно и вписать число. Пустое
    текстовое поле (допы/минусы в протоколе) = 0: плейсхолдер «0» приглушён, как нули у фолов. */

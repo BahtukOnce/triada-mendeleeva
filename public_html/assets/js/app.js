@@ -669,6 +669,8 @@
       inc.disabled = i >= last;
       wrap.classList.toggle('stp-zero', i <= 0);
       wrap.classList.toggle('stp-max', sel.hasAttribute('data-stepper-warn') && i === last && last > 0);
+      // data-stepper-caution="3" — жёлтая подсветка на этом значении (3 фола: ещё один — удаление)
+      wrap.classList.toggle('stp-caution', !!o && sel.getAttribute('data-stepper-caution') === o.value);
     }
     function step(d) {
       var i = Math.max(0, Math.min(last, sel.selectedIndex + d));
