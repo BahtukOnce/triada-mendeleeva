@@ -1063,62 +1063,194 @@
 
 // ── Голосование по кругам в протоколе (просьба руководителя). Под столом на каждом круге судья
 // нажимает номера выставленных — по порядку, номер не больше раза за круг (повторный клик
-// снимает); среди выставленных отмечает заголосованных; после круга — кого убили ночью.
-// Выбывшие на следующих кругах не предлагаются. «+ Следующий круг» — новое голосование.
-// Убитый в первую ночь — это ПУ: если поле ПУ пустое, подставляем его. Значение — JSON в
-// скрытом input[name=votes], сервер перепроверяет правила (game_votes_parse в inc/helpers.php).
+// снимает); справа — сколько голосов за каждую кандидатуру. Правила клуба: голосуют все живые,
+// и кто не отдал голос за других, голосует за последнюю кандидатуру — её число считается само
+// (живые минус остальные). Поровну у лидеров — переголосование только за них, и так до тех пор,
+// пока у кого-то не станет больше всех голосов: переголосований может быть несколько. Если
+// переголосование снова дало ничью между теми же кандидатурами — подъём: «Поднять всех» (уходят
+// все, у кого поровну) или «Никто не уходит». Как только у введённых голосов единственный лидер
+// (или решён подъём), ушедшие сами отмечаются в «Заголосован» — судья может поправить вручную.
+// После круга — что было ночью: убитый или промах.
+// Выбывшие на следующих кругах не предлагаются. Убитый в первую ночь — это ПУ: если поле ПУ
+// пустое, подставляем его. Значение — JSON в скрытом input[name=votes], сервер перепроверяет
+// правила (game_votes_parse в inc/helpers.php).
 (function () {
   var box = document.querySelector('.votes-box');
   if (!box) return;
   var inp = box.querySelector('input[name="votes"]');
   var max = +(box.getAttribute('data-max') || 10);
+  var MAX_RE = 6;   // предохранитель: столько переголосований подряд на практике не бывает
+  function blank() { return { n: [], v: [], out: [], kill: 0, lift: null }; }
+  function nums(a) { return (a || []).map(Number); }
   var rounds = [];
   try { rounds = JSON.parse(inp.value || '[]') || []; } catch (e) { rounds = []; }
   if (!Array.isArray(rounds)) rounds = [];
   rounds = rounds.map(function (r) {
-    return { n: (r.n || []).map(Number), out: (r.out || []).map(Number), kill: +r.kill || 0 };
+    var o = { n: nums(r.n), v: nums(r.v), out: nums(r.out), kill: +r.kill || 0 };
+    if (Array.isArray(r.re)) o.re = r.re.map(function (x) { return { n: nums(x.n), v: nums(x.v) }; });
+    o.lift = (r.lift === 0 || r.lift === 1) ? r.lift : null;
+    return o;
   });
-  if (!rounds.length) rounds.push({ n: [], out: [], kill: 0 });
+  if (!rounds.length) rounds.push(blank());
   var cur = rounds.length - 1;   // раскрытый круг
 
   var ui = document.createElement('div');
   ui.className = 'votes-ui';
   box.appendChild(ui);
 
+  // Сколько игроков за столом: в протоколе вечера — места с заполненным ником, в турнире — все
+  function seated() {
+    var cnt = 0;
+    document.querySelectorAll('tr[data-seat]').forEach(function (tr) {
+      var nick = tr.querySelector('input[name^="nick"]');
+      if (!nick || nick.value.trim() !== '') cnt++;
+    });
+    return cnt || max;
+  }
   function deadBefore(k) {
     var d = {};
     for (var i = 0; i < k; i++) {
       rounds[i].out.forEach(function (s) { d[s] = 1; });
-      if (rounds[i].kill) d[rounds[i].kill] = 1;
+      if (rounds[i].kill > 0) d[rounds[i].kill] = 1;
     }
     return d;
   }
-  // Правка раннего круга может «оживить» или убить игрока — поздние круги чистим по правилам
+  // Голосуют все живые на этом круге
+  function voters(k) { return Math.max(0, seated() - Object.keys(deadBefore(k)).length); }
+  function sumBeforeLast(vals) {
+    var t = 0;
+    for (var i = 0; i < vals.length - 1; i++) t += vals[i] || 0;
+    return t;
+  }
+  function leaders(list, vals) {
+    var top = Math.max.apply(null, vals.concat([0]));
+    return top > 0 ? list.filter(function (s, i) { return vals[i] === top; }) : [];
+  }
+  // Правка раннего круга может «оживить» или убить игрока — поздние круги чистим по правилам;
+  // последней кандидатуре каждого голосования пересчитываем остаток, цепочку переголосований
+  // строим заново: пока у лидеров поровну — следующее голосование только за них
   function normalize() {
     var dead = {};
-    rounds.forEach(function (r) {
-      r.n = r.n.filter(function (s, i, a) { return !dead[s] && a.indexOf(s) === i; });
-      r.out = r.out.filter(function (s, i, a) { return r.n.indexOf(s) >= 0 && a.indexOf(s) === i; });
-      if (r.kill && (dead[r.kill] || r.out.indexOf(r.kill) >= 0)) r.kill = 0;
+    rounds.forEach(function (r, k) {
+      var n = [], v = [];
+      r.n.forEach(function (s, i) {
+        if (!dead[s] && n.indexOf(s) < 0) { n.push(s); v.push(Math.max(0, +r.v[i] || 0)); }
+      });
+      r.n = n; r.v = v;
+      r.out = r.out.filter(function (s, i, a) { return n.indexOf(s) >= 0 && a.indexOf(s) === i; });
+      if (r.kill > 0 && (dead[r.kill] || r.out.indexOf(r.kill) >= 0)) r.kill = 0;
+      var tot = voters(k);
+      if (n.length) v[n.length - 1] = Math.max(0, tot - sumBeforeLast(v));
+      var prevRe = Array.isArray(r.re) ? r.re : [], chain = [], curN = n, curV = v, raise = null;
+      for (var d = 0; d < MAX_RE; d++) {
+        var tied = leaders(curN, curV);
+        if (tied.length < 2) break;
+        // Переголосование снова поровну между теми же — дальше не голосуют, а решают подъёмом
+        if (d > 0 && tied.join() === curN.join()) { raise = tied; break; }
+        var old = prevRe[d];
+        var rv = (old && old.n.join() === tied.join()) ? old.v.slice(0, tied.length) : [];
+        while (rv.length < tied.length) rv.push(0);
+        rv[tied.length - 1] = Math.max(0, tot - sumBeforeLast(rv));
+        chain.push({ n: tied, v: rv });
+        curN = tied; curV = rv;
+      }
+      if (chain.length) r.re = chain; else delete r.re;
+      if (raise) r.raise = raise; else { delete r.raise; r.lift = null; }
       r.out.forEach(function (s) { dead[s] = 1; });
-      if (r.kill) dead[r.kill] = 1;
+      if (r.kill > 0) dead[r.kill] = 1;
     });
+  }
+  // Итог голосов: последнее голосование цепочки дало единственного лидера — он и уходит.
+  // Только если судья ввёл голоса сам (иначе «лидер» — просто весь остаток у последней) и
+  // кандидатур хотя бы две. Отметку, поставленную так, снимаем, если голоса её больше не дают.
+  function applyResult(r) {
+    if (r.raise) {
+      // Подъём решён — уходят все, у кого поровну, или никто; не решён — отметку не ставим
+      if (r.lift !== null) { r.out = r.lift ? r.raise.slice() : []; r.autoOut = true; }
+      else if (r.autoOut) { r.out = []; r.autoOut = false; }
+      return;
+    }
+    var dec = r.re && r.re.length ? r.re[r.re.length - 1] : { n: r.n, v: r.v };
+    var lead = leaders(dec.n, dec.v);
+    if (dec.n.length >= 2 && sumBeforeLast(dec.v) > 0 && lead.length === 1) {
+      r.out = [lead[0]];
+      r.autoOut = true;
+    } else if (r.autoOut) {
+      r.out = [];
+      r.autoOut = false;
+    }
   }
   function save() {
     normalize();
-    inp.value = JSON.stringify(rounds);
+    inp.value = JSON.stringify(rounds.map(function (r) {
+      var o = { n: r.n, v: r.v, out: r.out, kill: r.kill };
+      if (r.re) o.re = r.re;
+      if (r.raise && r.lift !== null) o.lift = r.lift;
+      return o;
+    }));
     inp.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  function votesText(list, vals) {
+    return list.map(function (s, i) { return s + ' (' + vals[i] + ')'; }).join(', ');
+  }
   function summary(r) {
-    var p = [r.n.length ? 'выставлены ' + r.n.join(', ') : 'никого не выставили'];
+    var withVotes = r.v.some(function (x) { return x > 0; });
+    var p = [r.n.length ? 'выставлены ' + (withVotes ? votesText(r.n, r.v) : r.n.join(', ')) : 'никого не выставили'];
+    if (r.re) p.push((r.re.length > 1 ? 'переголосования ' : 'переголосование ')
+      + r.re.map(function (x) { return votesText(x.n, x.v); }).join(' → '));
+    if (r.raise && r.lift !== null) p.push(r.lift ? 'подняли всех' : 'подъём — никто не ушёл');
     if (r.out.length) p.push((r.out.length > 1 ? 'ушли ' : 'ушёл ') + r.out.join(', '));
-    else if (r.n.length) p.push('никто не ушёл');
-    if (r.kill) p.push('ночью убит ' + r.kill);
+    else if (r.n.length && !(r.raise && r.lift === 0)) p.push('никто не ушёл');
+    if (r.kill > 0) p.push('ночью убит ' + r.kill);
+    else if (r.kill === -1) p.push('ночью промах');
     return p.join(' · ');
   }
   function seatBtn(s, act, cls, inner) {
     return '<button type="button" class="vb' + (cls ? ' ' + cls : '') + '" data-act="' + act + '" data-seat="' + s + '">'
       + (inner || s) + '</button>';
+  }
+  // Строки голосов: у всех, кроме последней кандидатуры, — кнопки −/+, у последней — остаток:
+  // голоса, не отданные за других, уходят ей (правило клуба), число считается само.
+  // j — номер голосования: −1 основное, 0.. — переголосования.
+  function voteRows(list, vals, out, tot, j) {
+    var before = sumBeforeLast(vals);
+    var top = Math.max.apply(null, vals.concat([0]));
+    var h = '';
+    list.forEach(function (s, i) {
+      var last = i === list.length - 1;
+      h += '<div class="vv-row' + (top > 0 && vals[i] === top ? ' lead' : '') + '">'
+        + '<span class="vv-seat' + (out.indexOf(s) >= 0 ? ' out' : '') + '">' + s + '</span>';
+      if (last) {
+        h += '<span class="vv-num auto">' + vals[i] + '</span>'
+          + '<span class="vv-auto" title="Кто не проголосовал за других, голосует за последнюю кандидатуру">остаток</span>';
+      } else {
+        h += '<button type="button" class="vv-b" data-act="vdec" data-j="' + j + '" data-i="' + i + '"' + (vals[i] <= 0 ? ' disabled' : '') + '>−</button>'
+          + '<span class="vv-num">' + vals[i] + '</span>'
+          + '<button type="button" class="vv-b" data-act="vinc" data-j="' + j + '" data-i="' + i + '"' + (before >= tot ? ' disabled' : '') + '>+</button>';
+      }
+      h += '</div>';
+    });
+    return h;
+  }
+  function votesPanel(r, k) {
+    if (!r.n.length) {
+      return '<div class="vv-title">Голоса</div><div class="vr-empty">появятся, когда выставят кандидатуры</div>';
+    }
+    var tot = voters(k);
+    var h = '<div class="vv-title">Голоса <span>голосуют ' + tot + '</span></div>' + voteRows(r.n, r.v, r.out, tot, -1);
+    (r.re || []).forEach(function (x, j) {
+      h += '<div class="vv-sub">Переголосование' + (r.re.length > 1 ? ' ' + (j + 1) : '')
+        + ' <span>поровну у ' + x.n.join(' и ') + '</span></div>' + voteRows(x.n, x.v, r.out, tot, j);
+    });
+    if (r.raise) {
+      h += '<div class="vv-sub">Подъём <span>снова поровну у ' + r.raise.join(' и ') + '</span></div>'
+        + '<div class="vv-lift">'
+        + '<button type="button" class="vv-lb' + (r.lift === 1 ? ' on' : '') + '" data-act="lift" data-val="1">Поднять всех</button>'
+        + '<button type="button" class="vv-lb' + (r.lift === 0 ? ' on' : '') + '" data-act="lift" data-val="0">Никто не уходит</button>'
+        + '</div>';
+    }
+    if (r.out.length) h += '<div class="vv-res">' + (r.out.length > 1 ? 'Уходят ' : 'Уходит ') + r.out.join(', ') + '</div>';
+    return h;
   }
   function render() {
     var html = '<div class="votes-head"><b>Голосование</b>'
@@ -1131,7 +1263,7 @@
         + (last && (rounds.length > 1 || r.n.length || r.kill) ? '<button type="button" class="vr-del" data-act="del" title="Убрать этот круг">×</button>' : '')
         + '</div>';
       if (open) {
-        var nb = '', ob = '', kb = '';
+        var nb = '', ob = '', kb = seatBtn(-1, 'kill', 'miss' + (r.kill === -1 ? ' kill' : ''), 'промах');
         for (var s = 1; s <= max; s++) {
           if (dead[s]) { nb += '<button type="button" class="vb dead" disabled title="Выбыл на прошлых кругах">' + s + '</button>'; continue; }
           var idx = r.n.indexOf(s);
@@ -1140,10 +1272,12 @@
           if (r.out.indexOf(s) < 0) kb += seatBtn(s, 'kill', r.kill === s ? 'kill' : '');
         }
         r.n.forEach(function (t) { ob += seatBtn(t, 'out', r.out.indexOf(t) >= 0 ? 'out' : ''); });
-        html += '<div class="vr-row"><span class="vr-lbl">Выставлены</span><div class="vr-seats">' + nb + '</div></div>'
+        html += '<div class="vr-body"><div class="vr-rows">'
+          + '<div class="vr-row"><span class="vr-lbl">Выставлены</span><div class="vr-seats">' + nb + '</div></div>'
           + '<div class="vr-row"><span class="vr-lbl">Заголосован</span><div class="vr-seats">'
           + (ob || '<span class="vr-empty">сначала отметьте выставленных</span>') + '</div></div>'
-          + '<div class="vr-row"><span class="vr-lbl">Ночью убит</span><div class="vr-seats">' + kb + '</div></div>';
+          + '<div class="vr-row"><span class="vr-lbl">Ночью</span><div class="vr-seats">' + kb + '</div></div>'
+          + '</div><div class="vr-votes">' + votesPanel(r, k) + '</div></div>';
       }
       html += '</div>';
     });
@@ -1155,28 +1289,50 @@
     if (!b || b.disabled) return;
     var act = b.getAttribute('data-act'), r = rounds[cur], s = +b.getAttribute('data-seat');
     if (act === 'open') { cur = +b.getAttribute('data-k'); render(); return; }
-    if (act === 'add') { rounds.push({ n: [], out: [], kill: 0 }); cur = rounds.length - 1; save(); render(); return; }
+    if (act === 'add') { rounds.push(blank()); cur = rounds.length - 1; save(); render(); return; }
     if (act === 'del') {
       rounds.pop();
-      if (!rounds.length) rounds.push({ n: [], out: [], kill: 0 });
+      if (!rounds.length) rounds.push(blank());
       cur = rounds.length - 1; save(); render(); return;
     }
     if (act === 'n') {
       var i = r.n.indexOf(s);
-      if (i >= 0) r.n.splice(i, 1); else r.n.push(s);
+      if (i >= 0) {
+        r.n.splice(i, 1); r.v.splice(i, 1);
+      } else {
+        // Прежний последний получал остаток автоматически — теперь его голоса вводят вручную
+        if (r.v.length) r.v[r.v.length - 1] = 0;
+        r.n.push(s); r.v.push(0);
+      }
+      normalize(); applyResult(r);
     } else if (act === 'out') {
       var j = r.out.indexOf(s);
       if (j >= 0) r.out.splice(j, 1); else r.out.push(s);
+      r.autoOut = false;   // судья решил сам
+    } else if (act === 'vinc' || act === 'vdec') {
+      var vj = +b.getAttribute('data-j'), vi = +b.getAttribute('data-i');
+      var vals = vj < 0 ? r.v : (r.re && r.re[vj] ? r.re[vj].v : null);
+      if (vals) vals[vi] = Math.max(0, (vals[vi] || 0) + (act === 'vinc' ? 1 : -1));
+      normalize(); applyResult(r);
+    } else if (act === 'lift') {
+      var lv = +b.getAttribute('data-val');
+      r.lift = r.lift === lv ? null : lv;
+      applyResult(r);
     } else if (act === 'kill') {
       r.kill = r.kill === s ? 0 : s;
       // Убитый в первую ночь — ПУ: подставляем в поле ПУ, если оно ещё пустое
       var pu = document.getElementById('f-pu');
-      if (cur === 0 && r.kill && pu && (pu.value === '0' || pu.value === '')) {
+      if (cur === 0 && r.kill > 0 && pu && (pu.value === '0' || pu.value === '')) {
         pu.value = String(r.kill);
         pu.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
     save(); render();
   });
+  // Изменился состав стола (вписали или стёрли ник) — пересчитать, сколько голосуют
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.matches && e.target.matches('tr[data-seat] input[name^="nick"]')) { save(); render(); }
+  });
+  normalize();
   render();
 })();

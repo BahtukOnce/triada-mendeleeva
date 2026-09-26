@@ -368,10 +368,15 @@ function seat_calls_chips(?string $calls, array $rolesBySeat = []): string
     return '<span class="calls" title="' . esc($title) . '">' . $chips . '</span>';
 }
 
-// ── Голосование по кругам (просьба руководителя): кого выставили на каждом круге, кого
-// заголосовали и кого убили ночью. games.votes — JSON [{"n":[3,7,5],"out":[7],"kill":2}, …]
-// (миграция 088). Разбор перепроверяет правила: номер — не больше раза за круг, заголосовать
-// можно только выставленного, выбывшие (заголосованные и убитые) на следующих кругах не участвуют.
+// ── Голосование по кругам (просьба руководителя): кого выставили на каждом круге, сколько голосов
+// за каждого, кого заголосовали и что было ночью. games.votes — JSON
+// [{"n":[3,7,5],"v":[3,3,1],"out":[7],"kill":2}, …] (миграция 088): v — голоса по порядку n,
+// kill — место убитого ночью, −1 — промах, 0 — не отмечено; re — переголосования при равенстве
+// у лидеров, по порядку: [{"n":[3,5],"v":[4,3]}, …] (их может быть несколько — до единственного
+// лидера); lift — подъём, когда переголосование снова поровну между теми же: 1 — подняли всех,
+// 0 — никто не ушёл. Разбор перепроверяет правила: номер —
+// не больше раза за круг, заголосовать можно только выставленного, выбывшие (заголосованные и
+// убитые) на следующих кругах не участвуют. Остаток голосов последней кандидатуре считает форма.
 
 // Круги в каноническом виде (массив) — из сырого JSON формы или из базы.
 function game_votes_rounds(?string $raw, int $maxSeat = 10): array
@@ -393,6 +398,14 @@ function game_votes_rounds(?string $raw, int $maxSeat = 10): array
                 $n[] = $s;
             }
         }
+        // Голоса — по месту кандидатуры в порядке выставления (при чистке n сдвигаем вместе с ним)
+        $rawN = array_values((array)($r['n'] ?? []));
+        $rawV = array_values((array)($r['v'] ?? []));
+        $v = [];
+        foreach ($n as $s) {
+            $pos = array_search($s, array_map('intval', $rawN), true);
+            $v[] = max(0, min(20, (int)($pos !== false ? ($rawV[$pos] ?? 0) : 0)));
+        }
         $out = [];
         foreach ((array)($r['out'] ?? []) as $s) {
             $s = (int)$s;
@@ -401,16 +414,48 @@ function game_votes_rounds(?string $raw, int $maxSeat = 10): array
             }
         }
         $kill = (int)($r['kill'] ?? 0);
-        if ($kill < 1 || $kill > $maxSeat || isset($dead[$kill]) || in_array($kill, $out, true)) {
+        if ($kill !== -1 && ($kill < 1 || $kill > $maxSeat || isset($dead[$kill]) || in_array($kill, $out, true))) {
             $kill = 0;
         }
+        // Переголосования при равенстве у лидеров: каждое — только из кандидатур предыдущего
+        // голосования, голоса — по порядку. Цепочка обрывается на первом негодном звене.
+        $re = [];
+        $pool = $n;
+        foreach (array_slice(array_values((array)($r['re'] ?? [])), 0, 6) as $x) {
+            if (!is_array($x)) {
+                break;
+            }
+            $reN = [];
+            $reV = [];
+            $rawRV = array_values((array)($x['v'] ?? []));
+            foreach (array_values((array)($x['n'] ?? [])) as $idx => $s) {
+                $s = (int)$s;
+                if (in_array($s, $pool, true) && !in_array($s, $reN, true)) {
+                    $reN[] = $s;
+                    $reV[] = max(0, min(20, (int)($rawRV[$idx] ?? 0)));
+                }
+            }
+            if (count($reN) < 2) {
+                break;
+            }
+            $re[] = ['n' => $reN, 'v' => $reV];
+            $pool = $reN;
+        }
+        $lift = isset($r['lift']) && in_array((int)$r['lift'], [0, 1], true) && $re ? (int)$r['lift'] : null;
         foreach ($out as $s) {
             $dead[$s] = true;
         }
-        if ($kill) {
+        if ($kill > 0) {
             $dead[$kill] = true;
         }
-        $rounds[] = ['n' => $n, 'out' => $out, 'kill' => $kill];
+        $row = ['n' => $n, 'v' => $v, 'out' => $out, 'kill' => $kill];
+        if ($re) {
+            $row['re'] = $re;
+        }
+        if ($lift !== null) {
+            $row['lift'] = $lift;
+        }
+        $rounds[] = $row;
     }
     // Пустые круги в конце (открыли «следующий круг» и ничего не отметили) не храним
     while ($rounds && !$rounds[count($rounds) - 1]['n'] && !$rounds[count($rounds) - 1]['kill']) {
@@ -426,7 +471,8 @@ function game_votes_parse(?string $raw, int $maxSeat = 10): ?string
     return $rounds ? json_encode($rounds) : null;
 }
 
-// Голосование в карточке игры: по строке на круг — выставленные по порядку, кто ушёл, кто убит.
+// Голосование в карточке игры: по строке на круг — выставленные по порядку с голосами, кто ушёл,
+// что было ночью.
 function game_votes_html(?string $votes): string
 {
     $rounds = game_votes_rounds($votes);
@@ -437,15 +483,29 @@ function game_votes_html(?string $votes): string
     foreach ($rounds as $k => $r) {
         $parts = [];
         $seats = '';
-        foreach ($r['n'] as $s) {
-            $seats .= '<span class="vt-seat' . (in_array($s, $r['out'], true) ? ' out' : '') . '">' . $s . '</span>';
+        foreach ($r['n'] as $i => $s) {
+            $seats .= '<span class="vt-seat' . (in_array($s, $r['out'], true) ? ' out' : '') . '">' . $s . '</span>'
+                . (array_sum($r['v']) > 0 ? '<span class="vt-v" title="Голосов">' . (int)($r['v'][$i] ?? 0) . '</span>' : '');
         }
         $parts[] = $r['n'] ? $seats : '<span class="vt-none">никого не выставили</span>';
+        foreach ($r['re'] ?? [] as $x) {
+            $reHtml = '';
+            foreach ($x['n'] as $i => $s) {
+                $reHtml .= '<span class="vt-seat' . (in_array($s, $r['out'], true) ? ' out' : '') . '">' . $s . '</span>'
+                    . '<span class="vt-v" title="Голосов в переголосовании">' . (int)($x['v'][$i] ?? 0) . '</span>';
+            }
+            $parts[] = '<span class="vt-re" title="Переголосование: поровну у лидеров">↻</span>' . $reHtml;
+        }
+        if (isset($r['lift'])) {
+            $parts[] = '<span class="vt-none">' . ($r['lift'] ? 'подняли всех' : 'подъём — никто не ушёл') . '</span>';
+        }
         if ($r['n'] && !$r['out']) {
             $parts[] = '<span class="vt-none">никто не ушёл</span>';
         }
-        if ($r['kill']) {
+        if ($r['kill'] > 0) {
             $parts[] = '<span class="vt-kill" title="Убит ночью">🌙 ' . $r['kill'] . '</span>';
+        } elseif ($r['kill'] === -1) {
+            $parts[] = '<span class="vt-kill" title="Ночью промах">🌙 промах</span>';
         }
         $rows .= '<div class="vt-row"><span class="vt-k">' . ($k + 1) . ' круг</span>' . implode(' ', $parts) . '</div>';
     }

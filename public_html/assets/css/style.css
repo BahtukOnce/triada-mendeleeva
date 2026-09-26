@@ -842,6 +842,36 @@ a.ntf:hover { border-color: var(--ac); color: var(--tx); }
 .vt-seat.out { background: var(--ac); border-color: var(--ac); color: #fff; }
 .vt-none { color: var(--tx3); }
 .vt-kill { margin-left: 4px; color: var(--tx2); }
+.vt-v { margin: 0 6px 0 2px; color: var(--tx3); font-size: 11px; }
+/* Круг: слева номера (выставлены / заголосован / ночью), справа — голоса за кандидатуры */
+.vr-body { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 10px 28px; align-items: start; }
+.vr-votes { margin-top: 8px; padding: 8px 10px; background: var(--sf); border: 1px solid var(--bd); border-radius: 10px; }
+.vv-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px;
+  font-size: 12px; font-weight: 700; color: var(--tx2); }
+.vv-title span { font-weight: 400; color: var(--tx3); }
+.vv-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+.vv-seat { min-width: 30px; padding: 3px 6px; border: 1px solid var(--bd); border-radius: 7px; text-align: center;
+  font-weight: 700; font-size: 13px; }
+.vv-seat.out { background: var(--ac); border-color: var(--ac); color: #fff; }
+.vv-row.lead .vv-num { color: var(--ac); }
+.vv-b { width: 28px; height: 28px; padding: 0; border: 1px solid var(--bd); border-radius: 7px; background: var(--sf2);
+  color: var(--tx); font-size: 16px; line-height: 1; cursor: pointer; }
+.vv-b:disabled { opacity: .3; cursor: default; }
+.vv-num { min-width: 26px; text-align: center; font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.vv-num.auto { margin-left: 34px; }   /* под числами строк с кнопками −/+ */
+.vv-auto { font-size: 11px; color: var(--tx3); }
+.vv-sub { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 4px; padding-top: 7px; border-top: 1px solid var(--bd);
+  font-size: 12px; font-weight: 700; color: var(--tx2); }
+.vv-sub span { font-weight: 400; color: var(--tx3); }
+.vt-re { margin: 0 3px 0 6px; color: var(--tx3); }
+.vv-res { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--bd); font-size: 13px; font-weight: 700; color: var(--ac); }
+.vv-lift { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.vv-lb { padding: 6px 10px; border: 1px solid var(--bd); border-radius: 8px; background: var(--sf2); color: var(--tx2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.vv-lb.on { background: var(--ac); border-color: var(--ac); color: #fff; }
+.vv-lb[data-val="0"].on { background: var(--sf2); border-color: var(--tx2); color: var(--tx); }
+.vb.miss { padding: 0 10px; font-weight: 600; font-size: 12.5px; color: var(--tx2); }
+.vb.miss.kill { background: var(--sf2); border-color: var(--tx2); color: var(--tx); }
+@media (max-width: 760px) { .vr-body { grid-template-columns: 1fr; } }
 .protocol-tbl .f-total { font-size: 14px; }
 /* Роль в протоколе — цветом, в палитре сайта (role_color): мирный — красный, шериф — жёлтый,
    мафия — чёрная (графит), дон — ещё темнее. data-role выставляет app.js по выбранной роли. */
