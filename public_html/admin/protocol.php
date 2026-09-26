@@ -556,7 +556,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
         <tr>
           <th>#</th><th>Игрок</th><th>Роль</th><th>Фолы</th><th>Тех</th><th title="большой тех.фол: −0.6 каждый, макс 2" style="white-space:nowrap;">Б.тех</th>
           <th title="удаление: −0.6; на критический круг: −1.2">Удал.</th>
-          <th>+</th><th>−</th><th class="num">Итог</th>
+          <th class="pt-sep">+</th><th>−</th><th class="num">Итог</th>
         </tr>
         <?php for ($i = 1; $i <= 10; $i++): $es = $editSeats[$i] ?? null; ?>
         <tr data-seat="<?= $i ?>">
@@ -587,7 +587,7 @@ if (in_array($day['status'], ['reg_open', 'reg_closed'], true) && user_perm($u, 
           </select></td>
           <?php /* Допы и минусы — кнопками −/+ по 0.1, как фолы (просьба руководителя; заменили
                    панель «Быстрый ввод»). Вписать число, в т.ч. «0,5» с запятой, тоже можно. */ ?>
-          <td><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal" placeholder="0"
+          <td class="pt-sep"><input type="text" name="plus<?= $i ?>" class="f-plus" inputmode="decimal" placeholder="0"
               data-stepper data-min="0" data-max="9.9" data-step="0.1"
               value="<?= $es && (float)$es['plus'] ? rtrim(rtrim(number_format((float)$es['plus'], 1, '.', ''), '0'), '.') : '' ?>"></td>
           <td><input type="text" name="minus<?= $i ?>" class="f-minus" inputmode="decimal" placeholder="0"

@@ -758,6 +758,9 @@ a.ntf:hover { border-color: var(--ac); color: var(--tx); }
 }
 .protocol-tbl input:focus, .protocol-tbl select:focus { outline: none; border-color: var(--ac); }
 .protocol-tbl td { padding: 5px 6px; }
+/* Черта между фолами/удалением и баллами (+, −, итог) — просьба руководителя: группы в
+   протоколе иначе сливались. Тенью, а не границей — как разделители в рейтинге. */
+.protocol-tbl .pt-sep { box-shadow: inset 2px 0 0 var(--ac); padding-left: 12px; }
 .protocol-tbl .f-total { font-size: 14px; }
 /* Роль в протоколе — цветом, в палитре сайта (role_color): мирный — красный, шериф — жёлтый,
    мафия — чёрная (графит), дон — ещё темнее. data-role выставляет app.js по выбранной роли. */
