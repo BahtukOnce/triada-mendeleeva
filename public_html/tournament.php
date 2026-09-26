@@ -765,7 +765,7 @@ foreach ($byTable as $tableNo => $tGames) {
                 . '<td><a href="/player.php?id=' . (int)$s['player_id'] . '" style="' . me_nick_style($isMeSeat) . '">' . player_label($s) . '</a>'
                 . ($tt['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . penalty_badges($s)
-                . (($callsHtml = seat_calls_chips($s['calls'] ?? null, $rolesBySeat)) !== '' ? '<div class="calls-line">' . $callsHtml . '</div>' : '')
+                . (($callsHtml = seat_calls_chips($s['calls'] ?? null, $rolesBySeat)) !== '' ? ' ' . $callsHtml : '')
                 . '</td>'
                 . '<td>' . role_dot($s['role']) . $roleLabel[$s['role']] . '</td>';
             echo '<td class="num">' . ((float)$s['plus'] ? number_format((float)$s['plus'], 1) : '') . '</td>'

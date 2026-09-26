@@ -117,7 +117,7 @@ function day_draft_card(array $d, array $gameNos, string $actionsHtml = '', bool
                     : '<span style="color:var(--tx3);" title="Нет на платформе — заведётся при сохранении игры">' . esc($s['nick']) . '</span>')
                 . ($pu === $i ? ' <span class="tag">ПУ</span>' : '')
                 . penalty_badges($s)
-                . (($callsHtml = seat_calls_chips($s['calls'], $draftRoles)) !== '' ? '<div class="calls-line">' . $callsHtml . '</div>' : '')
+                . (($callsHtml = seat_calls_chips($s['calls'], $draftRoles)) !== '' ? ' ' . $callsHtml : '')
                 . '</td>'
                 . '<td style="white-space:nowrap;">' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($total, 2) . '</b></td></tr>';
@@ -221,7 +221,7 @@ function day_games_grid(array $games, array $seatsByGame, int $mePid = 0, ?calla
                 . ($t['is_pu'] ? ' <span class="tag">ПУ</span>' : '')
                 . (!empty($t['ci_half']) ? ' <span class="tag" title="Компенсация ПУ урезана вдвое — команда первоубиенного победила">Ci ×½</span>' : '')
                 . penalty_badges($s)
-                . (($callsHtml = seat_calls_chips($s['calls'] ?? null, $rolesBySeat)) !== '' ? '<div class="calls-line">' . $callsHtml . '</div>' : '')
+                . (($callsHtml = seat_calls_chips($s['calls'] ?? null, $rolesBySeat)) !== '' ? ' ' . $callsHtml : '')
                 . '</td>'
                 . '<td style="white-space:nowrap;">' . role_dot($s['role']) . ($isBlack ? '<b>' . $roleLabel[$s['role']] . '</b>' : $roleLabel[$s['role']]) . '</td>'
                 . '<td class="num"><b>' . number_format($t['total'], 2) . '</b></td>'
